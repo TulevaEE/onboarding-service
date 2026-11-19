@@ -49,24 +49,25 @@ class CostBasisOversellAlerter {
     this.poster = new CostBasisOversellPoster(auditEventRepository, notificationService, clock);
   }
 
-  boolean recordFound(TulevaFund fund, CostBasisOversellException oversell) {
+  boolean recordFound(TulevaFund fund, CostBasisOversellException exception) {
+    CostBasisOversell oversell = exception.getOversell();
     String dedupKey =
-        dedupKey(fund.getCode(), oversell.getInstrumentIsin(), oversell.getAsOfDate().toString());
+        dedupKey(fund.getCode(), oversell.instrumentIsin(), oversell.asOfDate().toString());
     Map<String, Object> payload = foundPayload(fund, oversell);
     try {
       if (latestState(dedupKey).filter(state -> isTheSameOversell(state, payload)).isEmpty()) {
         save(auditEventRepository, clock, OVERSELL_FOUND, dedupKey, payload);
       }
       return true;
-    } catch (RuntimeException e) {
+    } catch (RuntimeException saveFailure) {
       log.error(
           "Cost-basis oversell not recorded, posting it directly with a manual-recompute note:"
               + " dedupKey={}, error={}",
           dedupKey,
-          e.getMessage(),
-          e);
+          saveFailure.getMessage(),
+          saveFailure);
       poster.postDirectly(
-          CostBasisOversellAlertText.unrecorded(payload, oversell.getAsOfDate()), dedupKey);
+          CostBasisOversellAlertText.unrecorded(payload, oversell.asOfDate()), dedupKey);
       return false;
     }
   }
@@ -127,14 +128,13 @@ class CostBasisOversellAlerter {
     return isFound(state) && payload.equals(state.getPayload());
   }
 
-  private static Map<String, Object> foundPayload(
-      TulevaFund fund, CostBasisOversellException oversell) {
+  private static Map<String, Object> foundPayload(TulevaFund fund, CostBasisOversell oversell) {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put(FUND, fund.getCode());
-    payload.put(INSTRUMENT_ISIN, oversell.getInstrumentIsin());
-    payload.put(AS_OF_DATE, oversell.getAsOfDate().toString());
-    payload.put(HELD_QUANTITY, plain(oversell.getHeldQuantity()));
-    payload.put(SELL_QUANTITY, plain(oversell.getSellQuantity()));
+    payload.put(INSTRUMENT_ISIN, oversell.instrumentIsin());
+    payload.put(AS_OF_DATE, oversell.asOfDate().toString());
+    payload.put(HELD_QUANTITY, plain(oversell.heldQuantity()));
+    payload.put(SELL_QUANTITY, plain(oversell.sellQuantity()));
     return payload;
   }
 

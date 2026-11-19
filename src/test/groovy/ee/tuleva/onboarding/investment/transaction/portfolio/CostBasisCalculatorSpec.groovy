@@ -121,11 +121,7 @@ class CostBasisCalculatorSpec extends Specification {
 
         then:
         def oversell = thrown(CostBasisOversellException)
-        oversell.fundIsin == FUND_ISIN
-        oversell.instrumentIsin == INSTRUMENT_ISIN
-        oversell.asOfDate == DATE
-        oversell.heldQuantity == 120
-        oversell.sellQuantity == 500
+        oversell.oversell == new CostBasisOversell(FUND_ISIN, INSTRUMENT_ISIN, DATE, new BigDecimal("120"), new BigDecimal("500"))
     }
 
     def "new ISIN: no prior, first BUY sets initial state"() {

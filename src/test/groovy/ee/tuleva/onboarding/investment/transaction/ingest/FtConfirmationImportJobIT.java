@@ -86,13 +86,16 @@ class FtConfirmationImportJobIT {
   @Autowired private TransactionOrderRepository orderRepository;
   @Autowired private TransactionExecutionRepository executionRepository;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private FtUnconfirmedTradeCheck unconfirmedTradeCheck;
 
   private FtConfirmationImportJob job;
 
   @BeforeEach
   void setUp() {
     FtConfirmationS3Source s3Source = new FtConfirmationS3Source(s3Client);
-    job = new FtConfirmationImportJob(s3Source, parser, verificationService, FIXED_CLOCK);
+    job =
+        new FtConfirmationImportJob(
+            s3Source, parser, verificationService, unconfirmedTradeCheck, FIXED_CLOCK);
   }
 
   @Test
@@ -379,6 +382,46 @@ class FtConfirmationImportJobIT {
     assertThat(latestStatuses(DEDUP_KEY)).containsExactly("OK", "OK");
   }
 
+  @Test
+  void run_sebExecutedAnFtTradeFtNeverConfirmed_tradeIsUnconfirmedWithItsSebPriceChecked() {
+    TransactionOrder order = registerOrderExecutedInFull();
+    closingPriceArrives("12.3456");
+    s3Holds(Map.of());
+
+    job.run();
+
+    assertThat(latestStatuses(tradeKey(order))).containsExactly("UNCONFIRMED", "OK");
+  }
+
+  @Test
+  void run_unconfirmedTrade_clearsOnceItsFtConfirmationArrives() {
+    TransactionOrder order = registerOrderExecutedInFull();
+    s3Holds(Map.of());
+    job.run();
+    assertThat(latestStatuses(tradeKey(order))).first().isEqualTo("UNCONFIRMED");
+
+    stubOneConfirmationPdfUnderPrefix();
+    job.run();
+
+    assertThat(latestStatuses(tradeKey(order))).containsExactly("CONFIRMED", "CONFIRMED");
+  }
+
+  @Test
+  void run_twoTradesThatDay_onlyTheOneWithoutAnFtConfirmationOfItsQuantityIsUnconfirmed() {
+    TransactionOrder confirmed = registerOrderExecuted("2500");
+    TransactionOrder unconfirmed = registerOrderExecuted("250");
+    stubOneConfirmationPdfUnderPrefix();
+
+    job.run();
+
+    assertThat(latestStatuses(tradeKey(confirmed))).containsExactly("CONFIRMED", "CONFIRMED");
+    assertThat(latestStatuses(tradeKey(unconfirmed))).first().isEqualTo("UNCONFIRMED");
+  }
+
+  private static String tradeKey(TransactionOrder order) {
+    return "FT_TRADE|" + order.getOrderUuid();
+  }
+
   private void closingPriceArrives(String closingPrice) {
     jdbcClient
         .sql(
@@ -434,17 +477,22 @@ class FtConfirmationImportJobIT {
             .build());
   }
 
-  private void registerOrderExecutedInFull() {
-    TransactionOrder order = registerOrder("2500", EXECUTED);
+  private TransactionOrder registerOrderExecutedInFull() {
+    return registerOrderExecuted("2500");
+  }
+
+  private TransactionOrder registerOrderExecuted(String quantity) {
+    TransactionOrder order = registerOrder(quantity, EXECUTED);
     executionRepository.save(
         TransactionExecution.builder()
             .orderId(order.getId())
-            .brokerTransactionId("DLA0000009")
+            .brokerTransactionId("DLA" + quantity)
             .executionTimestamp(Instant.parse("2026-01-15T15:30:00Z"))
-            .executedQuantity(new BigDecimal("2500"))
+            .executedQuantity(new BigDecimal(quantity))
             .unitPrice(new BigDecimal("12.3456"))
             .source("SEB_OOTEL")
             .build());
+    return order;
   }
 
   private void s3Holds(Map<String, byte[]> pdfsByKey) {

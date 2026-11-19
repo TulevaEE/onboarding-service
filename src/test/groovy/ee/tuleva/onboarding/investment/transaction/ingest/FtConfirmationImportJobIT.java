@@ -194,6 +194,35 @@ class FtConfirmationImportJobIT {
   }
 
   @Test
+  void run_newConfirmationOfAnotherOrderWithinOneUnit_doesNotReplaceTheCancelledTrade() {
+    registerOrder("2500", SENT);
+    registerOrder("2503", SENT);
+    auditEventRepository.save(
+        TransactionAuditEvent.builder()
+            .eventType(FT_CONFIRMATION_VERIFIED)
+            .actor(FtConfirmationImportJob.JOB_ACTOR)
+            .dedupKey(TKF100.name() + "|IE00BFG1TM61|2026-01-15|2501|12|CANCELLATION")
+            .payload(
+                Map.of(
+                    "quantityStatus", "PENDING_REPLACEMENT", "priceStatus", "PENDING_REPLACEMENT"))
+            .createdAt(Instant.parse("2026-01-15T16:05:00Z"))
+            .build());
+    s3Holds(
+        Map.of(
+            "ft-confirmations/TEST0002-00_first.pdf",
+            confirmationPdf("Trade Confirmation", "TEST0002-00", ACCOUNT, "2,501", "12.000000 EUR"),
+            "ft-confirmations/TEST0002-00_cancellation.pdf",
+            confirmationPdf("Trade Cancellation", "TEST0002-00", ACCOUNT, "2,501", "12.000000 EUR"),
+            "ft-confirmations/TEST0006-00_other-order.pdf",
+            confirmationPdf("Trade Confirmation", "TEST0006-00", ACCOUNT, "2,502", "12.3456 EUR")));
+
+    job.run();
+
+    assertThat(latestStatuses(TKF100.name() + "|IE00BFG1TM61|2026-01-15|2501|12|CANCELLATION"))
+        .containsExactly("CANCELLED", "CANCELLED");
+  }
+
+  @Test
   void run_ftWritesTheCancellationsAccountInCapitals_itStillVoidsTheConfirmationItCancels() {
     registerOrderExecutedInFull();
     cancellationFirstSeenOnTheTradeDay();

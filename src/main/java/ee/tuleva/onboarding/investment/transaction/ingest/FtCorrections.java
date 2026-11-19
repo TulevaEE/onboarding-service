@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.hasQuantity;
-import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.withinQuantityTolerance;
+import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.matchesQuantity;
 
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
@@ -28,11 +28,13 @@ record FtCorrections(List<FtConfirmation> confirmations) {
   boolean newConfirmationsCoverEveryOrder(
       FtConfirmation cancellation, List<TransactionOrder> liveOrders) {
     List<FtConfirmation> newConfirmations = newConfirmationsAfter(cancellation);
-    if (liveOrders.stream().anyMatch(order -> hasQuantity(order, cancellation.quantity()))) {
-      return coverTheOrdersOf(cancellation.quantity(), newConfirmations, liveOrders);
+    List<TransactionOrder> ordersOfTheCancelledQuantity =
+        liveOrders.stream().filter(order -> matchesQuantity(order, cancellation)).toList();
+    if (!ordersOfTheCancelledQuantity.isEmpty()) {
+      return cover(ordersOfTheCancelledQuantity, newConfirmations);
     }
     return liveOrders.stream()
-        .allMatch(order -> coverTheOrdersLike(order, newConfirmations, liveOrders));
+        .allMatch(order -> cover(ordersOfTheSameQuantityAs(order, liveOrders), newConfirmations));
   }
 
   private List<FtConfirmation> newConfirmationsAfter(FtConfirmation cancellation) {
@@ -42,25 +44,25 @@ record FtCorrections(List<FtConfirmation> confirmations) {
         .toList();
   }
 
-  private static boolean coverTheOrdersLike(
-      TransactionOrder order,
-      List<FtConfirmation> newConfirmations,
-      List<TransactionOrder> liveOrders) {
+  private static List<TransactionOrder> ordersOfTheSameQuantityAs(
+      TransactionOrder order, List<TransactionOrder> liveOrders) {
     BigDecimal quantity = order.getOrderQuantity();
-    return quantity != null && coverTheOrdersOf(quantity, newConfirmations, liveOrders);
+    if (quantity == null) {
+      return List.of(order);
+    }
+    return liveOrders.stream().filter(other -> hasQuantity(other, quantity)).toList();
   }
 
-  private static boolean coverTheOrdersOf(
-      BigDecimal quantity,
-      List<FtConfirmation> newConfirmations,
-      List<TransactionOrder> liveOrders) {
-    long orders = liveOrders.stream().filter(order -> hasQuantity(order, quantity)).count();
+  private static boolean cover(
+      List<TransactionOrder> orders, List<FtConfirmation> newConfirmations) {
     long confirmations =
         newConfirmations.stream()
-            .filter(confirmation -> withinQuantityTolerance(quantity, confirmation.quantity()))
+            .filter(
+                confirmation ->
+                    orders.stream().anyMatch(order -> matchesQuantity(order, confirmation)))
             .map(FtConfirmationAuditRecorder::dedupKey)
             .distinct()
             .count();
-    return confirmations > 0 && confirmations >= orders;
+    return confirmations > 0 && confirmations >= orders.size();
   }
 }

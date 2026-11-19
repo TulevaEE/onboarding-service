@@ -55,12 +55,15 @@ class FtConfirmationVerificationServiceTest {
   private static final LocalDate TRADE_DATE = LocalDate.of(2026, 6, 8); // Monday
   private static final Instant DAY_AFTER_TRADE = Instant.parse("2026-06-09T08:00:00Z");
   private static final Instant TWO_DAYS_AFTER_TRADE = Instant.parse("2026-06-10T08:00:00Z");
+  private static final Instant THREE_DAYS_AFTER_TRADE = Instant.parse("2026-06-11T08:00:00Z");
+  private static final LocalDate DAY_AFTER_TRADE_DATE = LocalDate.of(2026, 6, 9);
   private static final UUID ORDER_UUID = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
 
   @Mock private TransactionOrderRepository orderRepository;
   @Mock private TransactionExecutionRepository executionRepository;
   @Mock private PositionPriceResolver positionPriceResolver;
   @Mock private FtConfirmationAuditRecorder auditRecorder;
+  @Mock private ReconciliationAuditRecorder reconciliationRecorder;
   @Mock private FtConfirmationDigest digest;
 
   private FtConfirmationVerificationService service(Instant now) {
@@ -69,7 +72,9 @@ class FtConfirmationVerificationServiceTest {
         positionPriceResolver,
         new PriceValidator(),
         new FtQuantityCheck(
-            executionRepository, new Target2Calendar(), Clock.fixed(now, ZoneOffset.UTC)),
+            executionRepository,
+            new FtExecutionWait(
+                reconciliationRecorder, new Target2Calendar(), Clock.fixed(now, ZoneOffset.UTC))),
         auditRecorder,
         digest);
   }
@@ -209,35 +214,86 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
-  void executionMissingWithinOneBusinessDay_returnsPendingExecution() {
-    TransactionOrder order = order(new BigDecimal("40434"));
-    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
-    given(executionRepository.findAllByOrderId(order.getId())).willReturn(List.of());
+  void executionMissing_theDayAfterTheTrade_returnsPendingExecution() {
+    givenOrderWithoutExecution(new BigDecimal("40434"));
+    given(reconciliationRecorder.firstReportReconciledAsOfOrAfter(DAY_AFTER_TRADE_DATE))
+        .willReturn(Optional.empty());
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
     FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(PENDING_EXECUTION);
-    assertThat(result.details()).containsEntry("executionPendingUntil", "2026-06-09");
+    assertThat(result.details())
+        .containsEntry("awaitingSebReportAsOf", "2026-06-09")
+        .containsEntry("executionPendingUntil", "2026-06-10");
   }
 
   @Test
-  void executionMissingAfterOneBusinessDay_returnsError() {
-    TransactionOrder order = order(new BigDecimal("40434"));
-    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
-    given(executionRepository.findAllByOrderId(order.getId())).willReturn(List.of());
+  void
+      executionMissing_twoDaysAfterTheTrade_beforeSebsReportForTheDayAfterIsReconciled_staysPending() {
+    givenOrderWithoutExecution(new BigDecimal("40434"));
+    given(reconciliationRecorder.firstReportReconciledAsOfOrAfter(DAY_AFTER_TRADE_DATE))
+        .willReturn(Optional.empty());
+    givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+
+    FtConfirmationResult result = service(TWO_DAYS_AFTER_TRADE).verify(confirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(PENDING_EXECUTION);
+  }
+
+  @Test
+  void executionMissing_afterSebsReportForTheDayAfterTheTradeIsReconciled_returnsErrorNamingIt() {
+    givenOrderWithoutExecution(new BigDecimal("40434"));
+    given(reconciliationRecorder.firstReportReconciledAsOfOrAfter(DAY_AFTER_TRADE_DATE))
+        .willReturn(Optional.of(DAY_AFTER_TRADE_DATE));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
     FtConfirmationResult result = service(TWO_DAYS_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(ERROR);
+    assertThat(result.details())
+        .containsEntry("executionMissing", "no execution after SEB pending report as of 2026-06-09")
+        .containsEntry("sebReportAsOf", "2026-06-09")
+        .doesNotContainKey("executedQuantity");
+  }
+
+  @Test
+  void executionMissing_whenNoSebReportIsReconciledWithinTwoBusinessDays_returnsError() {
+    givenOrderWithoutExecution(new BigDecimal("40434"));
+    given(reconciliationRecorder.firstReportReconciledAsOfOrAfter(DAY_AFTER_TRADE_DATE))
+        .willReturn(Optional.empty());
+    givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+
+    FtConfirmationResult result = service(THREE_DAYS_AFTER_TRADE).verify(confirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(ERROR);
+    assertThat(result.details()).containsEntry("sebReportMissingAsOf", "2026-06-09");
+  }
+
+  @Test
+  void executionCommittedWithTheReconciledReport_afterTheFirstRead_isFoundOnTheSecondRead() {
+    TransactionOrder order = order(new BigDecimal("40434"));
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
+    given(executionRepository.findAllByOrderId(order.getId()))
+        .willReturn(List.of())
+        .willReturn(List.of(execution(new BigDecimal("40434"))));
+    given(reconciliationRecorder.firstReportReconciledAsOfOrAfter(DAY_AFTER_TRADE_DATE))
+        .willReturn(Optional.of(DAY_AFTER_TRADE_DATE));
+    givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+
+    FtConfirmationResult result = service(TWO_DAYS_AFTER_TRADE).verify(confirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(OK);
+    assertThat(result.details())
+        .containsEntry("executedQuantity", "40434")
+        .doesNotContainKeys("executionMissing", "sebReportAsOf");
   }
 
   @Test
   void executionMissingAndOrderQuantityMismatch_returnsErrorEvenWithinPendingWindow() {
-    TransactionOrder order = order(new BigDecimal("40432"));
-    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
-    given(executionRepository.findAllByOrderId(order.getId())).willReturn(List.of());
+    givenOrderWithoutExecution(new BigDecimal("40432"));
+    given(reconciliationRecorder.firstReportReconciledAsOfOrAfter(DAY_AFTER_TRADE_DATE))
+        .willReturn(Optional.empty());
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
     FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
@@ -613,6 +669,12 @@ class FtConfirmationVerificationServiceTest {
     given(executionRepository.findAllByOrderId(order.getId()))
         .willReturn(List.of(execution(executedQuantity)));
     return order;
+  }
+
+  private void givenOrderWithoutExecution(BigDecimal orderQuantity) {
+    TransactionOrder order = order(orderQuantity);
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
+    given(executionRepository.findAllByOrderId(order.getId())).willReturn(List.of());
   }
 
   private void givenReferencePrice(BigDecimal price, LocalDate priceDate) {

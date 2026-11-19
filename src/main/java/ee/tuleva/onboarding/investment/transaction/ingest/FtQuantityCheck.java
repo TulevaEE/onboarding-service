@@ -4,15 +4,12 @@ import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.E
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.OK;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_EXECUTION;
 
-import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.FtVerificationStatus;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import java.math.BigDecimal;
-import java.time.Clock;
-import java.time.LocalDate;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -26,11 +23,9 @@ import org.springframework.stereotype.Component;
 class FtQuantityCheck {
 
   private static final BigDecimal QUANTITY_TOLERANCE = BigDecimal.ONE;
-  private static final int EXECUTION_PENDING_BUSINESS_DAYS = 1;
 
   private final TransactionExecutionRepository executionRepository;
-  private final Target2Calendar target2Calendar;
-  private final Clock clock;
+  private final FtExecutionWait executionWait;
 
   FtVerificationStatus check(
       FtConfirmation confirmation, TransactionOrder order, Map<String, String> details) {
@@ -38,20 +33,17 @@ class FtQuantityCheck {
 
     Optional<BigDecimal> executedQuantity = executedQuantity(order);
     if (executedQuantity.isEmpty()) {
-      LocalDate executionDeadline =
-          target2Calendar.addBusinessDays(
-              confirmation.tradeDate(), EXECUTION_PENDING_BUSINESS_DAYS);
-      if (!LocalDate.now(clock).isAfter(executionDeadline)) {
-        details.put("executionPendingUntil", executionDeadline.toString());
-        return orderQuantityOk ? PENDING_EXECUTION : ERROR;
+      MissingExecution missing = executionWait.assess(confirmation.tradeDate());
+      executedQuantity =
+          missing.awaitsSebReport() ? Optional.empty() : executedQuantityReadAfterTheReport(order);
+      if (executedQuantity.isEmpty()) {
+        details.putAll(missing.details());
+        return missing.awaitsSebReport() && orderQuantityOk ? PENDING_EXECUTION : ERROR;
       }
-      details.put("executionMissing", "no execution after " + executionDeadline);
-      return ERROR;
     }
 
-    details.put("executedQuantity", executedQuantity.get().toPlainString());
     boolean executedQuantityOk =
-        withinQuantityTolerance(confirmation.quantity(), executedQuantity.get());
+        checkExecutedQuantity(confirmation, executedQuantity.get(), details);
     return orderQuantityOk && executedQuantityOk ? OK : ERROR;
   }
 
@@ -68,6 +60,16 @@ class FtQuantityCheck {
     }
     details.put("orderQuantity", orderQuantity.toPlainString());
     return withinQuantityTolerance(confirmation.quantity(), orderQuantity);
+  }
+
+  private static boolean checkExecutedQuantity(
+      FtConfirmation confirmation, BigDecimal executedQuantity, Map<String, String> details) {
+    details.put("executedQuantity", executedQuantity.toPlainString());
+    return withinQuantityTolerance(confirmation.quantity(), executedQuantity);
+  }
+
+  private Optional<BigDecimal> executedQuantityReadAfterTheReport(TransactionOrder order) {
+    return executedQuantity(order);
   }
 
   private Optional<BigDecimal> executedQuantity(TransactionOrder order) {

@@ -43,6 +43,11 @@ class ModelRebalanceCheckJob {
     try {
       var window = rebalanceWindows.current(fund, today);
       window.ifPresent(ModelRebalanceCheckJob::logWindow);
+      window
+          .flatMap(rebalanceWindows::supersededBy)
+          .filter(RebalanceWindow::inLine)
+          .filter(announcements::isOwed)
+          .ifPresent(this::announce);
       window.filter(announcements::isOwed).ifPresent(this::announce);
     } catch (RuntimeException e) {
       log.error("Model rebalance check could not run: fund={}, checkDate={}", fund, today, e);

@@ -229,6 +229,35 @@ class ModelRebalanceCheckIT {
   }
 
   @Test
+  void aCloseStillOwedWhenANewerModelTakesEffect_isPostedOnceAlongsideTheNewWindow() {
+    givenTuv100ModelSwitchesFromWorldToNewWorld();
+    givenNav(LocalDate.of(2026, 10, 29), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 30));
+    givenNav(LocalDate.of(2026, 10, 30), Map.of(NEW_WORLD, "790000", EMERGING, "200000"));
+    willThrow(new IllegalStateException("Slack unavailable"))
+        .given(notificationService)
+        .sendMessage(startsWith("✅"), eq(INVESTMENT), eq(INFO));
+    runCheckOn(LocalDate.of(2026, 11, 2));
+
+    willDoNothing().given(notificationService).sendMessage(any(), any(), any());
+    givenModel(TUV100, LocalDate.of(2026, 11, 3), Map.of(NEW_WORLD, "0.70", EMERGING, "0.30"));
+    runCheckOn(LocalDate.of(2026, 11, 3));
+    runCheckOn(LocalDate.of(2026, 11, 4));
+
+    then(notificationService)
+        .should(times(2))
+        .sendMessage(
+            "✅ TUV100 mudelportfell alates 01.10.2026: fond on mudeliga vastavuses (kõik"
+                + " osakaalud 5 pp piires, NAV 30.10.2026), kontroll suletud",
+            INVESTMENT,
+            INFO);
+    then(notificationService)
+        .should(times(2))
+        .sendMessage(
+            startsWith("ℹ️ TUV100 mudelportfell alates 03.11.2026"), eq(INVESTMENT), eq(INFO));
+  }
+
+  @Test
   void aLaterModelVersionWithTheSameWeights_keepsTheUnresolvedWindowAndItsDeadlines() {
     givenTuv100ModelSwitchesFromWorldToNewWorld();
     givenModel(TUV100, LocalDate.of(2026, 11, 1), Map.of(NEW_WORLD, "0.8", EMERGING, "0.2"));

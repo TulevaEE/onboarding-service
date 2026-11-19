@@ -46,6 +46,10 @@ public class RebalanceWindows {
         .map(change -> window(fund, change, checkDate));
   }
 
+  Optional<RebalanceWindow> supersededBy(RebalanceWindow window) {
+    return current(window.fund(), window.modelEffectiveDate().minusDays(1));
+  }
+
   private RebalanceWindow window(TulevaFund fund, ModelChange change, LocalDate checkDate) {
     var tolerance = parameterRepository.findLatestValue(MODEL_REBALANCE_TOLERANCE, checkDate);
     var navs = navWeightsReader.between(fund, change.effectiveDate(), checkDate);

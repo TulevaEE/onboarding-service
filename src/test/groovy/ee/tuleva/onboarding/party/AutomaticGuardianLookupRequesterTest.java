@@ -4,7 +4,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import ee.tuleva.onboarding.analytics.ThirdPillarAnalytics;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterMember;
 import java.time.Clock;
 import org.junit.jupiter.api.Test;
@@ -52,7 +51,6 @@ class AutomaticGuardianLookupRequesterTest {
         .withBean(
             AutomaticGuardianLookupCandidates.class,
             () -> mock(AutomaticGuardianLookupCandidates.class))
-        .withBean(ThirdPillarAnalytics.class, () -> mock(ThirdPillarAnalytics.class))
         .withBean(GuardianLookupRepository.class, () -> mock(GuardianLookupRepository.class))
         .withBean(Clock.class, Clock::systemUTC)
         .withUserConfiguration(AutomaticGuardianLookups.class);

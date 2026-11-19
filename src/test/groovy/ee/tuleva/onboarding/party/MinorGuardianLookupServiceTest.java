@@ -10,6 +10,7 @@ import static java.time.Duration.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -25,6 +26,7 @@ import ee.tuleva.onboarding.populationregister.PopulationRegisterException;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterResult;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterUnavailable;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -51,6 +53,7 @@ class MinorGuardianLookupServiceTest {
   private static final String REQUESTER = "38001085718";
   private static final String MINOR = "61506150006";
   private static final String OTHER_MINOR = "61508110000";
+  private static final String THIRD_MINOR = "61603140009";
   private static final String TURNED_ADULT = "60001019906";
   private static final String ADULT = "38812121215";
   private static final String NOT_AN_ESTONIAN_CODE = "AB1234567";
@@ -299,6 +302,115 @@ class MinorGuardianLookupServiceTest {
   void looksUpNoAdultAtAnEvent() {
     assertThat(service.lookUpChildOnce(REQUESTER, TURNED_ADULT)).isEmpty();
     verify(populationRegisterClient, never()).fetchGuardians(anyString(), anyString());
+  }
+
+  @Test
+  void backfillLooksUpEveryMinorThirdPillarHolderNotLookedUpYet() {
+    holders(MINOR, OTHER_MINOR, TURNED_ADULT, ADULT, NOT_AN_ESTONIAN_CODE);
+    given(populationRegisterClient.fetchGuardians(REQUESTER, MINOR))
+        .willReturn(new PopulationRegisterResult<>(List.of(), MESSAGE_ID));
+    repository.save(GuardianLookup.of(OTHER_MINOR, noGuardians(), NOW));
+
+    var run = service.backfillMinorThirdPillarHolders(REQUESTER, 10, ZERO);
+
+    assertThat(run).isEqualTo(new MinorGuardianLookupRun(1, 0, 0));
+    assertThat(repository.findAllChildPersonalCodes())
+        .containsExactlyInAnyOrder(MINOR, OTHER_MINOR);
+    verify(populationRegisterClient, times(1)).fetchGuardians(anyString(), anyString());
+  }
+
+  @Test
+  void backfillLooksUpNoMoreThanTheBatchSizeAndLeavesTheRestForTheNextRun() {
+    holders(MINOR, OTHER_MINOR);
+    given(populationRegisterClient.fetchGuardians(eq(REQUESTER), anyString()))
+        .willReturn(new PopulationRegisterResult<>(List.of(), MESSAGE_ID));
+
+    var firstRun = service.backfillMinorThirdPillarHolders(REQUESTER, 1, ZERO);
+    var secondRun = service.backfillMinorThirdPillarHolders(REQUESTER, 1, ZERO);
+
+    assertThat(firstRun).isEqualTo(new MinorGuardianLookupRun(1, 0, 1));
+    assertThat(secondRun).isEqualTo(new MinorGuardianLookupRun(1, 0, 0));
+  }
+
+  @Test
+  void backfillStopsAtTheFirstRejectionSoARejectedRequesterCostsOneQueryARun() {
+    holders(MINOR, OTHER_MINOR, THIRD_MINOR);
+    given(populationRegisterClient.fetchGuardians(eq(REQUESTER), anyString()))
+        .willThrow(new PopulationRegisterException("rejected", new RuntimeException()));
+
+    var run = service.backfillMinorThirdPillarHolders(REQUESTER, 10, ZERO);
+
+    assertThat(run).isEqualTo(new MinorGuardianLookupRun(0, 1, 3));
+    verify(populationRegisterClient, times(1)).fetchGuardians(anyString(), anyString());
+    verify(heldLock).unlock();
+  }
+
+  @Test
+  void backfillStopsWhenTheRegisterIsUnavailableAndKeepsWhatItLookedUpBefore() {
+    holders(MINOR, OTHER_MINOR, THIRD_MINOR);
+    given(populationRegisterClient.fetchGuardians(eq(REQUESTER), anyString()))
+        .willReturn(new PopulationRegisterResult<>(List.of(), MESSAGE_ID))
+        .willThrow(new PopulationRegisterUnavailable("down", new RuntimeException()));
+
+    var run = service.backfillMinorThirdPillarHolders(REQUESTER, 10, ZERO);
+
+    assertThat(run).isEqualTo(new MinorGuardianLookupRun(1, 1, 2));
+    assertThat(repository.findAllChildPersonalCodes()).hasSize(1);
+    verify(populationRegisterClient, times(2)).fetchGuardians(anyString(), anyString());
+  }
+
+  @Test
+  void backfillPastAChildTheRegisterAlwaysRejectsWithinDaysByAskingInADifferentOrderEachDay() {
+    holders(MINOR, OTHER_MINOR, THIRD_MINOR);
+    given(populationRegisterClient.fetchGuardians(REQUESTER, MINOR))
+        .willThrow(new PopulationRegisterException("rejected", new RuntimeException()));
+    given(populationRegisterClient.fetchGuardians(REQUESTER, OTHER_MINOR))
+        .willReturn(new PopulationRegisterResult<>(List.of(), MESSAGE_ID));
+    given(populationRegisterClient.fetchGuardians(REQUESTER, THIRD_MINOR))
+        .willReturn(new PopulationRegisterResult<>(List.of(), MESSAGE_ID));
+
+    for (int day = 0; day < 10; day++) {
+      serviceOn(NOW.plus(Duration.ofDays(day)))
+          .backfillMinorThirdPillarHolders(REQUESTER, 10, ZERO);
+    }
+
+    assertThat(repository.findAllChildPersonalCodes())
+        .containsExactlyInAnyOrder(OTHER_MINOR, THIRD_MINOR);
+  }
+
+  @Test
+  void refusesToBackfillWhileAnotherLookupHoldsTheLock() {
+    holders(MINOR);
+    given(lock.acquire()).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.backfillMinorThirdPillarHolders(REQUESTER, 10, ZERO))
+        .isInstanceOf(MinorGuardianLookupAlreadyRunning.class);
+    verify(populationRegisterClient, never()).fetchGuardians(anyString(), anyString());
+  }
+
+  @Test
+  void backfillLogsNoPersonalCodeOfTheChildrenOrTheRequester(CapturedOutput output) {
+    holders(MINOR, OTHER_MINOR);
+    given(populationRegisterClient.fetchGuardians(eq(REQUESTER), anyString()))
+        .willReturn(new PopulationRegisterResult<>(List.of(), MESSAGE_ID))
+        .willThrow(new PopulationRegisterException("rejected", new RuntimeException()));
+
+    service.backfillMinorThirdPillarHolders(REQUESTER, 10, ZERO);
+
+    assertThat(output.getAll()).doesNotContain(MINOR, OTHER_MINOR, REQUESTER);
+  }
+
+  private MinorGuardianLookupService serviceOn(Instant now) {
+    return new MinorGuardianLookupService(
+        thirdPillarAnalytics,
+        populationRegisterClient,
+        repository,
+        lock,
+        Clock.fixed(now, ZoneOffset.UTC));
+  }
+
+  private static PopulationRegisterResult<List<Guardian>> noGuardians() {
+    return new PopulationRegisterResult<>(List.of(), MESSAGE_ID);
   }
 
   private void holders(String... personalCodes) {

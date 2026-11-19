@@ -64,23 +64,6 @@ class CostBasisOversellAlerter {
           e.getMessage(),
           e);
       send(CostBasisOversellAlertText.unrecorded(payload, oversell.getAsOfDate()), dedupKey);
-      return;
-    }
-    clearOpenBefore(fund, oversell.getAsOfDate());
-  }
-
-  private void clearOpenBefore(TulevaFund fund, LocalDate stoppedAt) {
-    try {
-      openOversellsOf(fund)
-          .filter(found -> asOfDate(found).filter(date -> date.isBefore(stoppedAt)).isPresent())
-          .forEach(this::clear);
-    } catch (RuntimeException e) {
-      log.error(
-          "Oversells the replay got past not cleared, next self-heal retries: fundCode={},"
-              + " error={}",
-          fund.getCode(),
-          e.getMessage(),
-          e);
     }
   }
 

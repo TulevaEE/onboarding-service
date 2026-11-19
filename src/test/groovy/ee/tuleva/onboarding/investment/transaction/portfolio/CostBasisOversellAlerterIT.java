@@ -213,22 +213,15 @@ class CostBasisOversellAlerterIT {
   }
 
   @Test
-  void anOversellTheReplayGotPastIsClearedWhenALaterOneStopsIt() {
+  void anOversellStaysOpenWhenALaterOneStopsTheReplayBecauseNothingWasCommitted() {
     alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
-    alerter.postPending();
     alerter.recordFound(TUK75, oversell(TRADE_DATE.plusDays(10), "80000", "90000"));
     alerter.postPending();
 
-    assertThat(auditEventRepository.findByEventType(OVERSELL_CLEARED))
-        .extracting(TransactionAuditEvent::getDedupKey)
-        .containsExactly("TUK75 IE00BFNM3G45 2026-05-01");
+    assertThat(auditEventRepository.findByEventType(OVERSELL_CLEARED)).isEmpty();
     assertThat(notifications.sent())
         .extracting(Sent::message)
-        .satisfiesExactly(
-            first -> assertThat(first).isEqualTo(FOUND_MESSAGE),
-            second -> assertThat(second).startsWith("🔴 TUK75 soetusmaksumus 11.05.2026:"),
-            third -> assertThat(third).isEqualTo(CLEARED_MESSAGE));
-    assertThat(alerter.hasOpenOversell(TUK75)).isTrue();
+        .noneMatch(message -> message.startsWith("✅"));
   }
 
   private static CostBasisOversellException oversell(

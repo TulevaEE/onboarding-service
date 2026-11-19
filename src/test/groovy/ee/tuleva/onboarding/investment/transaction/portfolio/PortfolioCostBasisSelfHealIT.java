@@ -173,6 +173,60 @@ class PortfolioCostBasisSelfHealIT {
     }
   }
 
+  @Test
+  @Transactional(propagation = NOT_SUPPORTED)
+  void aRepairedOversellStaysOpenWhileALaterOneBlocksTheReplayAndClearsWithIt() {
+    LocalDate firstSaleDate = LocalDate.of(2026, 5, 3);
+    LocalDate secondSaleDate = LocalDate.of(2026, 5, 10);
+    LocalDate laterWindow = LocalDate.of(2026, 5, 30);
+    try {
+      seedBaseline();
+      seedExecutionOnDate(SELL, firstSaleDate, "150000.0000", "12.00000000");
+      TransactionExecution secondSale =
+          seedExecutionOnDate(SELL, secondSaleDate, "50000.0000", "12.00000000");
+      Clock clock = Clock.fixed(Instant.parse("2026-05-11T00:30:00Z"), ZoneId.of("Europe/Tallinn"));
+      RecordingNotificationService notifications = new RecordingNotificationService();
+      PortfolioCostBasisSelfHealJob job =
+          new PortfolioCostBasisSelfHealJob(
+              clock,
+              service,
+              baselineRepository,
+              new CostBasisOversellAlerter(auditEventRepository, notifications, clock),
+              lockProviders);
+
+      job.runForRange(firstSaleDate, secondSaleDate);
+      seedExecutionOnDate(BUY, firstSaleDate.minusDays(1), "60000.0000", "11.00000000");
+      job.runForRange(laterWindow, laterWindow);
+
+      assertThat(costBasisRepository.findByFundIsinAndAsOfDate(FUND_ISIN, firstSaleDate)).isEmpty();
+      assertThat(notifications.sent())
+          .extracting(Sent::message)
+          .satisfiesExactly(
+              first -> assertThat(first).startsWith("🔴 TUK75 soetusmaksumus 03.05.2026:"),
+              second -> assertThat(second).startsWith("🔴 TUK75 soetusmaksumus 10.05.2026:"));
+
+      secondSale.setExecutedQuantity(new BigDecimal("5000.0000"));
+      executionRepository.save(secondSale);
+      job.runForRange(laterWindow, laterWindow);
+
+      assertThat(costBasisRepository.findByFundIsinAndAsOfDate(FUND_ISIN, firstSaleDate))
+          .extracting(PortfolioCostBasis::getQuantity)
+          .containsExactly(new BigDecimal("10000.0000"));
+      assertThat(costBasisRepository.findByFundIsinAndAsOfDate(FUND_ISIN, secondSaleDate))
+          .extracting(PortfolioCostBasis::getQuantity)
+          .containsExactly(new BigDecimal("5000.0000"));
+      assertThat(notifications.sent().subList(2, notifications.sent().size()))
+          .extracting(Sent::message)
+          .containsExactlyInAnyOrder(
+              "✅ TUK75 soetusmaksumus 03.05.2026: IE00BFNM3G45 müük ei ületa enam positsiooni,"
+                  + " soetusmaksumus on ümber arvutatud",
+              "✅ TUK75 soetusmaksumus 10.05.2026: IE00BFNM3G45 müük ei ületa enam positsiooni,"
+                  + " soetusmaksumus on ümber arvutatud");
+    } finally {
+      deleteCommittedRows(laterWindow);
+    }
+  }
+
   private void deleteCommittedRows(LocalDate lastDateRebuilt) {
     auditEventRepository.deleteAll(
         Stream.of(OVERSELL_FOUND, OVERSELL_CLEARED, OVERSELL_POSTED)

@@ -53,6 +53,9 @@ class JobTriggerPoller {
           Map.entry(RunSettlementFromBankRequested.JOB_NAME, RunSettlementFromBankRequested::new),
           Map.entry("PortfolioCostBasisJob", RunPortfolioCostBasisRequested::new),
           Map.entry("PortfolioCostBasisSelfHealJob", RunPortfolioCostBasisSelfHealRequested::new),
+          Map.entry(
+              "PortfolioCostBasisRebuildFromBaselineJob",
+              RunPortfolioCostBasisRebuildFromBaselineRequested::new),
           Map.entry("PortfolioReconciliationJob", RunPortfolioReconciliationRequested::new),
           Map.entry("SettlementCheckJob", RunOverdueSettlementRequested::new),
           // Alias kept so existing manual triggers keep working after the rename.

@@ -6,11 +6,16 @@ import static ee.tuleva.onboarding.investment.report.ReportType.R45;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.HoldingMismatch;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPevaRavaReports;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPositionReport;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPrices;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR16;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoR45Loaded;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoRegistryHoldings;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoReportSecurities;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.StalePositionReport;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
@@ -70,6 +75,42 @@ class InputGateFailureTest {
             List.of(R45), LocalDate.of(2027, 1, 4), LocalDate.of(2026, 12, 14));
 
     assertThatThrownBy(failure::slackLine).isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void instrumentsWithoutAPriceAreListedOnOneLine() {
+    assertThat(new MissingPrices(List.of("IE00BFG1TM61", "LU0476289540")).slackLine())
+        .isEqualTo(
+            "Hind puudub: IE00BFG1TM61, LU0476289540: kontrolli hinnaallikaid ja"
+                + " instrument_reference'it");
+  }
+
+  @Test
+  void aHoldingTheRegistryAndSebDisagreeOnShowsBothQuantitiesWithoutTrailingZeros() {
+    assertThat(
+            new HoldingMismatch(
+                    "IE00BFG1TM61",
+                    LocalDate.of(2026, 11, 17),
+                    new BigDecimal("1000.0000"),
+                    new BigDecimal("990.500000"))
+                .slackLine())
+        .isEqualTo(
+            "IE00BFG1TM61: registris 1000, SEB raportis 990.5 (2026-11-17): kontrolli registri"
+                + " tehinguid");
+  }
+
+  @Test
+  void aRegistryWithoutHoldingsSaysWhereTheyComeFrom() {
+    assertThat(new NoRegistryHoldings(LocalDate.of(2026, 11, 17)).slackLine())
+        .isEqualTo(
+            "Registris pole 2026-11-17 positsioone: kontrolli portfelli baseline'i ja cost-basis"
+                + " tööd");
+  }
+
+  @Test
+  void aSebReportWithoutSecuritiesSaysToCheckItsImport() {
+    assertThat(new NoReportSecurities(LocalDate.of(2026, 11, 17)).slackLine())
+        .isEqualTo("SEB raportis pole 2026-11-17 väärtpabereid: kontrolli raporti importi");
   }
 
   @Test

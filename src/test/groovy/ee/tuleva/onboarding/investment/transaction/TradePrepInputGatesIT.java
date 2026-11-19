@@ -16,7 +16,10 @@ import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.context.annotation.FilterType.REGEX;
 
@@ -40,8 +43,10 @@ import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
 import ee.tuleva.onboarding.investment.report.ReportType;
 import ee.tuleva.onboarding.investment.transaction.CommandOutcome.StoppedByInputGates;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.HoldingMismatch;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPevaRavaReports;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPositionReport;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPrices;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR16;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR45;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoR45Loaded;
@@ -104,6 +109,8 @@ class TradePrepInputGatesIT {
   @MockitoBean FundNavQueryService fundNavQueryService;
   @MockitoBean InvestmentParameterRepository investmentParameterRepository;
   @MockitoBean OperationsNotificationService notificationService;
+  @MockitoBean TradePrepPriceGate priceGate;
+  @MockitoBean TradePrepPositionGate positionGate;
 
   @Autowired TradePrepInputGates gates;
   @Autowired R16OutflowReader r16OutflowReader;
@@ -152,6 +159,31 @@ class TradePrepInputGatesIT {
     r16(YearMonth.of(2026, 11), TUK75);
 
     assertThat(gates.failures(TUK00, WEDNESDAY)).isEmpty();
+  }
+
+  @Test
+  void missingPricesAndHoldingsTheRegistryAndSebDisagreeOnJoinTheFundsOtherLines() {
+    positionReport(TUK75, TUESDAY);
+    r45(WEDNESDAY);
+    r16(YearMonth.of(2026, 11), TUK75);
+    var missingPrices = new MissingPrices(List.of("IE00BFG1TM61"));
+    var mismatch =
+        new HoldingMismatch("IE0009FT4LX4", TUESDAY, new BigDecimal("1000"), new BigDecimal("990"));
+    given(priceGate.missingPrices(TUK75, WEDNESDAY)).willReturn(Optional.of(missingPrices));
+    given(positionGate.differencesFromPositionReport(TUK75, TUESDAY)).willReturn(List.of(mismatch));
+
+    assertThat(gates.failures(TUK75, WEDNESDAY)).containsExactly(missingPrices, mismatch);
+  }
+
+  @Test
+  void theRegistryIsNotComparedWithAPositionReportThatIsAlreadyStale() {
+    positionReport(TUK75, LocalDate.of(2026, 11, 16));
+    r45(WEDNESDAY);
+    r16(YearMonth.of(2026, 11), TUK75);
+
+    assertThat(gates.failures(TUK75, WEDNESDAY))
+        .containsExactly(new StalePositionReport(LocalDate.of(2026, 11, 16), TUESDAY));
+    then(positionGate).should(never()).differencesFromPositionReport(any(), any());
   }
 
   @Test

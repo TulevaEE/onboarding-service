@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.report.ReportType.R21_RAVA;
 import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.investment.report.ReportType;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
@@ -69,6 +70,48 @@ sealed interface InputGateFailure {
         return "R21";
       }
       throw new IllegalArgumentException("Not a PEVA/RAVA report type: reportType=" + reportType);
+    }
+  }
+
+  record MissingPrices(List<String> isins) implements InputGateFailure {
+
+    @Override
+    public String slackLine() {
+      return "Hind puudub: %s: kontrolli hinnaallikaid ja instrument_reference'it"
+          .formatted(String.join(", ", isins));
+    }
+  }
+
+  record HoldingMismatch(
+      String isin, LocalDate positionDate, BigDecimal registryQuantity, BigDecimal reportQuantity)
+      implements InputGateFailure {
+
+    @Override
+    public String slackLine() {
+      return "%s: registris %s, SEB raportis %s (%s): kontrolli registri tehinguid"
+          .formatted(isin, plain(registryQuantity), plain(reportQuantity), positionDate);
+    }
+
+    private static String plain(BigDecimal quantity) {
+      return quantity.stripTrailingZeros().toPlainString();
+    }
+  }
+
+  record NoRegistryHoldings(LocalDate positionDate) implements InputGateFailure {
+
+    @Override
+    public String slackLine() {
+      return "Registris pole %s positsioone: kontrolli portfelli baseline'i ja cost-basis tööd"
+          .formatted(positionDate);
+    }
+  }
+
+  record NoReportSecurities(LocalDate positionDate) implements InputGateFailure {
+
+    @Override
+    public String slackLine() {
+      return "SEB raportis pole %s väärtpabereid: kontrolli raporti importi"
+          .formatted(positionDate);
     }
   }
 

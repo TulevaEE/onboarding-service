@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import org.junit.jupiter.api.Test;
 
@@ -151,6 +152,66 @@ class NameMatcherTest {
   void isSameName_sortsWholeTokensNotCharacters() {
     assertThat(nameMatcher.isSameName("Alpha OÜ", "Aplha OÜ")).isFalse();
     assertThat(nameMatcher.isSameName("AlphaBeta OÜ", "Alpha Beta OÜ")).isFalse();
+  }
+
+  @Test
+  void similarity_isOneForTheSameNameWrittenWithoutItsDiacritics() {
+    assertThat(nameMatcher.similarity("PÄRT ÕLEKÕRS", "Part Olekors")).isEqualTo(1.0);
+    assertThat(nameMatcher.similarity("Jüri Šmidt-Žukov", "JURI SMIDT ZUKOV")).isEqualTo(1.0);
+    assertThat(nameMatcher.similarity("Õie Väärtmäe", "oie vaartmae")).isEqualTo(1.0);
+  }
+
+  @Test
+  void similarity_isOneForAGermanOrEnglishTransliterationOfTheDiacritics() {
+    assertThat(nameMatcher.similarity("Jürgen Müller", "JUERGEN MUELLER")).isEqualTo(1.0);
+    assertThat(nameMatcher.similarity("Juergen Mueller", "Jürgen Müller")).isEqualTo(1.0);
+    assertThat(nameMatcher.similarity("Šarlota Žukova", "Sharlota Zhukova")).isEqualTo(1.0);
+    assertThat(nameMatcher.similarity("Mägi Öövel", "Maegi Oeoevel")).isEqualTo(1.0);
+  }
+
+  @Test
+  void similarity_isOneWhateverTheOrderOfTheWords() {
+    assertThat(nameMatcher.similarity("ÕLEKÕRS PÄRT", "Part Olekors")).isEqualTo(1.0);
+    assertThat(nameMatcher.similarity("Tamm, Anna Maria", "Maria Anna Tamm")).isEqualTo(1.0);
+  }
+
+  @Test
+  void similarity_isOneLessTheEditsPerCharacterOfTheLongerName() {
+    assertThat(nameMatcher.similarity("Aleksandr Ivanov", "ALEKSANDER IVANOV"))
+        .isCloseTo(1 - 1.0 / 17, within(1e-12));
+    assertThat(nameMatcher.similarity("Mari Tamm", "Mari Kask"))
+        .isCloseTo(1 - 3.0 / 9, within(1e-12));
+  }
+
+  @Test
+  void similarity_comparesTheWordsInTheOrderClosestToTheClientsEvenWithATypo() {
+    assertThat(nameMatcher.similarity("ZRU KATI", "Kati Aru"))
+        .isCloseTo(1 - 1.0 / 8, within(1e-12));
+  }
+
+  @Test
+  void similarity_isZeroWithoutADistinguishingName() {
+    assertThat(nameMatcher.similarity(null, "Mari Tamm")).isZero();
+    assertThat(nameMatcher.similarity("Mari Tamm", null)).isZero();
+    assertThat(nameMatcher.similarity("", "")).isZero();
+    assertThat(nameMatcher.similarity("FIE", "FIE")).isZero();
+    assertThat(nameMatcher.similarity("OÜ", "Osaühing")).isZero();
+  }
+
+  @Test
+  void isSimilarName_acceptsAtLeastNinetyPercentSimilarity() {
+    assertThat(nameMatcher.isSimilarName("Mari Tamme", "MARI TAMM")).isTrue();
+    assertThat(nameMatcher.isSimilarName("Aleksandr Ivanov", "Aleksander Ivanov")).isTrue();
+    assertThat(nameMatcher.isSimilarName("Jürgen Müller", "JUERGEN MUELLER")).isTrue();
+  }
+
+  @Test
+  void isSimilarName_rejectsLessThanNinetyPercentSimilarity() {
+    assertThat(nameMatcher.isSimilarName("Mari Tammela", "MARI TAMM")).isFalse();
+    assertThat(nameMatcher.isSimilarName("Kati Aro", "Kati Aru")).isFalse();
+    assertThat(nameMatcher.isSimilarName("Mari Kask", "Mari Tamm")).isFalse();
+    assertThat(nameMatcher.isSimilarName("Wise Europe SA", "Mari Tamm")).isFalse();
+    assertThat(nameMatcher.isSimilarName(null, "Mari Tamm")).isFalse();
   }
 
   @Test

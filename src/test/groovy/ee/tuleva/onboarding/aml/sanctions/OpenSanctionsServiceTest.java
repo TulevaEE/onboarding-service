@@ -491,6 +491,46 @@ class OpenSanctionsServiceTest {
   }
 
   @Test
+  void matchName_queriesAnyLegalEntityByTheNameAloneWithoutACountry() throws JSONException {
+    String expectedRequestBodyJson =
+        """
+        {
+          "queries": {
+            "payer": {
+              "schema": "LegalEntity",
+              "properties": {
+                "name": ["Peeter Meeter"]
+              }
+            }
+          }
+        }""";
+    String resultsJson =
+        """
+        [{"id": "matchId123", "match": true, "properties": {"topics": ["sanction"]}}]""";
+    String queryJson =
+        """
+        {"schema": "LegalEntity", "properties": {"name": ["Peeter Meeter"]}}""";
+    String mockApiResponseJson =
+        """
+        {"responses": {"payer": {"status": 200, "results": %s, "query": %s}}}"""
+            .formatted(resultsJson, queryJson);
+    server
+        .expect(requestTo(baseUrlForMatching))
+        .andExpect(MockRestRequestMatchers.method(HttpMethod.POST))
+        .andExpect(MockRestRequestMatchers.content().json(expectedRequestBodyJson, true))
+        .andRespond(withSuccess(mockApiResponseJson, MediaType.APPLICATION_JSON));
+
+    MatchResponse actualResponse = openSanctionsService.matchName("Peeter Meeter");
+
+    JSONAssert.assertEquals(
+        resultsJson,
+        objectMapper.writeValueAsString(actualResponse.results()),
+        JSONCompareMode.STRICT);
+    JSONAssert.assertEquals(
+        queryJson, objectMapper.writeValueAsString(actualResponse.query()), JSONCompareMode.STRICT);
+  }
+
+  @Test
   void sendsEveryCitizenshipAsAQueryCountrySoDualCitizensMatchBothListings() {
     Person person = new PersonImpl("30303039816", "Peeter", "Meeter");
 

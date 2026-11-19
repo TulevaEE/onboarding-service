@@ -25,6 +25,11 @@ class DevSanctionCheckService implements PepAndSanctionCheckService {
     return emptyResponse();
   }
 
+  @Override
+  public MatchResponse matchName(String name) {
+    return emptyResponse();
+  }
+
   private MatchResponse emptyResponse() {
     return new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
   }

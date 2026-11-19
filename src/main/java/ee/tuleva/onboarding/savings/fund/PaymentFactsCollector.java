@@ -18,6 +18,8 @@ import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.COMPA
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.GUARDIAN;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.HOLDER;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.NO_CODE;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.UncodedPayer.CLIENT;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.UncodedPayer.THIRD_PARTY;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.outcome;
 
 import ee.tuleva.onboarding.party.ParentChildLinkService;
@@ -31,7 +33,6 @@ import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Minor;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Name;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Payment;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter;
-import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Screening;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -58,16 +59,38 @@ class PaymentFactsCollector {
     if (!alreadyDecided(facts)) {
       facts = facts.withMinor(minor(partyIdFromDescription, partyId, payment));
     }
-    Optional<Party> party =
-        alreadyDecided(facts) ? Optional.empty() : partyResolver.resolve(partyId);
+    var partyResolved = !alreadyDecided(facts);
+    Optional<Party> party = partyResolved ? partyResolver.resolve(partyId) : Optional.empty();
     facts = withPartyAndOnboarding(facts, party, partyId, payment);
     var unitHolderName = party.map(Party::name).orElse(payment.getRemitterName());
-    var payerName = facts.remitter() == HOLDER ? unitHolderName : payment.getRemitterName();
-    facts = facts.withPayerScreening(payerScreening(remitterPartyId, payerName));
-    if (alreadyDecided(facts) || facts.remitter() == HOLDER) {
+    if (remitterPartyId.isPresent()) {
+      var payerName = facts.remitter() == HOLDER ? unitHolderName : payment.getRemitterName();
+      facts =
+          facts.withPayerScreening(paymentPartyScreener.screen(remitterPartyId.get(), payerName));
+    } else {
+      var client = partyResolved ? party : partyResolver.resolve(partyId);
+      facts = withUncodedPayer(facts, payment.getRemitterName(), partyId, client);
+    }
+    if (alreadyDecided(facts) || facts.payerScreenedAsTheHolder()) {
       return facts;
     }
     return facts.withScreening(paymentPartyScreener.screen(partyId, unitHolderName));
+  }
+
+  private Payment withUncodedPayer(
+      Payment facts, @Nullable String payerName, PartyId partyId, Optional<Party> client) {
+    if (payerName == null || payerName.isBlank()) {
+      return facts;
+    }
+    return client
+        .filter(theClient -> nameMatcher.isSimilarName(payerName, theClient.name()))
+        .map(
+            theClient ->
+                facts.withUncodedPayer(
+                    CLIENT, paymentPartyScreener.screen(partyId, theClient.name())))
+        .orElseGet(
+            () ->
+                facts.withUncodedPayer(THIRD_PARTY, paymentPartyScreener.screenByName(payerName)));
   }
 
   private Payment withPartyAndOnboarding(
@@ -82,12 +105,6 @@ class PaymentFactsCollector {
     }
     return withParty.withOnboarding(
         savingsFundOnboardingService.isOnboardingCompleted(partyId) ? COMPLETED : INCOMPLETE);
-  }
-
-  private Screening payerScreening(Optional<PartyId> remitterPartyId, @Nullable String payerName) {
-    return remitterPartyId
-        .map(payer -> paymentPartyScreener.screen(payer, payerName))
-        .orElse(Screening.NOT_CHECKED);
   }
 
   private static boolean alreadyDecided(Payment facts) {

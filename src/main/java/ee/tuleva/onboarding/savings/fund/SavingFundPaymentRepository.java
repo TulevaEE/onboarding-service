@@ -443,6 +443,12 @@ public class SavingFundPaymentRepository {
             "status", VERIFIED.name()));
   }
 
+  public void recordPayerNameScreening(UUID paymentId, PaymentAcceptance.Screening screening) {
+    jdbcTemplate.update(
+        "UPDATE saving_fund_payment SET payer_name_screening=:screening WHERE id=:id",
+        Map.of("id", paymentId, "screening", screening.name()));
+  }
+
   public void addReturnReason(UUID paymentId, String reason) {
     jdbcTemplate.update(
         "UPDATE saving_fund_payment SET return_reason=:reason WHERE id=:id",

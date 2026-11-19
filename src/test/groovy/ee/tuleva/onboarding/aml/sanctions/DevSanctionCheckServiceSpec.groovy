@@ -40,4 +40,13 @@ class DevSanctionCheckServiceSpec extends Specification {
         response.results().isEmpty()
         response.query().isEmpty()
     }
-} 
+
+    def "matchName returns empty response"() {
+        when:
+        def response = service.matchName("John Doe")
+
+        then:
+        response.results().isEmpty()
+        response.query().isEmpty()
+    }
+}

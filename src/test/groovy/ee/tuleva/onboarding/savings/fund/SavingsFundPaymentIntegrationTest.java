@@ -537,6 +537,40 @@ class SavingsFundPaymentIntegrationTest {
     assertThat(scopedBalance(getUserCashAccount())).isEqualByComparingTo(ZERO);
   }
 
+  @Test
+  void sanctionedPayerWithoutACode_isScreenedByNameAndFrozenInsteadOfReturned() {
+    var hit = JSON.createObjectNode().put("id", "sanction-match").put("match", true);
+    hit.set(
+        "properties",
+        JSON.createObjectNode().set("topics", JSON.createArrayNode().add("sanction")));
+    given(pepAndSanctionCheckService.matchName("Peeter Meeter"))
+        .willReturn(new MatchResponse(JSON.createArrayNode().add(hit), JSON.createObjectNode()));
+    persistXmlMessage(
+        createPaymentFromJuriTammXml(
+                "test-sanctioned-payer-without-code", "2025092909000-11", "Payment for 48806046007")
+            .replaceFirst(
+                "<Nm>Jüri Tamm</Nm> <Id> <PrvtId>.*?</PrvtId> </Id> ", "<Nm>Peeter Meeter</Nm> "),
+        NOW);
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+    var paymentId = paymentRepository.findByExternalId("2025092909000-11").orElseThrow().getId();
+    ownedPaymentIds.add(paymentId);
+
+    paymentVerificationJob.runJob();
+
+    var payment = paymentRepository.findById(paymentId).orElseThrow();
+    assertThat(payment.getRemitterIdCode()).isNull();
+    assertThat(payment.getStatus()).isEqualTo(FROZEN);
+    assertThat(payment.getPartyId()).isNull();
+    assertThat(payment.getReturnReason()).isNull();
+    assertThat(
+            jdbcClient
+                .sql("select payer_name_screening from saving_fund_payment where id = :id")
+                .param("id", paymentId)
+                .query(String.class)
+                .single())
+        .isEqualTo("SANCTION_HIT");
+  }
+
   private void givenEveryScreeningHitsASanction() {
     var hit = JSON.createObjectNode().put("id", "sanction-match").put("match", true);
     hit.set(

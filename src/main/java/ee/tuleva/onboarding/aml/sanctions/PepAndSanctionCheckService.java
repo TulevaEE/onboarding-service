@@ -8,4 +8,6 @@ public interface PepAndSanctionCheckService {
   MatchResponse match(Person person, Set<Country> countries);
 
   MatchResponse matchCompany(ScreenedCompany company);
+
+  MatchResponse matchName(String name);
 }

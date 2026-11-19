@@ -47,7 +47,27 @@ class PaymentFactsCollector {
   private final ParentChildLinkService parentChildLinkService;
   private final PaymentPartyScreener paymentPartyScreener;
 
-  Payment collect(
+  record Collected(Payment facts, Optional<Screening> payerNameScreening) {}
+
+  private record UncodedPayer(Kind kind, Screening screening) {
+
+    enum Kind {
+      CLIENT,
+      THIRD_PARTY,
+      NOT_CHECKED
+    }
+
+    static final UncodedPayer NOT_CHECKED =
+        new UncodedPayer(Kind.NOT_CHECKED, Screening.NOT_CHECKED);
+
+    Optional<Screening> nameScreening() {
+      return kind == Kind.THIRD_PARTY && screening != Screening.UNAVAILABLE
+          ? Optional.of(screening)
+          : Optional.empty();
+    }
+  }
+
+  Collected collect(
       SavingFundPayment payment,
       PartyId partyId,
       Optional<PartyId> partyIdFromDescription,
@@ -58,16 +78,46 @@ class PaymentFactsCollector {
     if (!alreadyDecided(facts)) {
       facts = facts.withMinor(minor(partyIdFromDescription, partyId, payment));
     }
-    Optional<Party> party =
-        alreadyDecided(facts) ? Optional.empty() : partyResolver.resolve(partyId);
+    var partyResolved = !alreadyDecided(facts);
+    Optional<Party> party = partyResolved ? partyResolver.resolve(partyId) : Optional.empty();
     facts = withPartyAndOnboarding(facts, party, partyId, payment);
     var unitHolderName = party.map(Party::name).orElse(payment.getRemitterName());
-    var payerName = facts.remitter() == HOLDER ? unitHolderName : payment.getRemitterName();
-    facts = facts.withPayerScreening(payerScreening(remitterPartyId, payerName));
-    if (alreadyDecided(facts) || facts.remitter() == HOLDER) {
-      return facts;
+    var uncodedPayer = UncodedPayer.NOT_CHECKED;
+    if (remitterPartyId.isPresent()) {
+      var payerName = facts.remitter() == HOLDER ? unitHolderName : payment.getRemitterName();
+      facts =
+          facts.withPayerScreening(paymentPartyScreener.screen(remitterPartyId.get(), payerName));
+    } else {
+      var client = partyResolved ? party : partyResolver.resolve(partyId);
+      uncodedPayer = uncodedPayer(payment.getRemitterName(), partyId, client);
+      facts = facts.withPayerScreening(uncodedPayer.screening());
     }
-    return facts.withScreening(paymentPartyScreener.screen(partyId, unitHolderName));
+    if (alreadyDecided(facts)
+        || facts.remitter() == HOLDER
+        || uncodedPayer.kind() == UncodedPayer.Kind.CLIENT) {
+      return new Collected(facts, uncodedPayer.nameScreening());
+    }
+    return new Collected(
+        facts.withScreening(paymentPartyScreener.screen(partyId, unitHolderName)),
+        uncodedPayer.nameScreening());
+  }
+
+  private UncodedPayer uncodedPayer(
+      @Nullable String payerName, PartyId partyId, Optional<Party> client) {
+    if (payerName == null || payerName.isBlank()) {
+      return UncodedPayer.NOT_CHECKED;
+    }
+    return client
+        .filter(theClient -> nameMatcher.isSimilarName(payerName, theClient.name()))
+        .map(
+            theClient ->
+                new UncodedPayer(
+                    UncodedPayer.Kind.CLIENT,
+                    paymentPartyScreener.screen(partyId, theClient.name())))
+        .orElseGet(
+            () ->
+                new UncodedPayer(
+                    UncodedPayer.Kind.THIRD_PARTY, paymentPartyScreener.screenByName(payerName)));
   }
 
   private Payment withPartyAndOnboarding(
@@ -82,12 +132,6 @@ class PaymentFactsCollector {
     }
     return withParty.withOnboarding(
         savingsFundOnboardingService.isOnboardingCompleted(partyId) ? COMPLETED : INCOMPLETE);
-  }
-
-  private Screening payerScreening(Optional<PartyId> remitterPartyId, @Nullable String payerName) {
-    return remitterPartyId
-        .map(payer -> paymentPartyScreener.screen(payer, payerName))
-        .orElse(Screening.NOT_CHECKED);
   }
 
   private static boolean alreadyDecided(Payment facts) {

@@ -32,6 +32,7 @@ import tools.jackson.databind.node.ArrayNode;
 class OpenSanctionsService implements PepAndSanctionCheckService {
 
   private static final String ESTONIA = "ee";
+  private static final String NAME_QUERY_KEY = "payer";
 
   private final RestTemplate restTemplate;
   private final JsonMapper objectMapper;
@@ -87,6 +88,11 @@ class OpenSanctionsService implements PepAndSanctionCheckService {
     return executeMatch(registryCode, companyQuery);
   }
 
+  @Override
+  public MatchResponse matchName(String name) {
+    return executeMatch(NAME_QUERY_KEY, new LegalEntityQuery(new NameProperties(List.of(name))));
+  }
+
   @SneakyThrows
   private MatchResponse executeMatch(String queryKey, Object query) {
     var matchRequest = Map.of("queries", Map.of(queryKey, query));
@@ -135,6 +141,15 @@ class OpenSanctionsService implements PepAndSanctionCheckService {
 
     public CompanyQuery(CompanyProperties properties) {
       this("Company", properties);
+    }
+  }
+
+  private record NameProperties(List<String> name) {}
+
+  private record LegalEntityQuery(String schema, NameProperties properties) {
+
+    public LegalEntityQuery(NameProperties properties) {
+      this("LegalEntity", properties);
     }
   }
 

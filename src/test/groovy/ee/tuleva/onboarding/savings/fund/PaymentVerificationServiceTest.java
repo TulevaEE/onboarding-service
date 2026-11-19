@@ -96,6 +96,153 @@ class PaymentVerificationServiceTest {
     given(sanctionAndPepScreener.screeningOutcome(any(User.class))).willReturn(CLEAR);
     given(sanctionAndPepScreener.screeningOutcome(any(Person.class), anySet())).willReturn(CLEAR);
     given(companySanctionCheck.screeningOutcome(anyString(), any())).willReturn(CLEAR);
+    given(sanctionAndPepScreener.nameScreeningOutcome(anyString())).willReturn(CLEAR);
+  }
+
+  @Test
+  void process_payerWithoutACodeNamedUnlikeTheClient_isScreenedByNameAsAThirdParty() {
+    var payment = createPayment(null, "61506150006, 1759300000, ABCDEF");
+    givenAnOnboardedChild("61506150006");
+
+    service.process(payment);
+
+    verify(sanctionAndPepScreener).nameScreeningOutcome("PÄRT ÕLEKÕRS");
+    verify(savingFundPaymentRepository)
+        .recordPayerNameScreening(payment.getId(), PaymentAcceptance.Screening.CLEAR);
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+  }
+
+  @Test
+  void process_sanctionedPayerWithoutACode_payingIntoAChildsAccount_isFrozenForTheChild() {
+    var payment = createPayment(null, "61506150006, 1759300000, ABCDEF");
+    givenAnOnboardedChild("61506150006");
+    given(sanctionAndPepScreener.nameScreeningOutcome("PÄRT ÕLEKÕRS")).willReturn(SANCTION_HIT);
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository)
+        .recordPayerNameScreening(payment.getId(), PaymentAcceptance.Screening.SANCTION_HIT);
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(PERSON, "61506150006"), null);
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), FROZEN);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+    verify(applicationEventPublisher)
+        .publishEvent(new SanctionedPaymentFrozenEvent(payment.getId(), payment.getAmount()));
+  }
+
+  @Test
+  void process_sanctionedPayerWithoutACodeNamedUnlikeTheAdultClient_isFrozenInsteadOfReturned() {
+    var payment =
+        createPayment(null, "for user 48806046007").toBuilder().remitterName("IVAN IVANOV").build();
+    givenAnOnboardedUser("48806046007");
+    given(sanctionAndPepScreener.nameScreeningOutcome("IVAN IVANOV")).willReturn(SANCTION_HIT);
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository)
+        .recordPayerNameScreening(payment.getId(), PaymentAcceptance.Screening.SANCTION_HIT);
+    assertFrozenWithoutAnAccountInsteadOfReturned(payment);
+  }
+
+  @Test
+  void
+      process_sanctionedCompanyNamedPayerWithoutACode_payingIntoAPersonsAccount_isFrozenInsteadOfReturned() {
+    var payment =
+        createPayment(null, "for user 48806046007").toBuilder().remitterName("MAASIKAS OÜ").build();
+    givenAnOnboardedUser("48806046007");
+    given(sanctionAndPepScreener.nameScreeningOutcome("MAASIKAS OÜ")).willReturn(SANCTION_HIT);
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository)
+        .recordPayerNameScreening(payment.getId(), PaymentAcceptance.Screening.SANCTION_HIT);
+    assertFrozenWithoutAnAccountInsteadOfReturned(payment);
+  }
+
+  @Test
+  void
+      process_sanctionedPayerWithoutACodePayingForSomeoneWhoIsNotAClient_isFrozenInsteadOfReturned() {
+    var payment = createPayment(null, "for user 48806046007");
+    given(sanctionAndPepScreener.nameScreeningOutcome("PÄRT ÕLEKÕRS")).willReturn(SANCTION_HIT);
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository)
+        .recordPayerNameScreening(payment.getId(), PaymentAcceptance.Screening.SANCTION_HIT);
+    assertFrozenWithoutAnAccountInsteadOfReturned(payment);
+  }
+
+  @Test
+  void process_politicallyExposedPayerWithoutACode_isRecordedOnThePaymentWhichIsVerified() {
+    var payment = createPayment(null, "61506150006, 1759300000, ABCDEF");
+    givenAnOnboardedChild("61506150006");
+    given(sanctionAndPepScreener.nameScreeningOutcome("PÄRT ÕLEKÕRS")).willReturn(PEP_HIT);
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository)
+        .recordPayerNameScreening(payment.getId(), PaymentAcceptance.Screening.PEP_HIT);
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(PERSON, "61506150006"), null);
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void process_nameScreeningUnavailable_paymentStaysReceivedWithNothingRecorded() {
+    var payment = createPayment(null, "61506150006, 1759300000, ABCDEF");
+    givenAnOnboardedChild("61506150006");
+    given(sanctionAndPepScreener.nameScreeningOutcome("PÄRT ÕLEKÕRS")).willReturn(UNAVAILABLE);
+
+    service.process(payment);
+
+    verifyNoInteractions(savingFundPaymentRepository, savingsFundLedger, applicationEventPublisher);
+  }
+
+  @Test
+  void process_payerWithoutACodeNamedAsTheClientWithoutDiacritics_isScreenedOnceAsTheClient() {
+    var payment =
+        createPayment(null, "to user 37508295796").toBuilder().remitterName("Part Olekors").build();
+    var user = givenAnOnboardedUser("37508295796");
+
+    service.process(payment);
+
+    verify(sanctionAndPepScreener).screeningOutcome(user);
+    verifyNoMoreInteractions(sanctionAndPepScreener);
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"), false);
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void process_payerWithoutACodeNamedNinetyPercentLikeTheClient_isScreenedAsTheClientNotByName() {
+    var payment =
+        createPayment(null, "to user 37508295796").toBuilder()
+            .remitterName("PART OLEKORSS")
+            .build();
+    var user = givenAnOnboardedUser("37508295796");
+    given(sanctionAndPepScreener.screeningOutcome(user)).willReturn(SANCTION_HIT);
+
+    service.process(payment);
+
+    verify(sanctionAndPepScreener).screeningOutcome(user);
+    verifyNoMoreInteractions(sanctionAndPepScreener);
+    assertFrozenWithoutAnAccountInsteadOfReturned(payment);
+  }
+
+  @Test
+  void process_payerWithoutACodeOrAName_isNotScreened() {
+    var payment =
+        createPayment(null, "61506150006, 1759300000, ABCDEF").toBuilder()
+            .remitterName(null)
+            .build();
+    givenAnOnboardedChild("61506150006");
+
+    service.process(payment);
+
+    verify(sanctionAndPepScreener, never()).nameScreeningOutcome(anyString());
+    verify(savingFundPaymentRepository, never()).recordPayerNameScreening(any(), any());
   }
 
   @Test
@@ -590,6 +737,8 @@ class PaymentVerificationServiceTest {
 
     service.process(payment);
 
+    verify(savingFundPaymentRepository)
+        .recordPayerNameScreening(payment.getId(), PaymentAcceptance.Screening.CLEAR);
     assertReturnedBecauseACompanyCanOnlyPayIntoItsOwnAccount(payment);
   }
 
@@ -603,6 +752,8 @@ class PaymentVerificationServiceTest {
 
     service.process(payment);
 
+    verify(savingFundPaymentRepository)
+        .recordPayerNameScreening(payment.getId(), PaymentAcceptance.Screening.CLEAR);
     assertReturnedBecauseACompanyCanOnlyPayIntoItsOwnAccount(payment);
   }
 
@@ -616,6 +767,8 @@ class PaymentVerificationServiceTest {
 
     service.process(payment);
 
+    verify(savingFundPaymentRepository)
+        .recordPayerNameScreening(payment.getId(), PaymentAcceptance.Screening.CLEAR);
     assertReturnedBecauseACompanyCanOnlyPayIntoItsOwnAccount(payment);
   }
 
@@ -626,6 +779,8 @@ class PaymentVerificationServiceTest {
 
     service.process(payment);
 
+    verify(savingFundPaymentRepository)
+        .recordPayerNameScreening(payment.getId(), PaymentAcceptance.Screening.CLEAR);
     assertReturnedBecauseACompanyCanOnlyPayIntoItsOwnAccount(payment);
   }
 
@@ -643,6 +798,8 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository)
         .attachParty(payment.getId(), new PartyId(PERSON, "61506150006"), null);
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verify(savingFundPaymentRepository)
+        .recordPayerNameScreening(payment.getId(), PaymentAcceptance.Screening.CLEAR);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -786,6 +943,8 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository)
         .attachParty(payment.getId(), new PartyId(PERSON, "61506150006"), null);
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verify(savingFundPaymentRepository)
+        .recordPayerNameScreening(payment.getId(), PaymentAcceptance.Screening.CLEAR);
     verifyNoMoreInteractions(savingFundPaymentRepository);
     verify(applicationEventPublisher, never()).publishEvent(any(UnattributedPaymentEvent.class));
   }

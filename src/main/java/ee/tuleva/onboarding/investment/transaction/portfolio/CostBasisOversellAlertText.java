@@ -16,6 +16,23 @@ final class CostBasisOversellAlertText {
   private CostBasisOversellAlertText() {}
 
   static String found(Map<String, Object> payload, LocalDate asOfDate) {
+    return oversell(
+        payload,
+        asOfDate,
+        "Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see; öine"
+            + " ümberarvutus parandab ülejäänu");
+  }
+
+  static String unrecorded(Map<String, Object> payload, LocalDate asOfDate) {
+    return oversell(
+        payload,
+        asOfDate,
+        "Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see; hoiatust ei"
+            + " õnnestunud salvestada, seega öine ümberarvutus seda päeva ise ei korda ja"
+            + " pärast parandust vajab soetusmaksumus käsitsi ümberarvutust");
+  }
+
+  private static String oversell(Map<String, Object> payload, LocalDate asOfDate, String action) {
     return String.join(
         "\n",
         "🔴 "
@@ -25,8 +42,7 @@ final class CostBasisOversellAlertText {
             + " ühikut, teadaolev positsioon "
             + payload.get(HELD_QUANTITY),
         "Fondi soetusmaksumus on sellest päevast alates vale, kuni see on parandamata",
-        "Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see; öine"
-            + " ümberarvutus parandab ülejäänu");
+        action);
   }
 
   static String cleared(Map<String, Object> payload, LocalDate asOfDate) {

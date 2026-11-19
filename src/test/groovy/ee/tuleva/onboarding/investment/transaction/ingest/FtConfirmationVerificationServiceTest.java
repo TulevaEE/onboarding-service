@@ -21,8 +21,6 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -94,7 +92,8 @@ class FtConfirmationVerificationServiceTest {
 
     assertThat(result.quantityStatus()).isEqualTo(ORPHAN);
     assertThat(result.priceStatus()).isEqualTo(ORPHAN);
-    verify(auditRecorder).recordOutcome(null, confirmation, result, "admin");
+    verify(auditRecorder)
+        .recordOutcome(null, new FtConfirmationOutcome(confirmation, result), "admin");
   }
 
   @Test
@@ -396,7 +395,8 @@ class FtConfirmationVerificationServiceTest {
 
     FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation);
 
-    verify(auditRecorder).recordOutcome(order, confirmation, result, "admin");
+    verify(auditRecorder)
+        .recordOutcome(order, new FtConfirmationOutcome(confirmation, result), "admin");
   }
 
   @Test
@@ -530,7 +530,8 @@ class FtConfirmationVerificationServiceTest {
         .containsEntry("cancellationSignature", ISIN + "|FT-ACC|" + TRADE_DATE + "|10.09");
     assertThat(results.get(1).result().quantityStatus()).isEqualTo(PENDING_REPLACEMENT);
     verifyNoInteractions(executionRepository, positionPriceResolver);
-    verify(auditRecorder).recordOutcome(order, cancelledConfirmation, voided, "ops");
+    verify(auditRecorder)
+        .recordOutcome(order, new FtConfirmationOutcome(cancelledConfirmation, voided), "ops");
   }
 
   @Test
@@ -545,7 +546,8 @@ class FtConfirmationVerificationServiceTest {
     assertThat(results.get(0).result().quantityStatus()).isEqualTo(VOIDED);
     assertThat(results.get(1).result().quantityStatus()).isEqualTo(NOTHING_TO_CANCEL);
     verify(auditRecorder)
-        .recordOutcome(null, cancelledConfirmation, results.get(0).result(), "ops");
+        .recordOutcome(
+            null, new FtConfirmationOutcome(cancelledConfirmation, results.get(0).result()), "ops");
   }
 
   @Test
@@ -557,7 +559,8 @@ class FtConfirmationVerificationServiceTest {
 
     FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation);
 
-    verify(auditRecorder).recordOutcome(order, confirmation, result, "admin");
+    verify(auditRecorder)
+        .recordOutcome(order, new FtConfirmationOutcome(confirmation, result), "admin");
   }
 
   @Test
@@ -583,7 +586,8 @@ class FtConfirmationVerificationServiceTest {
 
     assertThat(result.quantityStatus()).isEqualTo(NOTHING_TO_CANCEL);
     assertThat(result.priceStatus()).isEqualTo(NOTHING_TO_CANCEL);
-    verify(auditRecorder).recordOutcome(null, confirmation, result, "admin");
+    verify(auditRecorder)
+        .recordOutcome(null, new FtConfirmationOutcome(confirmation, result), "admin");
   }
 
   @Test
@@ -760,9 +764,12 @@ class FtConfirmationVerificationServiceTest {
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
     FtConfirmation confirmation = confirmation();
 
-    service(DAY_AFTER_TRADE).verifyAll(List.of(confirmation), "alice");
+    List<FtConfirmationBatchResult> results =
+        service(DAY_AFTER_TRADE).verifyAll(List.of(confirmation), "alice");
 
-    verify(auditRecorder).recordOutcome(eq(order), eq(confirmation), any(), eq("alice"));
+    verify(auditRecorder)
+        .recordOutcome(
+            order, new FtConfirmationOutcome(confirmation, results.getFirst().result()), "alice");
   }
 
   @Test

@@ -213,17 +213,17 @@ class FtConfirmationDigestTest {
                 + "FT issue: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434,"
                 + " quantityStatus=ERROR, priceStatus=OK",
             INVESTMENT);
-    verify(auditRecorder).recordAlerted(error.confirmation(), error.result());
+    verify(auditRecorder).recordAlerted(error);
   }
 
   @Test
   void alreadyAlertedActionableRow_isNotSentAgain() {
-    given(auditRecorder.alreadyAlerted(any(), any())).willReturn(true);
+    given(auditRecorder.alreadyAlerted(any())).willReturn(true);
 
     digest(true).publish(List.of(outcome(ERROR, OK)));
 
     verifyNoInteractions(notificationService);
-    verify(auditRecorder, never()).recordAlerted(any(), any());
+    verify(auditRecorder, never()).recordAlerted(any());
   }
 
   @Test
@@ -232,7 +232,7 @@ class FtConfirmationDigestTest {
 
     digest(true).publish(List.of(error));
 
-    verify(auditRecorder).recordAlerted(error.confirmation(), error.result());
+    verify(auditRecorder).recordAlerted(error);
   }
 
   @Test
@@ -246,7 +246,7 @@ class FtConfirmationDigestTest {
     // Flag flips: the still-open issue was never alerted, so it alerts exactly once now.
     digest(true).publish(List.of(error));
     verify(notificationService).sendMessage(anyString(), eq(INVESTMENT));
-    verify(auditRecorder).recordAlerted(error.confirmation(), error.result());
+    verify(auditRecorder).recordAlerted(error);
   }
 
   @Test
@@ -258,7 +258,7 @@ class FtConfirmationDigestTest {
     assertThatCode(() -> digest(true).publish(List.of(outcome(ERROR, OK))))
         .doesNotThrowAnyException();
 
-    verify(auditRecorder, never()).recordAlerted(any(), any());
+    verify(auditRecorder, never()).recordAlerted(any());
   }
 
   private static FtConfirmationOutcome cancellationOutcome(FtVerificationStatus status) {

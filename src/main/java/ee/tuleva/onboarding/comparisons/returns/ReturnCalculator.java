@@ -19,7 +19,6 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -29,17 +28,13 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.decampo.xirr.Xirr;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class ReturnCalculator {
 
-  private static final int RETURN_DECIMAL_PLACES = 4;
   private static final int CASH_DECIMAL_PLACES = 2;
   private static final Set<String> WORLD_INDEXES_PRICED_AT_US_CLOSE =
       Set.of(UnionStockIndexRetriever.KEY, AdjustedAcwiIndexRetriever.KEY);
@@ -297,45 +292,6 @@ public class ReturnCalculator {
     List<Transaction> internalTransactions = new ArrayList<>(negatedTransactions);
     internalTransactions.add(endingTransaction);
 
-    return calculateInternalRateOfReturn(internalTransactions);
-  }
-
-  @Nullable
-  private BigDecimal calculateInternalRateOfReturn(List<Transaction> transactions) {
-    if (allZero(transactions)) {
-      return ZERO;
-    }
-    // wish the author of this great library used interfaces instead
-    try {
-      List<org.decampo.xirr.Transaction> xirrInternalTransactions =
-          transactions.stream()
-              .map(ReturnCalculator::xirrTransactionFromInternalTransaction)
-              .toList();
-
-      double result = new Xirr(xirrInternalTransactions).xirr();
-      return roundPercentage(result);
-    } catch (IllegalArgumentException | ArithmeticException e) {
-      log.warn(
-          "XIRR solver found no rate: transactionCount={}, reason={}, message={}",
-          transactions.size(),
-          e.getClass().getSimpleName(),
-          e.getMessage());
-      return null;
-    }
-  }
-
-  private boolean allZero(List<Transaction> transactions) {
-    return transactions.stream().allMatch(transaction -> ZERO.compareTo(transaction.amount()) == 0);
-  }
-
-  private BigDecimal roundPercentage(double percentage) {
-    // ok to lose the precision here, doing presentational formatting here.
-    return BigDecimal.valueOf(percentage).setScale(RETURN_DECIMAL_PLACES, RoundingMode.HALF_UP);
-  }
-
-  private static org.decampo.xirr.Transaction xirrTransactionFromInternalTransaction(
-      Transaction transaction) {
-    return new org.decampo.xirr.Transaction(
-        transaction.amount().doubleValue(), Date.from(transaction.time()));
+    return InternalRateOfReturn.of(internalTransactions);
   }
 }

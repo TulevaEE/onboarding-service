@@ -26,8 +26,10 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -44,7 +46,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.core.ResponseInputStream;
@@ -58,6 +62,7 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@TestPropertySource(properties = "transaction-registry.ft-confirmation.alerts-from=2026-01-15")
 @Transactional
 class FtConfirmationImportJobIT {
 
@@ -80,6 +85,7 @@ class FtConfirmationImportJobIT {
   @Autowired private TransactionBatchRepository batchRepository;
   @Autowired private TransactionOrderRepository orderRepository;
   @Autowired private TransactionExecutionRepository executionRepository;
+  @Autowired private JdbcClient jdbcClient;
 
   private FtConfirmationImportJob job;
 
@@ -351,6 +357,42 @@ class FtConfirmationImportJobIT {
     assertThat(latestStatuses(CANCELLATION_KEY)).containsExactly("CANCELLED", "CANCELLED");
   }
 
+  @Test
+  void run_noClosingPriceForTheTradeDateByTheEndOfTheNextBusinessDay_priceCannotBeChecked() {
+    registerOrderExecutedInFull();
+    stubOneConfirmationPdfUnderPrefix();
+
+    job.run();
+
+    assertThat(latestStatuses(DEDUP_KEY)).containsExactly("OK", "PRICE_MISSING");
+  }
+
+  @Test
+  void run_priceThatCouldNotBeChecked_clearsOnceTheClosingPriceOfTheTradeDateArrives() {
+    registerOrderExecutedInFull();
+    stubOneConfirmationPdfUnderPrefix();
+    job.run();
+
+    closingPriceArrives("12.3456");
+    job.run();
+
+    assertThat(latestStatuses(DEDUP_KEY)).containsExactly("OK", "OK");
+  }
+
+  private void closingPriceArrives(String closingPrice) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO index_values (key, date, value, provider, updated_at)
+            VALUES (:key, :date, :value, 'BLACKROCK', :updatedAt)
+            """)
+        .param("key", "IE00BFG1TM61.BLACKROCK")
+        .param("date", LocalDate.of(2026, 1, 15))
+        .param("value", new BigDecimal(closingPrice))
+        .param("updatedAt", Timestamp.from(Instant.parse("2026-01-16T08:00:00Z")))
+        .update();
+  }
+
   private List<String> latestStatuses(String dedupKey) {
     Map<String, Object> payload =
         auditEventRepository.findByEventTypeAndDedupKey(FT_CONFIRMATION_VERIFIED, dedupKey).stream()
@@ -425,19 +467,7 @@ class FtConfirmationImportJobIT {
   }
 
   private void stubOneConfirmationPdfUnderPrefix() {
-    given(s3Client.listObjectsV2(any(ListObjectsV2Request.class)))
-        .willReturn(
-            ListObjectsV2Response.builder()
-                .contents(S3Object.builder().key(KEY).build())
-                .isTruncated(false)
-                .build());
-
-    byte[] pdf = confirmationPdf();
-    var response =
-        new ResponseInputStream<>(
-            GetObjectResponse.builder().build(),
-            AbortableInputStream.create(new ByteArrayInputStream(pdf)));
-    given(s3Client.getObject(any(GetObjectRequest.class))).willReturn(response);
+    s3Holds(Map.of(KEY, confirmationPdf()));
   }
 
   private static byte[] confirmationPdf() {

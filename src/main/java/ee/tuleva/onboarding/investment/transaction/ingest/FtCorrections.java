@@ -37,12 +37,13 @@ record FtCorrections(List<FtConfirmation> confirmations) {
   List<FtConfirmation> standingConfirmations(Predicate<FtConfirmation> awaitingReplacement) {
     return distinctTrades(
         confirmations.stream()
-            .filter(confirmation -> !confirmation.isCancellation())
             .filter(
                 confirmation ->
-                    confirmations.stream()
-                        .filter(confirmation::isCancelledBy)
-                        .allMatch(awaitingReplacement)));
+                    confirmation.isCancellation()
+                        ? awaitingReplacement.test(confirmation)
+                        : confirmations.stream()
+                            .filter(confirmation::isCancelledBy)
+                            .allMatch(awaitingReplacement)));
   }
 
   private List<FtConfirmation> newConfirmationsAfter(FtConfirmation cancellation) {

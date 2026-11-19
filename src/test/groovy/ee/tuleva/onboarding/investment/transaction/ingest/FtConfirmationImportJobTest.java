@@ -93,6 +93,23 @@ class FtConfirmationImportJobTest {
   }
 
   @Test
+  void run_pdfThatFailsToFetch_isSkipped_andTheRestVerifiedAndCheckedForUnconfirmedTrades() {
+    byte[] bytes2 = "pdf-2".getBytes();
+    FtConfirmation confirmation2 = confirmation("IE000I9HGDZ3");
+    given(s3Source.list()).willReturn(List.of(KEY_1, KEY_2));
+    given(s3Source.get(KEY_1)).willThrow(new IllegalStateException("S3 read failed"));
+    given(s3Source.get(KEY_2)).willReturn(Optional.of(bytes2));
+    given(parser.parse(bytes2)).willReturn(confirmation2);
+    given(verificationService.verifyAll(any(), any())).willReturn(List.of());
+
+    job.run();
+
+    verify(verificationService)
+        .verifyAll(List.of(confirmation2), FtConfirmationImportJob.JOB_ACTOR);
+    verify(unconfirmedTradeCheck).check(List.of(confirmation2), FtConfirmationImportJob.JOB_ACTOR);
+  }
+
+  @Test
   void run_unparsablePdf_skipsItAndVerifiesTheRest() {
     byte[] bytes1 = "bad-pdf".getBytes();
     byte[] bytes2 = "pdf-2".getBytes();

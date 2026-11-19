@@ -78,20 +78,35 @@ public class UserService {
   }
 
   @Transactional
-  public User changeName(
+  public User createNewUser(User user, NameChangeBasis nameBasis) {
+    User createdUser = createNewUser(user);
+    nameChangeRecorder.recordFirst(createdUser, nameBasis);
+    return createdUser;
+  }
+
+  @Transactional
+  public void changeName(
       String personalCode, String firstName, String lastName, NameChangeBasis basis) {
-    User user = lockedUser(personalCode);
+    userRepository
+        .findByPersonalCode(personalCode)
+        .filter(user -> !hasName(user, firstName, lastName))
+        .flatMap(user -> userRepository.lockForUpdate(personalCode))
+        .filter(lockedUser -> !hasName(lockedUser, firstName, lastName))
+        .ifPresent(lockedUser -> rename(lockedUser, firstName, lastName, basis));
+  }
+
+  private static boolean hasName(User user, String firstName, String lastName) {
+    return Objects.equals(user.getFirstName(), firstName)
+        && Objects.equals(user.getLastName(), lastName);
+  }
+
+  private void rename(User user, String firstName, String lastName, NameChangeBasis basis) {
     String oldFirstName = user.getFirstName();
     String oldLastName = user.getLastName();
-    if (Objects.equals(oldFirstName, firstName) && Objects.equals(oldLastName, lastName)) {
-      return user;
-    }
     user.setFirstName(firstName);
     user.setLastName(lastName);
     log.info("Changing user name: userId={}, source={}", user.getId(), basis.source());
-    User savedUser = save(user);
-    nameChangeRecorder.record(savedUser, oldFirstName, oldLastName, basis);
-    return savedUser;
+    nameChangeRecorder.record(save(user), oldFirstName, oldLastName, basis);
   }
 
   private User lockedUser(String personalCode) {

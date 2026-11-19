@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.user.NameChangeSource.ADMIN;
 import static ee.tuleva.onboarding.user.NameChangeSource.SMART_ID_LOGIN;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
 
 import ee.tuleva.onboarding.time.ClockConfig;
@@ -97,6 +98,40 @@ class NameChangeHistoryIntegrationTest {
 
     assertThat(storedName()).isEqualTo(new StoredName("Mari", "Maasikas"));
     assertThat(nameChanges.of(user.getIdOrThrow())).isEmpty();
+  }
+
+  @Test
+  void aUserCreatedWithANameKeepsItAsTheFirstNameWithItsBasis() {
+    var created =
+        userService.createNewUser(
+            User.builder()
+                .personalCode("61506150006")
+                .firstName("Kati")
+                .lastName("Karu")
+                .active(true)
+                .build(),
+            NameChangeBasis.admin("Court ruling 2-26-1234"));
+
+    try {
+      assertThat(nameChanges.of(created.getIdOrThrow()))
+          .containsExactly(
+              new Row(null, null, "Kati", "Karu", ADMIN, "Court ruling 2-26-1234", NOW));
+    } finally {
+      nameChanges.deleteOf(created.getIdOrThrow());
+      jdbcClient
+          .sql("DELETE FROM users WHERE id = :userId")
+          .param("userId", created.getId())
+          .update();
+    }
+  }
+
+  @Test
+  void aPersonWithNoUserHasNoNameToChange() {
+    assertThatCode(
+            () ->
+                userService.changeName(
+                    "38812121215", "Mari", "Kask", NameChangeBasis.login(SMART_ID)))
+        .doesNotThrowAnyException();
   }
 
   private StoredName storedName() {

@@ -89,7 +89,8 @@ class ParentChildLinkRegistrationServiceTest {
                 .firstName("Mari")
                 .lastName("Maasikas")
                 .active(true)
-                .build());
+                .build(),
+            FROM_POPULATION_REGISTER);
   }
 
   @Test
@@ -163,7 +164,8 @@ class ParentChildLinkRegistrationServiceTest {
                 .firstName("Mari")
                 .lastName("Maasikas")
                 .active(true)
-                .build());
+                .build(),
+            FROM_POPULATION_REGISTER);
     assertThat(saved.getParentPersonalCode()).isEqualTo(CO_PARENT);
     assertThat(saved.getChildPersonalCode()).isEqualTo(CHILD);
     assertThat(saved.getRelationshipType()).isEqualTo(LEGAL_REPRESENTATIVE);
@@ -290,7 +292,8 @@ class ParentChildLinkRegistrationServiceTest {
                 .firstName("Ants")
                 .lastName("Haldja")
                 .active(true)
-                .build());
+                .build(),
+            FROM_COURT_RULING);
   }
 
   @Test
@@ -307,7 +310,7 @@ class ParentChildLinkRegistrationServiceTest {
     service.registerPending(CO_PARENT_GUARDIAN, CHILD, "mari", "maasikas");
 
     verify(userService).changeName(CHILD, "Mari", "Maasikas", FROM_POPULATION_REGISTER);
-    verify(userService, never()).createNewUser(any());
+    verify(userService, never()).createNewUser(any(), any());
   }
 
   @Test
@@ -325,6 +328,6 @@ class ParentChildLinkRegistrationServiceTest {
         GUARDIAN_CODE, ADULT_WARD, "ants", "haldja", GUARDIANSHIP_VALID_UNTIL, FROM_COURT_RULING);
 
     verify(userService).changeName(ADULT_WARD, "Ants", "Haldja", FROM_COURT_RULING);
-    verify(userService, never()).createNewUser(any());
+    verify(userService, never()).createNewUser(any(), any());
   }
 }

@@ -13,15 +13,15 @@ class CostsOverTimeCalculatorTest {
 
   @Test
   void
-      theFirstYearAssumesTheInvestorGetsBackWhatTheyInvestedAfterCostsInWholeEurosAndTenthsOfAPercent() {
+      theFirstYearAssumesTheInvestorGetsBackWhatTheyInvestedAfterCostsInWholeEurosAndHundredthsOfAPercent() {
     assertThat(calculator.firstYearAtZeroNetReturn(0.005))
         .isEqualTo(
             new KidCost(
                 1,
                 new BigDecimal("50"),
-                new BigDecimal("0.005"),
-                new BigDecimal("0.005"),
-                new BigDecimal("0.000")));
+                new BigDecimal("0.0050"),
+                new BigDecimal("0.0050"),
+                new BigDecimal("0.0000")));
   }
 
   @Test
@@ -31,9 +31,9 @@ class CostsOverTimeCalculatorTest {
             new KidCost(
                 1,
                 new BigDecimal("417"),
-                new BigDecimal("0.042"),
-                new BigDecimal("0.042"),
-                new BigDecimal("0.000")));
+                new BigDecimal("0.0417"),
+                new BigDecimal("0.0417"),
+                new BigDecimal("0.0000")));
   }
 
   @Test
@@ -51,9 +51,9 @@ class CostsOverTimeCalculatorTest {
             new KidCost(
                 5,
                 new BigDecimal("273"),
-                new BigDecimal("0.005"),
-                new BigDecimal("0.033"),
-                new BigDecimal("0.028")));
+                new BigDecimal("0.0052"),
+                new BigDecimal("0.0332"),
+                new BigDecimal("0.0281")));
   }
 
   @Test
@@ -71,8 +71,8 @@ class CostsOverTimeCalculatorTest {
             new KidCost(
                 5,
                 new BigDecimal("350"),
-                new BigDecimal("0.006"),
-                new BigDecimal("0.118"),
-                new BigDecimal("0.112")));
+                new BigDecimal("0.0056"),
+                new BigDecimal("0.1178"),
+                new BigDecimal("0.1122")));
   }
 }

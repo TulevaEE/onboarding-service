@@ -283,14 +283,17 @@ transaction-registry:
     # Whether onboarding-service alerts on FT confirmations. When true, FtConfirmationDigest
     # sends a Slack digest of ERROR/AMBIGUOUS/ORPHAN rows, of rows that could not be checked
     # (UNCHECKED), of prices with no closing price of the trade date by the end of the next
-    # business day (PRICE_MISSING) and of FT cancellations still without a new confirmation of
+    # business day (PRICE_MISSING), of FT cancellations still without a new confirmation of
     # the same quantity after the next business day (CANCELLED, or AMBIGUOUS when several
-    # orders match), once per confirmation and result. When false (shadow mode), outcomes are
-    # only recorded to the audit trail. Off here: the production profile turns it on, staging
-    # stays in shadow mode.
+    # orders match) and of trades SEB executed that still have no readable FT confirmation
+    # after the next business day, with SEB's price checked against the close instead
+    # (UNCONFIRMED), once per trade and result. When false (shadow mode), outcomes are only
+    # recorded to the audit trail. Off here: the production profile turns it on, staging stays
+    # in shadow mode.
     registry-authoritative: ${TRANSACTION_REGISTRY_FT_CONFIRMATION_REGISTRY_AUTHORITATIVE:false}
-    # Trades from this date on turn PRICE_MISSING once their closing price is overdue. Earlier
-    # trades stay PENDING_NAV, so the check does not alert on the backlog it was switched on over.
+    # Trades from this date on turn PRICE_MISSING once their closing price is overdue and
+    # UNCONFIRMED once their FT confirmation is. Earlier trades stay PENDING_NAV and are not
+    # looked for, so the checks do not alert on the backlog they were switched on over.
     alerts-from: 2026-11-18
 
 payment-provider:

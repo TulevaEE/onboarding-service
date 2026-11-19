@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.transaction.FtConfirmationType.CANCELLATION;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.AMBIGUOUS;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.CANCELLED;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.CONFIRMED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ERROR;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.NOTHING_TO_CANCEL;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.OK;
@@ -12,6 +13,7 @@ import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.P
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PRICE_MISSING;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.REPLACED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCHECKED;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCONFIRMED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.VOIDED;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -31,8 +33,10 @@ import ee.tuleva.onboarding.investment.transaction.FtVerificationStatus;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -111,6 +115,107 @@ class FtConfirmationDigestTest {
                 + "FT issue: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434,"
                 + " quantityStatus=ERROR, priceStatus=PRICE_MISSING",
             INVESTMENT);
+  }
+
+  @Test
+  void ftTradeSebExecutedWithoutAnFtConfirmation_isSentWithItsSebPriceWithinTolerance() {
+    digest(true).publish(List.of(unconfirmedTrade(OK, Map.of("referencePrice", "10.09"))));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "SEB executed an FT trade with no readable FT confirmation by the end of"
+                + " 2026-06-09: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08,"
+                + " quantity=40434, sebPrice=10.09 — price within tolerance of the closing price"
+                + " 10.09; ask FT for the confirmation",
+            INVESTMENT);
+  }
+
+  @Test
+  void ftTradeSebExecutedWithoutAnFtConfirmation_isSentWithHowFarItsSebPriceIsOffTheClose() {
+    digest(true)
+        .publish(
+            List.of(
+                unconfirmedTrade(
+                    ERROR,
+                    Map.of("referencePrice", "10.04", "priceDeltaPercent", "0.4980079681274900"))));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "SEB executed an FT trade with no readable FT confirmation by the end of"
+                + " 2026-06-09: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08,"
+                + " quantity=40434, sebPrice=10.09 — price 0.50% off the closing price 10.04; ask"
+                + " FT for the confirmation",
+            INVESTMENT);
+  }
+
+  @Test
+  void ftTradeSebExecutedWithoutAnFtConfirmation_isSentWithAClosingPriceThatIsNotValid() {
+    digest(true)
+        .publish(
+            List.of(
+                unconfirmedTrade(
+                    ERROR, Map.of("referencePrice", "0.00", "invalidReferencePrice", "true"))));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "SEB executed an FT trade with no readable FT confirmation by the end of"
+                + " 2026-06-09: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08,"
+                + " quantity=40434, sebPrice=10.09 — closing price 0.00 is not valid; ask FT for"
+                + " the confirmation",
+            INVESTMENT);
+  }
+
+  @Test
+  void ftTradeSebExecutedWithoutAnFtConfirmation_isSentWithTheClosingPriceMissing() {
+    digest(true)
+        .publish(
+            List.of(unconfirmedTrade(PRICE_MISSING, Map.of("closingPriceDueBy", "2026-06-09"))));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "SEB executed an FT trade with no readable FT confirmation by the end of"
+                + " 2026-06-09: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08,"
+                + " quantity=40434, sebPrice=10.09 — no closing price for the trade date by the"
+                + " end of 2026-06-09, check the price against the official close by hand; ask"
+                + " FT for the confirmation",
+            INVESTMENT);
+  }
+
+  @Test
+  void ftTradeSebExecutedWithoutAnFtConfirmation_isSentEvenWhenItsPriceCouldNotBeChecked() {
+    digest(true)
+        .publish(
+            List.of(unconfirmedTrade(UNCHECKED, Map.of("verificationError", "price source down"))));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "SEB executed an FT trade with no readable FT confirmation by the end of"
+                + " 2026-06-09: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08,"
+                + " quantity=40434, sebPrice=10.09 — price could not be checked: price source"
+                + " down; ask FT for the confirmation",
+            INVESTMENT);
+  }
+
+  @Test
+  void ftTradeFtConfirmed_isNotSent() {
+    digest(true)
+        .publish(
+            List.of(
+                new FtExecutedTrade(
+                    TUK75,
+                    ISIN,
+                    TRADE_DATE,
+                    UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29"),
+                    new BigDecimal("40434"),
+                    new BigDecimal("10.09"),
+                    new FtConfirmationResult(CONFIRMED, CONFIRMED, Map.of()))));
+
+    verifyNoInteractions(notificationService);
   }
 
   @Test
@@ -280,6 +385,20 @@ class FtConfirmationDigestTest {
         outcome.confirmation(),
         new FtConfirmationResult(
             UNCHECKED, UNCHECKED, Map.of("verificationError", "price source down")));
+  }
+
+  private static FtExecutedTrade unconfirmedTrade(
+      FtVerificationStatus priceStatus, Map<String, String> priceDetails) {
+    Map<String, String> details = new HashMap<>(priceDetails);
+    details.put("confirmationDueBy", "2026-06-09");
+    return new FtExecutedTrade(
+        TUK75,
+        ISIN,
+        TRADE_DATE,
+        UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29"),
+        new BigDecimal("40434"),
+        new BigDecimal("10.09"),
+        new FtConfirmationResult(UNCONFIRMED, priceStatus, Map.copyOf(details)));
   }
 
   private static FtConfirmationOutcome priceMissing(FtVerificationStatus quantityStatus) {

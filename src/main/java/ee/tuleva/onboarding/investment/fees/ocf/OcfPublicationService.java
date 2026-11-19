@@ -93,7 +93,7 @@ public class OcfPublicationService {
       TulevaFund fund, OcfSnapshot snapshot, LocalDate validFrom) {
     var fee = managementFeeOn(fund, validFrom);
     var publishedOcf = publishedOcf(snapshot, fee);
-    var precision = PublishedPrecision.of(fund);
+    var precision = PublishedPrecision.forANewKid();
     return new OcfPublicationPreview(
         fund.getCode(),
         YearMonth.from(snapshot.snapshotMonth()),

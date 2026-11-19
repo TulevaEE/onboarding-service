@@ -256,7 +256,7 @@ class OcfNotifierTest {
                 List.of(),
                 List.of(),
                 new KidComparison(
-                    PublishedPrecision.of(TUK75),
+                    PublishedPrecision.forANewKid(),
                     new KidFigure(
                         1L,
                         LocalDate.of(2026, 3, 1),
@@ -288,7 +288,7 @@ class OcfNotifierTest {
                 snapshot(TUK75, MONTH, "0.004549", true),
                 List.of(),
                 List.of(),
-                new KidComparison(PublishedPrecision.of(TUK75), null, null, true))),
+                new KidComparison(PublishedPrecision.forANewKid(), null, null, true))),
         List.of());
 
     then(notificationService)
@@ -475,7 +475,7 @@ class OcfNotifierTest {
         List.of(),
         List.of(),
         new KidComparison(
-            PublishedPrecision.of(fund),
+            PublishedPrecision.forANewKid(),
             new KidFigure(
                 1L,
                 LocalDate.of(2026, 3, 1),
@@ -488,7 +488,7 @@ class OcfNotifierTest {
   }
 
   private static KidComparison noKid(TulevaFund fund) {
-    return new KidComparison(PublishedPrecision.of(fund), null, null, false);
+    return new KidComparison(PublishedPrecision.forANewKid(), null, null, false);
   }
 
   private static OcfRunOutcome weighedByTheMonthAverage(TulevaFund fund, String totalOcf) {
@@ -565,7 +565,7 @@ class OcfNotifierTest {
         List.of(gaps),
         List.of(),
         new KidComparison(
-            PublishedPrecision.of(fund),
+            PublishedPrecision.forANewKid(),
             new KidFigure(
                 1L,
                 LocalDate.of(2026, 3, 1),

@@ -58,11 +58,12 @@ class CostBasisOversellAlerter {
       }
     } catch (RuntimeException e) {
       log.error(
-          "Cost-basis oversell not recorded, posting it directly: dedupKey={}, error={}",
+          "Cost-basis oversell not recorded, posting it directly with a manual-recompute note:"
+              + " dedupKey={}, error={}",
           dedupKey,
           e.getMessage(),
           e);
-      send(CostBasisOversellAlertText.found(payload, oversell.getAsOfDate()), dedupKey);
+      send(CostBasisOversellAlertText.unrecorded(payload, oversell.getAsOfDate()), dedupKey);
       return;
     }
     clearOpenBefore(fund, oversell.getAsOfDate());

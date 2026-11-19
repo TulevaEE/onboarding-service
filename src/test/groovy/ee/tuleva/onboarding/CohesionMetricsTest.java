@@ -100,7 +100,8 @@ class CohesionMetricsTest {
 
   private static boolean isGeneratedCode(String className) {
     return className.startsWith("ee.tuleva.onboarding.ariregister.generated.")
-        || className.startsWith("ee.tuleva.onboarding.banking.iso20022.");
+        || className.startsWith("ee.tuleva.onboarding.banking.iso20022.")
+        || className.startsWith("ee.tuleva.onboarding.taxwin.income.generated.");
   }
 
   private static ClassNode readClass(Path path) {

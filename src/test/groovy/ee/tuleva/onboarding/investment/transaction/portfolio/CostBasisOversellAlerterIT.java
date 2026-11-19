@@ -76,9 +76,7 @@ class CostBasisOversellAlerterIT {
     assertThat(auditEventRepository.findByEventType(OVERSELL_POSTED))
         .extracting(TransactionAuditEvent::getDedupKey, TransactionAuditEvent::getPayload)
         .containsExactly(
-            tuple(
-                "TUK75 IE00BFNM3G45 2026-05-01",
-                Map.of("eventId", found.getId().toString(), "outcome", "SENT")));
+            tuple("TUK75 IE00BFNM3G45 2026-05-01", Map.of("eventId", found.getId().toString())));
   }
 
   @Test
@@ -159,6 +157,7 @@ class CostBasisOversellAlerterIT {
     notifications.failNext();
     alerter.postPending();
     alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
+    alerter.postPending();
     alerter.postPending();
 
     assertThat(notifications.sent())

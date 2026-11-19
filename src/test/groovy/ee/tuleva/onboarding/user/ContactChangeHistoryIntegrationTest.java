@@ -21,6 +21,8 @@ import ee.tuleva.onboarding.user.contact.ContactChangeRows;
 import ee.tuleva.onboarding.user.contact.ContactChangeRows.Row;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.member.MemberRepository;
+import ee.tuleva.onboarding.user.name.NameChangeRecorder;
+import ee.tuleva.onboarding.user.name.NameChangeRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -45,6 +47,8 @@ import org.springframework.transaction.annotation.Transactional;
   UserService.class,
   ContactChangeRecorder.class,
   ContactChangeRepository.class,
+  NameChangeRecorder.class,
+  NameChangeRepository.class,
   ContactDetailsChangedBroadcaster.class,
   ClientConnection.class,
   TrackableEventLogger.class,

@@ -22,6 +22,7 @@ import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.populationregister.CustodyRight;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
+import ee.tuleva.onboarding.user.NameChangeBasis;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -155,7 +156,8 @@ class ChildOnboardingServiceTest {
     assertThat(result.firstName()).isEqualTo("MARI");
     assertThat(result.lastName()).isEqualTo("MAASIKAS");
     assertThat(result.dateOfBirth()).isEqualTo(LocalDate.of(2015, 6, 15));
-    verify(parentChildLinkRegistrationService).register(PARENT, CHILD, "MARI", "MAASIKAS");
+    verify(parentChildLinkRegistrationService)
+        .register(PARENT, CHILD, "MARI", "MAASIKAS", NameChangeBasis.populationRegister());
     verify(childSavingsOnboarding).seedIfAbsent(CHILD);
     var expectedEvidence = new LinkedHashMap<String, Object>(evidence);
     expectedEvidence.put("citizenship", "EE");
@@ -257,7 +259,8 @@ class ChildOnboardingServiceTest {
 
     service.onboardChild(parent, CHILD);
 
-    verify(parentChildLinkRegistrationService).register(PARENT, CHILD, "MARI", "MAASIKAS");
+    verify(parentChildLinkRegistrationService)
+        .register(PARENT, CHILD, "MARI", "MAASIKAS", NameChangeBasis.populationRegister());
     verify(applicationEventPublisher)
         .publishEvent(new ChildOnboardedEvent(PARENT, CHILD, "MARI", "MAASIKAS"));
   }
@@ -280,7 +283,7 @@ class ChildOnboardingServiceTest {
     assertThat(result.verified()).isFalse();
     assertThat(result.firstName()).isNull();
     verify(amlService).addCustodyRightCheck(CHILD, false, evidence);
-    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any());
+    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any(), any());
     verify(childSavingsOnboarding, never()).seedIfAbsent(any());
     verify(applicationEventPublisher)
         .publishEvent(new TrackableEvent(parent, MINOR_CUSTODY_VERIFICATION, evidence));

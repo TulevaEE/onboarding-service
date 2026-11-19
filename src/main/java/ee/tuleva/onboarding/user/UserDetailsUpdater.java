@@ -35,14 +35,14 @@ public class UserDetailsUpdater {
         event.getTimestamp(),
         person.getPersonalCode());
 
-    userService
-        .findByPersonalCode(person.getPersonalCode())
-        .ifPresent(
-            user -> {
-              user.setFirstName(formatted(person.getFirstName()));
-              user.setLastName(formatted(person.getLastName()));
-              userService.save(user);
-            });
+    if (userService.findByPersonalCode(person.getPersonalCode()).isEmpty()) {
+      return;
+    }
+    userService.changeName(
+        person.getPersonalCode(),
+        formatted(person.getFirstName()),
+        formatted(person.getLastName()),
+        NameChangeBasis.login(event.getGrantType()));
   }
 
   @EventListener

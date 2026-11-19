@@ -8,6 +8,7 @@ import static org.springframework.transaction.annotation.Propagation.REQUIRES_NE
 
 import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.populationregister.Guardian;
+import ee.tuleva.onboarding.user.NameChangeBasis;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.time.Clock;
@@ -31,10 +32,11 @@ public class ParentChildLinkRegistrationService {
       String parentPersonalCode,
       String childPersonalCode,
       String childFirstName,
-      String childLastName) {
+      String childLastName,
+      NameChangeBasis nameBasis) {
 
     requireMinor(childPersonalCode);
-    upsertPerson(childPersonalCode, childFirstName, childLastName);
+    upsertPerson(childPersonalCode, childFirstName, childLastName, nameBasis);
     return findOrCreateLink(
         parentPersonalCode,
         childPersonalCode,
@@ -49,7 +51,8 @@ public class ParentChildLinkRegistrationService {
       Guardian coParent, String childPersonalCode, String childFirstName, String childLastName) {
 
     requireMinor(childPersonalCode);
-    upsertPerson(childPersonalCode, childFirstName, childLastName);
+    upsertPerson(
+        childPersonalCode, childFirstName, childLastName, NameChangeBasis.populationRegister());
     return parentChildLinkRepository
         .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
             coParent.personalCode(), childPersonalCode, LEGAL_REPRESENTATIVE)
@@ -93,9 +96,10 @@ public class ParentChildLinkRegistrationService {
       String wardPersonalCode,
       String wardFirstName,
       String wardLastName,
-      LocalDate validUntil) {
+      LocalDate validUntil,
+      NameChangeBasis nameBasis) {
 
-    upsertPerson(wardPersonalCode, wardFirstName, wardLastName);
+    upsertPerson(wardPersonalCode, wardFirstName, wardLastName, nameBasis);
     return findOrCreateLink(guardianPersonalCode, wardPersonalCode, GUARDIAN, validUntil);
   }
 
@@ -151,22 +155,18 @@ public class ParentChildLinkRegistrationService {
     return PersonalCode.getDateOfBirth(childPersonalCode).plusYears(18);
   }
 
-  private void upsertPerson(String personalCode, String firstName, String lastName) {
-    userService
-        .findByPersonalCode(personalCode)
-        .ifPresentOrElse(
-            existing -> {
-              existing.setFirstName(formatted(firstName));
-              existing.setLastName(formatted(lastName));
-              userService.save(existing);
-            },
-            () ->
-                userService.createNewUser(
-                    User.builder()
-                        .personalCode(personalCode)
-                        .firstName(formatted(firstName))
-                        .lastName(formatted(lastName))
-                        .active(true)
-                        .build()));
+  private void upsertPerson(
+      String personalCode, String firstName, String lastName, NameChangeBasis nameBasis) {
+    if (userService.findByPersonalCode(personalCode).isPresent()) {
+      userService.changeName(personalCode, formatted(firstName), formatted(lastName), nameBasis);
+      return;
+    }
+    userService.createNewUser(
+        User.builder()
+            .personalCode(personalCode)
+            .firstName(formatted(firstName))
+            .lastName(formatted(lastName))
+            .active(true)
+            .build());
   }
 }

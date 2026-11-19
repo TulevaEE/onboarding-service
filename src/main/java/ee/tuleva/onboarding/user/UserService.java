@@ -5,6 +5,8 @@ import ee.tuleva.onboarding.user.exception.DuplicateEmailException;
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.member.MemberRepository;
+import ee.tuleva.onboarding.user.name.NameChangeRecorder;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +25,7 @@ public class UserService {
   private final MemberRepository memberRepository;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final ContactChangeRecorder contactChangeRecorder;
+  private final NameChangeRecorder nameChangeRecorder;
 
   public Optional<User> getById(Long userId) {
     return userRepository.findById(userId);
@@ -72,6 +75,23 @@ public class UserService {
     }
     throwIfEmailTaken(personalCode, email);
     return setContactDetails(user, email.orElse(null), phoneNumber);
+  }
+
+  @Transactional
+  public User changeName(
+      String personalCode, String firstName, String lastName, NameChangeBasis basis) {
+    User user = lockedUser(personalCode);
+    String oldFirstName = user.getFirstName();
+    String oldLastName = user.getLastName();
+    if (Objects.equals(oldFirstName, firstName) && Objects.equals(oldLastName, lastName)) {
+      return user;
+    }
+    user.setFirstName(firstName);
+    user.setLastName(lastName);
+    log.info("Changing user name: userId={}, source={}", user.getId(), basis.source());
+    User savedUser = save(user);
+    nameChangeRecorder.record(savedUser, oldFirstName, oldLastName, basis);
+    return savedUser;
   }
 
   private User lockedUser(String personalCode) {

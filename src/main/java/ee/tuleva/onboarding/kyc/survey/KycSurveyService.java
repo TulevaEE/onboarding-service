@@ -24,15 +24,21 @@ public class KycSurveyService {
     KycSurvey saved =
         requireNonNull(
             commitBeforeAmlServiceAssesses.execute(
-                status -> saveSurveyAndScreenings(subject, surveyResponse)));
+                status ->
+                    saveSurveyAndScreenings(subject, person.getUserIdOrThrow(), surveyResponse)));
     kycCheckService.check(subject, saved);
     return saved;
   }
 
-  private KycSurvey saveSurveyAndScreenings(User subject, KycSurveyResponse surveyResponse) {
+  private KycSurvey saveSurveyAndScreenings(
+      User subject, Long submittedByUserId, KycSurveyResponse surveyResponse) {
     KycSurvey saved =
         kycSurveyRepository.save(
-            KycSurvey.builder().userId(subject.getIdOrThrow()).survey(surveyResponse).build());
+            KycSurvey.builder()
+                .userId(subject.getIdOrThrow())
+                .submittedByUserId(submittedByUserId)
+                .survey(surveyResponse)
+                .build());
     kycCheckService.beforeCheck(subject, surveyResponse.countries());
     return saved;
   }

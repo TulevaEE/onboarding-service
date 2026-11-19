@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.user.contact.ContactChangeRecorder
 import ee.tuleva.onboarding.user.exception.DuplicateEmailException
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException
 import ee.tuleva.onboarding.user.member.MemberRepository
+import ee.tuleva.onboarding.user.name.NameChangeRecorder
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Shared
 import org.springframework.dao.DataIntegrityViolationException
@@ -18,7 +19,8 @@ class UserServiceSpec extends Specification {
   def memberRepository = Mock(MemberRepository)
   def applicationEventPublisher = Mock(ApplicationEventPublisher)
   def contactChangeRecorder = Mock(ContactChangeRecorder)
-  def service = new UserService(userRepository, memberRepository, applicationEventPublisher, contactChangeRecorder)
+  def nameChangeRecorder = Mock(NameChangeRecorder)
+  def service = new UserService(userRepository, memberRepository, applicationEventPublisher, contactChangeRecorder, nameChangeRecorder)
 
   @Shared
   String personalCodeSample = "somePersonalCode"

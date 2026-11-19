@@ -4,10 +4,12 @@ import ee.tuleva.onboarding.personalcode.ValidPersonalCode;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
+import org.jspecify.annotations.Nullable;
 
 public record CreateGuardianLinkRequest(
     @ValidPersonalCode String guardianCode,
     @ValidPersonalCode String wardCode,
     @NotBlank String wardFirstName,
     @NotBlank String wardLastName,
-    @NotNull LocalDate validUntil) {}
+    @NotNull LocalDate validUntil,
+    @Nullable String documentReference) {}

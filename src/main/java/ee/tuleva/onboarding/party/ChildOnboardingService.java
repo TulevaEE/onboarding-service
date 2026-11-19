@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
+import ee.tuleva.onboarding.user.NameChangeBasis;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -118,7 +119,11 @@ public class ChildOnboardingService {
     PopulationRegisterPerson child =
         requireNonNull(verification.child(), "Verified custody without child data");
     parentChildLinkRegistrationService.register(
-        parentPersonalCode, childPersonalCode, child.firstName(), child.lastName());
+        parentPersonalCode,
+        childPersonalCode,
+        child.firstName(),
+        child.lastName(),
+        NameChangeBasis.populationRegister());
     childSavingsOnboarding.seedIfAbsent(childPersonalCode);
     screenForSanctionsAndPep(child);
     screenGuardian(parent, guardianCitizenship);

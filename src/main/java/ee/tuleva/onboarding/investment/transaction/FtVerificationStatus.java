@@ -8,6 +8,7 @@ public enum FtVerificationStatus {
   ERROR,
   PENDING_EXECUTION,
   PENDING_NAV,
+  PRICE_MISSING,
   CANCELLED,
   AMBIGUOUS,
   IGNORED,

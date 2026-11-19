@@ -76,7 +76,8 @@ class FtConfirmationVerificationServiceTest {
     return new FtConfirmationVerificationService(
         orderRepository,
         executionRepository,
-        new FtPriceCheck(positionPriceResolver, new PriceValidator()),
+        new FtPriceCheck(
+            positionPriceResolver, new PriceValidator(), new Target2Calendar(), clock, TRADE_DATE),
         new Target2Calendar(),
         auditRecorder,
         new FtCancellationCheck(new Target2Calendar(), auditRecorder, clock),

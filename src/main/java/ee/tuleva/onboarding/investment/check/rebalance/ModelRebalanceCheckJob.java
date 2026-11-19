@@ -74,9 +74,15 @@ class ModelRebalanceCheckJob {
   }
 
   private void announce(RebalanceWindow window) {
-    RebalanceMessage.of(window)
-        .filter(message -> post(window.fund(), message))
-        .ifPresent(message -> announcements.recordAnnounced(window, clock.instant()));
+    RebalanceMessage.of(window).ifPresent(message -> recordAndPost(window, message));
+  }
+
+  private void recordAndPost(RebalanceWindow window, RebalanceMessage message) {
+    var announcedAt = clock.instant();
+    announcements.recordAnnouncement(window, announcedAt);
+    if (!post(window.fund(), message) && window.inLine()) {
+      announcements.recordUndeliveredClose(window, announcedAt);
+    }
   }
 
   private boolean post(TulevaFund fund, RebalanceMessage message) {

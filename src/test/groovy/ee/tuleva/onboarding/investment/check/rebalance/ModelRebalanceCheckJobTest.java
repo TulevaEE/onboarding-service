@@ -67,7 +67,7 @@ class ModelRebalanceCheckJobTest {
   }
 
   @Test
-  void aSlackPostThatFails_isNotRecordedAndDoesNotStopTheOtherFunds() {
+  void anOpenWindowsPostThatFails_doesNotStopTheOtherFundsAndOwesNoClose() {
     given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.of(warningWindow()));
     given(announcements.isOwed(warningWindow())).willReturn(true);
     willThrow(new IllegalStateException("No webhook for slack channel INVESTMENT"))
@@ -77,20 +77,58 @@ class ModelRebalanceCheckJobTest {
     jobOn(MONDAY).checkRebalanceWindows();
 
     then(rebalanceWindows).should().current(TKF100, MONDAY);
-    then(announcements).should(never()).recordAnnounced(any(), any());
+    then(announcements).should(never()).recordUndeliveredClose(any(), any());
   }
 
   @Test
-  void aPostedAnnouncement_isRecordedWithTheTimeItWasPosted() {
+  void anAnnouncementIsRecordedBeforeItIsPosted() {
     given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
     given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
     given(announcements.isOwed(warningWindow())).willReturn(true);
 
     jobOn(MONDAY).checkRebalanceWindows();
 
+    var inOrder = inOrder(announcements, notificationService);
     then(announcements)
+        .should(inOrder)
+        .recordAnnouncement(warningWindow(), MONDAY.atTime(9, 15).atZone(TALLINN).toInstant());
+    then(notificationService)
+        .should(inOrder)
+        .sendMessage(startsWith("⚠️ TUV100"), eq(INVESTMENT), eq(WARNING));
+  }
+
+  @Test
+  void anAnnouncementThatCannotBeRecorded_isNotPostedAndTheCheckSaysItCouldNotRun() {
+    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
+    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
+    given(announcements.isOwed(warningWindow())).willReturn(true);
+    willThrow(new IllegalStateException("event_log unavailable"))
+        .given(announcements)
+        .recordAnnouncement(eq(warningWindow()), any());
+
+    jobOn(MONDAY).checkRebalanceWindows();
+
+    then(notificationService)
         .should()
-        .recordAnnounced(warningWindow(), MONDAY.atTime(9, 15).atZone(TALLINN).toInstant());
+        .sendMessage(startsWith("⏸ TUV100"), eq(INVESTMENT), eq(ERROR));
+    then(notificationService).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void aCloseThatCouldNotBePosted_isRecordedAsStillOwed() {
+    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
+    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(closedWindow()));
+    given(announcements.isOwed(closedWindow())).willReturn(true);
+    willThrow(new IllegalStateException("No webhook for slack channel INVESTMENT"))
+        .given(notificationService)
+        .sendMessage(any(), eq(INVESTMENT), eq(INFO));
+
+    jobOn(MONDAY).checkRebalanceWindows();
+
+    var announcedAt = MONDAY.atTime(9, 15).atZone(TALLINN).toInstant();
+    var inOrder = inOrder(announcements);
+    then(announcements).should(inOrder).recordAnnouncement(closedWindow(), announcedAt);
+    then(announcements).should(inOrder).recordUndeliveredClose(closedWindow(), announcedAt);
   }
 
   @Test
@@ -102,7 +140,7 @@ class ModelRebalanceCheckJobTest {
     jobOn(MONDAY).checkRebalanceWindows();
 
     then(notificationService).shouldHaveNoInteractions();
-    then(announcements).should(never()).recordAnnounced(any(), any());
+    then(announcements).should(never()).recordAnnouncement(any(), any());
   }
 
   @Test
@@ -124,7 +162,7 @@ class ModelRebalanceCheckJobTest {
         .should(inOrder)
         .sendMessage(
             startsWith("⚠️ TUV100 mudelportfell alates 01.10.2026"), eq(INVESTMENT), eq(WARNING));
-    then(announcements).should().recordAnnounced(eq(closedWindow()), any());
+    then(announcements).should().recordAnnouncement(eq(closedWindow()), any());
   }
 
   @Test

@@ -8,9 +8,8 @@ import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.P
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCHECKED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCONFIRMED;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.CANCELLED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
-import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
-import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,6 +24,7 @@ import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationType;
+import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -357,18 +357,88 @@ class FtUnconfirmedTradeCheckTest {
   }
 
   @Test
-  void sebRowsWithoutAQuantityOrPrice_areLeftOutOfTheSebAveragePrice() {
+  void confirmationOfAnOrderCancelledInTheRegistry_doesNotConfirmTheDaysOtherTrade() {
+    TransactionOrder cancelled = order("1000");
+    cancelled.setOrderStatus(CANCELLED);
+    TransactionOrder live = order("250");
+    givenOrders(cancelled, live);
+    givenExecutions(execution(live, "250", "20.40"));
+    givenClosingPrice("20.40");
+
+    check(TWO_DAYS_AFTER_TRADE).check(List.of(confirmation("1000", "20.40")), ACTOR);
+
+    verify(digest)
+        .publish(
+            List.of(
+                trade(
+                    live,
+                    "250",
+                    "20.4",
+                    new FtConfirmationResult(
+                        UNCONFIRMED,
+                        OK,
+                        Map.of("confirmationDueBy", "2026-06-09", "referencePrice", "20.40")))));
+  }
+
+  @Test
+  void orderCancelledInTheRegistry_doesNotStopTheDaysOnlyLiveTradeBeingConfirmed() {
+    TransactionOrder cancelled = order("1000");
+    cancelled.setOrderStatus(CANCELLED);
+    TransactionOrder live = order("250");
+    givenOrders(cancelled, live);
+    givenExecutions(execution(live, "250", "20.40"));
+
+    check(TWO_DAYS_AFTER_TRADE).check(List.of(confirmation("249", "20.40")), ACTOR);
+
+    verify(digest)
+        .publish(
+            List.of(
+                trade(
+                    live,
+                    "250",
+                    "20.4",
+                    new FtConfirmationResult(CONFIRMED, CONFIRMED, Map.of()))));
+  }
+
+  @Test
+  void sebExecutionWithoutAPrice_leavesTheTradeUnconfirmedWithThePriceUnchecked() {
     TransactionOrder order = order("1000");
     givenOrders(order);
-    TransactionExecution withoutPrice = execution(order, "500", "20.40");
+    TransactionExecution withoutPrice = execution(order, "400", "20.40");
     withoutPrice.setUnitPrice(null);
+    givenExecutions(execution(order, "600", "20.40"), withoutPrice);
+
+    check(TWO_DAYS_AFTER_TRADE).check(List.of(), ACTOR);
+
+    verify(digest)
+        .publish(
+            List.of(
+                new FtExecutedTrade(
+                    TUK75,
+                    ISIN,
+                    TRADE_DATE,
+                    order.getOrderUuid(),
+                    new BigDecimal("1000"),
+                    null,
+                    new FtConfirmationResult(
+                        UNCONFIRMED,
+                        UNCHECKED,
+                        Map.of(
+                            "confirmationDueBy",
+                            "2026-06-09",
+                            "verificationError",
+                            "SEB reported no price for the trade")))));
+    verifyNoInteractions(positionPriceResolver);
+  }
+
+  @Test
+  void sebRowsWithoutAQuantity_areLeftOutOfTheTrade() {
+    TransactionOrder order = order("1000");
+    givenOrders(order);
     TransactionExecution withoutQuantity = execution(order, "500", "19.00");
     withoutQuantity.setExecutedQuantity(null);
     givenExecutions(
-        execution(order, "1000", "20.40"),
-        withoutPrice,
-        withoutQuantity,
-        execution(order, "0", "19.00"));
+        execution(order, "1000", "20.40"), withoutQuantity, execution(order, "0", "19.00"));
     givenClosingPrice("20.40");
 
     check(TWO_DAYS_AFTER_TRADE).check(List.of(), ACTOR);
@@ -454,7 +524,7 @@ class FtUnconfirmedTradeCheckTest {
   private void givenOrders(TransactionOrder... orders) {
     given(
             orderRepository.findByOrderStatusInAndOrderTimestampSince(
-                List.of(SENT, EXECUTED, SETTLED), SINCE_ALERTS_FROM))
+                List.of(OrderStatus.values()), SINCE_ALERTS_FROM))
         .willReturn(Arrays.asList(orders));
   }
 

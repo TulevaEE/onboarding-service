@@ -418,6 +418,18 @@ class FtConfirmationImportJobIT {
     assertThat(latestStatuses(tradeKey(unconfirmed))).first().isEqualTo("UNCONFIRMED");
   }
 
+  @Test
+  void run_confirmationOfAnOrderCancelledInTheRegistry_doesNotConfirmTheDaysOtherTrade() {
+    registerOrder("2500", CANCELLED);
+    TransactionOrder replacement = registerOrderExecuted("250");
+    stubOneConfirmationPdfUnderPrefix();
+
+    job.run();
+
+    assertThat(latestStatuses(DEDUP_KEY)).containsExactly("ORPHAN", "ORPHAN");
+    assertThat(latestStatuses(tradeKey(replacement))).first().isEqualTo("UNCONFIRMED");
+  }
+
   private static String tradeKey(TransactionOrder order) {
     return "FT_TRADE|" + order.getOrderUuid();
   }

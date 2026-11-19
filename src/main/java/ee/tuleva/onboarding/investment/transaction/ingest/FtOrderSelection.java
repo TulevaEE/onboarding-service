@@ -67,12 +67,18 @@ record FtOrderSelection(TransactionOrder order, boolean ambiguous, int matchCoun
   }
 
   private static Stream<Long> idsOfOrdersConfirmedThatDay(
-      List<TransactionOrder> orders, List<FtConfirmation> confirmations) {
-    if (orders.size() == 1 && !confirmations.isEmpty()) {
-      return Stream.of(orders.getFirst().getId());
+      List<TransactionOrder> candidates, List<FtConfirmation> confirmations) {
+    List<TransactionOrder> liveOrders = liveOrders(candidates);
+    List<FtConfirmation> ofLiveOrders =
+        confirmations.stream()
+            .filter(
+                confirmation -> !matchesOnlyAWithdrawnOrder(confirmation, candidates, liveOrders))
+            .toList();
+    if (liveOrders.size() == 1 && !ofLiveOrders.isEmpty()) {
+      return Stream.of(liveOrders.getFirst().getId());
     }
-    return ordersWithTheirOwnConfirmation(orders, confirmations).stream()
-        .map(row -> orders.get(row).getId());
+    return ordersWithTheirOwnConfirmation(liveOrders, ofLiveOrders).stream()
+        .map(row -> liveOrders.get(row).getId());
   }
 
   static LocalDate tradeDate(TransactionOrder order) {

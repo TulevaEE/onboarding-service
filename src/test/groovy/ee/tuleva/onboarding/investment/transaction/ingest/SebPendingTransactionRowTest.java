@@ -52,6 +52,28 @@ class SebPendingTransactionRowTest {
   }
 
   @Test
+  void fromRawData_readsEveryFieldFromTheColumnsItDeclares() {
+    Map<String, Object> raw = new HashMap<>();
+    raw.put("ISIN", "IE000F60HVH9");
+    raw.put("Price", new BigDecimal("4.7255"));
+    raw.put("Total", new BigDecimal("70915.58"));
+    raw.put("Account", "VP68168");
+    raw.put("Our ref", "DLA0799512");
+    raw.put("Buy/Sell", "Buy");
+    raw.put("Quantity", new BigDecimal("15007"));
+    raw.put("Broker fee", new BigDecimal("0.00"));
+    raw.put("Client ref", "bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    raw.put("Trade date", "2026-05-11T10:26:04Z");
+    raw.put("Client name", "Tuleva Täiendav Kogumisfond");
+    raw.put("Instrument name", "ICAV Amundi MSCI USA Screened UCITS ETF");
+    raw.put("Settlement date", "2026-05-13");
+    raw.put("Settlement amount", new BigDecimal("70915.58"));
+
+    assertThat(raw.keySet()).isEqualTo(SebPendingTransactionRow.COLUMNS_READ);
+    assertThat(SebPendingTransactionRow.fromRawData(raw)).hasNoNullFieldsOrProperties();
+  }
+
+  @Test
   void fromRawData_parsesSellSide() {
     Map<String, Object> raw = baseRow();
     raw.put("Buy/Sell", "Sell");

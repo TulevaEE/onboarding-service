@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
@@ -41,6 +42,23 @@ record SebPendingTransactionRow(
         account,
         instrumentName);
   }
+
+  static final Set<String> COLUMNS_READ =
+      Set.of(
+          "Client ref",
+          "Our ref",
+          "ISIN",
+          "Quantity",
+          "Price",
+          "Settlement amount",
+          "Broker fee",
+          "Total",
+          "Buy/Sell",
+          "Trade date",
+          "Settlement date",
+          "Client name",
+          "Account",
+          "Instrument name");
 
   static SebPendingTransactionRow fromRawData(Map<String, Object> raw) {
     return new SebPendingTransactionRow(

@@ -1,29 +1,20 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.AMBIGUOUS;
-import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ERROR;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.IGNORED;
-import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.OK;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ORPHAN;
-import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_EXECUTION;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCHECKED;
 import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.liveOrders;
 import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.matchesOnlyAWithdrawnOrder;
-import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.withinQuantityTolerance;
 import static java.util.stream.Collectors.toList;
 
-import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationBatchResult;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
 import ee.tuleva.onboarding.investment.transaction.FtVerificationStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
-import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
-import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
-import java.math.BigDecimal;
-import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -32,7 +23,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,17 +36,14 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class FtConfirmationVerificationService {
 
-  private static final int EXECUTION_PENDING_BUSINESS_DAYS = 1;
   private static final String ADMIN_ACTOR = "admin";
 
   private final TransactionOrderRepository orderRepository;
-  private final TransactionExecutionRepository executionRepository;
   private final FtPriceCheck priceCheck;
-  private final Target2Calendar target2Calendar;
+  private final FtQuantityCheck quantityCheck;
   private final FtConfirmationAuditRecorder auditRecorder;
   private final FtCancellationCheck cancellationCheck;
   private final FtConfirmationDigest digest;
-  private final Clock clock;
 
   public FtConfirmationResult verify(FtConfirmation confirmation) {
     FtConfirmationResult result =
@@ -157,7 +144,7 @@ public class FtConfirmationVerificationService {
       return new FtVerification(result(AMBIGUOUS, AMBIGUOUS, details), order);
     }
 
-    FtVerificationStatus quantityStatus = checkQuantity(confirmation, order, details);
+    FtVerificationStatus quantityStatus = quantityCheck.check(confirmation, order, details);
     FtVerificationStatus priceStatus =
         priceCheck.check(
             confirmation.isin(), confirmation.tradeDate(), confirmation.grossPrice(), details);
@@ -227,44 +214,5 @@ public class FtConfirmationVerificationService {
     var timestamp = order.getOrderTimestamp();
     return timestamp != null
         && LocalDate.ofInstant(timestamp, ZoneOffset.UTC).equals(ftUtcTradeDate);
-  }
-
-  private FtVerificationStatus checkQuantity(
-      FtConfirmation confirmation, TransactionOrder order, Map<String, String> details) {
-    boolean orderQuantityOk = false;
-    if (order.getOrderQuantity() == null) {
-      details.put("orderQuantityMissing", "order has no quantity");
-    } else {
-      details.put("orderQuantity", order.getOrderQuantity().toPlainString());
-      orderQuantityOk = withinQuantityTolerance(confirmation.quantity(), order.getOrderQuantity());
-    }
-
-    BigDecimal totalExecuted = sumExecutedQuantityAcrossPieces(order);
-    Optional<BigDecimal> executedQuantity =
-        totalExecuted.signum() > 0 ? Optional.of(totalExecuted) : Optional.empty();
-
-    if (executedQuantity.isEmpty()) {
-      LocalDate executionDeadline =
-          target2Calendar.addBusinessDays(
-              confirmation.tradeDate(), EXECUTION_PENDING_BUSINESS_DAYS);
-      if (!LocalDate.now(clock).isAfter(executionDeadline)) {
-        details.put("executionPendingUntil", executionDeadline.toString());
-        return orderQuantityOk ? PENDING_EXECUTION : ERROR;
-      }
-      details.put("executionMissing", "no execution after " + executionDeadline);
-      return ERROR;
-    }
-
-    details.put("executedQuantity", executedQuantity.get().toPlainString());
-    boolean executedQuantityOk =
-        withinQuantityTolerance(confirmation.quantity(), executedQuantity.get());
-    return orderQuantityOk && executedQuantityOk ? OK : ERROR;
-  }
-
-  private BigDecimal sumExecutedQuantityAcrossPieces(TransactionOrder order) {
-    return executionRepository.findAllByOrderId(order.getId()).stream()
-        .map(TransactionExecution::getExecutedQuantity)
-        .filter(Objects::nonNull)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 }

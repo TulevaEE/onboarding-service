@@ -129,6 +129,7 @@ public class SebPendingTransactionReconciliationService {
     if (!stillHoldsTheLock.getAsBoolean()) {
       throw new SebReconciliationLockLostException(reportDate);
     }
+    auditRecorder.recordReportReconciled(reportDate, asOfDate);
     run.listings().addListedBy(rows, asOfDate);
     return check;
   }

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
@@ -22,6 +23,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -358,6 +360,65 @@ class ReconciliationAuditRecorderTest {
     newRecorder().recordPossibleReportTruncation(REPORT_DATE, 5, LocalDate.of(2026, 5, 12), 50);
 
     verify(auditEventRepository, never()).save(any());
+  }
+
+  @Test
+  void recordReportReconciled_savesOneReportLevelEventKeyedByItsAsOfDate() {
+    newRecorder().recordReportReconciled(REPORT_DATE, LocalDate.of(2026, 5, 12));
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "SEB_PENDING_REPORT_RECONCILED".equals(event.getEventType())
+                        && event.getOrderId() == null
+                        && event.getBatch() == null
+                        && "2026-05-12".equals(event.getDedupKey())
+                        && Map.of("reportDate", "2026-05-13", "asOfDate", "2026-05-12")
+                            .equals(event.getPayload())));
+  }
+
+  @Test
+  void
+      recordReportReconciled_ofAnAsOfDateAlreadyRecorded_savesNothing_asTheDailyLookbackRereadsIt() {
+    given(
+            auditEventRepository.findByEventTypeAndDedupKey(
+                "SEB_PENDING_REPORT_RECONCILED", "2026-05-12"))
+        .willReturn(
+            List.of(
+                TransactionAuditEvent.builder()
+                    .eventType("SEB_PENDING_REPORT_RECONCILED")
+                    .build()));
+
+    newRecorder().recordReportReconciled(REPORT_DATE, LocalDate.of(2026, 5, 12));
+
+    verify(auditEventRepository, never()).save(any());
+  }
+
+  @Test
+  void firstReportReconciledAsOfOrAfter_answersTheEarliestReconciledAsOfDateFromTheGivenDay() {
+    given(
+            auditEventRepository.findFirstByEventTypeAndDedupKeyGreaterThanEqualOrderByDedupKeyAsc(
+                "SEB_PENDING_REPORT_RECONCILED", "2026-05-12"))
+        .willReturn(
+            Optional.of(
+                TransactionAuditEvent.builder()
+                    .eventType("SEB_PENDING_REPORT_RECONCILED")
+                    .dedupKey("2026-05-14")
+                    .build()));
+
+    assertThat(newRecorder().firstReportReconciledAsOfOrAfter(LocalDate.of(2026, 5, 12)))
+        .contains(LocalDate.of(2026, 5, 14));
+  }
+
+  @Test
+  void firstReportReconciledAsOfOrAfter_beforeAnyReportFromThatDayIsReconciled_isEmpty() {
+    given(
+            auditEventRepository.findFirstByEventTypeAndDedupKeyGreaterThanEqualOrderByDedupKeyAsc(
+                "SEB_PENDING_REPORT_RECONCILED", "2026-05-12"))
+        .willReturn(Optional.empty());
+
+    assertThat(newRecorder().firstReportReconciledAsOfOrAfter(LocalDate.of(2026, 5, 12))).isEmpty();
   }
 
   private static TransactionOrder sampleOrder() {

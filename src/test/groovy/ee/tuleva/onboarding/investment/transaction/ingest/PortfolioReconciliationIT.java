@@ -122,6 +122,18 @@ class PortfolioReconciliationIT {
   }
 
   @Test
+  void anInstrumentSoldOutOfTheFundThatTheNavReportOmits_emitsNoMismatch() {
+    seedCostBasis(ISIN_A, "10000.0000");
+    seedCostBasis(ISIN_B, "0.0000");
+    seedNavReport(ISIN_A, new BigDecimal("10000.0000"));
+
+    service.reconcile(TUK75, AS_OF);
+
+    assertThat(recorder.events).isEmpty();
+    assertThat(recorder.skippedEvents).isEmpty();
+  }
+
+  @Test
   void wholeCostBasisLedgerMissing_emitsSkippedInsteadOfMismatch() {
     UUID calculationId = UUID.randomUUID();
     seedNavReport(ISIN_A, new BigDecimal("10000.0000"), calculationId);

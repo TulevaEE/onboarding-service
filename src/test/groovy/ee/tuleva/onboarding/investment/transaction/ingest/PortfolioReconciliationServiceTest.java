@@ -213,6 +213,39 @@ class PortfolioReconciliationServiceTest {
   }
 
   @Test
+  void aZeroRegistryRowWithNoNavReportRow_sendsNoMismatch() {
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
+        .willReturn(List.of(costBasis(ISIN_A, "10000.0000"), costBasis(ISIN_B, "0.0000")));
+    given(navReportLookup.findSecurityQuantities(TUK75, AS_OF))
+        .willReturn(Map.of(ISIN_A, new BigDecimal("10000.0000"), ISIN_C, BigDecimal.ZERO));
+
+    service.reconcile(TUK75, AS_OF);
+
+    verifyNoInteractions(eventPublisher);
+  }
+
+  @Test
+  void aHoldingWithinToleranceThatOneSideDoesNotList_stillSendsAMismatch() {
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
+        .willReturn(List.of(costBasis(ISIN_A, "10000.0000"), costBasis(ISIN_B, "0.5000")));
+    given(navReportLookup.findSecurityQuantities(TUK75, AS_OF))
+        .willReturn(Map.of(ISIN_A, new BigDecimal("10000.0000"), ISIN_C, new BigDecimal("0.500")));
+
+    service.reconcile(TUK75, AS_OF);
+
+    verify(eventPublisher)
+        .publishEvent(
+            new PortfolioReconciliationMismatchEvent(
+                TUK75,
+                AS_OF,
+                List.of(
+                    new MismatchEntry(
+                        ISIN_B, new BigDecimal("0.5000"), null, new BigDecimal("0.5000")),
+                    new MismatchEntry(
+                        ISIN_C, null, new BigDecimal("0.500"), new BigDecimal("-0.500")))));
+  }
+
+  @Test
   void againstThePositionReport_listsEachHoldingOutsideTheToleranceWithBothQuantities() {
     given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
         .willReturn(

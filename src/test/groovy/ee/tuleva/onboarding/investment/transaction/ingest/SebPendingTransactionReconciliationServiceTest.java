@@ -1540,8 +1540,10 @@ class SebPendingTransactionReconciliationServiceTest {
   @Test
   void reconcile_recordsTheReportAsReconciledUnderItsAsOfDate() {
     service = newService();
-    UUID clientRef = UUID.fromString("00000000-0000-0000-0000-000000000099");
-    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.empty());
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     service.reconcile(
         reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-12")), LOCK_HELD);
@@ -1555,10 +1557,58 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
-  void reconcile_thatLosesItsLock_recordsNoReconciledReport() {
+  void reconcile_ofAReportWhoseAsOfDateCannotBeRead_recordsNoReconciledReport() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+
+    service.reconcile(reportOf(validRawRow(clientRef), Map.of()), LOCK_HELD);
+
+    verify(auditEventRepository, never())
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "SEB_PENDING_REPORT_RECONCILED".equals(event.getEventType())));
+  }
+
+  @Test
+  void reconcile_ofAnEmptyReport_recordsNoReconciledReport() {
+    service = newService();
+
+    service.reconcile(reportWithRows(LocalDate.of(2026, 5, 13), 0), LOCK_HELD);
+
+    verify(auditEventRepository, never())
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "SEB_PENDING_REPORT_RECONCILED".equals(event.getEventType())));
+  }
+
+  @Test
+  void reconcile_ofAReportWhoseRowsMatchNoOrder_recordsNoReconciledReport() {
     service = newService();
     UUID clientRef = UUID.fromString("00000000-0000-0000-0000-000000000099");
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.empty());
+
+    service.reconcile(
+        reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-12")), LOCK_HELD);
+
+    verify(auditEventRepository, never())
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "SEB_PENDING_REPORT_RECONCILED".equals(event.getEventType())));
+  }
+
+  @Test
+  void reconcile_thatLosesItsLock_recordsNoReconciledReport() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     assertThatThrownBy(() -> service.reconcile(reportWithSingleRow(clientRef), () -> false))
         .isInstanceOf(SebReconciliationLockLostException.class);

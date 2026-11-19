@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 
@@ -105,19 +106,24 @@ class ModelRebalanceCheckJobTest {
   }
 
   @Test
-  void theCloseOfTheWindowANewerModelSuperseded_isAnnouncedWhenOwedAndAnOpenOneIsNot() {
+  void anOwedCloseOfASupersededWindow_isAnnouncedAndRecordedBeforeTheCurrentWindow() {
     given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
     given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
-    given(rebalanceWindows.supersededBy(warningWindow())).willReturn(Optional.of(closedWindow()));
+    given(rebalanceWindows.supersededWindows(eq(TUV100), eq(MONDAY), any()))
+        .willReturn(List.of(closedWindow()));
     given(announcements.isOwed(warningWindow())).willReturn(true);
-    given(announcements.isOwed(closedWindow())).willReturn(true);
 
     jobOn(MONDAY).checkRebalanceWindows();
 
+    var inOrder = inOrder(notificationService);
     then(notificationService)
-        .should()
+        .should(inOrder)
         .sendMessage(
             startsWith("✅ TUV100 mudelportfell alates 01.06.2026"), eq(INVESTMENT), eq(INFO));
+    then(notificationService)
+        .should(inOrder)
+        .sendMessage(
+            startsWith("⚠️ TUV100 mudelportfell alates 01.10.2026"), eq(INVESTMENT), eq(WARNING));
     then(announcements).should().recordAnnounced(eq(closedWindow()), any());
   }
 
@@ -125,12 +131,32 @@ class ModelRebalanceCheckJobTest {
   void aSupersededWindowThatNeverClosed_sendsNothingForItself() {
     given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
     given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
-    given(rebalanceWindows.supersededBy(warningWindow()))
-        .willReturn(Optional.of(warningWindowOf(LocalDate.of(2026, 6, 1))));
-    given(announcements.isOwed(any())).willReturn(true);
+    given(rebalanceWindows.supersededWindows(eq(TUV100), eq(MONDAY), any()))
+        .willReturn(List.of(warningWindowOf(LocalDate.of(2026, 6, 1))));
+    given(announcements.isOwed(warningWindow())).willReturn(true);
 
     jobOn(MONDAY).checkRebalanceWindows();
 
+    then(notificationService)
+        .should()
+        .sendMessage(
+            startsWith("⚠️ TUV100 mudelportfell alates 01.10.2026"), eq(INVESTMENT), eq(WARNING));
+    then(notificationService).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void aSupersededWindowThatCannotBeMeasured_isReportedAndTheCurrentWindowIsStillAnnounced() {
+    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
+    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
+    given(rebalanceWindows.supersededWindows(eq(TUV100), eq(MONDAY), any()))
+        .willThrow(new IllegalStateException("No investment parameter found"));
+    given(announcements.isOwed(warningWindow())).willReturn(true);
+
+    jobOn(MONDAY).checkRebalanceWindows();
+
+    then(notificationService)
+        .should()
+        .sendMessage(startsWith("⏸ TUV100"), eq(INVESTMENT), eq(ERROR));
     then(notificationService)
         .should()
         .sendMessage(

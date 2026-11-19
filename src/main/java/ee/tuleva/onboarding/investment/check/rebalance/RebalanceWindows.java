@@ -3,26 +3,19 @@ package ee.tuleva.onboarding.investment.check.rebalance;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.MODEL_REBALANCE_IN_LINE_DUE_MONTHS;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.MODEL_REBALANCE_TOLERANCE;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.MODEL_REBALANCE_TRADES_DUE_MONTHS;
-import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
-import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
-import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
-import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
 import ee.tuleva.onboarding.investment.config.InvestmentParameter;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
+import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
-import ee.tuleva.onboarding.investment.transaction.OrderStatus;
-import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
-import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -31,28 +24,42 @@ import org.springframework.stereotype.Component;
 public class RebalanceWindows {
 
   private static final int SISEKORD_4_P_2_6_1_TRADES_DUE_WITHIN_MONTHS_OF_THE_EFFECTIVE_DATE = 3;
-  private static final Set<OrderStatus> PLACED_ORDERS = EnumSet.of(SENT, EXECUTED, SETTLED);
-  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   private final ModelPortfolioAllocationRepository allocationRepository;
-  private final TransactionOrderRepository orderRepository;
+  private final RebalanceTrades rebalanceTrades;
   private final NavWeightsReader navWeightsReader;
   private final InvestmentParameterRepository parameterRepository;
   private final EstonianCalendar estonianCalendar;
 
   public Optional<RebalanceWindow> current(TulevaFund fund, LocalDate checkDate) {
-    return ModelChange.latestIn(
-            allocationRepository.findByFundAndEffectiveDateLessThanEqual(fund, checkDate))
-        .map(change -> window(fund, change, checkDate));
+    return ModelChange.latestIn(changeHistory(fund, checkDate))
+        .map(change -> window(fund, change, checkDate, checkDate));
   }
 
-  Optional<RebalanceWindow> supersededBy(RebalanceWindow window) {
-    return current(window.fund(), window.modelEffectiveDate().minusDays(1));
+  List<RebalanceWindow> supersededWindows(
+      TulevaFund fund, LocalDate checkDate, Predicate<LocalDate> worthMeasuringTheModelOf) {
+    var changesNewestFirst = ModelChange.allIn(changeHistory(fund, checkDate));
+    return IntStream.range(1, changesNewestFirst.size())
+        .filter(
+            older -> worthMeasuringTheModelOf.test(changesNewestFirst.get(older).effectiveDate()))
+        .mapToObj(
+            older ->
+                window(
+                    fund,
+                    changesNewestFirst.get(older),
+                    checkDate,
+                    changesNewestFirst.get(older - 1).effectiveDate().minusDays(1)))
+        .toList();
   }
 
-  private RebalanceWindow window(TulevaFund fund, ModelChange change, LocalDate checkDate) {
+  private List<ModelPortfolioAllocation> changeHistory(TulevaFund fund, LocalDate checkDate) {
+    return allocationRepository.findByFundAndEffectiveDateLessThanEqual(fund, checkDate);
+  }
+
+  private RebalanceWindow window(
+      TulevaFund fund, ModelChange change, LocalDate checkDate, LocalDate measuredUntil) {
     var tolerance = parameterRepository.findLatestValue(MODEL_REBALANCE_TOLERANCE, checkDate);
-    var navs = navWeightsReader.between(fund, change.effectiveDate(), checkDate);
+    var navs = navWeightsReader.between(fund, change.effectiveDate(), measuredUntil);
     var latest = navs.isEmpty() ? Optional.<NavWeights>empty() : Optional.of(navs.getLast());
     return new RebalanceWindow(
         fund,
@@ -60,7 +67,7 @@ public class RebalanceWindows {
         checkDate,
         tolerance,
         change.changedIsins(),
-        tradedIsins(fund, change, checkDate),
+        rebalanceTrades.tradedIsins(fund, change, measuredUntil),
         latest.map(NavWeights::navDate).orElse(null),
         latest.map(nav -> nav.outsideTolerance(change.modelWeights(), tolerance)).orElse(List.of()),
         firstNavInLine(navs, change, tolerance).orElse(null),
@@ -73,24 +80,6 @@ public class RebalanceWindows {
         .filter(nav -> nav.outsideTolerance(change.modelWeights(), tolerance).isEmpty())
         .map(NavWeights::navDate)
         .findFirst();
-  }
-
-  private Set<String> tradedIsins(TulevaFund fund, ModelChange change, LocalDate checkDate) {
-    return orderRepository
-        .findPlacedBetween(
-            fund,
-            PLACED_ORDERS,
-            change.effectiveDate().atStartOfDay(TALLINN).toInstant(),
-            checkDate.plusDays(1).atStartOfDay(TALLINN).toInstant())
-        .stream()
-        .filter(RebalanceWindows::knownToHaveGoneOut)
-        .map(TransactionOrder::getInstrumentIsin)
-        .filter(change.changedIsins()::contains)
-        .collect(toUnmodifiableSet());
-  }
-
-  private static boolean knownToHaveGoneOut(TransactionOrder order) {
-    return order.getOrderStatus() != SENT || order.getBatch().importedFromTheTradeRegistry();
   }
 
   private RebalanceDeadlines deadlines(LocalDate effectiveDate, LocalDate checkDate) {

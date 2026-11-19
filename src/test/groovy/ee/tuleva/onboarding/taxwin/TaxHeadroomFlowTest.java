@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.taxwin.ExpectedIncomeBasis.RECENT_MONTHS;
 import static ee.tuleva.onboarding.taxwin.ExpectedIncomeSource.CORRECTED;
 import static ee.tuleva.onboarding.taxwin.ExpectedIncomeSource.ESTIMATED;
 import static ee.tuleva.onboarding.taxwin.PaymentSuggestion.SINGLE;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.HOURS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -84,6 +85,7 @@ class TaxHeadroomFlowTest {
   @Autowired private TaxDataConsentRepository consentRepository;
   @Autowired private TaxIncomeMonthRepository incomeMonthRepository;
   @Autowired private TaxIncomeCorrectionRepository correctionRepository;
+  @Autowired private TaxExpectedYearlyIncomeRepository yearlyIncomeRepository;
 
   private final MutableClock clock = new MutableClock(Instant.parse("2026-11-18T10:00:00Z"));
   private final SignatureService signatureService = mock(SignatureService.class);
@@ -111,7 +113,8 @@ class TaxHeadroomFlowTest {
     taxDataServer = MockWebServiceServer.createServer(webServiceTemplate);
     var taxDataClient = new SoapTaxCertificateClient(webServiceTemplate, PROPERTIES);
 
-    var incomeStore = new TaxIncomeStore(incomeMonthRepository, correctionRepository);
+    var incomeStore =
+        new TaxIncomeStore(incomeMonthRepository, correctionRepository, yearlyIncomeRepository);
     consentService =
         new TaxDataConsentService(consentRepository, consentClient, incomeStore, clock);
     signingService =
@@ -144,6 +147,8 @@ class TaxHeadroomFlowTest {
     expectConsentReference();
     expectConsentReference();
     expectTaxCertificate();
+    expectConsentReference();
+    expectTaxCertificate("12.2025", "11.2026", "taxwin/tax-certificate-response-december.xml");
     Long id = consentService.create(person, Locale.of("et")).id();
 
     var signable = new SignableEntity("Tax data consent", id);
@@ -239,6 +244,30 @@ class TaxHeadroomFlowTest {
                 371,
                 412,
                 SINGLE));
+
+    clock.tick(30, DAYS);
+
+    assertThat(headroomService.headroom(person))
+        .get()
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            new TaxHeadroomResponse(
+                2026,
+                new BigDecimal("27500.00"),
+                YearMonth.of(2026, 11),
+                List.of(
+                    new ExpectedMonthlyIncome(
+                        YearMonth.of(2026, 12), new BigDecimal("5500.00"), CORRECTED)),
+                RECENT_MONTHS,
+                new BigDecimal("3260.00"),
+                1,
+                4950,
+                LimitCertainty.ESTIMATED,
+                1690,
+                371,
+                412,
+                SINGLE));
   }
 
   @Test
@@ -316,14 +345,19 @@ class TaxHeadroomFlowTest {
   }
 
   private void expectTaxCertificate() throws IOException {
+    expectTaxCertificate("11.2025", "10.2026", "taxwin/tax-certificate-response.xml");
+  }
+
+  private void expectTaxCertificate(String periodStart, String periodEnd, String response)
+      throws IOException {
     taxDataServer
         .expect(soapHeader(new QName(XROAD_NAMESPACE, "client")))
         .andExpect(soapHeader(new QName(XROAD_NAMESPACE, "service")))
         .andExpect(xpath("//code").evaluatesTo(PERSONAL_CODE))
         .andExpect(xpath("//consentReference").evaluatesTo(CONSENT_REFERENCE))
-        .andExpect(xpath("//periodStart").evaluatesTo("11.2025"))
-        .andExpect(xpath("//periodEnd").evaluatesTo("10.2026"))
-        .andRespond(withPayload(new ClassPathResource("taxwin/tax-certificate-response.xml")));
+        .andExpect(xpath("//periodStart").evaluatesTo(periodStart))
+        .andExpect(xpath("//periodEnd").evaluatesTo(periodEnd))
+        .andRespond(withPayload(new ClassPathResource(response)));
   }
 
   private User user() {

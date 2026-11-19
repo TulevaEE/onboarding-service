@@ -248,11 +248,62 @@ class TaxHeadroomServiceTest {
     assertThat(service.expectYearlyIncome(person, new BigDecimal("10500"))).isPresent();
     then(incomeStore)
         .should()
-        .correctAll(
+        .expectYearlyIncome(
             userId,
+            new YearlyIncome(2026, new BigDecimal("10500")),
             Map.of(
                 YearMonth.of(2026, 11), new BigDecimal("4000.00"),
                 YearMonth.of(2026, 12), new BigDecimal("4000.00")));
+  }
+
+  @Test
+  void spreadsTheYearlyIncomeAgainOverTheMonthsStillNotDeclaredAfterARefresh() {
+    given(consentRepository.findByUserId(userId))
+        .willReturn(Optional.of(refreshed(ID, userId, NOW.minus(25, HOURS))));
+    givenRefreshSucceeds();
+    givenStoredIncome();
+    given(incomeStore.yearlyIncome(userId))
+        .willReturn(Optional.of(new YearlyIncome(2026, new BigDecimal("10500.00"))));
+
+    assertThat(service.headroom(person)).isPresent();
+    var inOrder = inOrder(incomeStore);
+    then(incomeStore).should(inOrder).replaceDeclared(userId, DECLARED);
+    then(incomeStore)
+        .should(inOrder)
+        .expectYearlyIncome(
+            userId,
+            new YearlyIncome(2026, new BigDecimal("10500.00")),
+            Map.of(
+                YearMonth.of(2026, 11), new BigDecimal("4000.00"),
+                YearMonth.of(2026, 12), new BigDecimal("4000.00")));
+  }
+
+  @Test
+  void forgetsAYearlyIncomeTheDeclaredIncomeHasAlreadyPassed() {
+    given(consentRepository.findByUserId(userId))
+        .willReturn(Optional.of(refreshed(ID, userId, NOW.minus(25, HOURS))));
+    givenRefreshSucceeds();
+    givenStoredIncome();
+    given(incomeStore.yearlyIncome(userId))
+        .willReturn(Optional.of(new YearlyIncome(2026, new BigDecimal("2000.00"))));
+
+    assertThat(service.headroom(person)).isPresent();
+    then(incomeStore).should().forgetYearlyIncome(userId);
+    then(incomeStore).should(never()).expectYearlyIncome(any(), any(), any());
+  }
+
+  @Test
+  void forgetsTheYearlyIncomeOfAnEarlierYear() {
+    given(consentRepository.findByUserId(userId))
+        .willReturn(Optional.of(refreshed(ID, userId, NOW.minus(25, HOURS))));
+    givenRefreshSucceeds();
+    givenStoredIncome();
+    given(incomeStore.yearlyIncome(userId))
+        .willReturn(Optional.of(new YearlyIncome(2025, new BigDecimal("30000.00"))));
+
+    assertThat(service.headroom(person)).isPresent();
+    then(incomeStore).should().forgetYearlyIncome(userId);
+    then(incomeStore).should(never()).expectYearlyIncome(any(), any(), any());
   }
 
   @Test
@@ -265,7 +316,7 @@ class TaxHeadroomServiceTest {
     assertThat(service.expectYearlyIncome(person, new BigDecimal("10500"))).isPresent();
     var inOrder = inOrder(incomeStore);
     then(incomeStore).should(inOrder).replaceDeclared(userId, DECLARED);
-    then(incomeStore).should(inOrder).correctAll(eq(userId), any());
+    then(incomeStore).should(inOrder).expectYearlyIncome(eq(userId), any(), any());
   }
 
   @ParameterizedTest
@@ -278,7 +329,7 @@ class TaxHeadroomServiceTest {
 
     assertThatThrownBy(() -> service.expectYearlyIncome(person, new BigDecimal(yearlyIncome)))
         .isInstanceOf(InvalidExpectedIncomeException.class);
-    then(incomeStore).should(never()).correctAll(any(), any());
+    then(incomeStore).should(never()).expectYearlyIncome(any(), any(), any());
   }
 
   @Test

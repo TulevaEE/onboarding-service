@@ -67,11 +67,10 @@ class TaxHeadroomService {
     Long userId = person.getUserIdOrThrow();
     YearMonth currentMonth = YearMonth.now(estonianClock);
     Map<YearMonth, BigDecimal> expected =
-        estimate(userId, currentMonth).spreadOverExpectedMonths(yearlyIncome);
-    if (!expected.values().stream().allMatch(TaxHeadroomService::isValidMonthlyIncome)) {
-      throw new InvalidExpectedIncomeException(currentMonth.getYear());
-    }
-    incomeStore.correctAll(userId, expected);
+        spread(userId, currentMonth, yearlyIncome)
+            .orElseThrow(() -> new InvalidExpectedIncomeException(currentMonth.getYear()));
+    incomeStore.expectYearlyIncome(
+        userId, new YearlyIncome(currentMonth.getYear(), yearlyIncome), expected);
     return Optional.of(calculate(person));
   }
 
@@ -112,6 +111,7 @@ class TaxHeadroomService {
               person.getPersonalCode(),
               reference.get(),
               IncomeWindow.endingBefore(YearMonth.now(estonianClock))));
+      spreadYearlyIncomeAgain(userId);
       TaxDataConsent refreshed = consentRepository.findById(id).orElseThrow();
       refreshed.approve(reference.get());
       refreshed.refreshed(now);
@@ -131,6 +131,29 @@ class TaxHeadroomService {
       consentRepository.releaseLease(id, leaseUntil);
       throw e;
     }
+  }
+
+  private void spreadYearlyIncomeAgain(Long userId) {
+    YearMonth currentMonth = YearMonth.now(estonianClock);
+    incomeStore
+        .yearlyIncome(userId)
+        .ifPresent(
+            yearlyIncome ->
+                Optional.of(yearlyIncome)
+                    .filter(income -> income.isFor(currentMonth.getYear()))
+                    .flatMap(income -> spread(userId, currentMonth, income.amount()))
+                    .ifPresentOrElse(
+                        expected -> incomeStore.expectYearlyIncome(userId, yearlyIncome, expected),
+                        () -> incomeStore.forgetYearlyIncome(userId)));
+  }
+
+  private Optional<Map<YearMonth, BigDecimal>> spread(
+      Long userId, YearMonth currentMonth, BigDecimal yearlyIncome) {
+    Map<YearMonth, BigDecimal> expected =
+        estimate(userId, currentMonth).spreadOverExpectedMonths(yearlyIncome);
+    return expected.values().stream().allMatch(TaxHeadroomService::isValidMonthlyIncome)
+        ? Optional.of(expected)
+        : Optional.empty();
   }
 
   private boolean needsRefresh(TaxDataConsent consent, Instant now) {

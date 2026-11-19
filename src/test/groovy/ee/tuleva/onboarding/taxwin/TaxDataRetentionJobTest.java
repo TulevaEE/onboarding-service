@@ -27,18 +27,21 @@ class TaxDataRetentionJobTest {
   @Autowired private TaxDataConsentRepository consentRepository;
   @Autowired private TaxIncomeMonthRepository incomeMonthRepository;
   @Autowired private TaxIncomeCorrectionRepository correctionRepository;
+  @Autowired private TaxExpectedYearlyIncomeRepository yearlyIncomeRepository;
 
   private TaxDataRetentionJob job;
   private TaxIncomeStore incomeStore;
 
   @BeforeEach
   void setUp() {
-    incomeStore = new TaxIncomeStore(incomeMonthRepository, correctionRepository);
+    incomeStore =
+        new TaxIncomeStore(incomeMonthRepository, correctionRepository, yearlyIncomeRepository);
     job =
         new TaxDataRetentionJob(
             consentRepository,
             incomeMonthRepository,
             correctionRepository,
+            yearlyIncomeRepository,
             Clock.fixed(NOW, ZoneId.of("Europe/Tallinn")));
   }
 
@@ -66,6 +69,7 @@ class TaxDataRetentionJobTest {
 
     assertThat(incomeStore.declared(person.getId())).hasSize(1);
     assertThat(incomeStore.corrections(person.getId())).hasSize(1);
+    assertThat(incomeStore.yearlyIncome(person.getId())).isPresent();
   }
 
   @Test
@@ -78,6 +82,7 @@ class TaxDataRetentionJobTest {
 
     assertThat(incomeStore.declared(person.getId())).isEmpty();
     assertThat(incomeStore.corrections(person.getId())).isEmpty();
+    assertThat(incomeStore.yearlyIncome(person.getId())).isEmpty();
   }
 
   @Test
@@ -89,6 +94,7 @@ class TaxDataRetentionJobTest {
 
     assertThat(incomeStore.declared(person.getId())).isEmpty();
     assertThat(incomeStore.corrections(person.getId())).isEmpty();
+    assertThat(incomeStore.yearlyIncome(person.getId())).isEmpty();
   }
 
   private Long awaitingSignature(User person, Instant createdAt) {
@@ -110,7 +116,10 @@ class TaxDataRetentionJobTest {
         Map.of(
             YearMonth.of(2026, 10),
             new DeclaredMonth(new BigDecimal("2500.00"), new BigDecimal("90.00"))));
-    incomeStore.correct(person.getId(), YearMonth.of(2026, 12), new BigDecimal("3000.00"));
+    incomeStore.expectYearlyIncome(
+        person.getId(),
+        new YearlyIncome(2026, new BigDecimal("30500.00")),
+        Map.of(YearMonth.of(2026, 12), new BigDecimal("3000.00")));
     entityManager.flush();
   }
 

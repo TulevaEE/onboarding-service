@@ -26,6 +26,7 @@ class TaxDataRetentionJob {
   private final TaxDataConsentRepository consentRepository;
   private final TaxIncomeMonthRepository incomeMonthRepository;
   private final TaxIncomeCorrectionRepository correctionRepository;
+  private final TaxExpectedYearlyIncomeRepository yearlyIncomeRepository;
   private final Clock clock;
 
   @Scheduled(cron = "0 30 3 * * *", zone = "Europe/Tallinn")
@@ -43,10 +44,12 @@ class TaxDataRetentionJob {
     Instant refreshedSince = now.minus(INCOME_WITHOUT_REFRESH_RETENTION);
     int incomeMonths = incomeMonthRepository.deleteWithoutConsentRefreshedSince(refreshedSince);
     int corrections = correctionRepository.deleteWithoutConsentRefreshedSince(refreshedSince);
+    int yearlyIncomes = yearlyIncomeRepository.deleteWithoutConsentRefreshedSince(refreshedSince);
     log.info(
-        "Deleted expired tax data: consents={}, incomeMonths={}, corrections={}",
+        "Deleted expired tax data: consents={}, incomeMonths={}, corrections={}, yearlyIncomes={}",
         consents,
         incomeMonths,
-        corrections);
+        corrections,
+        yearlyIncomes);
   }
 }

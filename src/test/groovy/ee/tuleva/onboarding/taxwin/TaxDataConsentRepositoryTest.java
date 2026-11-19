@@ -21,6 +21,7 @@ class TaxDataConsentRepositoryTest {
   @Autowired private TaxDataConsentRepository consentRepository;
   @Autowired private TaxIncomeMonthRepository incomeMonthRepository;
   @Autowired private TaxIncomeCorrectionRepository correctionRepository;
+  @Autowired private TaxExpectedYearlyIncomeRepository yearlyIncomeRepository;
 
   @Test
   void onlyOneRequestAtATimeGetsToTalkToTheConsentService() {
@@ -55,7 +56,8 @@ class TaxDataConsentRepositoryTest {
   @Test
   void theNewDeclarationsReplaceTheStoredOnesAndTheCorrectionsForMonthsNowDeclared() {
     User person = user();
-    var store = new TaxIncomeStore(incomeMonthRepository, correctionRepository);
+    var store =
+        new TaxIncomeStore(incomeMonthRepository, correctionRepository, yearlyIncomeRepository);
     store.replaceDeclared(person.getId(), Map.of(YearMonth.of(2026, 9), declared("2000.00")));
     store.correct(person.getId(), YearMonth.of(2026, 10), new BigDecimal("2100.00"));
     store.correct(person.getId(), YearMonth.of(2026, 11), new BigDecimal("2200.00"));
@@ -85,7 +87,8 @@ class TaxDataConsentRepositoryTest {
   @Test
   void correctingAMonthAgainKeepsOnlyTheLatestAmount() {
     User person = user();
-    var store = new TaxIncomeStore(incomeMonthRepository, correctionRepository);
+    var store =
+        new TaxIncomeStore(incomeMonthRepository, correctionRepository, yearlyIncomeRepository);
 
     store.correct(person.getId(), YearMonth.of(2026, 12), new BigDecimal("3000.00"));
     store.correct(person.getId(), YearMonth.of(2026, 12), new BigDecimal("9000.00"));

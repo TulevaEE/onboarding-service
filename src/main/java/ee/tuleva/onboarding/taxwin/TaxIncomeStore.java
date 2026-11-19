@@ -3,9 +3,9 @@ package ee.tuleva.onboarding.taxwin;
 import static java.util.stream.Collectors.toMap;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +16,7 @@ class TaxIncomeStore {
 
   private final TaxIncomeMonthRepository incomeMonthRepository;
   private final TaxIncomeCorrectionRepository correctionRepository;
+  private final TaxExpectedYearlyIncomeRepository yearlyIncomeRepository;
 
   Map<YearMonth, DeclaredMonth> declared(Long userId) {
     return incomeMonthRepository.findAllByUserId(userId).stream()
@@ -27,6 +28,10 @@ class TaxIncomeStore {
     return correctionRepository.findAllByUserId(userId).stream()
         .map(TaxIncomeCorrection::asEntry)
         .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
+  }
+
+  Optional<YearlyIncome> yearlyIncome(Long userId) {
+    return yearlyIncomeRepository.findByUserId(userId).map(TaxExpectedYearlyIncome::asYearlyIncome);
   }
 
   @Transactional
@@ -44,21 +49,30 @@ class TaxIncomeStore {
 
   @Transactional
   void correct(Long userId, YearMonth month, BigDecimal amount) {
-    LocalDate incomeMonth = month.atDay(1);
-    correctionRepository
-        .findByUserIdAndIncomeMonth(userId, incomeMonth)
-        .ifPresentOrElse(
-            correction -> correction.correctTo(amount),
-            () -> correctionRepository.save(new TaxIncomeCorrection(userId, month, amount)));
+    yearlyIncomeRepository.deleteByUserId(userId);
+    saveCorrection(userId, month, amount);
   }
 
   @Transactional
-  void correctAll(Long userId, Map<YearMonth, BigDecimal> amounts) {
-    amounts.forEach((month, amount) -> correct(userId, month, amount));
+  void expectYearlyIncome(
+      Long userId, YearlyIncome yearlyIncome, Map<YearMonth, BigDecimal> monthlyIncome) {
+    yearlyIncomeRepository
+        .findByUserId(userId)
+        .ifPresentOrElse(
+            expected -> expected.expect(yearlyIncome),
+            () -> yearlyIncomeRepository.save(new TaxExpectedYearlyIncome(userId, yearlyIncome)));
+    monthlyIncome.forEach((month, amount) -> saveCorrection(userId, month, amount));
+  }
+
+  @Transactional
+  void forgetYearlyIncome(Long userId) {
+    yearlyIncomeRepository.deleteByUserId(userId);
+    correctionRepository.deleteAllByUserId(userId);
   }
 
   @Transactional
   void removeCorrection(Long userId, YearMonth month) {
+    yearlyIncomeRepository.deleteByUserId(userId);
     correctionRepository
         .findByUserIdAndIncomeMonth(userId, month.atDay(1))
         .ifPresent(correctionRepository::delete);
@@ -68,5 +82,14 @@ class TaxIncomeStore {
   void deleteAll(Long userId) {
     incomeMonthRepository.deleteAllByUserId(userId);
     correctionRepository.deleteAllByUserId(userId);
+    yearlyIncomeRepository.deleteByUserId(userId);
+  }
+
+  private void saveCorrection(Long userId, YearMonth month, BigDecimal amount) {
+    correctionRepository
+        .findByUserIdAndIncomeMonth(userId, month.atDay(1))
+        .ifPresentOrElse(
+            correction -> correction.correctTo(amount),
+            () -> correctionRepository.save(new TaxIncomeCorrection(userId, month, amount)));
   }
 }

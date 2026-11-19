@@ -13,6 +13,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 class ModelRebalanceCheckJobScheduledTest {
 
   @MockitoBean RebalanceWindows rebalanceWindows;
+  @MockitoBean RebalanceAnnouncements rebalanceAnnouncements;
   @MockitoBean OperationsNotificationService notificationService;
   @MockitoBean EstonianCalendar estonianCalendar;
   @MockitoBean Clock clock;

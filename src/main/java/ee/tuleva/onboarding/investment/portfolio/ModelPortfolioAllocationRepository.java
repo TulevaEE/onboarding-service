@@ -13,6 +13,9 @@ public interface ModelPortfolioAllocationRepository
   List<ModelPortfolioAllocation> findByFundAndEffectiveDate(
       TulevaFund fund, LocalDate effectiveDate);
 
+  List<ModelPortfolioAllocation> findByFundAndEffectiveDateLessThanEqual(
+      TulevaFund fund, LocalDate effectiveDate);
+
   Optional<ModelPortfolioAllocation>
       findFirstByIsinAndProviderIsNotNullAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
           String isin, LocalDate effectiveDate);

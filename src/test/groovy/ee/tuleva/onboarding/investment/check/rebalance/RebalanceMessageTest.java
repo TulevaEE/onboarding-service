@@ -103,26 +103,18 @@ class RebalanceMessageTest {
   }
 
   @Test
-  void theNavThatClosesTheWindow_announcesTheCloseOnce() {
+  void aClosedWindow_namesTheNavThatClosedItEvenWhenANewerNavIsOff() {
     var closing = LocalDate.of(2026, 10, 30);
+    var window =
+        window(
+            LocalDate.of(2026, 11, 3), Set.of(), LocalDate.of(2026, 11, 2), OUT_OF_LINE, closing);
 
-    assertThat(
-            RebalanceMessage.of(
-                window(LocalDate.of(2026, 11, 2), Set.of(), closing, List.of(), closing)))
+    assertThat(RebalanceMessage.of(window))
         .contains(
             new RebalanceMessage(
                 "✅ TUV100 mudelportfell alates 01.10.2026: fond on mudeliga vastavuses (kõik"
                     + " osakaalud 5 pp piires, NAV 30.10.2026), kontroll suletud",
                 INFO));
-    assertThat(
-            RebalanceMessage.of(
-                window(
-                    LocalDate.of(2026, 11, 3),
-                    Set.of(),
-                    LocalDate.of(2026, 11, 2),
-                    OUT_OF_LINE,
-                    closing)))
-        .isEmpty();
   }
 
   @Test

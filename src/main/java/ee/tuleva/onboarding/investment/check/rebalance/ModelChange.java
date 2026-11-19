@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.investment.check.rebalance;
 
 import static java.math.BigDecimal.ZERO;
+import static java.util.Comparator.reverseOrder;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
@@ -12,10 +15,30 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 record ModelChange(
     LocalDate effectiveDate, Map<String, BigDecimal> modelWeights, Set<String> changedIsins) {
+
+  static Optional<ModelChange> latestIn(List<ModelPortfolioAllocation> history) {
+    var versionsNewestFirst =
+        List.copyOf(
+            history.stream()
+                .collect(
+                    groupingBy(
+                        ModelPortfolioAllocation::getEffectiveDate,
+                        () ->
+                            new TreeMap<LocalDate, List<ModelPortfolioAllocation>>(reverseOrder()),
+                        toList()))
+                .values());
+    return IntStream.range(1, versionsNewestFirst.size())
+        .mapToObj(
+            older -> between(versionsNewestFirst.get(older), versionsNewestFirst.get(older - 1)))
+        .flatMap(Optional::stream)
+        .findFirst();
+  }
 
   static Optional<ModelChange> between(
       List<ModelPortfolioAllocation> previous, List<ModelPortfolioAllocation> current) {

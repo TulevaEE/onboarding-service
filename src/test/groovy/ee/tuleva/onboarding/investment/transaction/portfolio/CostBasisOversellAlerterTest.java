@@ -127,6 +127,35 @@ class CostBasisOversellAlerterTest {
         .isInstanceOf(IllegalStateException.class);
   }
 
+  @Test
+  void aClearIsPostedEvenWhenTheAlertItClearsWasSentButItsMarkerWasNotSaved() {
+    given(auditEventRepository.findByEventType(OVERSELL_POSTED)).willReturn(List.of());
+    given(auditEventRepository.findByEventType(OVERSELL_FOUND))
+        .willReturn(List.of(found(1L, "2026-05-01")));
+    given(auditEventRepository.findByEventType(OVERSELL_CLEARED))
+        .willReturn(
+            List.of(
+                TransactionAuditEvent.builder()
+                    .id(2L)
+                    .eventType(OVERSELL_CLEARED)
+                    .dedupKey("TUK75 IE00BFNM3G45 2026-05-01")
+                    .payload(
+                        Map.of(
+                            "fund", "TUK75",
+                            "instrumentIsin", "IE00BFNM3G45",
+                            "asOfDate", "2026-05-01"))
+                    .build()));
+
+    alerter.postPending();
+
+    verify(notificationService)
+        .sendMessage(
+            "✅ TUK75 soetusmaksumus 01.05.2026: IE00BFNM3G45 müük ei ületa enam positsiooni,"
+                + " soetusmaksumus on ümber arvutatud",
+            INVESTMENT);
+    verify(notificationService, times(1)).sendMessage(anyString(), any());
+  }
+
   private static TransactionAuditEvent found(long id, String asOfDate) {
     return TransactionAuditEvent.builder()
         .id(id)

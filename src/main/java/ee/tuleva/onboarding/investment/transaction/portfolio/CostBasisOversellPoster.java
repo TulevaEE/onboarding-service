@@ -65,17 +65,8 @@ final class CostBasisOversellPoster {
         .stream()
         .flatMap(Optional::stream)
         .filter(latest -> !sent.contains(idOf(latest)))
-        .filter(latest -> isFound(latest) || wasAnnounced(dedupKey(latest), states, sent))
         .sorted(RECORDING_ORDER)
         .toList();
-  }
-
-  private static boolean wasAnnounced(
-      String dedupKey, List<TransactionAuditEvent> states, Set<String> sent) {
-    return states.stream()
-        .filter(CostBasisOversellEvents::isFound)
-        .filter(found -> dedupKey(found).equals(dedupKey))
-        .anyMatch(found -> sent.contains(idOf(found)));
   }
 
   private boolean markSent(TransactionAuditEvent state) {

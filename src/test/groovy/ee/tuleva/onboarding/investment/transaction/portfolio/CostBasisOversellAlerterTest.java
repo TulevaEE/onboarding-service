@@ -55,7 +55,7 @@ class CostBasisOversellAlerterTest {
   }
 
   @Test
-  void anOversellThatCannotBeRecordedIsPostedDirectly() {
+  void anOversellThatCannotBeRecordedIsPostedDirectlyAndAsksForAManualRecompute() {
     given(auditEventRepository.findByEventTypeAndDedupKey(anyString(), anyString()))
         .willThrow(new IllegalStateException("database unavailable"));
 
@@ -66,7 +66,7 @@ class CostBasisOversellAlerterTest {
             """
             🔴 TUK75 soetusmaksumus 01.05.2026: IE00BFNM3G45 müük 150000 ühikut, teadaolev positsioon 100000
             Fondi soetusmaksumus on sellest päevast alates vale, kuni see on parandamata
-            Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see; öine ümberarvutus parandab ülejäänu""",
+            Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see; hoiatust ei õnnestunud salvestada, seega öine ümberarvutus seda päeva ise ei korda ja pärast parandust vajab soetusmaksumus käsitsi ümberarvutust""",
             INVESTMENT);
   }
 

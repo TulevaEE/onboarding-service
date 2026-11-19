@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.investment.transaction.ingest.MissingExecutio
 import static ee.tuleva.onboarding.investment.transaction.ingest.MissingExecution.Stage.MISSING_AFTER_SEB_REPORT;
 import static ee.tuleva.onboarding.investment.transaction.ingest.MissingExecution.Stage.SEB_REPORT_NOT_RECONCILED;
 
-import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
+import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Map;
@@ -17,18 +17,18 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class FtExecutionWait {
 
-  private static final int SEB_REPORT_FOR_THE_DAY_AFTER_THE_TRADE = 1;
-  private static final int SEB_REPORT_OVERDUE_AFTER_BUSINESS_DAYS = 2;
+  private static final int SEB_REPORT_FOR_THE_WORKING_DAY_AFTER_THE_TRADE = 1;
+  private static final int SEB_REPORT_OVERDUE_AFTER_WORKING_DAYS = 2;
 
   private final ReconciliationAuditRecorder reconciliationRecorder;
-  private final Target2Calendar target2Calendar;
+  private final EstonianCalendar estonianCalendar;
   private final Clock clock;
 
   MissingExecution assess(LocalDate tradeDate) {
     LocalDate firstReportAsOf =
-        target2Calendar.addBusinessDays(tradeDate, SEB_REPORT_FOR_THE_DAY_AFTER_THE_TRADE);
+        estonianCalendar.addBusinessDays(tradeDate, SEB_REPORT_FOR_THE_WORKING_DAY_AFTER_THE_TRADE);
     LocalDate waitUntil =
-        target2Calendar.addBusinessDays(tradeDate, SEB_REPORT_OVERDUE_AFTER_BUSINESS_DAYS);
+        estonianCalendar.addBusinessDays(tradeDate, SEB_REPORT_OVERDUE_AFTER_WORKING_DAYS);
     return reconciliationRecorder
         .firstReportReconciledAsOfOrAfter(firstReportAsOf)
         .map(FtExecutionWait::missingAfter)

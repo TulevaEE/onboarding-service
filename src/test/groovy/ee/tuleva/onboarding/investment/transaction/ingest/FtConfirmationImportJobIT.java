@@ -15,7 +15,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
-import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
@@ -225,7 +226,8 @@ class FtConfirmationImportJobIT {
             new PriceValidator(),
             new FtQuantityCheck(
                 executionRepository,
-                new FtExecutionWait(reconciliationRecorder, new Target2Calendar(), clock)),
+                new FtExecutionWait(
+                    reconciliationRecorder, new EstonianCalendar(new PublicHolidays()), clock)),
             ftAuditRecorder,
             digest)
         .verify(confirmation);

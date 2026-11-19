@@ -25,7 +25,8 @@ import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriceSource;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
-import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationBatchResult;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
@@ -74,7 +75,9 @@ class FtConfirmationVerificationServiceTest {
         new FtQuantityCheck(
             executionRepository,
             new FtExecutionWait(
-                reconciliationRecorder, new Target2Calendar(), Clock.fixed(now, ZoneOffset.UTC))),
+                reconciliationRecorder,
+                new EstonianCalendar(new PublicHolidays()),
+                Clock.fixed(now, ZoneOffset.UTC))),
         auditRecorder,
         digest);
   }

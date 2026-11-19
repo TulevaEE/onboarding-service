@@ -3,7 +3,8 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
-import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -29,7 +30,7 @@ class FtExecutionWaitTest {
   private FtExecutionWait waitAt(String instant) {
     return new FtExecutionWait(
         reconciliationRecorder,
-        new Target2Calendar(),
+        new EstonianCalendar(new PublicHolidays()),
         Clock.fixed(Instant.parse(instant), ZoneOffset.UTC));
   }
 
@@ -102,6 +103,21 @@ class FtExecutionWaitTest {
     MissingExecution missing = waitAt("2026-11-19T21:59:00Z").assess(TUESDAY_TRADE);
 
     assertThat(missing.awaitsSebReport()).isTrue();
+  }
+
+  @Test
+  void aTradeBeforeMidsummer_waitsForTheFirstEstonianWorkingDaysReport() {
+    LocalDate mondayBeforeMidsummer = LocalDate.of(2026, 6, 22);
+    given(reconciliationRecorder.firstReportReconciledAsOfOrAfter(LocalDate.of(2026, 6, 25)))
+        .willReturn(Optional.empty());
+
+    MissingExecution missing = waitAt("2026-06-26T06:00:00Z").assess(mondayBeforeMidsummer);
+
+    assertThat(missing.details())
+        .isEqualTo(
+            Map.of(
+                "awaitingSebReportAsOf", "2026-06-25",
+                "executionPendingUntil", "2026-06-26"));
   }
 
   @Test

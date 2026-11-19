@@ -37,6 +37,16 @@ class BankMessageTypeTest {
   }
 
   @Test
+  void ofMessage_resolvesNoExternalEntityDeclaredBeforeTheRoot() {
+    assertThat(
+            BankMessageType.ofMessage(
+                "<?xml version=\"1.0\"?><!DOCTYPE Document [<!ENTITY % external SYSTEM"
+                    + " \"file:///nonexistent/external.dtd\"> %external;]><Document"
+                    + " xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.053.001.02\"/>"))
+        .isEqualTo(HISTORIC_STATEMENT);
+  }
+
+  @Test
   void ofMessage_throwsForAnUnknownMessageType() {
     assertThatThrownBy(
             () ->

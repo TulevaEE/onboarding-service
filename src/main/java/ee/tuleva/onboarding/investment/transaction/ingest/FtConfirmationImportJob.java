@@ -28,6 +28,7 @@ class FtConfirmationImportJob {
   private final FtConfirmationS3Source s3Source;
   private final FtConfirmationPdfParser parser;
   private final FtConfirmationVerificationService verificationService;
+  private final FtUnconfirmedTradeCheck unconfirmedTradeCheck;
   private final Clock clock;
 
   @Scheduled(cron = IMPORT_BUSINESS_HOURS, zone = TIMEZONE)
@@ -35,22 +36,17 @@ class FtConfirmationImportJob {
   public void run() {
     log.info("Starting FT confirmation import: now={}", clock.instant());
     List<String> keys = s3Source.list();
-    if (keys.isEmpty()) {
-      log.info("No FT confirmation PDFs found");
-      return;
-    }
-
     List<FtConfirmation> confirmations =
         keys.stream().map(this::parse).flatMap(Optional::stream).toList();
-    if (confirmations.isEmpty()) {
-      log.info("No FT confirmation PDFs could be parsed: objectCount={}", keys.size());
-      return;
-    }
-
     verifyAll(confirmations, keys.size());
+    checkUnconfirmedTrades(confirmations);
   }
 
   private void verifyAll(List<FtConfirmation> confirmations, int objectCount) {
+    if (confirmations.isEmpty()) {
+      log.info("No FT confirmation PDFs could be read: objectCount={}", objectCount);
+      return;
+    }
     try {
       List<FtConfirmationBatchResult> results =
           verificationService.verifyAll(confirmations, JOB_ACTOR);
@@ -65,6 +61,14 @@ class FtConfirmationImportJob {
           confirmations.size(),
           e.getMessage(),
           e);
+    }
+  }
+
+  private void checkUnconfirmedTrades(List<FtConfirmation> confirmations) {
+    try {
+      unconfirmedTradeCheck.check(confirmations, JOB_ACTOR);
+    } catch (RuntimeException e) {
+      log.error("FT unconfirmed trade check failed: error={}", e.getMessage(), e);
     }
   }
 

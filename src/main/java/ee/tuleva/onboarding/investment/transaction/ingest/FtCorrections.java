@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.matchesQuantity;
+import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.ordersWithTheirOwnConfirmation;
 import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
-import ee.tuleva.onboarding.investment.transaction.MaximumWeightAssignment;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 import org.jspecify.annotations.NullMarked;
 
 @NullMarked
@@ -29,14 +29,26 @@ record FtCorrections(List<FtConfirmation> confirmations) {
   boolean newConfirmationsCoverEveryOrder(
       FtConfirmation cancellation, List<TransactionOrder> liveOrders) {
     return !liveOrders.isEmpty()
-        && ordersWithTheirOwnConfirmation(liveOrders, newConfirmationsAfter(cancellation))
+        && ordersWithTheirOwnConfirmation(liveOrders, newConfirmationsAfter(cancellation)).size()
             == liveOrders.size();
   }
 
+  List<FtConfirmation> standingConfirmations() {
+    return distinctTrades(
+        confirmations.stream()
+            .filter(confirmation -> !confirmation.isCancellation())
+            .filter(confirmation -> !isVoided(confirmation)));
+  }
+
   private List<FtConfirmation> newConfirmationsAfter(FtConfirmation cancellation) {
-    return confirmations.stream()
-        .filter(confirmation -> confirmation.isNewConfirmationAfter(cancellation))
-        .filter(confirmation -> !isVoided(confirmation))
+    return distinctTrades(
+        confirmations.stream()
+            .filter(confirmation -> confirmation.isNewConfirmationAfter(cancellation))
+            .filter(confirmation -> !isVoided(confirmation)));
+  }
+
+  private static List<FtConfirmation> distinctTrades(Stream<FtConfirmation> confirmations) {
+    return confirmations
         .collect(
             toMap(
                 FtConfirmationAuditRecorder::dedupKey,
@@ -46,21 +58,5 @@ record FtCorrections(List<FtConfirmation> confirmations) {
         .values()
         .stream()
         .toList();
-  }
-
-  private static int ordersWithTheirOwnConfirmation(
-      List<TransactionOrder> orders, List<FtConfirmation> newConfirmations) {
-    if (newConfirmations.isEmpty()) {
-      return 0;
-    }
-    long[][] quantityMatches =
-        orders.stream()
-            .map(
-                order ->
-                    newConfirmations.stream()
-                        .mapToLong(confirmation -> matchesQuantity(order, confirmation) ? 1 : 0)
-                        .toArray())
-            .toArray(long[][]::new);
-    return MaximumWeightAssignment.columnsOfRows(quantityMatches, newConfirmations.size()).size();
   }
 }

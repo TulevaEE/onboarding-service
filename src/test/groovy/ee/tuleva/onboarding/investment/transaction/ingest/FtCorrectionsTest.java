@@ -276,6 +276,17 @@ class FtCorrectionsTest {
   }
 
   @Test
+  void standingConfirmations_leaveOutCancellationsWhatTheyVoidedAndRepeatsOfOneTrade() {
+    FtConfirmation sameWithMoreDecimals = confirmation(NORMAL, "1000.00", "20.200000");
+    FtConfirmation otherTrade = confirmation(NORMAL, "250", "20.40");
+    FtCorrections corrections =
+        FtCorrections.among(
+            List.of(first, cancellation, newConfirmation, sameWithMoreDecimals, otherTrade));
+
+    assertThat(corrections.standingConfirmations()).containsExactly(newConfirmation, otherTrade);
+  }
+
+  @Test
   void nullRows_areLeftOut() {
     FtCorrections corrections = FtCorrections.among(Arrays.asList(null, first, cancellation));
 

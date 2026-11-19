@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -33,12 +34,15 @@ class FtConfirmationImportJobTest {
   @Mock private FtConfirmationS3Source s3Source;
   @Mock private FtConfirmationPdfParser parser;
   @Mock private FtConfirmationVerificationService verificationService;
+  @Mock private FtUnconfirmedTradeCheck unconfirmedTradeCheck;
 
   private FtConfirmationImportJob job;
 
   @BeforeEach
   void setUp() {
-    job = new FtConfirmationImportJob(s3Source, parser, verificationService, FIXED_CLOCK);
+    job =
+        new FtConfirmationImportJob(
+            s3Source, parser, verificationService, unconfirmedTradeCheck, FIXED_CLOCK);
   }
 
   @Test
@@ -58,15 +62,18 @@ class FtConfirmationImportJobTest {
 
     verify(verificationService)
         .verifyAll(List.of(confirmation1, confirmation2), FtConfirmationImportJob.JOB_ACTOR);
+    verify(unconfirmedTradeCheck)
+        .check(List.of(confirmation1, confirmation2), FtConfirmationImportJob.JOB_ACTOR);
   }
 
   @Test
-  void run_noNewPdfs_doesNothing() {
+  void run_noPdfs_verifiesNothing_butStillLooksForTradesFtNeverConfirmed() {
     given(s3Source.list()).willReturn(List.of());
 
     job.run();
 
     verifyNoInteractions(parser, verificationService);
+    verify(unconfirmedTradeCheck).check(List.of(), FtConfirmationImportJob.JOB_ACTOR);
   }
 
   @Test
@@ -113,6 +120,7 @@ class FtConfirmationImportJobTest {
     job.run();
 
     verify(verificationService, never()).verifyAll(any(), any());
+    verify(unconfirmedTradeCheck).check(List.of(), FtConfirmationImportJob.JOB_ACTOR);
   }
 
   @Test
@@ -124,8 +132,16 @@ class FtConfirmationImportJobTest {
     given(parser.parse(bytes1)).willReturn(confirmation1);
     given(verificationService.verifyAll(any(), any())).willThrow(new RuntimeException("db down"));
 
-    assertThat(job).isNotNull();
-    job.run();
+    assertThatCode(job::run).doesNotThrowAnyException();
+    verify(unconfirmedTradeCheck).check(List.of(confirmation1), FtConfirmationImportJob.JOB_ACTOR);
+  }
+
+  @Test
+  void run_unconfirmedTradeCheckThrows_doesNotPropagate() {
+    given(s3Source.list()).willReturn(List.of());
+    willThrow(new RuntimeException("db down")).given(unconfirmedTradeCheck).check(any(), any());
+
+    assertThatCode(job::run).doesNotThrowAnyException();
   }
 
   private static FtConfirmation confirmation(String isin) {

@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.E
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ORPHAN;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PRICE_MISSING;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCHECKED;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCONFIRMED;
 
 import java.util.Map;
 import org.jspecify.annotations.NullMarked;
@@ -30,6 +31,7 @@ public record FtConfirmationResult(
         || status == ORPHAN
         || status == CANCELLED
         || status == UNCHECKED
+        || status == UNCONFIRMED
         || status == PRICE_MISSING;
   }
 }

@@ -6,16 +6,12 @@ import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.I
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.OK;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ORPHAN;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_EXECUTION;
-import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_NAV;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCHECKED;
 import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.liveOrders;
 import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.matchesOnlyAWithdrawnOrder;
 import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.withinQuantityTolerance;
 import static java.util.stream.Collectors.toList;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
-import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
-import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
 import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationBatchResult;
@@ -42,7 +38,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @NullMarked
@@ -51,22 +46,17 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class FtConfirmationVerificationService {
 
-  private static final BigDecimal DEFAULT_PRICE_TOLERANCE = new BigDecimal("0.001");
   private static final int EXECUTION_PENDING_BUSINESS_DAYS = 1;
   private static final String ADMIN_ACTOR = "admin";
 
   private final TransactionOrderRepository orderRepository;
   private final TransactionExecutionRepository executionRepository;
-  private final PositionPriceResolver positionPriceResolver;
-  private final PriceValidator priceValidator;
+  private final FtPriceCheck priceCheck;
   private final Target2Calendar target2Calendar;
   private final FtConfirmationAuditRecorder auditRecorder;
   private final FtCancellationCheck cancellationCheck;
   private final FtConfirmationDigest digest;
   private final Clock clock;
-
-  @Value("${investment.transaction.ft-confirmation.price-tolerance:0.001}")
-  private BigDecimal priceTolerance = DEFAULT_PRICE_TOLERANCE;
 
   public FtConfirmationResult verify(FtConfirmation confirmation) {
     FtConfirmationResult result =
@@ -167,7 +157,9 @@ public class FtConfirmationVerificationService {
     }
 
     FtVerificationStatus quantityStatus = checkQuantity(confirmation, order, details);
-    FtVerificationStatus priceStatus = checkPrice(confirmation, details);
+    FtVerificationStatus priceStatus =
+        priceCheck.check(
+            confirmation.isin(), confirmation.tradeDate(), confirmation.grossPrice(), details);
     return new FtVerification(result(quantityStatus, priceStatus, details), order);
   }
 
@@ -273,33 +265,5 @@ public class FtConfirmationVerificationService {
         .map(TransactionExecution::getExecutedQuantity)
         .filter(Objects::nonNull)
         .reduce(BigDecimal.ZERO, BigDecimal::add);
-  }
-
-  private FtVerificationStatus checkPrice(
-      FtConfirmation confirmation, Map<String, String> details) {
-    Optional<BigDecimal> referencePrice =
-        positionPriceResolver
-            .resolve(confirmation.isin(), confirmation.tradeDate())
-            .filter(resolved -> resolved.validationStatus() == ValidationStatus.OK)
-            .filter(resolved -> confirmation.tradeDate().equals(resolved.priceDate()))
-            .map(ResolvedPrice::usedPrice);
-
-    if (referencePrice.isEmpty()) {
-      return PENDING_NAV;
-    }
-
-    BigDecimal reference = referencePrice.get();
-    details.put("referencePrice", reference.toPlainString());
-    if (reference.signum() <= 0) {
-      details.put("invalidReferencePrice", "true");
-      return ERROR;
-    }
-    if (priceValidator.isWithinTolerance(confirmation.grossPrice(), reference, priceTolerance)) {
-      return OK;
-    }
-    details.put(
-        "priceDeltaPercent",
-        priceValidator.computeDeltaPercent(confirmation.grossPrice(), reference).toPlainString());
-    return ERROR;
   }
 }

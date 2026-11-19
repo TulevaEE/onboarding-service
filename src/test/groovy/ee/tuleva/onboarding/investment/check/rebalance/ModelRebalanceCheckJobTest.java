@@ -17,6 +17,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
@@ -67,7 +68,7 @@ class ModelRebalanceCheckJobTest {
   }
 
   @Test
-  void anOpenWindowsPostThatFails_doesNotStopTheOtherFundsAndOwesNoClose() {
+  void anOpenWindowsPostThatFails_staysRecordedAndDoesNotStopTheOtherFunds() {
     given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.of(warningWindow()));
     given(announcements.isOwed(warningWindow())).willReturn(true);
     willThrow(new IllegalStateException("No webhook for slack channel INVESTMENT"))
@@ -77,11 +78,11 @@ class ModelRebalanceCheckJobTest {
     jobOn(MONDAY).checkRebalanceWindows();
 
     then(rebalanceWindows).should().current(TKF100, MONDAY);
-    then(announcements).should(never()).recordUndeliveredClose(any(), any());
+    then(announcements).should(times(4)).recordAnnouncement(eq(warningWindow()), any());
   }
 
   @Test
-  void anAnnouncementIsRecordedBeforeItIsPosted() {
+  void anOpenWindowsAnnouncementIsRecordedBeforeItIsPosted() {
     given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
     given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
     given(announcements.isOwed(warningWindow())).willReturn(true);
@@ -115,7 +116,24 @@ class ModelRebalanceCheckJobTest {
   }
 
   @Test
-  void aCloseThatCouldNotBePosted_isRecordedAsStillOwed() {
+  void aCloseIsRecordedOnlyOnceSlackHasAcceptedIt() {
+    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
+    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(closedWindow()));
+    given(announcements.isOwed(closedWindow())).willReturn(true);
+
+    jobOn(MONDAY).checkRebalanceWindows();
+
+    var inOrder = inOrder(notificationService, announcements);
+    then(notificationService)
+        .should(inOrder)
+        .sendMessage(startsWith("✅ TUV100"), eq(INVESTMENT), eq(INFO));
+    then(announcements)
+        .should(inOrder)
+        .recordAnnouncement(closedWindow(), MONDAY.atTime(9, 15).atZone(TALLINN).toInstant());
+  }
+
+  @Test
+  void aCloseThatCouldNotBePosted_isNotRecordedSoTheNextRunPostsIt() {
     given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
     given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(closedWindow()));
     given(announcements.isOwed(closedWindow())).willReturn(true);
@@ -125,10 +143,7 @@ class ModelRebalanceCheckJobTest {
 
     jobOn(MONDAY).checkRebalanceWindows();
 
-    var announcedAt = MONDAY.atTime(9, 15).atZone(TALLINN).toInstant();
-    var inOrder = inOrder(announcements);
-    then(announcements).should(inOrder).recordAnnouncement(closedWindow(), announcedAt);
-    then(announcements).should(inOrder).recordUndeliveredClose(closedWindow(), announcedAt);
+    then(announcements).should(never()).recordAnnouncement(any(), any());
   }
 
   @Test

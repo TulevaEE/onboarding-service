@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -79,9 +80,18 @@ class ModelRebalanceCheckJob {
 
   private void recordAndPost(RebalanceWindow window, RebalanceMessage message) {
     var announcedAt = clock.instant();
+    if (window.inLine()) {
+      postThenRecordSoACloseIsNeverLost(window, message, announcedAt);
+      return;
+    }
     announcements.recordAnnouncement(window, announcedAt);
-    if (!post(window.fund(), message) && window.inLine()) {
-      announcements.recordUndeliveredClose(window, announcedAt);
+    post(window.fund(), message);
+  }
+
+  private void postThenRecordSoACloseIsNeverLost(
+      RebalanceWindow window, RebalanceMessage message, Instant announcedAt) {
+    if (post(window.fund(), message)) {
+      announcements.recordAnnouncement(window, announcedAt);
     }
   }
 

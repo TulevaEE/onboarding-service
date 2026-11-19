@@ -36,10 +36,6 @@ class RebalanceAnnouncements {
         window, window.state() == OK ? WINDOW_CLOSE_ANNOUNCED : WINDOW_OPEN_ANNOUNCED, announcedAt);
   }
 
-  void recordUndeliveredClose(RebalanceWindow window, Instant failedAt) {
-    record(window, WINDOW_OPEN_ANNOUNCED, failedAt);
-  }
-
   private void record(RebalanceWindow window, String type, Instant at) {
     announcementLog.save(
         EventLog.builder()

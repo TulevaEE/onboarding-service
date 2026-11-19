@@ -77,7 +77,7 @@ class TradePrepInputGateNotifier {
   private static String withFundsUnlessAllShareIt(
       Map.Entry<String, List<TulevaFund>> line, List<TulevaFund> stoppedFunds) {
     List<TulevaFund> lineFunds = line.getValue().stream().distinct().toList();
-    if (lineFunds.size() == stoppedFunds.size()) {
+    if (lineFunds.containsAll(stoppedFunds)) {
       return line.getKey();
     }
     return codes(lineFunds) + ": " + line.getKey();

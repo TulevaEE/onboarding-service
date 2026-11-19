@@ -51,12 +51,8 @@ class TransactionAdminService {
   private List<TransactionCommandResponse> createAndProcessEach(
       List<CreateTransactionCommandRequest> requests, String actor) {
     List<StoppedByInputGates> stops = new ArrayList<>();
-    List<TransactionCommandResponse> responses = new ArrayList<>();
     try {
-      for (CreateTransactionCommandRequest request : requests) {
-        responses.add(createAndProcessOne(request, actor, stops));
-      }
-      return List.copyOf(responses);
+      return requests.stream().map(request -> createAndProcessOne(request, actor, stops)).toList();
     } finally {
       inputGateNotifier.notifyStopped(stops);
     }

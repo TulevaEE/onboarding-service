@@ -1,11 +1,9 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
-import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
-import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
 import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.idsOfOrdersWithAConfirmation;
 
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
+import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -42,7 +40,10 @@ class FtUnconfirmedTradeCheck {
         idsOfOrdersWithAConfirmation(
             ftOrders, FtCorrections.among(confirmations).standingConfirmations());
     List<TransactionOrder> overdue =
-        ftOrders.stream().filter(executionCheck::confirmationOverdue).toList();
+        ftOrders.stream()
+            .filter(order -> !order.isCancelledOrDiscarded())
+            .filter(executionCheck::confirmationOverdue)
+            .toList();
     Map<Long, SebExecutedTotal> executed = SebExecutedTotal.byOrderId(executionsOf(overdue));
     List<FtCheckOutcome> outcomes =
         overdue.stream()
@@ -58,7 +59,7 @@ class FtUnconfirmedTradeCheck {
   private List<TransactionOrder> ftOrdersSinceAlertsFrom() {
     return orderRepository
         .findByOrderStatusInAndOrderTimestampSince(
-            List.of(SENT, EXECUTED, SETTLED), alertsFrom.atStartOfDay(ZoneOffset.UTC).toInstant())
+            List.of(OrderStatus.values()), alertsFrom.atStartOfDay(ZoneOffset.UTC).toInstant())
         .stream()
         .filter(order -> order.getOrderVenue() == OrderVenue.FT)
         .toList();

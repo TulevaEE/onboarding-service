@@ -202,6 +202,37 @@ class FtConfirmationDigestTest {
   }
 
   @Test
+  void ftTradeSebExecutedWithoutAnFtConfirmationOrAPrice_isSentWithoutTheSebPrice() {
+    digest(true)
+        .publish(
+            List.of(
+                new FtExecutedTrade(
+                    TUK75,
+                    ISIN,
+                    TRADE_DATE,
+                    UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29"),
+                    new BigDecimal("40434"),
+                    null,
+                    new FtConfirmationResult(
+                        UNCONFIRMED,
+                        UNCHECKED,
+                        Map.of(
+                            "confirmationDueBy",
+                            "2026-06-09",
+                            "verificationError",
+                            "SEB reported no price for the trade")))));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "SEB executed an FT trade with no readable FT confirmation by the end of"
+                + " 2026-06-09: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08,"
+                + " quantity=40434, sebPrice=none — price could not be checked: SEB reported no"
+                + " price for the trade; ask FT for the confirmation",
+            INVESTMENT);
+  }
+
+  @Test
   void ftTradeFtConfirmed_isNotSent() {
     digest(true)
         .publish(

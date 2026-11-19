@@ -62,16 +62,13 @@ class StoredStatementTradeReferences implements StoredTradeReferences {
   }
 
   private BankStatement statement(BankingMessage message) {
-    return switch (message.getMessageType()) {
+    return switch (message.effectiveMessageType()) {
       case INTRA_DAY_REPORT ->
           statementExtractor.extractFromIntraDayReport(
               message.getRawResponse(), message.getTimezoneId());
       case HISTORIC_STATEMENT ->
           statementExtractor.extractFromHistoricStatement(
               message.getRawResponse(), message.getTimezoneId());
-      case null ->
-          throw new IllegalStateException(
-              "Stored message has no type: messageId=" + message.getId());
     };
   }
 }

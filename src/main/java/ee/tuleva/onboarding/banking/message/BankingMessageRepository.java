@@ -18,7 +18,6 @@ public interface BankingMessageRepository extends CrudRepository<BankingMessage,
       from BankingMessage m
       where m.processedAt is not null
         and m.failedAt is null
-        and m.messageType is not null
       order by m.receivedAt
       """)
   List<UUID> findIdsOfProcessedMessages();

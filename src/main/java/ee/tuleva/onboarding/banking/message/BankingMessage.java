@@ -41,6 +41,10 @@ public class BankingMessage {
   @Nullable
   private BankMessageType messageType;
 
+  public BankMessageType effectiveMessageType() {
+    return messageType != null ? messageType : BankMessageType.ofMessage(rawResponse);
+  }
+
   @Nullable private String accountIban;
 
   @Nullable private LocalDate statementFrom;

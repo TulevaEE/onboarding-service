@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
@@ -25,9 +26,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
+import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.investment.position.AccountType;
+import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.persistence.EntityManager;
 import java.io.ByteArrayInputStream;
@@ -53,7 +59,9 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -99,6 +107,10 @@ class TransactionPipelineIntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private TransactionInputService transactionInputService;
   @Autowired private SavingsFundLedger savingsFundLedger;
+  @Autowired private TransactionCommandRunner commandRunner;
+  @Autowired private FundPositionRepository fundPositionRepository;
+  @Autowired private JdbcClient jdbcClient;
+  @MockitoBean private OperationsNotificationService notificationService;
 
   @BeforeEach
   void setUp() {
@@ -528,6 +540,85 @@ class TransactionPipelineIntegrationTest {
 
     assertThatThrownBy(() -> commandRepository.saveAndFlush(command))
         .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  void aHeldModelInstrumentWithNoPriceInIndexValuesStopsTheFundAndSaysWhichOne() {
+    jdbcClient.sql("DELETE FROM index_values WHERE key = 'PAC.DE'").update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(TKF100, REBALANCE, TEST_DATE, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    assertThat(response.batchId()).isNull();
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            Hind puudub: LU1291106356: kontrolli hinnaallikaid ja instrument_reference'it\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void aHoldingTheRegistryAndTheSebReportDisagreeOnStopsTheFundAndShowsBothQuantities() {
+    LocalDate requiredReportDate = LocalDate.of(2026, 2, 9);
+    sebReportRow(requiredReportDate, "IE00BMDBMY19", "990.000000");
+    sebReportRow(requiredReportDate, "IE00BFG1TM61", "450.000000");
+    registryRow(requiredReportDate, "IE00BMDBMY19", "1000.0000");
+    registryRow(requiredReportDate, "IE00BFG1TM61", "450.0000");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(TKF100, REBALANCE, TEST_DATE, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    assertThat(response.errorMessage())
+        .isEqualTo(
+            "Trade prep inputs missing or stale, no DRAFT made: fund=TKF100, asOfDate=2026-02-10:"
+                + " IE00BMDBMY19: registris 1000, SEB raportis 990 (2026-02-09): kontrolli registri"
+                + " tehinguid");
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            IE00BMDBMY19: registris 1000, SEB raportis 990 (2026-02-09): kontrolli registri tehinguid\
+            """,
+            INVESTMENT);
+  }
+
+  private void sebReportRow(LocalDate navDate, String isin, String quantity) {
+    fundPositionRepository.save(
+        FundPosition.builder()
+            .navDate(navDate)
+            .fund(TKF100)
+            .accountType(AccountType.SECURITY)
+            .accountName(isin)
+            .accountId(isin)
+            .quantity(new BigDecimal(quantity))
+            .marketValue(new BigDecimal("1000.00"))
+            .currency("EUR")
+            .createdAt(FIXED_INSTANT)
+            .updatedAt(FIXED_INSTANT)
+            .build());
+  }
+
+  private void registryRow(LocalDate asOfDate, String isin, String quantity) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_portfolio_cost_basis
+              (fund_isin, instrument_isin, as_of_date, quantity, avg_unit_cost, total_cost, source)
+            VALUES (:fundIsin, :isin, :asOfDate, :quantity, 0, 0, 'TEST')
+            """)
+        .param("fundIsin", TKF100.getIsin())
+        .param("isin", isin)
+        .param("asOfDate", asOfDate)
+        .param("quantity", new BigDecimal(quantity))
+        .update();
   }
 
   private TransactionCommand createCommand(TransactionMode mode) {

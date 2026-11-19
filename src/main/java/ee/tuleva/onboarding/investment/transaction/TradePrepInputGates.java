@@ -35,6 +35,8 @@ class TradePrepInputGates {
   private final PevaRavaPeriodService pevaRavaPeriodService;
   private final PevaRavaCycleRepository pevaRavaCycleRepository;
   private final R16OutflowReader r16OutflowReader;
+  private final TradePrepPriceGate priceGate;
+  private final TradePrepPositionGate positionGate;
 
   void verify(TransactionCommand command) {
     List<InputGateFailure> failures = failures(command.getFund(), command.getAsOfDate());
@@ -45,17 +47,26 @@ class TradePrepInputGates {
   }
 
   List<InputGateFailure> failures(TulevaFund fund, LocalDate asOfDate) {
-    return Stream.of(
-            positionReport(fund, asOfDate),
-            r45(fund, asOfDate),
-            pevaRavaReports(fund, asOfDate),
-            r16OutflowReader.missingR16(fund, asOfDate))
-        .flatMap(Optional::stream)
+    LocalDate requiredReportDate = publicHolidays.previousWorkingDay(asOfDate);
+    Optional<InputGateFailure> positionReport = positionReport(fund, asOfDate, requiredReportDate);
+    Stream<InputGateFailure> holdingDifferences =
+        positionReport.isPresent()
+            ? Stream.empty()
+            : positionGate.differencesFromPositionReport(fund, requiredReportDate).stream();
+    return Stream.concat(
+            Stream.of(
+                    positionReport,
+                    r45(fund, asOfDate),
+                    pevaRavaReports(fund, asOfDate),
+                    r16OutflowReader.missingR16(fund, asOfDate),
+                    priceGate.missingPrices(fund, asOfDate))
+                .flatMap(Optional::stream),
+            holdingDifferences)
         .toList();
   }
 
-  private Optional<InputGateFailure> positionReport(TulevaFund fund, LocalDate asOfDate) {
-    LocalDate required = publicHolidays.previousWorkingDay(asOfDate);
+  private Optional<InputGateFailure> positionReport(
+      TulevaFund fund, LocalDate asOfDate, LocalDate required) {
     Optional<LocalDate> latest =
         fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
     if (latest.filter(date -> !date.isBefore(required)).isPresent()) {

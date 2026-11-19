@@ -88,6 +88,8 @@ class TradePrepSnapshotIT {
   @MockitoBean FundNavQueryService fundNavQueryService;
   @MockitoBean InvestmentParameterRepository investmentParameterRepository;
   @MockitoBean OperationsNotificationService notificationService;
+  @MockitoBean TradePrepPriceGate priceGate;
+  @MockitoBean TradePrepPositionGate positionGate;
 
   @Autowired TradePrepInputGates gates;
   @Autowired R45ReportService r45ReportService;

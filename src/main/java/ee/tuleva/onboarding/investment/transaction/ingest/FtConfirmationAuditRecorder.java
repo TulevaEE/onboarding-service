@@ -33,12 +33,8 @@ class FtConfirmationAuditRecorder {
   private final TransactionAuditEventRepository auditEventRepository;
   private final Clock clock;
 
-  boolean recordOutcome(
-      @Nullable TransactionOrder order,
-      FtConfirmation confirmation,
-      FtConfirmationResult result,
-      String actor) {
-    if (statusUnchangedSinceLastRecord(confirmation, result)) {
+  boolean recordOutcome(@Nullable TransactionOrder order, FtCheckOutcome outcome, String actor) {
+    if (statusUnchangedSinceLastRecord(outcome)) {
       return false;
     }
 
@@ -48,8 +44,8 @@ class FtConfirmationAuditRecorder {
             .batch(order == null ? null : order.getBatch())
             .eventType(FT_CONFIRMATION_VERIFIED)
             .actor(actor)
-            .dedupKey(dedupKey(confirmation))
-            .payload(payload(confirmation, result))
+            .dedupKey(outcome.auditKey())
+            .payload(payload(outcome))
             .createdAt(clock.instant())
             .build());
     return true;
@@ -66,33 +62,34 @@ class FtConfirmationAuditRecorder {
         .orElseGet(() -> LocalDate.now(clock));
   }
 
-  boolean alreadyAlerted(FtConfirmation confirmation, FtConfirmationResult result) {
+  boolean alreadyAlerted(FtCheckOutcome outcome) {
     return auditEventRepository
-        .findByEventTypeAndDedupKey(FT_CONFIRMATION_ALERTED, dedupKey(confirmation))
+        .findByEventTypeAndDedupKey(FT_CONFIRMATION_ALERTED, outcome.auditKey())
         .stream()
         .map(event -> statusPair(event.getPayload()))
-        .anyMatch(statusPair(result)::equals);
+        .anyMatch(statusPair(outcome.result())::equals);
   }
 
-  void recordAlerted(FtConfirmation confirmation, FtConfirmationResult result) {
+  void recordAlerted(FtCheckOutcome outcome) {
     auditEventRepository.save(
         TransactionAuditEvent.builder()
             .eventType(FT_CONFIRMATION_ALERTED)
             .actor(ALERT_ACTOR)
-            .dedupKey(dedupKey(confirmation))
-            .payload(payload(confirmation, result))
+            .dedupKey(outcome.auditKey())
+            .payload(payload(outcome))
             .createdAt(clock.instant())
             .build());
   }
 
-  private boolean statusUnchangedSinceLastRecord(
-      FtConfirmation confirmation, FtConfirmationResult result) {
-    return lastRecordedStatus(confirmation).filter(statusPair(result)::equals).isPresent();
+  private boolean statusUnchangedSinceLastRecord(FtCheckOutcome outcome) {
+    return lastRecordedStatus(outcome.auditKey())
+        .filter(statusPair(outcome.result())::equals)
+        .isPresent();
   }
 
-  private Optional<List<String>> lastRecordedStatus(FtConfirmation confirmation) {
+  private Optional<List<String>> lastRecordedStatus(String auditKey) {
     return auditEventRepository
-        .findByEventTypeAndDedupKey(FT_CONFIRMATION_VERIFIED, dedupKey(confirmation))
+        .findByEventTypeAndDedupKey(FT_CONFIRMATION_VERIFIED, auditKey)
         .stream()
         .max(comparing(TransactionAuditEvent::getCreatedAt))
         .map(event -> statusPair(event.getPayload()));
@@ -122,18 +119,9 @@ class FtConfirmationAuditRecorder {
         String.valueOf(payload.get("quantityStatus")), String.valueOf(payload.get("priceStatus")));
   }
 
-  private static Map<String, Object> payload(
-      FtConfirmation confirmation, FtConfirmationResult result) {
-    Map<String, Object> payload = new LinkedHashMap<>();
-    payload.put("fund", confirmation.fund().name());
-    payload.put("isin", confirmation.isin());
-    payload.put("tradeDate", confirmation.tradeDate().toString());
-    payload.put("quantity", confirmation.quantity().toPlainString());
-    payload.put("grossPrice", confirmation.grossPrice().toPlainString());
-    payload.put("type", confirmation.type().name());
-    if (confirmation.account() != null) {
-      payload.put("account", confirmation.account());
-    }
+  private static Map<String, Object> payload(FtCheckOutcome outcome) {
+    FtConfirmationResult result = outcome.result();
+    Map<String, Object> payload = new LinkedHashMap<>(outcome.auditFacts());
     payload.put("quantityStatus", result.quantityStatus().name());
     payload.put("priceStatus", result.priceStatus().name());
     payload.put("details", result.details());

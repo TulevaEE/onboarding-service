@@ -69,6 +69,7 @@ class FtUnconfirmedTradeCheckTest {
     return new FtUnconfirmedTradeCheck(
         orderRepository,
         executionRepository,
+        new FtCancellationCheck(new Target2Calendar(), auditRecorder, clock),
         new FtSebExecutionCheck(
             new FtPriceCheck(
                 positionPriceResolver,
@@ -238,6 +239,7 @@ class FtUnconfirmedTradeCheckTest {
     givenOrders(order);
     givenExecutions(execution(order, "1000", "20.40"));
     givenClosingPrice("20.40");
+    givenCancellationFirstSeenOn(TRADE_DATE);
 
     check(TWO_DAYS_AFTER_TRADE)
         .check(
@@ -258,10 +260,33 @@ class FtUnconfirmedTradeCheckTest {
   }
 
   @Test
+  void ftConfirmationCancelledDaysLater_stillConfirmsTheTradeWhileFtMaySendItsReplacement() {
+    TransactionOrder order = order("1000");
+    givenOrders(order);
+    givenExecutions(execution(order, "1000", "20.40"));
+    givenCancellationFirstSeenOn(LocalDate.of(2026, 6, 10));
+
+    check(TWO_DAYS_AFTER_TRADE)
+        .check(
+            List.of(confirmation("1000", "20.40"), confirmation("1000", "20.40", CANCELLATION)),
+            ACTOR);
+
+    verify(digest)
+        .publish(
+            List.of(
+                trade(
+                    order,
+                    "1000",
+                    "20.4",
+                    new FtConfirmationResult(CONFIRMED, CONFIRMED, Map.of()))));
+  }
+
+  @Test
   void ftConfirmationCancelledAndSentAgain_confirmsTheTrade() {
     TransactionOrder order = order("1000");
     givenOrders(order);
     givenExecutions(execution(order, "1000", "20.40"));
+    givenCancellationFirstSeenOn(TRADE_DATE);
 
     check(TWO_DAYS_AFTER_TRADE)
         .check(
@@ -526,6 +551,10 @@ class FtUnconfirmedTradeCheckTest {
             orderRepository.findByOrderStatusInAndOrderTimestampSince(
                 List.of(OrderStatus.values()), SINCE_ALERTS_FROM))
         .willReturn(Arrays.asList(orders));
+  }
+
+  private void givenCancellationFirstSeenOn(LocalDate firstSeenOn) {
+    given(auditRecorder.firstSeenOn(any())).willReturn(firstSeenOn);
   }
 
   private void givenExecutions(TransactionExecution... executions) {

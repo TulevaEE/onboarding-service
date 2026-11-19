@@ -158,6 +158,17 @@ class BankingMessageRepositoryTest {
     assertThat(repository.findLatestProcessedStatement(IBAN)).isEmpty();
   }
 
+  @Test
+  void findIdsOfProcessedMessages_includesAMessageStoredBeforeItsTypeWasRecorded() {
+    var untyped = storeUntyped("2026-08-19T01:00:00Z", PROCESSED);
+    var typed = store(IBAN, HISTORIC_STATEMENT, "2026-09-16", "2026-09-17T01:00:00Z", PROCESSED);
+    storeUntyped("2026-08-20T01:00:00Z", UNPROCESSED);
+    storeUntyped("2026-08-21T01:00:00Z", FAILED);
+    store(IBAN, HISTORIC_STATEMENT, "2026-09-17", "2026-09-18T01:00:00Z", UNPROCESSED);
+
+    assertThat(repository.findIdsOfProcessedMessages()).containsExactly(untyped, typed);
+  }
+
   enum Outcome {
     PROCESSED,
     UNPROCESSED,
@@ -178,9 +189,13 @@ class BankingMessageRepositoryTest {
     return store(iban, HISTORIC_STATEMENT, statementFrom, statementTo, receivedAt, outcome);
   }
 
+  private UUID storeUntyped(String receivedAt, Outcome outcome) {
+    return store(null, null, null, null, receivedAt, outcome);
+  }
+
   private UUID store(
-      String iban,
-      BankMessageType messageType,
+      @Nullable String iban,
+      @Nullable BankMessageType messageType,
       @Nullable String statementFrom,
       @Nullable String statementTo,
       String receivedAt,
@@ -198,7 +213,7 @@ class BankingMessageRepositoryTest {
               :receivedAt)
             """)
         .param("id", id)
-        .param("messageType", messageType.name())
+        .param("messageType", messageType == null ? null : messageType.name())
         .param("iban", iban)
         .param("statementFrom", statementFrom == null ? null : LocalDate.parse(statementFrom))
         .param("statementTo", statementTo == null ? null : LocalDate.parse(statementTo))

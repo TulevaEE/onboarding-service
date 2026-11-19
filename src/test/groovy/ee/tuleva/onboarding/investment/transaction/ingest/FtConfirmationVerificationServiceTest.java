@@ -66,13 +66,12 @@ class FtConfirmationVerificationServiceTest {
   private FtConfirmationVerificationService service(Instant now) {
     return new FtConfirmationVerificationService(
         orderRepository,
-        executionRepository,
         positionPriceResolver,
         new PriceValidator(),
-        new Target2Calendar(),
+        new FtQuantityCheck(
+            executionRepository, new Target2Calendar(), Clock.fixed(now, ZoneOffset.UTC)),
         auditRecorder,
-        digest,
-        Clock.fixed(now, ZoneOffset.UTC));
+        digest);
   }
 
   @Test

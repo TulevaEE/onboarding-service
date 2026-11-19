@@ -20,7 +20,7 @@ class KidComparisons {
             .orElse(null);
     var unreviewed =
         new KidComparison(
-            PublishedPrecision.of(fund),
+            PublishedPrecision.forANewKid(),
             kid,
             null,
             ocfSnapshotRepository.anyVersionPublished(fund.getCode(), snapshot.snapshotMonth()));

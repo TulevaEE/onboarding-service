@@ -1,14 +1,22 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisSnapshot;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.Compared;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.HoldingDifference;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.RegistryHasNoHoldings;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.ReportHasNoSecurities;
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
 import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisRefresh;
 import java.math.BigDecimal;
@@ -35,10 +43,13 @@ class PortfolioReconciliationServiceTest {
   private static final String SOLD_ETF = "IE00BFNM3G45";
   private static final String EXITED_FUND = "IE0009FT4LX4";
   private static final String ONE_SIDED = "IE00BKPTWY98";
+  private static final String ISIN_C = "IE000QWCYQT0";
+  private static final String ISIN_D = "IE00BFNM3G45";
 
   @Mock private PortfolioCostBasisService costBasisService;
   @Mock private NavReportPositionLookup navReportLookup;
   @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private FundPositionRepository fundPositionRepository;
 
   @InjectMocks private PortfolioReconciliationService service;
 
@@ -337,6 +348,74 @@ class PortfolioReconciliationServiceTest {
     verify(eventPublisher)
         .publishEvent(
             new PortfolioReconciliationMismatchEvent(TUK75, AS_OF, List.of(entries), REFRESHED));
+  }
+
+  @Test
+  void againstThePositionReport_listsEachHoldingOutsideTheToleranceWithBothQuantities() {
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
+        .willReturn(
+            List.of(
+                costBasis(ISIN_A, "1000.0000"),
+                costBasis(ISIN_B, "500.0000"),
+                costBasis(ISIN_C, "300.0000")));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                reportRow(ISIN_A, "990.000000"),
+                reportRow(ISIN_B, "300.000000"),
+                reportRow(ISIN_B, "199.500000"),
+                reportRow(ISIN_D, "40.000000")));
+
+    assertThat(service.againstPositionReport(TUK75, AS_OF))
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            new Compared(
+                List.of(
+                    new HoldingDifference(ISIN_C, new BigDecimal("300"), ZERO),
+                    new HoldingDifference(ISIN_A, new BigDecimal("1000"), new BigDecimal("990")),
+                    new HoldingDifference(ISIN_D, ZERO, new BigDecimal("40")))));
+    verifyNoInteractions(eventPublisher, navReportLookup);
+  }
+
+  @Test
+  void againstThePositionReport_anEmptyRegistryIsNotAMismatchOnEveryHolding() {
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF)).willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK75, SECURITY))
+        .willReturn(List.of(reportRow(ISIN_A, "990.000000")));
+
+    assertThat(service.againstPositionReport(TUK75, AS_OF)).isEqualTo(new RegistryHasNoHoldings());
+  }
+
+  @Test
+  void againstThePositionReport_aReportWithoutSecuritiesIsNotAMismatchOnEveryHolding() {
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
+        .willReturn(List.of(costBasis(ISIN_A, "1000.0000")));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK75, SECURITY))
+        .willReturn(List.of());
+
+    assertThat(service.againstPositionReport(TUK75, AS_OF)).isEqualTo(new ReportHasNoSecurities());
+  }
+
+  @Test
+  void againstThePositionReport_aFundWithoutSecuritiesOnEitherSideHasNothingToDiffer() {
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF)).willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK75, SECURITY))
+        .willReturn(List.of());
+
+    assertThat(service.againstPositionReport(TUK75, AS_OF)).isEqualTo(new Compared(List.of()));
+  }
+
+  private static FundPosition reportRow(String isin, String quantity) {
+    return FundPosition.builder()
+        .navDate(AS_OF)
+        .fund(TUK75)
+        .accountType(SECURITY)
+        .accountName(isin)
+        .accountId(isin)
+        .quantity(new BigDecimal(quantity))
+        .marketValue(BigDecimal.ONE)
+        .build();
   }
 
   private PortfolioCostBasisSnapshot costBasis(String isin, String quantity) {

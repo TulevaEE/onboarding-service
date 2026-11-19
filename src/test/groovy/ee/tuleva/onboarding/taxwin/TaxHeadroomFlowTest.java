@@ -215,6 +215,30 @@ class TaxHeadroomFlowTest {
                 602,
                 500,
                 SINGLE));
+
+    assertThat(headroomService.expectYearlyIncome(person, new BigDecimal("33000")))
+        .get()
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            new TaxHeadroomResponse(
+                2026,
+                new BigDecimal("25000.00"),
+                YearMonth.of(2026, 10),
+                List.of(
+                    new ExpectedMonthlyIncome(
+                        YearMonth.of(2026, 11), new BigDecimal("4000.00"), CORRECTED),
+                    new ExpectedMonthlyIncome(
+                        YearMonth.of(2026, 12), new BigDecimal("4000.00"), CORRECTED)),
+                RECENT_MONTHS,
+                new BigDecimal("3260.00"),
+                2,
+                4950,
+                LimitCertainty.ESTIMATED,
+                1690,
+                371,
+                412,
+                SINGLE));
   }
 
   @Test

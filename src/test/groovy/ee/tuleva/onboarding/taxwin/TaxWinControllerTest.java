@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.taxwin.ExpectedIncomeSource.ESTIMATED;
 import static ee.tuleva.onboarding.taxwin.PaymentSuggestion.SINGLE;
 import static ee.tuleva.onboarding.taxwin.TaxDataConsentStatus.AWAITING_SIGNATURE;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.json.JsonCompareMode.STRICT;
@@ -158,6 +159,52 @@ class TaxWinControllerTest {
 
     mvc.perform(
             as(put(HEADROOM + "/expected-income/2026-12"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"amount\":10}"))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void recalculatesWithTheIncomeThePersonExpectsForTheWholeYear() throws Exception {
+    given(headroomService.expectYearlyIncome(person, new BigDecimal("33000")))
+        .willReturn(Optional.of(HEADROOM_RESPONSE));
+
+    mvc.perform(
+            as(put(HEADROOM + "/yearly-income"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"amount\":33000}"))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"remaining\":1240}"));
+  }
+
+  @Test
+  void refusesAYearlyIncomeBelowTheDeclaredIncome() throws Exception {
+    given(headroomService.expectYearlyIncome(person, BigDecimal.ONE))
+        .willThrow(new InvalidExpectedIncomeException(2026));
+
+    mvc.perform(
+            as(put(HEADROOM + "/yearly-income"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"amount\":1}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void refusesAYearlyIncomeNoPersonCouldEarnWithoutCalculatingAnything() throws Exception {
+    mvc.perform(
+            as(put(HEADROOM + "/yearly-income"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"amount\":1e20000000}"))
+        .andExpect(status().isBadRequest());
+    then(headroomService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void yearlyIncomeNeedsAValidConsent() throws Exception {
+    given(headroomService.expectYearlyIncome(person, BigDecimal.TEN)).willReturn(Optional.empty());
+
+    mvc.perform(
+            as(put(HEADROOM + "/yearly-income"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"amount\":10}"))
         .andExpect(status().isNotFound());

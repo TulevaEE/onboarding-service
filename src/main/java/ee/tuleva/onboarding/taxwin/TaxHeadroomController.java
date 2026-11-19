@@ -42,6 +42,16 @@ class TaxHeadroomController {
         headroomService.correctExpectedIncome(person, month, correction.amount()));
   }
 
+  @Operation(
+      summary =
+          "Set the income the person expects for the whole year, spread over the months not declared yet")
+  @PutMapping("/yearly-income")
+  ResponseEntity<TaxHeadroomResponse> expectYearlyIncome(
+      @Valid @RequestBody ExpectedYearlyIncome income,
+      @AuthenticationPrincipal AuthenticatedPerson person) {
+    return ResponseEntity.of(headroomService.expectYearlyIncome(person, income.amount()));
+  }
+
   @Operation(summary = "Go back to the estimated income for a month that is not declared yet")
   @DeleteMapping("/expected-income/{month}")
   ResponseEntity<TaxHeadroomResponse> removeCorrection(

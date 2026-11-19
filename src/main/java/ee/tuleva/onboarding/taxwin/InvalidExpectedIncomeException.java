@@ -11,4 +11,8 @@ class InvalidExpectedIncomeException extends RuntimeException {
   InvalidExpectedIncomeException(YearMonth month) {
     super("Expected income cannot be set for this month: month=" + month);
   }
+
+  InvalidExpectedIncomeException(int year) {
+    super("Yearly income cannot be spread over the months not declared yet: year=" + year);
+  }
 }

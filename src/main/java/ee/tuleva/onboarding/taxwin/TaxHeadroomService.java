@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.Month;
 import java.time.YearMonth;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +56,23 @@ class TaxHeadroomService {
     }
     incomeStore.correct(userId, month, amount);
     return headroom(person);
+  }
+
+  Optional<TaxHeadroomResponse> expectYearlyIncome(
+      AuthenticatedPerson person, BigDecimal yearlyIncome) {
+    requireActingAsSelf(person);
+    if (approvedConsent(person).flatMap(consent -> refreshed(consent, person)).isEmpty()) {
+      return Optional.empty();
+    }
+    Long userId = person.getUserIdOrThrow();
+    YearMonth currentMonth = YearMonth.now(estonianClock);
+    Map<YearMonth, BigDecimal> expected =
+        estimate(userId, currentMonth).spreadOverExpectedMonths(yearlyIncome);
+    if (!expected.values().stream().allMatch(TaxHeadroomService::isValidMonthlyIncome)) {
+      throw new InvalidExpectedIncomeException(currentMonth.getYear());
+    }
+    incomeStore.correctAll(userId, expected);
+    return Optional.of(calculate(person));
   }
 
   Optional<TaxHeadroomResponse> removeCorrection(AuthenticatedPerson person, YearMonth month) {
@@ -142,9 +160,7 @@ class TaxHeadroomService {
   private TaxHeadroomResponse calculate(AuthenticatedPerson person) {
     Long userId = person.getUserIdOrThrow();
     YearMonth currentMonth = YearMonth.now(estonianClock);
-    IncomeEstimate estimate =
-        estimator.estimate(
-            currentMonth, incomeStore.declared(userId), incomeStore.corrections(userId));
+    IncomeEstimate estimate = estimate(userId, currentMonth);
     BigDecimal paid = contributionsThisYear.forPerson(person);
     int monthsLeft = Month.DECEMBER.getValue() - currentMonth.getMonthValue() + 1;
     HeadroomFigures figures =
@@ -155,6 +171,11 @@ class TaxHeadroomService {
             paid,
             monthsLeft);
     return TaxHeadroomResponse.of(currentMonth.getYear(), estimate, paid, monthsLeft, figures);
+  }
+
+  private IncomeEstimate estimate(Long userId, YearMonth currentMonth) {
+    return estimator.estimate(
+        currentMonth, incomeStore.declared(userId), incomeStore.corrections(userId));
   }
 
   private boolean isCorrectable(Long userId, YearMonth month) {

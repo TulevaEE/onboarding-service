@@ -53,6 +53,11 @@ class TaxIncomeStore {
   }
 
   @Transactional
+  void correctAll(Long userId, Map<YearMonth, BigDecimal> amounts) {
+    amounts.forEach((month, amount) -> correct(userId, month, amount));
+  }
+
+  @Transactional
   void removeCorrection(Long userId, YearMonth month) {
     correctionRepository
         .findByUserIdAndIncomeMonth(userId, month.atDay(1))

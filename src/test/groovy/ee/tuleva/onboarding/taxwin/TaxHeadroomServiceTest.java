@@ -13,8 +13,10 @@ import static java.time.temporal.ChronoUnit.HOURS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -234,6 +236,56 @@ class TaxHeadroomServiceTest {
 
     assertThat(service.correctExpectedIncome(person, YearMonth.of(2026, 12), BigDecimal.TEN))
         .isEmpty();
+    then(incomeStore).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void spreadsTheYearlyIncomeOverTheMonthsNotDeclaredYet() {
+    given(consentRepository.findByUserId(userId))
+        .willReturn(Optional.of(refreshed(ID, userId, NOW.minus(1, HOURS))));
+    givenStoredIncome();
+
+    assertThat(service.expectYearlyIncome(person, new BigDecimal("10500"))).isPresent();
+    then(incomeStore)
+        .should()
+        .correctAll(
+            userId,
+            Map.of(
+                YearMonth.of(2026, 11), new BigDecimal("4000.00"),
+                YearMonth.of(2026, 12), new BigDecimal("4000.00")));
+  }
+
+  @Test
+  void refreshesTheDeclaredIncomeBeforeSpreadingTheYearlyIncome() {
+    given(consentRepository.findByUserId(userId))
+        .willReturn(Optional.of(refreshed(ID, userId, NOW.minus(25, HOURS))));
+    givenRefreshSucceeds();
+    givenStoredIncome();
+
+    assertThat(service.expectYearlyIncome(person, new BigDecimal("10500"))).isPresent();
+    var inOrder = inOrder(incomeStore);
+    then(incomeStore).should(inOrder).replaceDeclared(userId, DECLARED);
+    then(incomeStore).should(inOrder).correctAll(eq(userId), any());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"2499.99", "10500.005", "202500.01"})
+  void aYearlyIncomeBelowTheDeclaredIncomeOrBeyondTheMonthlyLimitIsRefused(String yearlyIncome) {
+    given(consentRepository.findByUserId(userId))
+        .willReturn(Optional.of(refreshed(ID, userId, NOW.minus(1, HOURS))));
+    given(incomeStore.declared(userId)).willReturn(DECLARED);
+    given(incomeStore.corrections(userId)).willReturn(Map.of());
+
+    assertThatThrownBy(() -> service.expectYearlyIncome(person, new BigDecimal(yearlyIncome)))
+        .isInstanceOf(InvalidExpectedIncomeException.class);
+    then(incomeStore).should(never()).correctAll(any(), any());
+  }
+
+  @Test
+  void yearlyIncomeNeedsAnApprovedConsent() {
+    given(consentRepository.findByUserId(userId)).willReturn(Optional.empty());
+
+    assertThat(service.expectYearlyIncome(person, BigDecimal.TEN)).isEmpty();
     then(incomeStore).shouldHaveNoInteractions();
   }
 

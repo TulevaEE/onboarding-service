@@ -65,6 +65,17 @@ public interface TransactionOrderRepository extends JpaRepository<TransactionOrd
   List<TransactionOrder> findByOrderStatusInAndOrderTimestampSince(
       Collection<OrderStatus> statuses, Instant since);
 
+  @Query(
+      """
+      SELECT DISTINCT o.instrumentIsin FROM TransactionOrder o
+      WHERE o.fund = :fund
+        AND o.orderStatus IN (:statuses)
+        AND o.orderTimestamp >= :from
+        AND o.orderTimestamp < :until
+      """)
+  List<String> findIsinsOrderedBetween(
+      TulevaFund fund, Collection<OrderStatus> statuses, Instant from, Instant until);
+
   default List<TransactionOrder> findOverdueOrders(OrderStatus... statuses) {
     return findByOrderStatusIn(Arrays.asList(statuses));
   }

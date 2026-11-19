@@ -14,21 +14,17 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 class SettlementCheckTest {
 
-  @ParameterizedTest
-  @EnumSource(
-      value = SettlementCheck.class,
-      names = {"CHECKED", "SKIPPED_NOT_LATEST_REPORT"})
-  void aReportReadInFull_givesItsAsOfDate_whetherOrNotItIsTheLatest(SettlementCheck check) {
-    assertThat(check.trustedAsOfDate(reportWithMetadata(Map.of("asOfDate", "2026-11-18"))))
+  @Test
+  void aReportThatPassedEveryCheck_givesItsAsOfDate() {
+    assertThat(
+            SettlementCheck.CHECKED.trustedAsOfDate(
+                reportWithMetadata(Map.of("asOfDate", "2026-11-18"))))
         .contains(LocalDate.of(2026, 11, 18));
   }
 
   @ParameterizedTest
-  @EnumSource(
-      value = SettlementCheck.class,
-      names = {"CHECKED", "SKIPPED_NOT_LATEST_REPORT"},
-      mode = EnumSource.Mode.EXCLUDE)
-  void anEmptyMalformedUnmatchedOrPossiblyTruncatedReport_givesNoAsOfDate(SettlementCheck check) {
+  @EnumSource(value = SettlementCheck.class, names = "CHECKED", mode = EnumSource.Mode.EXCLUDE)
+  void aReportSkippedBeforeOrInsteadOfTheTruncationCheck_givesNoAsOfDate(SettlementCheck check) {
     assertThat(check.trustedAsOfDate(reportWithMetadata(Map.of("asOfDate", "2026-11-18"))))
         .isEmpty();
   }

@@ -14,12 +14,8 @@ enum SettlementCheck {
   SKIPPED_POSSIBLE_TRUNCATION;
 
   Optional<LocalDate> trustedAsOfDate(InvestmentReport report) {
-    return trustsTheReport()
+    return this == CHECKED
         ? Optional.ofNullable(SebReportHeaders.asOfDate(report))
         : Optional.empty();
-  }
-
-  private boolean trustsTheReport() {
-    return this == CHECKED || this == SKIPPED_NOT_LATEST_REPORT;
   }
 }

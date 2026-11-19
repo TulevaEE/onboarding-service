@@ -1574,6 +1574,34 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
+  void
+      reconcile_ofAnOlderReportAfterANewerOneArrived_recordsNoReconciledReport_asItsTruncationWentUnchecked() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS))
+        .willReturn(
+            Optional.of(
+                InvestmentReport.builder()
+                    .provider(SEB)
+                    .reportType(PENDING_TRANSACTIONS)
+                    .reportDate(LocalDate.of(2026, 5, 14))
+                    .metadata(Map.of("asOfDate", "2026-05-14"))
+                    .rawData(List.of())
+                    .build()));
+
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
+
+    verify(auditEventRepository, never())
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "SEB_PENDING_REPORT_RECONCILED".equals(event.getEventType())));
+  }
+
+  @Test
   void reconcile_ofAnEmptyReport_recordsNoReconciledReport() {
     service = newService();
 

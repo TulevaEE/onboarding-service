@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
+import static ee.tuleva.onboarding.investment.transaction.TransactionBatch.TRADE_REGISTRY_SQL_IMPORT_SOURCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
@@ -18,6 +19,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.endsWith;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.BDDMockito.then;
@@ -123,6 +125,29 @@ class ModelRebalanceCheckIT {
             Tee tasakaalustamise tehingud; sisemine tähtaeg 01.12.2026, seaduslik 04.01.2027""",
             INVESTMENT,
             WARNING);
+    then(notificationService).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void
+      aSentOrderFromABatchFinalisedHereWithoutAnExecution_doesNotClearTheWarningButItsExecutionDoes() {
+    givenTuv100ModelSwitchesFromWorldToNewWorld();
+    givenNav(LocalDate.of(2026, 10, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    givenOrderFromABatchFinalisedInThisService(NEW_WORLD, BUY, SENT, LocalDate.of(2026, 10, 30));
+
+    runCheckOn(LocalDate.of(2026, 11, 2));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            startsWith("⚠️ TUV100 mudelportfell alates 01.10.2026"), eq(INVESTMENT), eq(WARNING));
+
+    givenOrderFromABatchFinalisedInThisService(WORLD, SELL, EXECUTED, LocalDate.of(2026, 10, 30));
+    runCheckOn(LocalDate.of(2026, 11, 3));
+
+    then(notificationService)
+        .should()
+        .sendMessage(endsWith("tehingud: IE00BFG1TM61"), eq(INVESTMENT), eq(INFO));
     then(notificationService).shouldHaveNoMoreInteractions();
   }
 
@@ -405,12 +430,35 @@ class ModelRebalanceCheckIT {
 
   private void givenOrder(
       TulevaFund fund, String isin, TransactionType side, OrderStatus status, LocalDate orderDate) {
+    givenOrder(
+        fund,
+        isin,
+        side,
+        status,
+        orderDate,
+        Map.of(
+            "source", TRADE_REGISTRY_SQL_IMPORT_SOURCE, "importKey", "GAS:" + UUID.randomUUID()));
+  }
+
+  private void givenOrderFromABatchFinalisedInThisService(
+      String isin, TransactionType side, OrderStatus status, LocalDate orderDate) {
+    givenOrder(TUV100, isin, side, status, orderDate, Map.of("commandId", 7L, "mode", "REBALANCE"));
+  }
+
+  private void givenOrder(
+      TulevaFund fund,
+      String isin,
+      TransactionType side,
+      OrderStatus status,
+      LocalDate orderDate,
+      Map<String, Object> batchMetadata) {
     var batch =
         batchRepository.save(
             TransactionBatch.builder()
                 .fund(fund)
-                .createdBy("tehingute-register")
+                .createdBy("operator")
                 .status(BatchStatus.SENT)
+                .metadata(batchMetadata)
                 .build());
     orderRepository.save(
         TransactionOrder.builder()

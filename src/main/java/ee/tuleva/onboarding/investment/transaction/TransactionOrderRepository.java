@@ -67,13 +67,13 @@ public interface TransactionOrderRepository extends JpaRepository<TransactionOrd
 
   @Query(
       """
-      SELECT DISTINCT o.instrumentIsin FROM TransactionOrder o
+      SELECT o FROM TransactionOrder o JOIN FETCH o.batch
       WHERE o.fund = :fund
         AND o.orderStatus IN (:statuses)
         AND o.orderTimestamp >= :from
         AND o.orderTimestamp < :until
       """)
-  List<String> findIsinsOrderedBetween(
+  List<TransactionOrder> findPlacedBetween(
       TulevaFund fund, Collection<OrderStatus> statuses, Instant from, Instant until);
 
   default List<TransactionOrder> findOverdueOrders(OrderStatus... statuses) {

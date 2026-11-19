@@ -17,6 +17,7 @@ import jakarta.persistence.Version;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -30,6 +31,11 @@ import org.hibernate.annotations.JdbcTypeCode;
 @AllArgsConstructor
 @NoArgsConstructor
 public class TransactionBatch {
+
+  public static final String TRADE_REGISTRY_SQL_IMPORT_SOURCE = "GAS_REGISTRY";
+  public static final String HISTORICAL_IMPORT_SOURCE = "HISTORICAL_IMPORT";
+  private static final Set<String> TRADE_REGISTRY_IMPORT_SOURCES =
+      Set.of(TRADE_REGISTRY_SQL_IMPORT_SOURCE, HISTORICAL_IMPORT_SOURCE);
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -71,5 +77,10 @@ public class TransactionBatch {
     if (createdAt == null) {
       createdAt = clock().instant();
     }
+  }
+
+  public boolean importedFromTheTradeRegistry() {
+    return metadata.get("source") instanceof String source
+        && TRADE_REGISTRY_IMPORT_SOURCES.contains(source);
   }
 }

@@ -198,7 +198,7 @@ class OcfPublicationServiceTest {
   }
 
   @Test
-  void theSavingsFundPreviewShowsThePublishedFigureAtOneDecimal() {
+  void theSavingsFundPreviewShowsThePublishedFigureAtTwoDecimals() {
     given(ocfSnapshotRepository.findByFundAndMonth("TKF100", OCTOBER.atDay(1)))
         .willReturn(Optional.of(snapshot(TKF100, COMPLETE_CHECKS, null)));
     givenTheFeeOnThePublicationDate(TKF100);
@@ -219,8 +219,8 @@ class OcfPublicationServiceTest {
                 NOVEMBER_1,
                 FEE_ON_THE_PUBLICATION_DATE,
                 PUBLISHED_OCF,
-                new BigDecimal("0.5"),
-                1,
+                new BigDecimal("0.45"),
+                2,
                 null,
                 null,
                 false));

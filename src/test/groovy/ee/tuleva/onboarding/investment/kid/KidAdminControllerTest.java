@@ -79,9 +79,9 @@ class KidAdminControllerTest {
                         {
                           "horizonYears": 1,
                           "totalCostsEur": 50,
-                          "annualCostImpact": 0.005,
-                          "returnPerYearBeforeCosts": 0.005,
-                          "returnPerYearAfterCosts": 0.000
+                          "annualCostImpact": 0.0050,
+                          "returnPerYearBeforeCosts": 0.0050,
+                          "returnPerYearAfterCosts": 0.0000
                         }
                       ]
                     }
@@ -176,8 +176,8 @@ class KidAdminControllerTest {
             new KidCost(
                 1,
                 new BigDecimal("50"),
-                new BigDecimal("0.005"),
-                new BigDecimal("0.005"),
-                new BigDecimal("0.000"))));
+                new BigDecimal("0.0050"),
+                new BigDecimal("0.0050"),
+                new BigDecimal("0.0000"))));
   }
 }

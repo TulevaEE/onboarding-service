@@ -117,7 +117,7 @@ class KidComparisonsIT {
     var comparison = kidComparisons.atTheMonthEndOf(TKF100, calculation);
 
     assertThat(comparison)
-        .isEqualTo(new KidComparison(new PublishedPrecision(1), inForce, null, false));
+        .isEqualTo(new KidComparison(new PublishedPrecision(2), inForce, null, false));
     assertThat(comparison.precision()).isEqualTo(new PublishedPrecision(1));
     assertThat(comparison.differsFrom(calculation)).isFalse();
   }
@@ -130,7 +130,7 @@ class KidComparisonsIT {
     var comparison = kidComparisons.atTheMonthEndOf(TKF100, calculation);
 
     assertThat(comparison)
-        .isEqualTo(new KidComparison(new PublishedPrecision(1), inForce, null, false));
+        .isEqualTo(new KidComparison(new PublishedPrecision(2), inForce, null, false));
     assertThat(comparison.precision()).isEqualTo(new PublishedPrecision(2));
     assertThat(comparison.differsFrom(calculation)).isTrue();
   }
@@ -140,7 +140,7 @@ class KidComparisonsIT {
     var calculation = storedCalculation(TKF100, "0.00491200");
 
     assertThat(kidComparisons.atTheMonthEndOf(TKF100, calculation).precision())
-        .isEqualTo(new PublishedPrecision(1));
+        .isEqualTo(new PublishedPrecision(2));
   }
 
   private OcfSnapshot storedCalculation(TulevaFund fund, String totalOcf) {

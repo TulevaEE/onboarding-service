@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.investment.fees.ocf.OcfPublicationBasis.MONTH
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -290,7 +289,8 @@ class OcfPublicationRepositoryTest {
 
   @Test
   void theDecimalsAKidPrintedWithSurviveTheRoundTrip() {
-    var oneDecimal = repository.recordGiven(given("TKF100", MAY_1, "0.00520000", "KID 01.05.2026"));
+    var oneDecimal =
+        repository.recordGiven(given("TKF100", MAY_1, "0.00520000", 1, "KID 01.05.2026"));
 
     assertThat(repository.findInForceOn("TKF100", MAY_1)).contains(oneDecimal);
     assertThat(oneDecimal.publishedDecimals()).isEqualTo(1);
@@ -378,11 +378,21 @@ class OcfPublicationRepositoryTest {
 
   private static OcfPublication given(
       String fundCode, LocalDate validFrom, String publishedOcf, String publishedIn) {
+    return given(
+        fundCode, validFrom, publishedOcf, PublishedPrecision.forANewKid().decimals(), publishedIn);
+  }
+
+  private static OcfPublication given(
+      String fundCode,
+      LocalDate validFrom,
+      String publishedOcf,
+      int publishedDecimals,
+      String publishedIn) {
     return OcfPublication.notFromACalculation(
         fundCode,
         validFrom,
         new BigDecimal(publishedOcf),
-        PublishedPrecision.of(TulevaFund.fromCode(fundCode)).decimals(),
+        publishedDecimals,
         MONTHLY_ESTIMATE,
         "the KID already in force",
         null,

@@ -166,7 +166,7 @@ class CostBasisOversellAlerterIT {
   }
 
   @Test
-  void aClearForAnOversellThatWasNeverAnnouncedIsNotPosted() {
+  void afterAnOutageOnlyTheLatestStateIsPostedEvenWhenItIsAClear() {
     notifications.failNext();
     alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
     alerter.postPending();
@@ -174,7 +174,7 @@ class CostBasisOversellAlerterIT {
     alerter.postPending();
     alerter.postPending();
 
-    assertThat(notifications.sent()).isEmpty();
+    assertThat(notifications.sent()).extracting(Sent::message).containsExactly(CLEARED_MESSAGE);
   }
 
   @Test

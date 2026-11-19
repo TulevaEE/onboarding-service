@@ -59,6 +59,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @Import({
   RebalanceWindows.class,
   RebalanceAnnouncements.class,
+  RebalanceTrades.class,
   NavWeightsReader.class,
   InvestmentParameterRepository.class,
   EstonianCalendar.class,
@@ -255,6 +256,50 @@ class ModelRebalanceCheckIT {
         .should(times(2))
         .sendMessage(
             startsWith("ℹ️ TUV100 mudelportfell alates 03.11.2026"), eq(INVESTMENT), eq(INFO));
+  }
+
+  @Test
+  void olderModelsWhoseDatesPredateTheParameters_doNotStopTheCurrentWindowsAlert() {
+    givenModel(TUV100, LocalDate.of(2026, 6, 1), Map.of(WORLD, "1.00"));
+    givenModel(TUV100, LocalDate.of(2026, 8, 1), Map.of(WORLD, "0.80", EMERGING, "0.20"));
+    givenModel(TUV100, LocalDate.of(2026, 9, 1), Map.of(NEW_WORLD, "0.80", EMERGING, "0.20"));
+    givenNav(LocalDate.of(2026, 10, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+
+    runCheckOn(LocalDate.of(2026, 11, 2));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            startsWith(
+                "🛑 TUV100 mudelportfell alates 01.09.2026: sisemine tähtaeg oli 01.11.2026"),
+            eq(INVESTMENT),
+            eq(ERROR));
+    then(notificationService).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void aCloseOwedAcrossTwoNewerModels_isPostedOnceWhenSlackRecovers() {
+    var close =
+        "✅ TUV100 mudelportfell alates 01.10.2026: fond on mudeliga vastavuses (kõik"
+            + " osakaalud 5 pp piires, NAV 30.10.2026), kontroll suletud";
+    givenTuv100ModelSwitchesFromWorldToNewWorld();
+    givenNav(LocalDate.of(2026, 10, 29), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 30));
+    givenNav(LocalDate.of(2026, 10, 30), Map.of(NEW_WORLD, "790000", EMERGING, "200000"));
+    willThrow(new IllegalStateException("Slack unavailable"))
+        .given(notificationService)
+        .sendMessage(close, INVESTMENT, INFO);
+    runCheckOn(LocalDate.of(2026, 11, 2));
+    givenModel(TUV100, LocalDate.of(2026, 11, 3), Map.of(NEW_WORLD, "0.70", EMERGING, "0.30"));
+    runCheckOn(LocalDate.of(2026, 11, 3));
+    givenModel(TUV100, LocalDate.of(2026, 11, 4), Map.of(NEW_WORLD, "0.60", EMERGING, "0.40"));
+    runCheckOn(LocalDate.of(2026, 11, 4));
+
+    willDoNothing().given(notificationService).sendMessage(any(), any(), any());
+    runCheckOn(LocalDate.of(2026, 11, 5));
+    runCheckOn(LocalDate.of(2026, 11, 6));
+
+    then(notificationService).should(times(4)).sendMessage(close, INVESTMENT, INFO);
   }
 
   @Test

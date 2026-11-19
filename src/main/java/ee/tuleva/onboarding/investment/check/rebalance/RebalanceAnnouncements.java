@@ -4,7 +4,9 @@ import static ee.tuleva.onboarding.investment.check.rebalance.RebalanceState.OK;
 
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -19,14 +21,20 @@ class RebalanceAnnouncements {
   private final EventLogRepository eventLogRepository;
 
   boolean isOwed(RebalanceWindow window) {
-    return window.state() != OK || closeOfAnAnnouncedWindowIsOwed(window);
+    return window.state() != OK || closeOwed(window.fund(), window.modelEffectiveDate());
+  }
+
+  boolean closeOwed(TulevaFund fund, LocalDate modelEffectiveDate) {
+    var key = windowKey(fund, modelEffectiveDate);
+    return eventLogRepository.existsByTypeAndPrincipal(WINDOW_OPEN_ANNOUNCED, key)
+        && !eventLogRepository.existsByTypeAndPrincipal(WINDOW_CLOSE_ANNOUNCED, key);
   }
 
   void recordAnnounced(RebalanceWindow window, Instant announcedAt) {
     eventLogRepository.save(
         EventLog.builder()
             .type(window.state() == OK ? WINDOW_CLOSE_ANNOUNCED : WINDOW_OPEN_ANNOUNCED)
-            .principal(windowKey(window))
+            .principal(windowKey(window.fund(), window.modelEffectiveDate()))
             .timestamp(announcedAt)
             .data(
                 Map.of(
@@ -35,13 +43,7 @@ class RebalanceAnnouncements {
             .build());
   }
 
-  private boolean closeOfAnAnnouncedWindowIsOwed(RebalanceWindow window) {
-    var key = windowKey(window);
-    return eventLogRepository.existsByTypeAndPrincipal(WINDOW_OPEN_ANNOUNCED, key)
-        && !eventLogRepository.existsByTypeAndPrincipal(WINDOW_CLOSE_ANNOUNCED, key);
-  }
-
-  private static String windowKey(RebalanceWindow window) {
-    return window.fund().getCode() + ":" + window.modelEffectiveDate();
+  private static String windowKey(TulevaFund fund, LocalDate modelEffectiveDate) {
+    return fund.getCode() + ":" + modelEffectiveDate;
   }
 }

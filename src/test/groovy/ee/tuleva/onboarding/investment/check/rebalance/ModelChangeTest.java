@@ -119,6 +119,22 @@ class ModelChangeTest {
     assertThat(ModelChange.latestIn(List.of())).isEmpty();
   }
 
+  @Test
+  void allChangesInAHistory_areListedNewestFirstSkippingVersionsWithTheSameWeights() {
+    var august = LocalDate.of(2026, 8, 1);
+    var november = LocalDate.of(2026, 11, 1);
+    var history =
+        List.of(
+            allocation(PREVIOUS, "WORLD", "1.00"),
+            allocation(august, "NEW_WORLD", "1.00"),
+            allocation(CURRENT, "NEW_WORLD", "1.0"),
+            allocation(november, "EUROPE", "1.00"));
+
+    assertThat(ModelChange.allIn(history))
+        .extracting(ModelChange::effectiveDate)
+        .containsExactly(november, august);
+  }
+
   private static ModelPortfolioAllocation allocation(
       LocalDate effectiveDate, @Nullable String isin, String weight) {
     return ModelPortfolioAllocation.builder()

@@ -85,6 +85,18 @@ class FtConfirmationDigest {
           confirmation.quantity().toPlainString(),
           result.details().get("verificationError"));
     }
+    if (result.isOnlyThePriceMissing()) {
+      return String.format(
+          "FT price could not be checked: fund=%s, isin=%s, tradeDate=%s, quantity=%s, price=%s"
+              + " — no closing price for the trade date by the end of %s; check the price against"
+              + " the official close by hand",
+          confirmation.fund().name(),
+          confirmation.isin(),
+          confirmation.tradeDate(),
+          confirmation.quantity().toPlainString(),
+          confirmation.grossPrice().toPlainString(),
+          result.details().get("closingPriceDueBy"));
+    }
     if (confirmation.isCancellation()) {
       return String.format(
           "FT cancelled a trade and sent no new confirmation of the same quantity: fund=%s,"

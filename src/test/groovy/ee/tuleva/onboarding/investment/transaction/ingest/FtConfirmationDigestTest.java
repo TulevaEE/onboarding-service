@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.O
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ORPHAN;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_NAV;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_REPLACEMENT;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PRICE_MISSING;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.REPLACED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCHECKED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.VOIDED;
@@ -83,6 +84,32 @@ class FtConfirmationDigestTest {
             "FT confirmation check: 1 issue(s) need attention\n"
                 + "FT confirmation could not be checked: fund=TUK75, isin=IE000F60HVH9,"
                 + " tradeDate=2026-06-08, quantity=40434, error=price source down",
+            INVESTMENT);
+  }
+
+  @Test
+  void priceThatCouldNotBeChecked_isSentWithTheDayTheClosingPriceWasDue() {
+    digest(true).publish(List.of(priceMissing(OK)));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "FT price could not be checked: fund=TUK75, isin=IE000F60HVH9,"
+                + " tradeDate=2026-06-08, quantity=40434, price=10.09 — no closing price for the"
+                + " trade date by the end of 2026-06-09; check the price against the official"
+                + " close by hand",
+            INVESTMENT);
+  }
+
+  @Test
+  void priceThatCouldNotBeChecked_withAQuantityError_isSentAsAnFtIssueWithBothStatuses() {
+    digest(true).publish(List.of(priceMissing(ERROR)));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "FT issue: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434,"
+                + " quantityStatus=ERROR, priceStatus=PRICE_MISSING",
             INVESTMENT);
   }
 
@@ -253,6 +280,13 @@ class FtConfirmationDigestTest {
         outcome.confirmation(),
         new FtConfirmationResult(
             UNCHECKED, UNCHECKED, Map.of("verificationError", "price source down")));
+  }
+
+  private static FtConfirmationOutcome priceMissing(FtVerificationStatus quantityStatus) {
+    return new FtConfirmationOutcome(
+        outcome(quantityStatus, PRICE_MISSING).confirmation(),
+        new FtConfirmationResult(
+            quantityStatus, PRICE_MISSING, Map.of("closingPriceDueBy", "2026-06-09")));
   }
 
   private static FtConfirmationOutcome outcome(

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ZERO;
 import static java.util.Objects.requireNonNullElse;
 
+import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisSnapshot;
@@ -13,6 +14,7 @@ import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.
 import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.HoldingDifference;
 import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.RegistryHasNoHoldings;
 import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.ReportHasNoSecurities;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.ReportRowsWithoutQuantity;
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
 import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisRefresh;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -22,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
@@ -78,8 +81,14 @@ public class PortfolioReconciliationService implements PositionReconciliation {
   @Override
   public PositionReconciliationResult againstPositionReport(
       TulevaFund fund, LocalDate positionDate) {
+    List<FundPosition> reportRows =
+        fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, fund, SECURITY);
+    List<String> unquantified = securitiesWithoutQuantity(reportRows);
+    if (!unquantified.isEmpty()) {
+      return new ReportRowsWithoutQuantity(unquantified);
+    }
     Map<String, BigDecimal> registry = readOurQuantities(fund, positionDate);
-    Map<String, BigDecimal> report = readPositionReportQuantities(fund, positionDate);
+    Map<String, BigDecimal> report = quantitiesByIsin(reportRows);
     if (registry.isEmpty() && !report.isEmpty()) {
       return new RegistryHasNoHoldings();
     }
@@ -124,18 +133,26 @@ public class PortfolioReconciliationService implements PositionReconciliation {
         requireNonNullElse(mismatch.theirQuantity(), ZERO));
   }
 
-  private Map<String, BigDecimal> readPositionReportQuantities(TulevaFund fund, LocalDate date) {
+  private static List<String> securitiesWithoutQuantity(List<FundPosition> reportRows) {
+    return reportRows.stream()
+        .filter(position -> position.getQuantity() == null)
+        .map(FundPosition::getAccountId)
+        .filter(Objects::nonNull)
+        .distinct()
+        .sorted()
+        .toList();
+  }
+
+  private static Map<String, BigDecimal> quantitiesByIsin(List<FundPosition> reportRows) {
     Map<String, BigDecimal> quantities = new HashMap<>();
-    fundPositionRepository
-        .findByNavDateAndFundAndAccountType(date, fund, SECURITY)
-        .forEach(
-            position -> {
-              String isin = position.getAccountId();
-              BigDecimal quantity = position.getQuantity();
-              if (isin != null && quantity != null) {
-                quantities.merge(isin, quantity, BigDecimal::add);
-              }
-            });
+    reportRows.forEach(
+        position -> {
+          String isin = position.getAccountId();
+          BigDecimal quantity = position.getQuantity();
+          if (isin != null && quantity != null) {
+            quantities.merge(isin, quantity, BigDecimal::add);
+          }
+        });
     return quantities;
   }
 

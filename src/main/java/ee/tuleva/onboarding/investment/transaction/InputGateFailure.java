@@ -106,6 +106,16 @@ sealed interface InputGateFailure {
     }
   }
 
+  record UnquantifiedReportHoldings(LocalDate positionDate, List<String> isins)
+      implements InputGateFailure {
+
+    @Override
+    public String slackLine() {
+      return "SEB raportis pole kogust (%s): %s: kontrolli raporti importi"
+          .formatted(positionDate, String.join(", ", isins));
+    }
+  }
+
   record NoReportSecurities(LocalDate positionDate) implements InputGateFailure {
 
     @Override

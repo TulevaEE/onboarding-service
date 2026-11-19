@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.
 import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.HoldingDifference;
 import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.RegistryHasNoHoldings;
 import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.ReportHasNoSecurities;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.ReportRowsWithoutQuantity;
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
 import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisRefresh;
 import java.math.BigDecimal;
@@ -404,6 +405,32 @@ class PortfolioReconciliationServiceTest {
         .willReturn(List.of());
 
     assertThat(service.againstPositionReport(TUK75, AS_OF)).isEqualTo(new Compared(List.of()));
+  }
+
+  @Test
+  void againstThePositionReport_aSecurityWithoutAQuantityIsNamedInsteadOfLeftOut() {
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                reportRow(ISIN_A, "1000.000000"),
+                FundPosition.builder()
+                    .navDate(AS_OF)
+                    .fund(TUK75)
+                    .accountType(SECURITY)
+                    .accountName(ISIN_B)
+                    .accountId(ISIN_B)
+                    .marketValue(BigDecimal.ONE)
+                    .build(),
+                FundPosition.builder()
+                    .navDate(AS_OF)
+                    .fund(TUK75)
+                    .accountType(SECURITY)
+                    .accountName("A line that is not an instrument")
+                    .marketValue(BigDecimal.ONE)
+                    .build()));
+
+    assertThat(service.againstPositionReport(TUK75, AS_OF))
+        .isEqualTo(new ReportRowsWithoutQuantity(List.of(ISIN_B)));
   }
 
   private static FundPosition reportRow(String isin, String quantity) {

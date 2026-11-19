@@ -8,10 +8,12 @@ import static org.mockito.BDDMockito.given;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.HoldingMismatch;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoRegistryHoldings;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoReportSecurities;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.UnquantifiedReportHoldings;
 import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.Compared;
 import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.HoldingDifference;
 import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.RegistryHasNoHoldings;
 import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.ReportHasNoSecurities;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.ReportRowsWithoutQuantity;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -54,6 +56,15 @@ class TradePrepPositionGateTest {
         .containsExactly(new NoRegistryHoldings(POSITION_DATE));
     assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE))
         .containsExactly(new NoReportSecurities(POSITION_DATE));
+  }
+
+  @Test
+  void securitiesWithoutAQuantityAreOneLineNamingThem() {
+    given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE))
+        .willReturn(new ReportRowsWithoutQuantity(List.of("A", "B")));
+
+    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE))
+        .containsExactly(new UnquantifiedReportHoldings(POSITION_DATE, List.of("A", "B")));
   }
 
   @Test

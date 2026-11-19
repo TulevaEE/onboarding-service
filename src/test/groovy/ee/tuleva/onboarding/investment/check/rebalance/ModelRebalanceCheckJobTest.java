@@ -14,6 +14,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
@@ -34,6 +35,7 @@ class ModelRebalanceCheckJobTest {
   private static final LocalDate CHRISTMAS_EVE = LocalDate.of(2026, 12, 24);
 
   private final RebalanceWindows rebalanceWindows = mock(RebalanceWindows.class);
+  private final RebalanceAnnouncements announcements = mock(RebalanceAnnouncements.class);
   private final OperationsNotificationService notificationService =
       mock(OperationsNotificationService.class);
   private final EstonianCalendar estonianCalendar = new EstonianCalendar(new PublicHolidays());
@@ -45,6 +47,7 @@ class ModelRebalanceCheckJobTest {
     given(rebalanceWindows.current(TUK00, MONDAY)).willReturn(Optional.empty());
     given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
     given(rebalanceWindows.current(TKF100, MONDAY)).willReturn(Optional.empty());
+    given(announcements.isOwed(warningWindow())).willReturn(true);
 
     jobOn(MONDAY).checkRebalanceWindows();
 
@@ -62,8 +65,9 @@ class ModelRebalanceCheckJobTest {
   }
 
   @Test
-  void aSlackPostThatFails_doesNotStopTheOtherFunds() {
+  void aSlackPostThatFails_isNotRecordedAndDoesNotStopTheOtherFunds() {
     given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.of(warningWindow()));
+    given(announcements.isOwed(warningWindow())).willReturn(true);
     willThrow(new IllegalStateException("No webhook for slack channel INVESTMENT"))
         .given(notificationService)
         .sendMessage(any(), eq(INVESTMENT), eq(WARNING));
@@ -71,6 +75,32 @@ class ModelRebalanceCheckJobTest {
     jobOn(MONDAY).checkRebalanceWindows();
 
     then(rebalanceWindows).should().current(TKF100, MONDAY);
+    then(announcements).should(never()).recordAnnounced(any(), any());
+  }
+
+  @Test
+  void aPostedAnnouncement_isRecordedWithTheTimeItWasPosted() {
+    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
+    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
+    given(announcements.isOwed(warningWindow())).willReturn(true);
+
+    jobOn(MONDAY).checkRebalanceWindows();
+
+    then(announcements)
+        .should()
+        .recordAnnounced(warningWindow(), MONDAY.atTime(9, 15).atZone(TALLINN).toInstant());
+  }
+
+  @Test
+  void aWindowWithNothingOwed_sendsAndRecordsNothing() {
+    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
+    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
+    given(announcements.isOwed(warningWindow())).willReturn(false);
+
+    jobOn(MONDAY).checkRebalanceWindows();
+
+    then(notificationService).shouldHaveNoInteractions();
+    then(announcements).should(never()).recordAnnounced(any(), any());
   }
 
   @Test
@@ -84,7 +114,7 @@ class ModelRebalanceCheckJobTest {
   private ModelRebalanceCheckJob jobOn(LocalDate date) {
     var clock = Clock.fixed(date.atTime(9, 15).atZone(TALLINN).toInstant(), TALLINN);
     return new ModelRebalanceCheckJob(
-        rebalanceWindows, notificationService, estonianCalendar, clock);
+        rebalanceWindows, announcements, notificationService, estonianCalendar, clock);
   }
 
   private static RebalanceWindow warningWindow() {

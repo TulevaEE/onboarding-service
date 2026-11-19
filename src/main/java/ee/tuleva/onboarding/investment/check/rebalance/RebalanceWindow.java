@@ -55,7 +55,7 @@ public record RebalanceWindow(
     return DAYS.between(checkDate, deadlines.inLineDue());
   }
 
-  Optional<LocalDate> closedByTheLatestNav() {
-    return Optional.ofNullable(inLineSince).filter(navDate -> navDate.equals(latestNavDate));
+  public Optional<LocalDate> closedOn() {
+    return Optional.ofNullable(inLineSince);
   }
 }

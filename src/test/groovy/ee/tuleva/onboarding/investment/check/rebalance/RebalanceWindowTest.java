@@ -53,12 +53,12 @@ class RebalanceWindowTest {
   }
 
   @Test
-  void theLatestNavClosesTheWindowOnlyWhenItIsTheFirstInLineNav() {
+  void theWindowIsClosedOnTheFirstInLineNavWhicheverNavIsTheLatest() {
     var closing = LocalDate.of(2026, 10, 30);
 
-    assertThat(window(closing, closing).closedByTheLatestNav()).contains(closing);
-    assertThat(window(closing, LocalDate.of(2026, 11, 2)).closedByTheLatestNav()).isEmpty();
-    assertThat(window(null, closing).closedByTheLatestNav()).isEmpty();
+    assertThat(window(closing, closing).closedOn()).contains(closing);
+    assertThat(window(closing, LocalDate.of(2026, 11, 2)).closedOn()).contains(closing);
+    assertThat(window(null, closing).closedOn()).isEmpty();
   }
 
   @Test

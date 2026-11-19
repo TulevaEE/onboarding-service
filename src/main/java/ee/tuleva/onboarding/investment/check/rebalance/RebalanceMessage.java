@@ -22,7 +22,7 @@ record RebalanceMessage(String text, Severity severity) {
       case INFO -> Optional.of(inProgress(window));
       case WARNING -> Optional.of(tradesMissing(window));
       case FAIL -> Optional.of(inLineDueMissed(window));
-      case OK -> window.closedByTheLatestNav().map(navDate -> closed(window, navDate));
+      case OK -> window.closedOn().map(navDate -> closed(window, navDate));
     };
   }
 

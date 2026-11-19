@@ -27,6 +27,7 @@ class FtUnconfirmedTradeCheck {
 
   private final TransactionOrderRepository orderRepository;
   private final TransactionExecutionRepository executionRepository;
+  private final FtCancellationCheck cancellationCheck;
   private final FtSebExecutionCheck executionCheck;
   private final FtConfirmationAuditRecorder auditRecorder;
   private final FtConfirmationDigest digest;
@@ -38,7 +39,9 @@ class FtUnconfirmedTradeCheck {
     List<TransactionOrder> ftOrders = ftOrdersSinceAlertsFrom();
     Set<Long> confirmedOrderIds =
         idsOfOrdersWithAConfirmation(
-            ftOrders, FtCorrections.among(confirmations).standingConfirmations());
+            ftOrders,
+            FtCorrections.among(confirmations)
+                .standingConfirmations(cancellationCheck::awaitingReplacement));
     List<TransactionOrder> overdue =
         ftOrders.stream()
             .filter(order -> !order.isCancelledOrDiscarded())

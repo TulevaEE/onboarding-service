@@ -70,6 +70,10 @@ class FtCancellationCheck {
     return verification(CANCELLED, details, order);
   }
 
+  boolean awaitingReplacement(FtConfirmation cancellation) {
+    return !LocalDate.now(clock).isAfter(replacementDeadline(cancellation));
+  }
+
   private LocalDate replacementDeadline(FtConfirmation cancellation) {
     LocalDate firstSeen = auditRecorder.firstSeenOn(cancellation);
     LocalDate waitFrom =

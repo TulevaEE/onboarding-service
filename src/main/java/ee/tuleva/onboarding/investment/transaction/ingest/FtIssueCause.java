@@ -32,8 +32,8 @@ enum FtIssueCause {
       "sebReportAsOf",
       (value, confirmation, details) ->
           "no execution in the registry after SEB pending report as of " + value,
-      "check SEB's pending report for these trades; the registry records an execution only from"
-          + " a row that carries SEB's Our ref"),
+      "check how SEB's pending report lists these trades; a row without SEB's Our ref is the"
+          + " usual reason"),
   SEB_REPORT_NOT_RECONCILED(
       "sebReportMissingAsOf",
       (value, confirmation, details) ->

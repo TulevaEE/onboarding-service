@@ -64,8 +64,8 @@ class FtConfirmationDigestTest {
             "FT confirmation check: 1 issue(s) need attention\n"
                 + "FT issue: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434"
                 + " — no execution in the registry after SEB pending report as of 2026-06-09\n"
-                + "Next: check SEB's pending report for these trades; the registry records an"
-                + " execution only from a row that carries SEB's Our ref",
+                + "Next: check how SEB's pending report lists these trades; a row without SEB's"
+                + " Our ref is the usual reason",
             INVESTMENT);
   }
 
@@ -87,8 +87,8 @@ class FtConfirmationDigestTest {
                 + " — no execution in the registry after SEB pending report as of 2026-06-09\n"
                 + "FT issue: fund=TUK75, isin=IE000I9HGDZ3, tradeDate=2026-06-08, quantity=40434"
                 + " — no execution in the registry after SEB pending report as of 2026-06-09\n"
-                + "Next: check SEB's pending report for these trades; the registry records an"
-                + " execution only from a row that carries SEB's Our ref",
+                + "Next: check how SEB's pending report lists these trades; a row without SEB's"
+                + " Our ref is the usual reason",
             INVESTMENT);
   }
 

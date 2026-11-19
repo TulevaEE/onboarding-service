@@ -28,17 +28,9 @@ record FtCorrections(List<FtConfirmation> confirmations) {
 
   boolean newConfirmationsCoverEveryOrder(
       FtConfirmation cancellation, List<TransactionOrder> liveOrders) {
-    List<FtConfirmation> newConfirmations = newConfirmationsAfter(cancellation);
-    List<TransactionOrder> ordersOfTheCancelledQuantity =
-        liveOrders.stream().filter(order -> matchesQuantity(order, cancellation)).toList();
-    List<TransactionOrder> ordersToCover =
-        ordersOfTheCancelledQuantity.isEmpty() ? liveOrders : ordersOfTheCancelledQuantity;
-    List<TransactionOrder> otherOrders =
-        liveOrders.stream().filter(order -> !ordersToCover.contains(order)).toList();
-    return !ordersToCover.isEmpty()
-        && ordersWithTheirOwnConfirmation(liveOrders, newConfirmations)
-                - ordersWithTheirOwnConfirmation(otherOrders, newConfirmations)
-            >= ordersToCover.size();
+    return !liveOrders.isEmpty()
+        && ordersWithTheirOwnConfirmation(liveOrders, newConfirmationsAfter(cancellation))
+            == liveOrders.size();
   }
 
   private List<FtConfirmation> newConfirmationsAfter(FtConfirmation cancellation) {
@@ -58,7 +50,7 @@ record FtCorrections(List<FtConfirmation> confirmations) {
 
   private static int ordersWithTheirOwnConfirmation(
       List<TransactionOrder> orders, List<FtConfirmation> newConfirmations) {
-    if (orders.isEmpty() || newConfirmations.isEmpty()) {
+    if (newConfirmations.isEmpty()) {
       return 0;
     }
     long[][] quantityMatches =

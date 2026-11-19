@@ -254,6 +254,25 @@ class FtConfirmationImportJobIT {
   }
 
   @Test
+  void run_cancelledQuantityCollidingWithAnotherOrder_isNotReplacedByThatOrdersConfirmation() {
+    registerOrder("1000", SENT);
+    registerOrder("2500", SENT);
+    cancellationFirstSeenOnTheTradeDay();
+    s3Holds(
+        Map.of(
+            "ft-confirmations/TEST0002-00_first.pdf",
+            confirmationPdf("Trade Confirmation", "TEST0002-00", "12.000000 EUR"),
+            "ft-confirmations/TEST0002-00_cancellation.pdf",
+            confirmationPdf("Trade Cancellation", "TEST0002-00", "12.000000 EUR"),
+            "ft-confirmations/TEST0009-00_other-order.pdf",
+            confirmationPdf("Trade Confirmation", "TEST0009-00", "12.3456 EUR")));
+
+    job.run();
+
+    assertThat(latestStatuses(CANCELLATION_KEY)).containsExactly("CANCELLED", "CANCELLED");
+  }
+
+  @Test
   void run_ftWritesTheCancellationsAccountInCapitals_itStillVoidsTheConfirmationItCancels() {
     registerOrderExecutedInFull();
     cancellationFirstSeenOnTheTradeDay();

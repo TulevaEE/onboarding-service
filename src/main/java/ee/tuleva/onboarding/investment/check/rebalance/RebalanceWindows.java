@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.investment.config.InvestmentParameter;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -30,7 +31,7 @@ import org.springframework.stereotype.Component;
 public class RebalanceWindows {
 
   private static final int SISEKORD_4_P_2_6_1_TRADES_DUE_WITHIN_MONTHS_OF_THE_EFFECTIVE_DATE = 3;
-  private static final Set<OrderStatus> ORDERS_THAT_WENT_OUT = EnumSet.of(SENT, EXECUTED, SETTLED);
+  private static final Set<OrderStatus> PLACED_ORDERS = EnumSet.of(SENT, EXECUTED, SETTLED);
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   private final ModelPortfolioAllocationRepository allocationRepository;
@@ -72,14 +73,20 @@ public class RebalanceWindows {
 
   private Set<String> tradedIsins(TulevaFund fund, ModelChange change, LocalDate checkDate) {
     return orderRepository
-        .findIsinsOrderedBetween(
+        .findPlacedBetween(
             fund,
-            ORDERS_THAT_WENT_OUT,
+            PLACED_ORDERS,
             change.effectiveDate().atStartOfDay(TALLINN).toInstant(),
             checkDate.plusDays(1).atStartOfDay(TALLINN).toInstant())
         .stream()
+        .filter(RebalanceWindows::knownToHaveGoneOut)
+        .map(TransactionOrder::getInstrumentIsin)
         .filter(change.changedIsins()::contains)
         .collect(toUnmodifiableSet());
+  }
+
+  private static boolean knownToHaveGoneOut(TransactionOrder order) {
+    return order.getOrderStatus() != SENT || order.getBatch().importedFromTheTradeRegistry();
   }
 
   private RebalanceDeadlines deadlines(LocalDate effectiveDate, LocalDate checkDate) {

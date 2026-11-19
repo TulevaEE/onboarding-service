@@ -123,6 +123,7 @@ class TaxHeadroomFlowTest {
         new TaxHeadroomService(
             consentRepository,
             incomeStore,
+            new IncomeExpectations(incomeStore),
             taxDataClient,
             consentClient,
             contributionsThisYear,

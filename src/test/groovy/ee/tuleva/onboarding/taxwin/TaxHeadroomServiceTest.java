@@ -67,6 +67,7 @@ class TaxHeadroomServiceTest {
         new TaxHeadroomService(
             consentRepository,
             incomeStore,
+            new IncomeExpectations(incomeStore),
             taxCertificateClient,
             consentServiceClient,
             contributionsThisYear,

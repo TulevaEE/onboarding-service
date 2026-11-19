@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.check.tracking.EscalationRule.SISEKORD_4_P_11_8_CHECK;
 
-import ee.tuleva.onboarding.investment.TrackingCheckType;
 import java.util.stream.Stream;
 
 enum BreachSeverity {
@@ -17,8 +16,8 @@ enum BreachSeverity {
     this.title = title;
   }
 
-  static BreachSeverity of(TrackingCheckType checkType) {
-    return checkType == SISEKORD_4_P_11_8_CHECK ? BREACH : NOTICE;
+  static BreachSeverity of(TrackingDifferenceResult result) {
+    return result.checkType() == SISEKORD_4_P_11_8_CHECK ? BREACH : NOTICE;
   }
 
   static BreachSeverity mostSevereOf(Stream<BreachSeverity> severities) {

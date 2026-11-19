@@ -44,6 +44,8 @@ public class ScheduledAmlHealthCheckJob {
           AmlCheckType.KYB_COMPANY_REGISTERED_IN_ESTONIA,
           AmlCheckType.KYB_SELF_CERTIFICATION,
           AmlCheckType.KYB_COMPANY_PARTIES,
+          AmlCheckType.KYB_OWNERSHIP_HISTORY,
+          AmlCheckType.KYB_ANNUAL_REPORTS,
           AmlCheckType.KYB_DATA_CHANGED);
 
   @Scheduled(cron = "0 0 * * * ?", zone = "Europe/Tallinn")

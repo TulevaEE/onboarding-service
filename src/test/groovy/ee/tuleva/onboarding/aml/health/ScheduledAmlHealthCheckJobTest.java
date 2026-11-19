@@ -43,6 +43,8 @@ class ScheduledAmlHealthCheckJobTest {
           AmlCheckType.KYB_COMPANY_REGISTERED_IN_ESTONIA,
           AmlCheckType.KYB_SELF_CERTIFICATION,
           AmlCheckType.KYB_COMPANY_PARTIES,
+          AmlCheckType.KYB_OWNERSHIP_HISTORY,
+          AmlCheckType.KYB_ANNUAL_REPORTS,
           AmlCheckType.KYB_DATA_CHANGED);
 
   @Test

@@ -49,6 +49,7 @@ class CompanyActiveScreenerTest {
         "EE",
         "Harju maakond, Tallinn, Pärnu mnt 1",
         null,
-        List.of());
+        List.of(),
+        new RegisterHistory(List.of(), List.of(), List.of()));
   }
 }

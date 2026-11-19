@@ -129,6 +129,10 @@ class AriregisterClientTest {
                 LocalDate.of(2024, 9, 1),
                 LocalDate.of(2030, 12, 31),
                 12345L));
+    assertThat(detail.getFinancialYears())
+        .containsExactly(new FinancialYear("01.01", "31.12", LocalDate.of(2024, 9, 1), null));
+    assertThat(detail.getAnnualReports())
+        .containsExactly(new AnnualReport(LocalDate.of(2024, 9, 1), LocalDate.of(2025, 12, 31)));
 
     mockServer.verify();
   }

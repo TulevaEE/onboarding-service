@@ -33,6 +33,13 @@
             </ns1:item>
           </ns1:aadressid>
           <ns1:esmaregistreerimise_kpv>2024-09-01</ns1:esmaregistreerimise_kpv>
+          <ns1:majandusaastad>
+            <ns1:item>
+              <ns1:maj_aasta_algus>01.01</ns1:maj_aasta_algus>
+              <ns1:maj_aasta_lopp>31.12</ns1:maj_aasta_lopp>
+              <ns1:algus_kpv>2024-09-01</ns1:algus_kpv>
+            </ns1:item>
+          </ns1:majandusaastad>
           <ns1:teatatud_tegevusalad>
             <ns1:item>
               <ns1:emtak_kood>66301</ns1:emtak_kood>
@@ -49,6 +56,13 @@
               <ns1:algus_kpv>2024-09-01</ns1:algus_kpv>
             </ns1:item>
           </ns1:teatatud_tegevusalad>
+          <ns1:info_majandusaasta_aruannetest>
+            <ns1:item>
+              <ns1:majandusaasta_perioodi_algus_kpv>2024-09-01</ns1:majandusaasta_perioodi_algus_kpv>
+              <ns1:majandusaasta_perioodi_lopp_kpv>2025-12-31</ns1:majandusaasta_perioodi_lopp_kpv>
+              <ns1:tootajate_arv>2</ns1:tootajate_arv>
+            </ns1:item>
+          </ns1:info_majandusaasta_aruannetest>
         </ns1:yldandmed>
         <ns1:isikuandmed>
           <ns1:esindusoiguse_eritingimused>

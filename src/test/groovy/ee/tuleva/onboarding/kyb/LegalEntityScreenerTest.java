@@ -110,7 +110,8 @@ class LegalEntityScreenerTest {
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
             null,
-            List.of());
+            List.of(),
+            new RegisterHistory(List.of(), List.of(), List.of()));
     given(
             kybCompanyDataMapper.toKybCompanyData(
                 detail, PERSONAL_CODE, relationships, BENEFICIAL_OWNERS, SELF_CERT))
@@ -158,7 +159,8 @@ class LegalEntityScreenerTest {
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
             null,
-            List.of());
+            List.of(),
+            new RegisterHistory(List.of(), List.of(), List.of()));
     given(
             kybCompanyDataMapper.toKybCompanyData(
                 detail, PERSONAL_CODE, relationships, BENEFICIAL_OWNERS, null))
@@ -194,7 +196,8 @@ class LegalEntityScreenerTest {
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
             null,
-            List.of());
+            List.of(),
+            new RegisterHistory(List.of(), List.of(), List.of()));
     given(
             kybCompanyDataMapper.toKybCompanyData(
                 detail, PERSONAL_CODE, relationships(boardMember), BENEFICIAL_OWNERS, SELF_CERT))

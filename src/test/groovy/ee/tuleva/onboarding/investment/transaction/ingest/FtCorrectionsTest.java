@@ -112,6 +112,18 @@ class FtCorrectionsTest {
   }
 
   @Test
+  void newConfirmationWithinOneUnitOfTheCancellationButOfAnotherOrder_doesNotCoverIt() {
+    FtConfirmation offByOne = confirmation(NORMAL, "1001", "20.40");
+    FtConfirmation itsCancellation = confirmation(CANCELLATION, "1001", "20.40");
+    FtConfirmation otherOrdersConfirmation = confirmation(NORMAL, "1002", "20.20");
+    FtCorrections corrections =
+        FtCorrections.among(List.of(offByOne, itsCancellation, otherOrdersConfirmation));
+
+    assertThat(corrections.newConfirmationsCoverEveryOrder(itsCancellation, orders("1000", "1003")))
+        .isFalse();
+  }
+
+  @Test
   void oneNewConfirmation_doesNotCoverTwoOrdersOfTheCancelledQuantity() {
     FtCorrections corrections = FtCorrections.among(List.of(first, cancellation, newConfirmation));
 

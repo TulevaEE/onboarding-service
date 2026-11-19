@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.SOLE_MEMBER_OWNERSHIP;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyDetail;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
@@ -52,7 +51,7 @@ class BeneficialOwnerScreeningIntegrationTest {
                     .shareholding(
                         new Shareholding(new BigDecimal("100.00"), List.of(OWNER.value())))
                     .build()));
-    given(ariregisterClient.getActiveCompanyRelationships(eq(REGISTRY_CODE), any()))
+    given(ariregisterClient.getCompanyRelationships(REGISTRY_CODE))
         .willReturn(List.of(boardMemberRow(), shareholderRow()));
   }
 
@@ -95,7 +94,7 @@ class BeneficialOwnerScreeningIntegrationTest {
         REGISTRY_CODE,
         OWNER,
         new SelfCertification(true, true, true),
-        screener.fetchActiveRelationships(REGISTRY_CODE),
+        screener.fetchRelationships(REGISTRY_CODE),
         KybScreeningTrigger.SUBMISSION);
   }
 

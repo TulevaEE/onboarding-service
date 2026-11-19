@@ -92,36 +92,6 @@ class AriregisterClientTest {
   }
 
   @Test
-  void filtersOutExpiredRelationships() throws Exception {
-    mockServer
-        .expect(xpath("//ar:ariregistri_kood", NS).evaluatesTo("99000001"))
-        .andRespond(withPayload(responsePayload()));
-
-    var asOf = LocalDate.of(2026, 3, 1);
-    var result = client.getActiveCompanyRelationships("99000001", asOf);
-
-    assertThat(result)
-        .extracting(CompanyRelationship::lastName)
-        .containsExactly("Tamm", "Test Firma OÜ");
-
-    mockServer.verify();
-  }
-
-  @Test
-  void filtersOutFutureDatedRelationships() throws Exception {
-    mockServer
-        .expect(xpath("//ar:ariregistri_kood", NS).evaluatesTo("99000001"))
-        .andRespond(withPayload(responsePayload()));
-
-    var asOf = LocalDate.of(2017, 6, 1);
-    var result = client.getActiveCompanyRelationships("99000001", asOf);
-
-    assertThat(result).extracting(CompanyRelationship::lastName).containsExactly("Tamm");
-
-    mockServer.verify();
-  }
-
-  @Test
   void getCompanyDetails() throws Exception {
     mockServer
         .expect(xpath("//ar:ariregistri_kood", NS).evaluatesTo("99000001"))

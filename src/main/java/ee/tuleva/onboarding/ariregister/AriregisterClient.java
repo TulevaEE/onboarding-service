@@ -12,7 +12,6 @@ import ee.tuleva.onboarding.ariregister.generated.kasusaajad.TegelikudKasusaajad
 import ee.tuleva.onboarding.ariregister.generated.kasusaajad.TegelikudKasusaajadV2Response;
 import jakarta.xml.bind.JAXBElement;
 import java.math.BigInteger;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -102,14 +101,6 @@ public class AriregisterClient {
     return responseBody.getEttevotjad().getValue().getItem().stream()
         .findFirst()
         .map(CompanyDetailMapper::fromEttevotja);
-  }
-
-  public List<CompanyRelationship> getActiveCompanyRelationships(
-      String registryCode, LocalDate asOf) {
-    return getCompanyRelationships(registryCode).stream()
-        .filter(r -> r.startDate() == null || !r.startDate().isAfter(asOf))
-        .filter(r -> r.endDate() == null || !r.endDate().isBefore(asOf))
-        .toList();
   }
 
   public BeneficialOwners getBeneficialOwners(String registryCode) {

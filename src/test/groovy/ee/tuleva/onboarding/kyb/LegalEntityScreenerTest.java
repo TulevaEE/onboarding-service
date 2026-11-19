@@ -25,6 +25,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 class LegalEntityScreenerTest {
@@ -36,6 +37,7 @@ class LegalEntityScreenerTest {
       new BeneficialOwners(List.of(new BeneficialOwner("Jaan", "Tamm", "38501010002", "O")), 0);
   private static final Clock FIXED_CLOCK =
       Clock.fixed(Instant.parse("2026-03-27T10:00:00Z"), ZoneId.of("Europe/Tallinn"));
+  private static final LocalDate TODAY = LocalDate.now(FIXED_CLOCK);
 
   private final AriregisterClient ariregisterClient = mock(AriregisterClient.class);
   private final KybCompanyDataMapper kybCompanyDataMapper = mock(KybCompanyDataMapper.class);
@@ -54,7 +56,7 @@ class LegalEntityScreenerTest {
           FIXED_CLOCK);
 
   @Test
-  void fetchActiveRelationshipsKeepsOnlyOwnershipAndControlRoles() {
+  void fetchRelationshipsKeepsOnlyOwnershipAndControlRolesAsOfToday() {
     var boardMember = relationship("JUHL", "Jaan", "Tamm", "38501010002");
     var managingBoardMember = relationship("JUHJ", "Toomas", "Juhataja", "37001010008");
     var registryShareholder = relationship("OSAN", "Peeter", "Osanik", "37601010003");
@@ -64,9 +66,7 @@ class LegalEntityScreenerTest {
     var shareRegistrar = relationship("ORP", "Nasdaq", "CSD", "90000003");
     var stockRegistrar = relationship("ARP", "Nasdaq", "CSD", "90000004");
     var prokurist = relationship("PROK", "Peeter", "Prokurist", "37601010003");
-    given(
-            ariregisterClient.getActiveCompanyRelationships(
-                REGISTRY_CODE, LocalDate.now(FIXED_CLOCK)))
+    given(ariregisterClient.getCompanyRelationships(REGISTRY_CODE))
         .willReturn(
             List.of(
                 boardMember,
@@ -79,20 +79,23 @@ class LegalEntityScreenerTest {
                 stockRegistrar,
                 prokurist));
 
-    var result = screener.fetchActiveRelationships(REGISTRY_CODE);
+    var result = screener.fetchRelationships(REGISTRY_CODE);
 
     assertThat(result)
-        .containsExactly(
-            boardMember,
-            managingBoardMember,
-            registryShareholder,
-            nasdaqShareholder,
-            beneficialOwner);
+        .isEqualTo(
+            new CompanyRelationships(
+                List.of(
+                    boardMember,
+                    managingBoardMember,
+                    registryShareholder,
+                    nasdaqShareholder,
+                    beneficialOwner),
+                TODAY));
   }
 
   @Test
   void screenBuildsCompanyDataAndDelegatesToKybScreeningService() {
-    var relationships = List.of(relationship("JUHL", "Jaan", "Tamm", "38501010002"));
+    var relationships = relationships(relationship("JUHL", "Jaan", "Tamm", "38501010002"));
     var detail = sampleDetail();
     given(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).willReturn(Optional.of(detail));
     given(ariregisterClient.getBeneficialOwners(REGISTRY_CODE)).willReturn(BENEFICIAL_OWNERS);
@@ -126,10 +129,10 @@ class LegalEntityScreenerTest {
   void screenRelatedPersonsScreensTheCurrentBoardMembersAndBeneficialOwners() {
     var boardMember = relationship("JUHL", "Jaan", "Tamm", "38501010002");
     var founder = relationship("A", "Mari", "Asutaja", "39901010001");
-    given(
-            ariregisterClient.getActiveCompanyRelationships(
-                REGISTRY_CODE, LocalDate.now(FIXED_CLOCK)))
-        .willReturn(List.of(boardMember, founder));
+    var formerBoardMember =
+        relationship("JUHL", "Mari", "Kask", "38888888888", LocalDate.of(2025, 12, 31));
+    given(ariregisterClient.getCompanyRelationships(REGISTRY_CODE))
+        .willReturn(List.of(boardMember, founder, formerBoardMember));
     given(ariregisterClient.getBeneficialOwners(REGISTRY_CODE)).willReturn(BENEFICIAL_OWNERS);
 
     screener.screenRelatedPersons(REGISTRY_CODE);
@@ -140,7 +143,7 @@ class LegalEntityScreenerTest {
 
   @Test
   void validateReturnsDetailAndChecks() {
-    var relationships = List.of(relationship("JUHL", "Jaan", "Tamm", "38501010002"));
+    var relationships = relationships(relationship("JUHL", "Jaan", "Tamm", "38501010002"));
     var detail = sampleDetail();
     given(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).willReturn(Optional.of(detail));
     given(ariregisterClient.getBeneficialOwners(REGISTRY_CODE)).willReturn(BENEFICIAL_OWNERS);
@@ -173,9 +176,7 @@ class LegalEntityScreenerTest {
   void screenLatestResolvesSurveyInputsAndRunsScreening() {
     var boardMember = relationship("JUHL", "Jaan", "Tamm", "38501010002");
     var founder = relationship("A", "Mari", "Asutaja", "39901010001");
-    given(
-            ariregisterClient.getActiveCompanyRelationships(
-                REGISTRY_CODE, LocalDate.now(FIXED_CLOCK)))
+    given(ariregisterClient.getCompanyRelationships(REGISTRY_CODE))
         .willReturn(List.of(boardMember, founder));
     var detail = sampleDetail();
     given(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).willReturn(Optional.of(detail));
@@ -196,7 +197,7 @@ class LegalEntityScreenerTest {
             List.of());
     given(
             kybCompanyDataMapper.toKybCompanyData(
-                detail, PERSONAL_CODE, List.of(boardMember), BENEFICIAL_OWNERS, SELF_CERT))
+                detail, PERSONAL_CODE, relationships(boardMember), BENEFICIAL_OWNERS, SELF_CERT))
         .willReturn(companyData);
     var checks = List.of(new KybCheck(KybCheckType.COMPANY_ACTIVE, true, Map.of()));
     given(kybScreeningService.screen(companyData, RESCREENING)).willReturn(checks);
@@ -212,7 +213,9 @@ class LegalEntityScreenerTest {
     given(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).willReturn(Optional.empty());
 
     assertThatThrownBy(
-            () -> screener.screen(REGISTRY_CODE, PERSONAL_CODE, SELF_CERT, List.of(), SUBMISSION))
+            () ->
+                screener.screen(
+                    REGISTRY_CODE, PERSONAL_CODE, SELF_CERT, relationships(), SUBMISSION))
         .isInstanceOf(IllegalStateException.class);
   }
 
@@ -220,12 +223,25 @@ class LegalEntityScreenerTest {
   void validateThrowsWhenCompanyNotFoundInAriregister() {
     given(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).willReturn(Optional.empty());
 
-    assertThatThrownBy(() -> screener.validate(REGISTRY_CODE, PERSONAL_CODE, null, List.of()))
+    assertThatThrownBy(() -> screener.validate(REGISTRY_CODE, PERSONAL_CODE, null, relationships()))
         .isInstanceOf(IllegalStateException.class);
+  }
+
+  private static CompanyRelationships relationships(CompanyRelationship... registered) {
+    return new CompanyRelationships(List.of(registered), TODAY);
   }
 
   private static CompanyRelationship relationship(
       String roleCode, String firstName, String lastName, String personalCode) {
+    return relationship(roleCode, firstName, lastName, personalCode, null);
+  }
+
+  private static CompanyRelationship relationship(
+      String roleCode,
+      String firstName,
+      String lastName,
+      String personalCode,
+      @Nullable LocalDate endDate) {
     return new CompanyRelationship(
         "F",
         roleCode,
@@ -235,7 +251,7 @@ class LegalEntityScreenerTest {
         personalCode,
         null,
         null,
-        null,
+        endDate,
         new BigDecimal("100.00"),
         null,
         "EST");

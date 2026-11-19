@@ -24,7 +24,6 @@ import ee.tuleva.onboarding.kyb.survey.LatestKybSurveyInputs;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
@@ -113,10 +112,7 @@ class KybNasdaqCsdScreeningTest {
   }
 
   private void givenRelationships(List<CompanyRelationship> relationships) {
-    given(
-            ariregisterClient.getActiveCompanyRelationships(
-                REGISTRY_CODE, LocalDate.now(FIXED_CLOCK)))
-        .willReturn(relationships);
+    given(ariregisterClient.getCompanyRelationships(REGISTRY_CODE)).willReturn(relationships);
     given(ariregisterClient.getCompanyDetails(REGISTRY_CODE))
         .willReturn(Optional.of(detailListingTheSharesOf(relationships)));
   }
@@ -135,7 +131,7 @@ class KybNasdaqCsdScreeningTest {
   }
 
   private List<KybCheck> screenActive(PersonalCode owner) {
-    var relationships = screener.fetchActiveRelationships(REGISTRY_CODE);
+    var relationships = screener.fetchRelationships(REGISTRY_CODE);
     return screener.validate(REGISTRY_CODE, owner, null, relationships).checks();
   }
 

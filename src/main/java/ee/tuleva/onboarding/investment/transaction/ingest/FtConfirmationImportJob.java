@@ -73,12 +73,12 @@ class FtConfirmationImportJob {
   }
 
   private Optional<FtConfirmation> parse(String key) {
-    Optional<byte[]> bytes = s3Source.get(key);
-    if (bytes.isEmpty()) {
-      log.warn("FT confirmation PDF disappeared before fetch: key={}", key);
-      return Optional.empty();
-    }
     try {
+      Optional<byte[]> bytes = s3Source.get(key);
+      if (bytes.isEmpty()) {
+        log.warn("FT confirmation PDF disappeared before fetch: key={}", key);
+        return Optional.empty();
+      }
       FtConfirmation confirmation = parser.parse(bytes.get());
       log.info(
           "Parsed FT confirmation: key={}, fund={}, isin={}, type={}",
@@ -89,7 +89,7 @@ class FtConfirmationImportJob {
       return Optional.of(confirmation);
     } catch (RuntimeException e) {
       log.error(
-          "FT confirmation PDF failed to parse, skipping: key={}, error={}",
+          "FT confirmation PDF could not be read, skipping: key={}, error={}",
           key,
           e.getMessage(),
           e);

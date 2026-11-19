@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.investment.transaction.portfolio;
 
-import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.FUND;
-import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.HELD_QUANTITY;
-import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.INSTRUMENT_ISIN;
-import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.SELL_QUANTITY;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellEvents.FUND;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellEvents.HELD_QUANTITY;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellEvents.INSTRUMENT_ISIN;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellEvents.SELL_QUANTITY;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;

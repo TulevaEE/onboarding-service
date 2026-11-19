@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.investment.transaction.portfolio;
 
-import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_CLEARED;
-import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_FOUND;
-import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_POSTED;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellEvents.OVERSELL_CLEARED;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellEvents.OVERSELL_FOUND;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellEvents.OVERSELL_POSTED;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -59,7 +60,7 @@ class CostBasisOversellAlerterTest {
     given(auditEventRepository.findByEventTypeAndDedupKey(anyString(), anyString()))
         .willThrow(new IllegalStateException("database unavailable"));
 
-    assertThatCode(() -> alerter.recordFound(TUK75, OVERSELL)).doesNotThrowAnyException();
+    assertThat(alerter.recordFound(TUK75, OVERSELL)).isFalse();
 
     verify(notificationService)
         .sendMessage(

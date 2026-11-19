@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction.portfolio;
 
-import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_CLEARED;
-import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_FOUND;
-import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_POSTED;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellEvents.OVERSELL_CLEARED;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellEvents.OVERSELL_FOUND;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellEvents.OVERSELL_POSTED;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -76,7 +76,9 @@ class CostBasisOversellAlerterIT {
     assertThat(auditEventRepository.findByEventType(OVERSELL_POSTED))
         .extracting(TransactionAuditEvent::getDedupKey, TransactionAuditEvent::getPayload)
         .containsExactly(
-            tuple("TUK75 IE00BFNM3G45 2026-05-01", Map.of("eventId", found.getId().toString())));
+            tuple(
+                "TUK75 IE00BFNM3G45 2026-05-01",
+                Map.of("eventId", found.getId().toString(), "outcome", "SENT")));
   }
 
   @Test
@@ -129,7 +131,7 @@ class CostBasisOversellAlerterIT {
   }
 
   @Test
-  void aFailedPostHoldsBackTheLaterAlertsSoTheyArePostedInOrder() {
+  void afterAFailedPostOnlyTheOversellsLatestStateIsPosted() {
     alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
     alerter.postPending();
     alerter.clearOpen(TUK75, TRADE_DATE);
@@ -140,13 +142,40 @@ class CostBasisOversellAlerterIT {
     assertThat(notifications.sent()).hasSize(1);
 
     alerter.postPending();
+    alerter.postPending();
 
     assertThat(notifications.sent())
         .extracting(Sent::message)
         .satisfiesExactly(
             first -> assertThat(first).isEqualTo(FOUND_MESSAGE),
-            second -> assertThat(second).isEqualTo(CLEARED_MESSAGE),
-            third -> assertThat(third).contains("teadaolev positsioon 90000\n"));
+            second -> assertThat(second).contains("teadaolev positsioon 90000\n"));
+  }
+
+  @Test
+  void aClearThatCouldNotBePostedIsDroppedWhenTheOversellReturns() {
+    alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
+    alerter.postPending();
+    alerter.clearOpen(TUK75, TRADE_DATE);
+    notifications.failNext();
+    alerter.postPending();
+    alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
+    alerter.postPending();
+
+    assertThat(notifications.sent())
+        .extracting(Sent::message)
+        .containsExactly(FOUND_MESSAGE, FOUND_MESSAGE);
+  }
+
+  @Test
+  void aClearForAnOversellThatWasNeverAnnouncedIsNotPosted() {
+    notifications.failNext();
+    alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
+    alerter.postPending();
+    alerter.clearOpen(TUK75, TRADE_DATE);
+    alerter.postPending();
+    alerter.postPending();
+
+    assertThat(notifications.sent()).isEmpty();
   }
 
   @Test

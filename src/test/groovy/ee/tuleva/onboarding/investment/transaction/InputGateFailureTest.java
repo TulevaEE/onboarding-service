@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoR45Loaded;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoRegistryHoldings;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoReportSecurities;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.StalePositionReport;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.UnquantifiedReportHoldings;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -105,6 +106,17 @@ class InputGateFailureTest {
         .isEqualTo(
             "Registris pole 2026-11-17 positsioone: kontrolli portfelli baseline'i ja cost-basis"
                 + " tööd");
+  }
+
+  @Test
+  void securitiesTheSebReportGivesNoQuantityForAreNamed() {
+    assertThat(
+            new UnquantifiedReportHoldings(
+                    LocalDate.of(2026, 11, 17), List.of("IE00BFG1TM61", "LU0476289540"))
+                .slackLine())
+        .isEqualTo(
+            "SEB raportis pole kogust (2026-11-17): IE00BFG1TM61, LU0476289540: kontrolli raporti"
+                + " importi");
   }
 
   @Test

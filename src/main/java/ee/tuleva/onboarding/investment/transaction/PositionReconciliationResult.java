@@ -11,5 +11,7 @@ public sealed interface PositionReconciliationResult {
 
   record ReportHasNoSecurities() implements PositionReconciliationResult {}
 
+  record ReportRowsWithoutQuantity(List<String> isins) implements PositionReconciliationResult {}
+
   record HoldingDifference(String isin, BigDecimal registryQuantity, BigDecimal reportQuantity) {}
 }

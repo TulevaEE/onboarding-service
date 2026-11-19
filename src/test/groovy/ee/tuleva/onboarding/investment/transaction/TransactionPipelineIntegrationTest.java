@@ -27,9 +27,6 @@ import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
 import static org.mockito.Mockito.verify;
 
-import ee.tuleva.onboarding.investment.position.AccountType;
-import ee.tuleva.onboarding.investment.position.FundPosition;
-import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -66,7 +63,10 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
-@Sql("classpath:db/snapshots/transaction-pipeline/TKF100_2026-02-10.sql")
+@Sql({
+  "classpath:db/snapshots/transaction-pipeline/TKF100_2026-02-10.sql",
+  "classpath:db/snapshots/transaction-pipeline/TKF100_2026-02-10_registry.sql"
+})
 class TransactionPipelineIntegrationTest {
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
@@ -106,7 +106,6 @@ class TransactionPipelineIntegrationTest {
   @Autowired private TransactionInputService transactionInputService;
   @Autowired private SavingsFundLedger savingsFundLedger;
   @Autowired private TransactionCommandRunner commandRunner;
-  @Autowired private FundPositionRepository fundPositionRepository;
   @Autowired private JdbcClient jdbcClient;
   @MockitoBean private OperationsNotificationService notificationService;
 
@@ -515,11 +514,7 @@ class TransactionPipelineIntegrationTest {
 
   @Test
   void aHoldingTheRegistryAndTheSebReportDisagreeOnStopsTheFundAndShowsBothQuantities() {
-    LocalDate requiredReportDate = LocalDate.of(2026, 2, 9);
-    sebReportRow(requiredReportDate, "IE00BMDBMY19", "990.000000");
-    sebReportRow(requiredReportDate, "IE00BFG1TM61", "450.000000");
-    registryRow(requiredReportDate, "IE00BMDBMY19", "1000.0000");
-    registryRow(requiredReportDate, "IE00BFG1TM61", "450.0000");
+    registryQuantity("IE00BMDBMY19", "10010.0000");
 
     var response =
         commandRunner.createAndProcess(
@@ -530,45 +525,73 @@ class TransactionPipelineIntegrationTest {
     assertThat(response.errorMessage())
         .isEqualTo(
             "Trade prep inputs missing or stale, no DRAFT made: fund=TKF100, asOfDate=2026-02-10:"
-                + " IE00BMDBMY19: registris 1000, SEB raportis 990 (2026-02-09): kontrolli registri"
-                + " tehinguid");
+                + " IE00BMDBMY19: registris 10010, SEB raportis 10000 (2026-02-10): kontrolli"
+                + " registri tehinguid");
     verify(notificationService)
         .sendMessage(
             """
             🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
-            IE00BMDBMY19: registris 1000, SEB raportis 990 (2026-02-09): kontrolli registri tehinguid\
+            IE00BMDBMY19: registris 10010, SEB raportis 10000 (2026-02-10): kontrolli registri tehinguid\
             """,
             INVESTMENT);
   }
 
-  private void sebReportRow(LocalDate navDate, String isin, String quantity) {
-    fundPositionRepository.save(
-        FundPosition.builder()
-            .navDate(navDate)
-            .fund(TKF100)
-            .accountType(AccountType.SECURITY)
-            .accountName(isin)
-            .accountId(isin)
-            .quantity(new BigDecimal(quantity))
-            .marketValue(new BigDecimal("1000.00"))
-            .currency("EUR")
-            .createdAt(FIXED_INSTANT)
-            .updatedAt(FIXED_INSTANT)
-            .build());
+  @Test
+  void aRegistryWithoutTheHoldingsOfTheReportTradePrepUsesStopsTheFundEvenWhenThatReportIsNewer() {
+    jdbcClient
+        .sql("DELETE FROM investment_portfolio_cost_basis WHERE fund_isin = :fundIsin")
+        .param("fundIsin", TKF100.getIsin())
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(TKF100, REBALANCE, TEST_DATE, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            Registris pole 2026-02-10 positsioone: kontrolli portfelli baseline'i ja cost-basis tööd\
+            """,
+            INVESTMENT);
   }
 
-  private void registryRow(LocalDate asOfDate, String isin, String quantity) {
+  @Test
+  void aSecurityRowWithoutAQuantityStopsTheFundInsteadOfBeingLeftOutOfTheComparison() {
+    jdbcClient
+        .sql(
+            "UPDATE investment_fund_position SET quantity = NULL"
+                + " WHERE fund_code = 'TKF100' AND account_id = 'LU0476289540'")
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(TKF100, REBALANCE, TEST_DATE, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            SEB raportis pole kogust (2026-02-10): LU0476289540: kontrolli raporti importi\
+            """,
+            INVESTMENT);
+  }
+
+  private void registryQuantity(String isin, String quantity) {
     jdbcClient
         .sql(
             """
-            INSERT INTO investment_portfolio_cost_basis
-              (fund_isin, instrument_isin, as_of_date, quantity, avg_unit_cost, total_cost, source)
-            VALUES (:fundIsin, :isin, :asOfDate, :quantity, 0, 0, 'TEST')
+            UPDATE investment_portfolio_cost_basis SET quantity = :quantity
+            WHERE fund_isin = :fundIsin AND instrument_isin = :isin AND as_of_date = :asOfDate
             """)
+        .param("quantity", new BigDecimal(quantity))
         .param("fundIsin", TKF100.getIsin())
         .param("isin", isin)
-        .param("asOfDate", asOfDate)
-        .param("quantity", new BigDecimal(quantity))
+        .param("asOfDate", TEST_DATE)
         .update();
   }
 

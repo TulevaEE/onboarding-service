@@ -176,6 +176,17 @@ class TradePrepInputGatesIT {
   }
 
   @Test
+  void theRegistryIsComparedWithTheReportTradePrepUsesWhenItIsNewerThanTheRequiredOne() {
+    positionReport(TUK75, WEDNESDAY);
+    r45(WEDNESDAY);
+    r16(YearMonth.of(2026, 11), TUK75);
+
+    gates.failures(TUK75, WEDNESDAY);
+
+    then(positionGate).should().differencesFromPositionReport(TUK75, WEDNESDAY);
+  }
+
+  @Test
   void theRegistryIsNotComparedWithAPositionReportThatIsAlreadyStale() {
     positionReport(TUK75, LocalDate.of(2026, 11, 16));
     r45(WEDNESDAY);

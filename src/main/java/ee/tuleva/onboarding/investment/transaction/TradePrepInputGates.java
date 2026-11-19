@@ -48,11 +48,21 @@ class TradePrepInputGates {
 
   List<InputGateFailure> failures(TulevaFund fund, LocalDate asOfDate) {
     LocalDate requiredReportDate = publicHolidays.previousWorkingDay(asOfDate);
-    Optional<InputGateFailure> positionReport = positionReport(fund, asOfDate, requiredReportDate);
+    Optional<LocalDate> latestReportDate =
+        fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
+    Optional<LocalDate> currentReportDate =
+        latestReportDate.filter(date -> !date.isBefore(requiredReportDate));
+    Optional<InputGateFailure> positionReport =
+        currentReportDate.isPresent()
+            ? Optional.empty()
+            : Optional.of(
+                latestReportDate
+                    .<InputGateFailure>map(
+                        date -> new StalePositionReport(date, requiredReportDate))
+                    .orElseGet(() -> new MissingPositionReport(requiredReportDate)));
     Stream<InputGateFailure> holdingDifferences =
-        positionReport.isPresent()
-            ? Stream.empty()
-            : positionGate.differencesFromPositionReport(fund, requiredReportDate).stream();
+        currentReportDate.stream()
+            .flatMap(date -> positionGate.differencesFromPositionReport(fund, date).stream());
     return Stream.concat(
             Stream.of(
                     positionReport,
@@ -63,19 +73,6 @@ class TradePrepInputGates {
                 .flatMap(Optional::stream),
             holdingDifferences)
         .toList();
-  }
-
-  private Optional<InputGateFailure> positionReport(
-      TulevaFund fund, LocalDate asOfDate, LocalDate required) {
-    Optional<LocalDate> latest =
-        fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
-    if (latest.filter(date -> !date.isBefore(required)).isPresent()) {
-      return Optional.empty();
-    }
-    return Optional.of(
-        latest
-            .<InputGateFailure>map(date -> new StalePositionReport(date, required))
-            .orElseGet(() -> new MissingPositionReport(required)));
   }
 
   private Optional<InputGateFailure> r45(TulevaFund fund, LocalDate asOfDate) {

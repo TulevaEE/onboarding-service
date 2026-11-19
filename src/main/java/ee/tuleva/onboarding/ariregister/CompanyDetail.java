@@ -23,6 +23,8 @@ public class CompanyDetail {
   @Singular List<String> activityCodes;
   @Singular List<Shareholding> shareholdings;
   @Singular List<RepresentationRight> representationRights;
+  @Singular List<FinancialYear> financialYears;
+  @Singular List<AnnualReport> annualReports;
 
   public Optional<String> getStatus() {
     return Optional.ofNullable(status);

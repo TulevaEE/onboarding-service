@@ -171,6 +171,53 @@ class CompanyDetailMapperTest {
     assertThat(result.getActivityCodes()).isEmpty();
     assertThat(result.getShareholdings()).isEmpty();
     assertThat(result.getRepresentationRights()).isEmpty();
+    assertThat(result.getFinancialYears()).isEmpty();
+    assertThat(result.getAnnualReports()).isEmpty();
+  }
+
+  @Test
+  void keepsEveryFinancialYearAndFiledAnnualReportAsRegistered() {
+    var yldandmed =
+        yldandmedWith(address("Pärnu mnt 1"), LocalDate.of(2019, 3, 1), activity("Main", true));
+    var majandusaastad = new DetailandmedV6Majandusaastad();
+    majandusaastad
+        .getItem()
+        .addAll(
+            List.of(
+                financialYear("01.07", "30.06", LocalDate.of(2019, 3, 1), LocalDate.of(2021, 5, 4)),
+                financialYear("01.01", "31.12", LocalDate.of(2021, 5, 5), null)));
+    yldandmed.setMajandusaastad(majandusaastad);
+    var aruanded = new DetailandmedV6AruandeInfod();
+    aruanded
+        .getItem()
+        .addAll(
+            List.of(
+                annualReport(LocalDate.of(2019, 3, 1), LocalDate.of(2020, 6, 30)),
+                annualReport(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 12, 31))));
+    yldandmed.setInfoMajandusaastaAruannetest(aruanded);
+
+    var result = CompanyDetailMapper.fromEttevotja(ettevotjaWith(yldandmed));
+
+    assertThat(result.getFinancialYears())
+        .containsExactly(
+            new FinancialYear("01.07", "30.06", LocalDate.of(2019, 3, 1), LocalDate.of(2021, 5, 4)),
+            new FinancialYear("01.01", "31.12", LocalDate.of(2021, 5, 5), null));
+    assertThat(result.getAnnualReports())
+        .containsExactly(
+            new AnnualReport(LocalDate.of(2019, 3, 1), LocalDate.of(2020, 6, 30)),
+            new AnnualReport(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 12, 31)));
+  }
+
+  @Test
+  void hasNoFinancialYearsNorAnnualReportsWhereTheRegisterListsNone() {
+    var result =
+        CompanyDetailMapper.fromEttevotja(
+            ettevotjaWith(
+                yldandmedWith(
+                    address("Pärnu mnt 1"), LocalDate.of(2024, 9, 1), activity("Main", true))));
+
+    assertThat(result.getFinancialYears()).isEmpty();
+    assertThat(result.getAnnualReports()).isEmpty();
   }
 
   @Test
@@ -248,6 +295,25 @@ class CompanyDetailMapperTest {
     var result = CompanyDetailMapper.fromEttevotja(ettevotjaWith(yldandmed));
 
     assertThat(result.getMainActivity()).contains("Main");
+  }
+
+  private static DetailandmedV6Majandusaasta financialYear(
+      String start, String end, LocalDate validFrom, LocalDate validTo) {
+    var year = new DetailandmedV6Majandusaasta();
+    year.setMajAastaAlgus(start);
+    year.setMajAastaLopp(end);
+    year.setAlgusKpv(validFrom);
+    year.setLoppKpv(validTo);
+    return year;
+  }
+
+  private static DetailandmedV6AruandeInfo annualReport(
+      LocalDate periodStart, LocalDate periodEnd) {
+    var report = new DetailandmedV6AruandeInfo();
+    report.setMajandusaastaPerioodiAlgusKpv(periodStart);
+    report.setMajandusaastaPerioodiLoppKpv(periodEnd);
+    report.setTootajateArv(BigInteger.TWO);
+    return report;
   }
 
   private static DetailandmedV6Ettevotja ettevotjaWith(DetailandmedV6Yldandmed yldandmed) {

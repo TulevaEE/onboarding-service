@@ -24,6 +24,8 @@ import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
+import ee.tuleva.onboarding.ariregister.AnnualReport;
+import ee.tuleva.onboarding.ariregister.FinancialYear;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.persistence.EntityManager;
@@ -90,7 +92,7 @@ class KybScreeningIntegrationTest {
 
     var results = kybScreeningService.screen(data, SUBMISSION);
 
-    assertThat(results).hasSize(12).allMatch(KybCheck::success);
+    assertThat(results).hasSize(14).allMatch(KybCheck::success);
 
     var amlChecks =
         amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
@@ -109,6 +111,8 @@ class KybScreeningIntegrationTest {
             KYB_COMPANY_REGISTERED_IN_ESTONIA,
             KYB_SELF_CERTIFICATION,
             KYB_COMPANY_PARTIES,
+            KYB_OWNERSHIP_HISTORY,
+            KYB_ANNUAL_REPORTS,
             KYB_DATA_CHANGED);
     assertThat(amlChecks).allMatch(AmlCheck::isSuccess);
   }
@@ -157,7 +161,8 @@ class KybScreeningIntegrationTest {
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
             null,
-            List.of());
+            List.of(),
+            new RegisterHistory(List.of(), List.of(), List.of()));
 
     var secondResults = kybScreeningService.screen(changedData, RESCREENING);
 
@@ -238,7 +243,8 @@ class KybScreeningIntegrationTest {
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
             LocalDate.now(clock).minusYears(3),
-            List.of());
+            List.of(),
+            new RegisterHistory(List.of(), List.of(), List.of()));
 
     kybScreeningService.screen(data, SUBMISSION);
     // Force a fresh read so the second screening deserializes metadata from JSON, exactly as a
@@ -346,7 +352,8 @@ class KybScreeningIntegrationTest {
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
             LocalDate.now(clock).minusYears(3),
-            List.of());
+            List.of(),
+            new RegisterHistory(List.of(), List.of(), List.of()));
 
     kybScreeningService.screen(data, SUBMISSION);
     // Force a fresh read so the second screening deserializes metadata from JSON, exactly as a
@@ -400,7 +407,8 @@ class KybScreeningIntegrationTest {
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
             LocalDate.now(clock).minusMonths(1),
-            List.of());
+            List.of(),
+            new RegisterHistory(List.of(), List.of(), List.of()));
 
     kybScreeningService.screen(data, SUBMISSION);
 
@@ -576,6 +584,110 @@ class KybScreeningIntegrationTest {
     assertThat(changesOf(dataChanged)).isEmpty();
   }
 
+  @Test
+  void anUnchangedRegisterHistoryReadsBackEqualAndFlagsNoChange() {
+    var owner = boardMemberOwner(PERSONAL_CODE, 100.0).build();
+    var data = companyWithHistory(owner, history(List.of(REPORT_2024)));
+    screenOnDay(0, data, SUBMISSION);
+
+    var dataChanged = dataChangedOf(screenOnDay(1, data, RESCREENING));
+
+    assertThat(dataChanged.success()).isTrue();
+    assertThat(changesOf(dataChanged)).isEmpty();
+    assertThat(latestMetadataOf(KYB_OWNERSHIP_HISTORY))
+        .isEqualTo(
+            Map.of(
+                "ownerships",
+                List.of(
+                    Map.of(
+                        "code",
+                        PERSONAL_CODE.value(),
+                        "role",
+                        "SHAREHOLDER",
+                        "startDate",
+                        "2024-03-01"),
+                    Map.of(
+                        "code",
+                        "48888888888",
+                        "role",
+                        "SHAREHOLDER",
+                        "startDate",
+                        "2019-05-02",
+                        "endDate",
+                        "2024-02-29"))));
+    assertThat(latestMetadataOf(KYB_ANNUAL_REPORTS))
+        .isEqualTo(
+            Map.of(
+                "financialYears",
+                List.of(Map.of("start", "01.01", "end", "31.12", "validFrom", "2019-05-02")),
+                "annualReports",
+                List.of(Map.of("periodStart", "2024-01-01", "periodEnd", "2024-12-31"))));
+  }
+
+  @Test
+  void aNewlyFiledAnnualReportShowsAsAChangeOfTheAnnualReportsOnly() {
+    var owner = boardMemberOwner(PERSONAL_CODE, 100.0).build();
+    screenOnDay(0, companyWithHistory(owner, history(List.of())), SUBMISSION);
+
+    var dataChanged =
+        dataChangedOf(
+            screenOnDay(1, companyWithHistory(owner, history(List.of(REPORT_2024))), RESCREENING));
+
+    assertThat(changesOf(dataChanged))
+        .containsExactly(
+            Map.of(
+                "check",
+                "ANNUAL_REPORTS",
+                "previousSuccess",
+                true,
+                "currentSuccess",
+                true,
+                "metadataChanged",
+                true));
+  }
+
+  private static final AnnualReport REPORT_2024 =
+      new AnnualReport(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 12, 31));
+
+  private static RegisterHistory history(List<AnnualReport> annualReports) {
+    return new RegisterHistory(
+        List.of(
+            new KybOwnership(
+                "48888888888",
+                OwnershipRole.SHAREHOLDER,
+                LocalDate.of(2019, 5, 2),
+                LocalDate.of(2024, 2, 29)),
+            new KybOwnership(
+                PERSONAL_CODE.value(), OwnershipRole.SHAREHOLDER, LocalDate.of(2024, 3, 1), null)),
+        List.of(new FinancialYear("01.01", "31.12", LocalDate.of(2019, 5, 2), null)),
+        annualReports);
+  }
+
+  private static KybCompanyData companyWithHistory(
+      KybRelatedPerson owner, RegisterHistory registerHistory) {
+    var company = companyWith(owner);
+    return new KybCompanyData(
+        company.company(),
+        company.personalCode(),
+        company.status(),
+        company.relatedPersons(),
+        company.totalOwnership(),
+        company.selfCertification(),
+        company.countryCode(),
+        company.fullAddress(),
+        company.foundingDate(),
+        company.representationRights(),
+        registerHistory);
+  }
+
+  private Map<String, Object> latestMetadataOf(AmlCheckType type) {
+    return amlCheckRepository.findAll().stream()
+        .filter(check -> check.getType() == type)
+        .max(Comparator.comparing(AmlCheck::getCreatedTime))
+        .orElseThrow()
+        .getMetadata();
+  }
+
   private List<KybCheck> screenOnDay(
       final int day, final KybCompanyData data, final KybScreeningTrigger trigger) {
     ClockHolder.setClock(Clock.fixed(NOW.plus(day, DAYS), ZoneOffset.UTC));
@@ -618,6 +730,7 @@ class KybScreeningIntegrationTest {
         "EE",
         "Harju maakond, Tallinn, Pärnu mnt 1",
         null,
-        List.of());
+        List.of(),
+        new RegisterHistory(List.of(), List.of(), List.of()));
   }
 }

@@ -16,4 +16,5 @@ public record KybCompanyData(
     @Nullable String countryCode,
     @Nullable String fullAddress,
     @Nullable LocalDate foundingDate,
-    List<RepresentationRight> representationRights) {}
+    List<RepresentationRight> representationRights,
+    RegisterHistory registerHistory) {}

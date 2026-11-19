@@ -9,10 +9,12 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.aml.KycChecks;
 import ee.tuleva.onboarding.ariregister.AddressDetails;
+import ee.tuleva.onboarding.ariregister.AnnualReport;
 import ee.tuleva.onboarding.ariregister.BeneficialOwner;
 import ee.tuleva.onboarding.ariregister.BeneficialOwners;
 import ee.tuleva.onboarding.ariregister.CompanyAddress;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
+import ee.tuleva.onboarding.ariregister.FinancialYear;
 import ee.tuleva.onboarding.ariregister.Shareholding;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -329,6 +331,49 @@ class KybCompanyDataMapperTest {
 
     assertThat(result.countryCode()).isEqualTo("EE");
     assertThat(result.fullAddress()).isEqualTo("Tartu maakond, Tartu linn, Paju 2");
+  }
+
+  @Test
+  void keepsTheOwnershipsTheRegisterListsEndedOnesTooAndTheAnnualReportsFiled() {
+    when(kycChecks.latestKycCheckPassedWithinLastYear(anyString())).thenReturn(Optional.empty());
+    var boardMember = relationship("JUHL", "38888888888", LocalDate.of(2020, 1, 1), null);
+    var shareholder = relationship("OSAN", "38888888888", LocalDate.of(2024, 3, 1), null);
+    var formerShareholder =
+        relationship("OSAN", "48888888888", LocalDate.of(2020, 1, 1), LocalDate.of(2024, 2, 29));
+    var beneficialOwner = relationship("W", "38888888888", LocalDate.of(2024, 3, 4), null);
+    var financialYear = new FinancialYear("01.01", "31.12", LocalDate.of(2020, 1, 1), null);
+    var annualReport = new AnnualReport(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 12, 31));
+    var detail = companyDetail().financialYear(financialYear).annualReport(annualReport).build();
+
+    var result =
+        mapper.toKybCompanyData(
+            detail,
+            PERSONAL_CODE,
+            registered(List.of(boardMember, shareholder, formerShareholder, beneficialOwner)),
+            NO_BENEFICIAL_OWNERS,
+            SELF_CERT);
+
+    assertThat(result.registerHistory())
+        .isEqualTo(
+            new RegisterHistory(
+                List.of(
+                    new KybOwnership(
+                        "38888888888", OwnershipRole.SHAREHOLDER, LocalDate.of(2024, 3, 1), null),
+                    new KybOwnership(
+                        "48888888888",
+                        OwnershipRole.SHAREHOLDER,
+                        LocalDate.of(2020, 1, 1),
+                        LocalDate.of(2024, 2, 29)),
+                    new KybOwnership(
+                        "38888888888",
+                        OwnershipRole.BENEFICIAL_OWNER,
+                        LocalDate.of(2024, 3, 4),
+                        null)),
+                List.of(financialYear),
+                List.of(annualReport)));
+    assertThat(result.relatedPersons())
+        .extracting(KybRelatedPerson::personalCode)
+        .containsExactly(new PersonalCode("38888888888"));
   }
 
   @Test
@@ -688,6 +733,23 @@ class KybCompanyDataMapperTest {
         null,
         null,
         null,
+        null,
+        null,
+        "EST");
+  }
+
+  private static CompanyRelationship relationship(
+      String roleCode, String personalCode, LocalDate startDate, LocalDate endDate) {
+    return new CompanyRelationship(
+        "F",
+        roleCode,
+        roleCode,
+        "Jaan",
+        "Tamm",
+        personalCode,
+        null,
+        startDate,
+        endDate,
         null,
         null,
         "EST");

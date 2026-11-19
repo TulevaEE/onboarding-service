@@ -234,7 +234,8 @@ public final class KybTestFixtures {
         "EE",
         "Harju maakond, Tallinn, Pärnu mnt 1",
         null,
-        List.of());
+        List.of(),
+        new RegisterHistory(List.of(), List.of(), List.of()));
   }
 
   public static BigDecimal totalOwnershipOf(List<KybRelatedPerson> relatedPersons) {
@@ -260,7 +261,23 @@ public final class KybTestFixtures {
         "EE",
         "Harju maakond, Tallinn, Pärnu mnt 1",
         null,
-        List.of());
+        List.of(),
+        new RegisterHistory(List.of(), List.of(), List.of()));
+  }
+
+  public static KybCompanyData companyWith(RegisterHistory registerHistory) {
+    return new KybCompanyData(
+        VALID_COMPANY,
+        JAAN,
+        R,
+        List.of(),
+        ZERO,
+        VALID_CERT,
+        "EE",
+        "Harju maakond, Tallinn, Pärnu mnt 1",
+        null,
+        List.of(),
+        registerHistory);
   }
 
   public static KybCompanyData companyWith(List<KybRelatedPerson> relatedPersons) {

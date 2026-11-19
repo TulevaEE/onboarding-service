@@ -13,6 +13,8 @@ class KybCheckTypeTest {
     assertThat(COMPANY_AGE.isOnboardingGate()).isFalse();
     assertThat(DATA_CHANGED.isOnboardingGate()).isFalse();
     assertThat(COMPANY_PARTIES.isOnboardingGate()).isFalse();
+    assertThat(OWNERSHIP_HISTORY.isOnboardingGate()).isFalse();
+    assertThat(ANNUAL_REPORTS.isOnboardingGate()).isFalse();
   }
 
   @Test
@@ -30,6 +32,8 @@ class KybCheckTypeTest {
     assertThat(SINGLE_BOARD_MEMBER_OWNERSHIP.isManuallyForceable()).isTrue();
     assertThat(COMPANY_SANCTION.isManuallyForceable()).isFalse();
     assertThat(COMPANY_PARTIES.isManuallyForceable()).isFalse();
+    assertThat(OWNERSHIP_HISTORY.isManuallyForceable()).isFalse();
+    assertThat(ANNUAL_REPORTS.isManuallyForceable()).isFalse();
   }
 
   @Test

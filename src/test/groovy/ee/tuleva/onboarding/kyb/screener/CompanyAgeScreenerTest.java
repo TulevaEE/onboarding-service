@@ -70,6 +70,7 @@ class CompanyAgeScreenerTest {
         "EE",
         "Harju maakond, Tallinn, Pärnu mnt 1",
         foundingDate,
-        List.of());
+        List.of(),
+        new RegisterHistory(List.of(), List.of(), List.of()));
   }
 }

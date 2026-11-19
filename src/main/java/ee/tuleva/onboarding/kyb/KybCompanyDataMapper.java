@@ -118,7 +118,9 @@ class KybCompanyDataMapper {
         countryCode,
         fullAddress,
         foundingDate,
-        representationRights);
+        representationRights,
+        new RegisterHistory(
+            registered.ownerships(), detail.getFinancialYears(), detail.getAnnualReports()));
   }
 
   private static BigDecimal totalOwnership(

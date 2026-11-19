@@ -3,12 +3,14 @@ package ee.tuleva.onboarding.ariregister;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
 
+import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6AruandeInfod;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6EsindusoiguseEritingimus;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6EsindusoiguseEritingimused;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6Ettevotja;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6Isikuandmed;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6KaardivalineIsik;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6KaardivalisedIsikud;
+import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6Majandusaastad;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6TeatatudTegevusala;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6TeatatudTegevusalad;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6Yldandmed;
@@ -48,7 +50,38 @@ class CompanyDetailMapper {
             yldandmed.map(CompanyDetailMapper::extractCurrentActivityCodes).orElseGet(List::of))
         .shareholdings(extractCurrentShareholdings(ettevotja))
         .representationRights(extractRepresentationRights(ettevotja))
+        .financialYears(
+            yldandmed.map(CompanyDetailMapper::extractFinancialYears).orElseGet(List::of))
+        .annualReports(yldandmed.map(CompanyDetailMapper::extractAnnualReports).orElseGet(List::of))
         .build();
+  }
+
+  private static List<FinancialYear> extractFinancialYears(DetailandmedV6Yldandmed yldandmed) {
+    return Optional.ofNullable(yldandmed.getMajandusaastad())
+        .map(DetailandmedV6Majandusaastad::getItem)
+        .orElseGet(List::of)
+        .stream()
+        .map(
+            year ->
+                new FinancialYear(
+                    year.getMajAastaAlgus(),
+                    year.getMajAastaLopp(),
+                    year.getAlgusKpv(),
+                    year.getLoppKpv()))
+        .toList();
+  }
+
+  private static List<AnnualReport> extractAnnualReports(DetailandmedV6Yldandmed yldandmed) {
+    return Optional.ofNullable(yldandmed.getInfoMajandusaastaAruannetest())
+        .map(DetailandmedV6AruandeInfod::getItem)
+        .orElseGet(List::of)
+        .stream()
+        .map(
+            report ->
+                new AnnualReport(
+                    report.getMajandusaastaPerioodiAlgusKpv(),
+                    report.getMajandusaastaPerioodiLoppKpv()))
+        .toList();
   }
 
   private static List<Shareholding> extractCurrentShareholdings(DetailandmedV6Ettevotja ettevotja) {

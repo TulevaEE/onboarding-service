@@ -215,6 +215,19 @@ class KybCheckFieldErrorsTest {
   }
 
   @Test
+  void collectErrorsByField_givesNoFieldErrorForTheRegisterHistory() {
+    var checks =
+        List.of(
+            new KybCheck(OWNERSHIP_HISTORY, false, Map.of("ownerships", List.of())),
+            new KybCheck(ANNUAL_REPORTS, false, Map.of("annualReports", List.of())));
+
+    var errorsByField =
+        KybCheckFieldErrors.collectErrorsByField(checks, PERSONAL_CODE, SAMPLE_RELATED_PERSONS);
+
+    assertThat(errorsByField).isEmpty();
+  }
+
+  @Test
   void dedupedByPersonalCode_deduplicatesRelatedPersons() {
     var relationships =
         List.of(

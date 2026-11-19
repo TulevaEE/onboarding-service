@@ -124,6 +124,34 @@ class FtCorrectionsTest {
   }
 
   @Test
+  void twoNewConfirmationsOfOneOrder_doNotCoverTheTwoOrdersTheCancellationCouldBe() {
+    FtConfirmation between = confirmation(NORMAL, "1001", "20.40");
+    FtConfirmation itsCancellation = confirmation(CANCELLATION, "1001", "20.40");
+    FtConfirmation sameOrderOnce = confirmation(NORMAL, "1000", "20.20");
+    FtConfirmation sameOrderAgain = confirmation(NORMAL, "1000", "20.21");
+    FtCorrections corrections =
+        FtCorrections.among(List.of(between, itsCancellation, sameOrderOnce, sameOrderAgain));
+
+    assertThat(corrections.newConfirmationsCoverEveryOrder(itsCancellation, orders("1000", "1002")))
+        .isFalse();
+  }
+
+  @Test
+  void anotherOrdersConfirmation_isNotLentToTheCancelledTrade() {
+    FtConfirmation between = confirmation(NORMAL, "1001", "20.40");
+    FtConfirmation itsCancellation = confirmation(CANCELLATION, "1001", "20.40");
+    FtConfirmation replacement = confirmation(NORMAL, "1000", "20.20");
+    FtConfirmation thirdOrders = confirmation(NORMAL, "1003", "20.20");
+    FtCorrections corrections =
+        FtCorrections.among(List.of(between, itsCancellation, replacement, thirdOrders));
+
+    assertThat(
+            corrections.newConfirmationsCoverEveryOrder(
+                itsCancellation, orders("1000", "1002", "1003")))
+        .isFalse();
+  }
+
+  @Test
   void oneNewConfirmation_doesNotCoverTwoOrdersOfTheCancelledQuantity() {
     FtCorrections corrections = FtCorrections.among(List.of(first, cancellation, newConfirmation));
 

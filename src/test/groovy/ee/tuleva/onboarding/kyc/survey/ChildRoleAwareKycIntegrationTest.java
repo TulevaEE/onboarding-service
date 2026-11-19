@@ -230,6 +230,17 @@ class ChildRoleAwareKycIntegrationTest {
   }
 
   @Test
+  void parentActingAsChild_recordsTheParentAsTheOneWhoSubmittedTheChildsSurvey() throws Exception {
+    submitOnboardingSurvey(parentActingAsChild);
+
+    assertThat(
+            kycSurveyRepository
+                .findFirstByUserIdOrderByCreatedTimeDescIdDesc(child.getId())
+                .map(KycSurvey::getSubmittedByUserId))
+        .contains(parent.getId());
+  }
+
+  @Test
   void parentActingAsChild_screensTheChildAndTheLinkedGuardian() throws Exception {
     submitOnboardingSurvey(parentActingAsChild);
 

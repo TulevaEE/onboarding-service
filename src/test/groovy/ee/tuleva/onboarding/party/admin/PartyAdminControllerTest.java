@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.party.ChildAmlBackfillService;
 import ee.tuleva.onboarding.party.ChildIsNotAMinorException;
 import ee.tuleva.onboarding.party.ChildSavingsOnboarding;
 import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
+import ee.tuleva.onboarding.user.NameChangeBasis;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -56,7 +57,8 @@ class PartyAdminControllerTest {
         "wardCode": "48806046007",
         "wardFirstName": "Ants",
         "wardLastName": "Haldja",
-        "validUntil": "2099-12-31"
+        "validUntil": "2099-12-31",
+        "documentReference": "Court ruling 2-26-1234"
       }
       """;
 
@@ -153,8 +155,38 @@ class PartyAdminControllerTest {
         .andExpect(content().string(containsString("61506150006")));
 
     verify(parentChildLinkRegistrationService)
-        .register("38812121215", "61506150006", "Mari", "Maasikas");
+        .register("38812121215", "61506150006", "Mari", "Maasikas", NameChangeBasis.admin(null));
     verify(childSavingsOnboarding).seedIfAbsent("61506150006");
+  }
+
+  @Test
+  void createParentChildLink_withADocumentReference_namesItAsTheBasisOfTheChildsName()
+      throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/parent-child-link")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "parentCode": "38812121215",
+                      "childCode": "61506150006",
+                      "childFirstName": "Mari",
+                      "childLastName": "Maasikas",
+                      "documentReference": "Birth certificate copy, AML folder"
+                    }
+                    """))
+        .andExpect(status().isOk());
+
+    verify(parentChildLinkRegistrationService)
+        .register(
+            "38812121215",
+            "61506150006",
+            "Mari",
+            "Maasikas",
+            NameChangeBasis.admin("Birth certificate copy, AML folder"));
   }
 
   @Test
@@ -169,7 +201,7 @@ class PartyAdminControllerTest {
         .andExpect(status().isOk());
 
     verify(parentChildLinkRegistrationService)
-        .register("38812121215", "61506150006", "Mari", "Maasikas");
+        .register("38812121215", "61506150006", "Mari", "Maasikas", NameChangeBasis.admin(null));
     verify(childSavingsOnboarding).seedIfAbsent("61506150006");
   }
 
@@ -194,9 +226,14 @@ class PartyAdminControllerTest {
 
     verify(parentChildLinkRegistrationService)
         .registerGuardian(
-            "38812121215", "48806046007", "Ants", "Haldja", LocalDate.of(2099, 12, 31));
+            "38812121215",
+            "48806046007",
+            "Ants",
+            "Haldja",
+            LocalDate.of(2099, 12, 31),
+            NameChangeBasis.admin("Court ruling 2-26-1234"));
     verify(childSavingsOnboarding).seedIfAbsent("48806046007");
-    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any());
+    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any(), any());
   }
 
   @Test
@@ -219,7 +256,7 @@ class PartyAdminControllerTest {
         .andExpect(status().isBadRequest());
 
     verify(parentChildLinkRegistrationService, never())
-        .registerGuardian(any(), any(), any(), any(), any());
+        .registerGuardian(any(), any(), any(), any(), any(), any());
   }
 
   @Test
@@ -245,7 +282,7 @@ class PartyAdminControllerTest {
         .andExpect(status().isBadRequest());
 
     verify(parentChildLinkRegistrationService, never())
-        .registerGuardian(any(), any(), any(), any(), any());
+        .registerGuardian(any(), any(), any(), any(), any(), any());
   }
 
   @Test
@@ -271,7 +308,7 @@ class PartyAdminControllerTest {
         .andExpect(status().isBadRequest());
 
     verify(parentChildLinkRegistrationService, never())
-        .registerGuardian(any(), any(), any(), any(), any());
+        .registerGuardian(any(), any(), any(), any(), any(), any());
   }
 
   @Test
@@ -285,7 +322,7 @@ class PartyAdminControllerTest {
                 .content(VALID_LINK_BODY))
         .andExpect(status().isUnauthorized());
 
-    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any());
+    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any(), any());
     verify(childSavingsOnboarding, never()).seedIfAbsent(any());
   }
 
@@ -293,7 +330,7 @@ class PartyAdminControllerTest {
   void createParentChildLink_whenChildNotAMinor_returnsBadRequest() throws Exception {
     doThrow(new ChildIsNotAMinorException("38812121215"))
         .when(parentChildLinkRegistrationService)
-        .register(any(), any(), any(), any());
+        .register(any(), any(), any(), any(), any());
 
     mockMvc
         .perform(
@@ -326,6 +363,6 @@ class PartyAdminControllerTest {
                     """))
         .andExpect(status().isBadRequest());
 
-    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any());
+    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any(), any());
   }
 }

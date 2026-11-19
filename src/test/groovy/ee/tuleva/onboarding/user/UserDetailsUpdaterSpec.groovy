@@ -18,7 +18,7 @@ class UserDetailsUpdaterSpec extends Specification {
 
   UserDetailsUpdater service = new UserDetailsUpdater(userService, userContacts)
 
-  def "updates user name from the auth provider on login, capitalizing it"() {
+  def "changes the user name to the one the login identified, capitalized, naming the login"() {
     given:
     def user = sampleUser().firstName("OldFirstName").lastName("Kadakas").build()
     def person = sampleAuthenticatedPersonAndMember()
@@ -31,9 +31,20 @@ class UserDetailsUpdaterSpec extends Specification {
     service.updateUserName(new AfterTokenGrantedEvent(this, person, SMART_ID, new AuthenticationTokens("access token", "refresh token")))
 
     then:
-    1 * userService.save(user)
-    user.firstName == "Jaak"
-    user.lastName == "Kuusk-Õunapuu"
+    1 * userService.changeName(person.personalCode, "Jaak", "Kuusk-Õunapuu", NameChangeBasis.login(SMART_ID))
+    0 * userService.save(_)
+  }
+
+  def "changes no name when the person who logged in has no user"() {
+    given:
+    def person = sampleAuthenticatedPersonAndMember().build()
+    1 * userService.findByPersonalCode(person.personalCode) >> Optional.empty()
+
+    when:
+    service.updateUserName(new AfterTokenGrantedEvent(this, person, SMART_ID, new AuthenticationTokens("access token", "refresh token")))
+
+    then:
+    0 * userService.changeName(*_)
   }
 
   def "updates user email and phone number based on epis info"() {

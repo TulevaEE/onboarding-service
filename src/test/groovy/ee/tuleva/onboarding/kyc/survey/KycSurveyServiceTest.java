@@ -98,6 +98,30 @@ class KycSurveyServiceTest {
   }
 
   @Test
+  void submit_whenAParentAnswersForTheirChild_storesTheParentAsTheOneWhoSubmittedIt() {
+    var childCode = "61506150006";
+    var parent =
+        sampleAuthenticatedPersonNonMember()
+            .userId(3L)
+            .role(new Role(RoleType.PERSON, childCode, "Child Person"))
+            .build();
+    var child = User.builder().id(7L).personalCode(childCode).build();
+    var survey =
+        identitySurvey(
+            new Address(
+                new AddressValue(
+                    "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))));
+    given(userService.findByPersonalCode(childCode)).willReturn(Optional.of(child));
+    given(kycSurveyRepository.save(any(KycSurvey.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+
+    var saved = kycSurveyService.submit(parent, survey);
+
+    assertThat(saved.getUserId()).isEqualTo(7L);
+    assertThat(saved.getSubmittedByUserId()).isEqualTo(3L);
+  }
+
+  @Test
   void submit_commitsTheSurveyAndWhatBeforeCheckWritesBeforeTheCheck() {
     var person = personResolvingTo(user);
     var survey =

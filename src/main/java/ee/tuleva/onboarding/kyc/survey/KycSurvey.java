@@ -13,6 +13,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(name = "kyc_survey")
@@ -27,6 +28,9 @@ public class KycSurvey {
   @NotNull
   @Column(name = "user_id")
   private Long userId;
+
+  @Column(name = "submitted_by_user_id")
+  private @Nullable Long submittedByUserId;
 
   @JdbcTypeCode(JSON)
   @NotNull

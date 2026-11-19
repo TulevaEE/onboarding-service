@@ -17,6 +17,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.populationregister.Guardian;
+import ee.tuleva.onboarding.user.NameChangeBasis;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.time.Clock;
@@ -45,6 +46,11 @@ class ParentChildLinkRegistrationServiceTest {
   private static final Guardian CO_PARENT_GUARDIAN =
       new Guardian(CO_PARENT, PROPERTY_CUSTODY, VALID, ALIVE, "Kati", "Karu");
 
+  private static final NameChangeBasis FROM_POPULATION_REGISTER =
+      NameChangeBasis.populationRegister();
+  private static final NameChangeBasis FROM_COURT_RULING =
+      NameChangeBasis.admin("Court ruling 2-26-1234");
+
   @Mock private ParentChildLinkRepository parentChildLinkRepository;
   @Mock private UserService userService;
 
@@ -67,7 +73,8 @@ class ParentChildLinkRegistrationServiceTest {
         .willReturn(Optional.empty());
     given(parentChildLinkRepository.save(any())).willAnswer(returnsFirstArg());
 
-    ParentChildLink result = service.register(PARENT, CHILD, "mari", "maasikas");
+    ParentChildLink result =
+        service.register(PARENT, CHILD, "mari", "maasikas", FROM_POPULATION_REGISTER);
 
     assertThat(result.getParentPersonalCode()).isEqualTo(PARENT);
     assertThat(result.getChildPersonalCode()).isEqualTo(CHILD);
@@ -109,24 +116,18 @@ class ParentChildLinkRegistrationServiceTest {
                     PARENT, CHILD, LEGAL_REPRESENTATIVE))
         .willReturn(Optional.of(existingLink));
 
-    ParentChildLink result = service.register(PARENT, CHILD, "mari", "maasikas");
+    ParentChildLink result =
+        service.register(PARENT, CHILD, "mari", "maasikas", FROM_POPULATION_REGISTER);
 
     assertThat(result).isSameAs(existingLink);
-    verify(userService)
-        .save(
-            User.builder()
-                .id(7L)
-                .personalCode(CHILD)
-                .firstName("Mari")
-                .lastName("Maasikas")
-                .active(true)
-                .build());
+    verify(userService).changeName(CHILD, "Mari", "Maasikas", FROM_POPULATION_REGISTER);
     verify(parentChildLinkRepository, never()).save(any());
   }
 
   @Test
   void rejectsFutureDatedChild() {
-    assertThatThrownBy(() -> service.register(PARENT, "59001010002", "Fu", "Ture"))
+    assertThatThrownBy(
+            () -> service.register(PARENT, "59001010000", "Fu", "Ture", FROM_POPULATION_REGISTER))
         .isInstanceOf(ChildIsNotAMinorException.class);
 
     verifyNoInteractions(userService);
@@ -135,7 +136,8 @@ class ParentChildLinkRegistrationServiceTest {
 
   @Test
   void rejectsAdultChild() {
-    assertThatThrownBy(() -> service.register(PARENT, "38812121215", "Ad", "Ult"))
+    assertThatThrownBy(
+            () -> service.register(PARENT, "38812121215", "Ad", "Ult", FROM_POPULATION_REGISTER))
         .isInstanceOf(ChildIsNotAMinorException.class);
 
     verifyNoInteractions(userService);
@@ -249,7 +251,8 @@ class ParentChildLinkRegistrationServiceTest {
         .willReturn(Optional.of(pending));
     given(parentChildLinkRepository.save(any())).willAnswer(returnsFirstArg());
 
-    ParentChildLink result = service.register(PARENT, CHILD, "mari", "maasikas");
+    ParentChildLink result =
+        service.register(PARENT, CHILD, "mari", "maasikas", FROM_POPULATION_REGISTER);
 
     assertThat(result).isSameAs(pending);
     assertThat(result.getStatus()).isEqualTo(ACTIVE);
@@ -268,7 +271,12 @@ class ParentChildLinkRegistrationServiceTest {
 
     ParentChildLink result =
         service.registerGuardian(
-            GUARDIAN_CODE, ADULT_WARD, "ants", "haldja", GUARDIANSHIP_VALID_UNTIL);
+            GUARDIAN_CODE,
+            ADULT_WARD,
+            "ants",
+            "haldja",
+            GUARDIANSHIP_VALID_UNTIL,
+            FROM_COURT_RULING);
 
     assertThat(result.getParentPersonalCode()).isEqualTo(GUARDIAN_CODE);
     assertThat(result.getChildPersonalCode()).isEqualTo(ADULT_WARD);
@@ -283,5 +291,40 @@ class ParentChildLinkRegistrationServiceTest {
                 .lastName("Haldja")
                 .active(true)
                 .build());
+  }
+
+  @Test
+  void registerPending_changesAnExistingChildsNameAsThePopulationRegisterGaveIt() {
+    given(userService.findByPersonalCode(CHILD))
+        .willReturn(Optional.of(User.builder().id(7L).personalCode(CHILD).build()));
+    given(
+            parentChildLinkRepository
+                .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
+                    CO_PARENT, CHILD, LEGAL_REPRESENTATIVE))
+        .willReturn(Optional.empty());
+    given(parentChildLinkRepository.save(any())).willAnswer(returnsFirstArg());
+
+    service.registerPending(CO_PARENT_GUARDIAN, CHILD, "mari", "maasikas");
+
+    verify(userService).changeName(CHILD, "Mari", "Maasikas", FROM_POPULATION_REGISTER);
+    verify(userService, never()).createNewUser(any());
+  }
+
+  @Test
+  void registerGuardian_changesAnExistingWardsNameNamingTheDocumentItIsBasedOn() {
+    given(userService.findByPersonalCode(ADULT_WARD))
+        .willReturn(Optional.of(User.builder().id(8L).personalCode(ADULT_WARD).build()));
+    given(
+            parentChildLinkRepository
+                .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
+                    GUARDIAN_CODE, ADULT_WARD, GUARDIAN))
+        .willReturn(Optional.empty());
+    given(parentChildLinkRepository.save(any())).willAnswer(returnsFirstArg());
+
+    service.registerGuardian(
+        GUARDIAN_CODE, ADULT_WARD, "ants", "haldja", GUARDIANSHIP_VALID_UNTIL, FROM_COURT_RULING);
+
+    verify(userService).changeName(ADULT_WARD, "Ants", "Haldja", FROM_COURT_RULING);
+    verify(userService, never()).createNewUser(any());
   }
 }

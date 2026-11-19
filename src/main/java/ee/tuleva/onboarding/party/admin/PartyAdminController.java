@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.party.ChildAmlBackfillResult;
 import ee.tuleva.onboarding.party.ChildAmlBackfillService;
 import ee.tuleva.onboarding.party.ChildSavingsOnboarding;
 import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
+import ee.tuleva.onboarding.user.NameChangeBasis;
 import jakarta.validation.Valid;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -43,7 +44,8 @@ public class PartyAdminController {
         request.parentCode(),
         request.childCode(),
         request.childFirstName(),
-        request.childLastName());
+        request.childLastName(),
+        NameChangeBasis.admin(request.documentReference()));
     childSavingsOnboarding.seedIfAbsent(request.childCode());
 
     return "Created parent-child link: parentCode="
@@ -68,7 +70,8 @@ public class PartyAdminController {
         request.wardCode(),
         request.wardFirstName(),
         request.wardLastName(),
-        request.validUntil());
+        request.validUntil(),
+        NameChangeBasis.admin(request.documentReference()));
     childSavingsOnboarding.seedIfAbsent(request.wardCode());
 
     return "Created guardian link: guardianCode="

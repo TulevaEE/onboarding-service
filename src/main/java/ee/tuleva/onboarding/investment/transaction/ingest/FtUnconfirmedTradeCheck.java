@@ -3,12 +3,12 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.idsOfOrdersWithAConfirmation;
 
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
-import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -16,11 +16,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @NullMarked
+@Slf4j
 @Component
 @RequiredArgsConstructor
 class FtUnconfirmedTradeCheck {
@@ -31,16 +33,27 @@ class FtUnconfirmedTradeCheck {
   private final FtSebExecutionCheck executionCheck;
   private final FtConfirmationAuditRecorder auditRecorder;
   private final FtConfirmationDigest digest;
+  private final Clock clock;
 
   @Value("${transaction-registry.ft-confirmation.alerts-from}")
   private final LocalDate alertsFrom;
 
+  @Value("${transaction-registry.ft-confirmation.unconfirmed-lookback-days}")
+  private final int lookbackDays;
+
   void check(List<FtConfirmation> confirmations, String actor) {
-    List<TransactionOrder> ftOrders = ftOrdersSinceAlertsFrom();
+    LocalDate firstTradeDate = firstTradeDateToCheck();
+    List<TransactionOrder> ftOrders =
+        orderRepository.findByOrderVenueAndOrderTimestampGreaterThanEqual(
+            OrderVenue.FT, firstTradeDate.atStartOfDay(ZoneOffset.UTC).toInstant());
+    List<FtConfirmation> ofTheseDays =
+        confirmations.stream()
+            .filter(confirmation -> !confirmation.tradeDate().isBefore(firstTradeDate))
+            .toList();
     Set<Long> confirmedOrderIds =
         idsOfOrdersWithAConfirmation(
             ftOrders,
-            FtCorrections.among(confirmations)
+            FtCorrections.among(ofTheseDays)
                 .standingConfirmations(cancellationCheck::awaitingReplacement));
     List<TransactionOrder> overdue =
         ftOrders.stream()
@@ -59,13 +72,9 @@ class FtUnconfirmedTradeCheck {
     digest.publish(outcomes);
   }
 
-  private List<TransactionOrder> ftOrdersSinceAlertsFrom() {
-    return orderRepository
-        .findByOrderStatusInAndOrderTimestampSince(
-            List.of(OrderStatus.values()), alertsFrom.atStartOfDay(ZoneOffset.UTC).toInstant())
-        .stream()
-        .filter(order -> order.getOrderVenue() == OrderVenue.FT)
-        .toList();
+  private LocalDate firstTradeDateToCheck() {
+    LocalDate lookbackStart = LocalDate.now(clock).minusDays(lookbackDays);
+    return lookbackStart.isAfter(alertsFrom) ? lookbackStart : alertsFrom;
   }
 
   private List<TransactionExecution> executionsOf(List<TransactionOrder> orders) {
@@ -84,7 +93,15 @@ class FtUnconfirmedTradeCheck {
   }
 
   private FtCheckOutcome record(TransactionOrder order, FtExecutedTrade trade, String actor) {
-    auditRecorder.recordOutcome(order, trade, actor);
+    try {
+      auditRecorder.recordOutcome(order, trade, actor);
+    } catch (RuntimeException e) {
+      log.error(
+          "FT trade outcome could not be recorded: orderUuid={}, error={}",
+          order.getOrderUuid(),
+          e.getMessage(),
+          e);
+    }
     return trade;
   }
 }

@@ -295,6 +295,11 @@ transaction-registry:
     # UNCONFIRMED once their FT confirmation is. Earlier trades stay PENDING_NAV and are not
     # looked for, so the checks do not alert on the backlog they were switched on over.
     alerts-from: 2026-11-18
+    # How far back each run looks for SEB-executed FT trades without an FT confirmation. A trade
+    # is due a confirmation by the end of the next business day, so this leaves room for the
+    # longest TARGET2 closure and a few days without runs, while a PDF store that can no longer be
+    # read alerts at most this window of trades rather than every trade since alerts-from.
+    unconfirmed-lookback-days: 14
 
 payment-provider:
   url: https://sandbox-stargate.montonio.com/api

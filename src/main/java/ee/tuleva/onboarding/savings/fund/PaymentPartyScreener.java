@@ -33,6 +33,10 @@ class PaymentPartyScreener {
     };
   }
 
+  Screening screenByName(String name) {
+    return Screening.of(sanctionAndPepScreener.nameScreeningOutcome(name));
+  }
+
   private Screening screenByName(String personalCode, @Nullable String nameOnThePayment) {
     return person(personalCode, nameOnThePayment)
         .map(

@@ -118,6 +118,11 @@ public class PaymentVerificationService {
     PartyId partyId = partyIdOpt.orElseThrow();
     var facts =
         paymentFactsCollector.collect(payment, partyId, partyIdFromDescription, remitterPartyId);
+    facts
+        .payerNameScreening()
+        .ifPresent(
+            screening ->
+                savingFundPaymentRepository.recordPayerNameScreening(payment.getId(), screening));
     var outcome = outcome(facts);
     switch (outcome) {
       case VERIFY -> verify(payment, partyId, remitterPartyId, facts);

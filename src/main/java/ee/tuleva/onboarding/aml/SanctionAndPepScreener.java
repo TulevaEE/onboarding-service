@@ -103,6 +103,24 @@ public class SanctionAndPepScreener {
     return CLEAR;
   }
 
+  public ScreeningOutcome nameScreeningOutcome(String name) {
+    MatchResponse response;
+    try {
+      response = pepAndSanctionCheckService.matchName(name);
+    } catch (RuntimeException e) {
+      log.error("Sanction/PEP screening by name failed: phase=matchName", e);
+      meterRegistry.counter("aml.screening.failure", "phase", "matchName").increment();
+      return UNAVAILABLE;
+    }
+    if (hasMatch(response.results(), "sanction")) {
+      return SANCTION_HIT;
+    }
+    if (hasMatch(response.results(), "role")) {
+      return PEP_HIT;
+    }
+    return CLEAR;
+  }
+
   public Optional<Instant> pepHitAt(Person person) {
     return amlCheckRepository
         .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(

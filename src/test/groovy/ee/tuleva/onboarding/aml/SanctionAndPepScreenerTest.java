@@ -546,6 +546,65 @@ class SanctionAndPepScreenerTest {
     assertThat(sanctionAndPepScreener.screeningOutcome(user, country)).isEqualTo(UNAVAILABLE);
   }
 
+  private MatchResponse matchOn(String... topics) {
+    ArrayNode results = objectMapper.createArrayNode();
+    ObjectNode result = JsonNodeFactory.instance.objectNode();
+    result.put("id", "matchId123");
+    result.put("match", true);
+    ObjectNode properties = JsonNodeFactory.instance.objectNode();
+    var topicNodes = JsonNodeFactory.instance.arrayNode();
+    List.of(topics).forEach(topicNodes::add);
+    properties.set("topics", topicNodes);
+    result.set("properties", properties);
+    results.add(result);
+    return new MatchResponse(results, JsonNodeFactory.instance.objectNode());
+  }
+
+  @Test
+  void nameScreeningOutcome_isSanctionHitWhenTheNameMatchesASanctionedEntity() {
+    given(pepAndSanctionCheckService.matchName("Peeter Meeter"))
+        .willReturn(matchOn("role.pep", "sanction"));
+
+    assertThat(sanctionAndPepScreener.nameScreeningOutcome("Peeter Meeter"))
+        .isEqualTo(SANCTION_HIT);
+  }
+
+  @Test
+  void nameScreeningOutcome_isPepHitWhenTheNameMatchesOnlyAPoliticallyExposedPerson() {
+    given(pepAndSanctionCheckService.matchName("Peeter Meeter")).willReturn(matchOn("role.rca"));
+
+    assertThat(sanctionAndPepScreener.nameScreeningOutcome("Peeter Meeter")).isEqualTo(PEP_HIT);
+  }
+
+  @Test
+  void nameScreeningOutcome_isClearWhenNoListedEntityMatches() {
+    given(pepAndSanctionCheckService.matchName("Peeter Meeter"))
+        .willReturn(
+            new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
+
+    assertThat(sanctionAndPepScreener.nameScreeningOutcome("Peeter Meeter")).isEqualTo(CLEAR);
+  }
+
+  @Test
+  void nameScreeningOutcome_recordsNoCheckAsThereIsNoCodeToRecordItFor() {
+    given(pepAndSanctionCheckService.matchName("Peeter Meeter"))
+        .willReturn(matchOn("role.pep", "sanction"));
+
+    sanctionAndPepScreener.nameScreeningOutcome("Peeter Meeter");
+
+    verifyNoInteractions(amlCheckRepository);
+  }
+
+  @Test
+  void nameScreeningOutcome_isUnavailableAndObservableWhenTheScreeningServiceThrows() {
+    given(pepAndSanctionCheckService.matchName("Peeter Meeter"))
+        .willThrow(new RuntimeException("screening service down"));
+
+    assertThat(sanctionAndPepScreener.nameScreeningOutcome("Peeter Meeter")).isEqualTo(UNAVAILABLE);
+    assertThat(meterRegistry.counter("aml.screening.failure", "phase", "matchName").count())
+        .isEqualTo(1.0);
+  }
+
   @Test
   void screeningOutcome_isPepHitWhenOnlyTheLatestPepCheckHasFailed() {
     User user = createUser("123", "First", "Last", 1L);

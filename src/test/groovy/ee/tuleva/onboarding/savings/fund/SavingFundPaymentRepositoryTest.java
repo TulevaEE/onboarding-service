@@ -480,6 +480,32 @@ class SavingFundPaymentRepositoryTest {
   }
 
   @Test
+  void recordPayerNameScreening_storesTheOutcomeOnThePayment() {
+    var id = repository.savePaymentData(createPayment().build());
+
+    repository.recordPayerNameScreening(id, PaymentAcceptance.Screening.PEP_HIT);
+
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "select payer_name_screening from saving_fund_payment where id=:id",
+                Map.of("id", id),
+                String.class))
+        .isEqualTo("PEP_HIT");
+  }
+
+  @Test
+  void payerNameScreening_isNullUntilThePayerIsScreenedByName() {
+    var id = repository.savePaymentData(createPayment().build());
+
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "select payer_name_screening from saving_fund_payment where id=:id",
+                Map.of("id", id),
+                String.class))
+        .isNull();
+  }
+
+  @Test
   void returnReason() {
     var id = repository.savePaymentData(createPayment().build());
 

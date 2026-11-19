@@ -138,15 +138,15 @@ class KidFiguresServiceIT {
                     new KidCost(
                         1,
                         new BigDecimal("50"),
-                        new BigDecimal("0.005"),
-                        new BigDecimal("0.005"),
-                        new BigDecimal("0.000")),
+                        new BigDecimal("0.0050"),
+                        new BigDecimal("0.0050"),
+                        new BigDecimal("0.0000")),
                     new KidCost(
                         5,
                         new BigDecimal("273"),
-                        new BigDecimal("0.005"),
-                        new BigDecimal("0.033"),
-                        new BigDecimal("0.028")))));
+                        new BigDecimal("0.0052"),
+                        new BigDecimal("0.0332"),
+                        new BigDecimal("0.0281")))));
   }
 
   @Test

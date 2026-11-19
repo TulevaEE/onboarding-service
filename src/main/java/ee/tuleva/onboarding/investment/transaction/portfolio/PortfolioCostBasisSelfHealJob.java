@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.core.LockConfiguration;
@@ -82,15 +83,26 @@ public class PortfolioCostBasisSelfHealJob {
         from,
         to,
         funds.size());
+    boolean everyOversellRecorded = true;
     for (TulevaFund fund : funds) {
-      baselineRepository
-          .findByFundIsin(fund.getIsin())
-          .ifPresent(baseline -> rebuild(fund, baseline, from, to));
+      Optional<PortfolioBaseline> baseline = baselineRepository.findByFundIsin(fund.getIsin());
+      if (baseline.isPresent()) {
+        everyOversellRecorded &= rebuild(fund, baseline.get(), from, to);
+      }
     }
-    oversellAlerter.postPending();
+    if (everyOversellRecorded) {
+      oversellAlerter.postPending();
+    } else {
+      log.warn(
+          "Pending cost-basis oversell alerts held back: an oversell could not be recorded this"
+              + " run, from={}, to={}",
+          from,
+          to);
+    }
   }
 
-  private void rebuild(TulevaFund fund, PortfolioBaseline baseline, LocalDate from, LocalDate to) {
+  private boolean rebuild(
+      TulevaFund fund, PortfolioBaseline baseline, LocalDate from, LocalDate to) {
     LocalDate fundFrom = from;
     try {
       boolean replaysFromTheBaseline = oversellAlerter.hasOpenOversell(fund);
@@ -109,7 +121,7 @@ public class PortfolioCostBasisSelfHealJob {
           to,
           e.getMessage(),
           e);
-      oversellAlerter.recordFound(fund, e);
+      return oversellAlerter.recordFound(fund, e);
     } catch (RuntimeException e) {
       log.error(
           "Self-heal failed: fundCode={}, from={}, to={}, error={}",
@@ -119,6 +131,7 @@ public class PortfolioCostBasisSelfHealJob {
           e.getMessage(),
           e);
     }
+    return true;
   }
 
   private static LocalDate earlierOf(LocalDate first, LocalDate second) {

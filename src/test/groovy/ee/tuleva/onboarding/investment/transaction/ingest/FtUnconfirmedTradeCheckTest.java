@@ -14,6 +14,8 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -24,7 +26,6 @@ import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationType;
-import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -55,6 +56,7 @@ class FtUnconfirmedTradeCheckTest {
   private static final Instant END_OF_THE_NEXT_BUSINESS_DAY = Instant.parse("2026-06-09T20:00:00Z");
   private static final Instant TWO_DAYS_AFTER_TRADE = Instant.parse("2026-06-10T08:00:00Z");
   private static final String ACTOR = "ft-confirmation-import-job";
+  private static final int LOOKBACK_DAYS = 14;
 
   @Mock private TransactionOrderRepository orderRepository;
   @Mock private TransactionExecutionRepository executionRepository;
@@ -65,6 +67,10 @@ class FtUnconfirmedTradeCheckTest {
   private long nextOrderId = 1;
 
   private FtUnconfirmedTradeCheck check(Instant now) {
+    return check(now, LOOKBACK_DAYS);
+  }
+
+  private FtUnconfirmedTradeCheck check(Instant now, int lookbackDays) {
     Clock clock = Clock.fixed(now, ZoneOffset.UTC);
     return new FtUnconfirmedTradeCheck(
         orderRepository,
@@ -81,7 +87,9 @@ class FtUnconfirmedTradeCheckTest {
             clock),
         auditRecorder,
         digest,
-        ALERTS_FROM);
+        clock,
+        ALERTS_FROM,
+        lookbackDays);
   }
 
   @Test
@@ -482,21 +490,80 @@ class FtUnconfirmedTradeCheckTest {
   }
 
   @Test
-  void orderSebHasNotExecuted_isNotChecked() {
-    givenOrders(order("1000"));
-    givenExecutions();
+  void lookbackStartingAfterAlertsFrom_isWhereTheCheckStarts() {
+    TransactionOrder order = order("1000");
+    given(
+            orderRepository.findByOrderVenueAndOrderTimestampGreaterThanEqual(
+                OrderVenue.FT, Instant.parse("2026-06-07T00:00:00Z")))
+        .willReturn(List.of(order));
+    givenExecutions(execution(order, "1000", "20.40"));
+    givenClosingPrice("20.40");
 
-    check(TWO_DAYS_AFTER_TRADE).check(List.of(), ACTOR);
+    check(TWO_DAYS_AFTER_TRADE, 3).check(List.of(), ACTOR);
 
-    verify(digest).publish(List.of());
-    verifyNoInteractions(auditRecorder);
+    verify(digest)
+        .publish(
+            List.of(
+                trade(
+                    order,
+                    "1000",
+                    "20.4",
+                    new FtConfirmationResult(
+                        UNCONFIRMED,
+                        OK,
+                        Map.of("confirmationDueBy", "2026-06-09", "referencePrice", "20.40")))));
   }
 
   @Test
-  void orderSentToAnotherVenue_isNotChecked() {
-    TransactionOrder order = order("1000");
-    order.setOrderVenue(OrderVenue.SEB);
-    givenOrders(order);
+  void ftCorrectionsOfTradesBeforeTheCheckStarts_areNotLookedUp() {
+    givenOrders();
+    LocalDate beforeAlertsFrom = LocalDate.of(2026, 5, 20);
+
+    check(TWO_DAYS_AFTER_TRADE)
+        .check(
+            List.of(
+                new FtConfirmation(
+                    TUK75, ISIN, beforeAlertsFrom, new BigDecimal("1000"), new BigDecimal("20.40")),
+                new FtConfirmation(
+                    TUK75,
+                    ISIN,
+                    beforeAlertsFrom,
+                    new BigDecimal("1000"),
+                    new BigDecimal("20.40"),
+                    CANCELLATION,
+                    null)),
+            ACTOR);
+
+    verify(auditRecorder, never()).firstSeenOn(any());
+    verify(digest).publish(List.of());
+  }
+
+  @Test
+  void auditTrailFailingForOneTrade_stillAlertsItAndChecksTheRest() {
+    TransactionOrder failing = order("1000");
+    TransactionOrder other = order("250");
+    givenOrders(failing, other);
+    givenExecutions(execution(failing, "1000", "20.40"), execution(other, "250", "20.40"));
+    givenClosingPrice("20.40");
+    FtConfirmationResult unconfirmed =
+        new FtConfirmationResult(
+            UNCONFIRMED, OK, Map.of("confirmationDueBy", "2026-06-09", "referencePrice", "20.40"));
+    FtExecutedTrade failingTrade = trade(failing, "1000", "20.4", unconfirmed);
+    FtExecutedTrade otherTrade = trade(other, "250", "20.4", unconfirmed);
+    willThrow(new IllegalStateException("audit trail down"))
+        .given(auditRecorder)
+        .recordOutcome(failing, failingTrade, ACTOR);
+
+    check(TWO_DAYS_AFTER_TRADE).check(List.of(), ACTOR);
+
+    verify(auditRecorder).recordOutcome(other, otherTrade, ACTOR);
+    verify(digest).publish(List.of(failingTrade, otherTrade));
+  }
+
+  @Test
+  void orderSebHasNotExecuted_isNotChecked() {
+    givenOrders(order("1000"));
+    givenExecutions();
 
     check(TWO_DAYS_AFTER_TRADE).check(List.of(), ACTOR);
 
@@ -548,8 +615,8 @@ class FtUnconfirmedTradeCheckTest {
 
   private void givenOrders(TransactionOrder... orders) {
     given(
-            orderRepository.findByOrderStatusInAndOrderTimestampSince(
-                List.of(OrderStatus.values()), SINCE_ALERTS_FROM))
+            orderRepository.findByOrderVenueAndOrderTimestampGreaterThanEqual(
+                OrderVenue.FT, SINCE_ALERTS_FROM))
         .willReturn(Arrays.asList(orders));
   }
 

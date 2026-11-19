@@ -72,6 +72,7 @@ class PortfolioCostBasisSelfHealJobTest {
     givenBaselinesFor(TODAY, TUK75, TUK00);
     CostBasisOversellException oversell = oversell(WINDOW_START);
     willThrow(oversell).given(service).rebuildRange(TUK75, WINDOW_START, TODAY);
+    given(oversellAlerter.recordFound(TUK75, oversell)).willReturn(true);
 
     job.run();
 
@@ -80,6 +81,18 @@ class PortfolioCostBasisSelfHealJobTest {
     inOrder.verify(service).rebuildRange(TUK00, WINDOW_START, TODAY);
     inOrder.verify(oversellAlerter).postPending();
     verify(oversellAlerter, never()).clearOpen(any(), any());
+  }
+
+  @Test
+  void run_holdsBackPendingPostsWhenAnOversellCouldNotBeRecorded() {
+    givenBaselinesFor(TODAY, TUK75);
+    CostBasisOversellException oversell = oversell(WINDOW_START);
+    willThrow(oversell).given(service).rebuildRange(TUK75, WINDOW_START, TODAY);
+    given(oversellAlerter.recordFound(TUK75, oversell)).willReturn(false);
+
+    job.run();
+
+    verify(oversellAlerter, never()).postPending();
   }
 
   @Test

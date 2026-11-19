@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.times;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -303,6 +304,36 @@ class ModelRebalanceCheckIT {
   }
 
   @Test
+  void aNavRevisionThatTakesBackTheClosingNav_reopensTheWindowAndTheNextNavInLineClosesItAgain() {
+    givenTuv100ModelSwitchesFromWorldToNewWorld();
+    givenNav(LocalDate.of(2026, 10, 29), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 30));
+    givenNav(LocalDate.of(2026, 10, 30), Map.of(NEW_WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 11, 2));
+
+    givenRevisedNav(LocalDate.of(2026, 10, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 11, 3));
+    givenNav(LocalDate.of(2026, 11, 3), Map.of(NEW_WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 11, 4));
+    runCheckOn(LocalDate.of(2026, 11, 5));
+
+    var inOrder = inOrder(notificationService);
+    then(notificationService)
+        .should(inOrder)
+        .sendMessage(startsWith("ℹ️ TUV100"), eq(INVESTMENT), eq(INFO));
+    then(notificationService)
+        .should(inOrder)
+        .sendMessage(endsWith("NAV 30.10.2026), kontroll suletud"), eq(INVESTMENT), eq(INFO));
+    then(notificationService)
+        .should(inOrder)
+        .sendMessage(startsWith("⚠️ TUV100"), eq(INVESTMENT), eq(WARNING));
+    then(notificationService)
+        .should(inOrder)
+        .sendMessage(endsWith("NAV 03.11.2026), kontroll suletud"), eq(INVESTMENT), eq(INFO));
+    then(notificationService).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
   void aLaterModelVersionWithTheSameWeights_keepsTheUnresolvedWindowAndItsDeadlines() {
     givenTuv100ModelSwitchesFromWorldToNewWorld();
     givenModel(TUV100, LocalDate.of(2026, 11, 1), Map.of(NEW_WORLD, "0.8", EMERGING, "0.2"));
@@ -435,22 +466,14 @@ class ModelRebalanceCheckIT {
     givenNav(TUV100, navDate, securities);
   }
 
+  private void givenRevisedNav(LocalDate navDate, Map<String, String> securities) {
+    insertPublishedCalculation(
+        TUV100, navDate, navDate.plusDays(3).atTime(10, 0).atZone(TALLINN).toInstant(), securities);
+  }
+
   private void givenNav(TulevaFund fund, LocalDate navDate, Map<String, String> securities) {
-    var published = UUID.randomUUID();
-    var publishedAt = navDate.plusDays(1).atTime(11, 30).atZone(TALLINN).toInstant();
-    insertNavRow(
-        fund, navDate, published, publishedAt, "UNITS", "Total outstanding units:", null, NAV);
-    securities.forEach(
-        (isin, marketValue) ->
-            insertNavRow(
-                fund,
-                navDate,
-                published,
-                publishedAt,
-                "SECURITY",
-                isin,
-                isin,
-                new BigDecimal(marketValue)));
+    insertPublishedCalculation(
+        fund, navDate, navDate.plusDays(1).atTime(11, 30).atZone(TALLINN).toInstant(), securities);
 
     var unpublishedRecalculation = UUID.randomUUID();
     insertNavRow(
@@ -471,6 +494,24 @@ class ModelRebalanceCheckIT {
         EMERGING,
         EMERGING,
         new BigDecimal("400000"));
+  }
+
+  private void insertPublishedCalculation(
+      TulevaFund fund, LocalDate navDate, Instant publishedAt, Map<String, String> securities) {
+    var published = UUID.randomUUID();
+    insertNavRow(
+        fund, navDate, published, publishedAt, "UNITS", "Total outstanding units:", null, NAV);
+    securities.forEach(
+        (isin, marketValue) ->
+            insertNavRow(
+                fund,
+                navDate,
+                published,
+                publishedAt,
+                "SECURITY",
+                isin,
+                isin,
+                new BigDecimal(marketValue)));
   }
 
   private void insertNavRow(

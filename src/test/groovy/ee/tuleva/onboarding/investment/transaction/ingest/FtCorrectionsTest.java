@@ -292,7 +292,16 @@ class FtCorrectionsTest {
     FtCorrections corrections = FtCorrections.among(List.of(first, cancellation));
 
     assertThat(corrections.standingConfirmations(awaitingReplacement -> true))
-        .containsExactly(first);
+        .containsExactly(first, cancellation);
+  }
+
+  @Test
+  void cancellationAwaitingAReplacement_standsForItsTradeWhenTheConfirmationItCancelsIsMissing() {
+    FtCorrections corrections = FtCorrections.among(List.of(cancellation));
+
+    assertThat(corrections.standingConfirmations(awaitingReplacement -> true))
+        .containsExactly(cancellation);
+    assertThat(corrections.standingConfirmations(awaitingReplacement -> false)).isEmpty();
   }
 
   @Test

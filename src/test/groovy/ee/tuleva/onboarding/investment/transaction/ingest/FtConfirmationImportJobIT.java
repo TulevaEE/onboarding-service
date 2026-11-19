@@ -452,6 +452,36 @@ class FtConfirmationImportJobIT {
   }
 
   @Test
+  void run_onlyFtsCancellationIsReadable_leavesTheTradeConfirmedWhileFtMaySendItsReplacement() {
+    TransactionOrder order = registerOrderExecutedInFull();
+    s3Holds(
+        Map.of(
+            "ft-confirmations/TEST0002-00_cancellation.pdf",
+            confirmationPdf("Trade Cancellation", "TEST0002-00", "12.000000 EUR")));
+
+    job.run();
+
+    assertThat(latestStatuses(CANCELLATION_KEY))
+        .containsExactly("PENDING_REPLACEMENT", "PENDING_REPLACEMENT");
+    assertThat(latestStatuses(tradeKey(order))).containsExactly("CONFIRMED", "CONFIRMED");
+  }
+
+  @Test
+  void run_onlyFtsCancellationIsReadableAndItsWindowHasPassed_leavesTheTradeUnconfirmed() {
+    TransactionOrder order = registerOrderExecutedInFull();
+    cancellationFirstSeenOnTheTradeDay();
+    s3Holds(
+        Map.of(
+            "ft-confirmations/TEST0002-00_cancellation.pdf",
+            confirmationPdf("Trade Cancellation", "TEST0002-00", "12.000000 EUR")));
+
+    job.run();
+
+    assertThat(latestStatuses(CANCELLATION_KEY)).containsExactly("CANCELLED", "CANCELLED");
+    assertThat(latestStatuses(tradeKey(order))).first().isEqualTo("UNCONFIRMED");
+  }
+
+  @Test
   void run_ftCancellationWithoutAReplacementPastItsWindow_leavesTheTradeUnconfirmed() {
     TransactionOrder order = registerOrderExecutedInFull();
     cancellationFirstSeenOnTheTradeDay();

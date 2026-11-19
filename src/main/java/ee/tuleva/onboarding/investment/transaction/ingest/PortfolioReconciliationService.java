@@ -94,17 +94,21 @@ public class PortfolioReconciliationService implements PositionReconciliation {
     Map<String, BigDecimal> registry = new HashMap<>(readOurQuantities(fund, positionDate));
     registry.keySet().removeAll(excludedIsins);
     Map<String, BigDecimal> report = SecurityQuantities.byIsin(reportRows);
-    if (holdsNothing(registry) && !holdsNothing(report)) {
-      return new RegistryHasNoHoldings();
-    }
-    if (holdsNothing(report) && !holdsNothing(registry)) {
-      return new ReportHasNoSecurities();
-    }
-    return new Compared(
+    List<HoldingDifference> differences =
         isinsOf(registry, report).stream()
             .filter(isin -> differs(registry.get(isin), report.get(isin)))
             .map(isin -> new HoldingDifference(isin, registry.get(isin), report.get(isin)))
-            .toList());
+            .toList();
+    if (differences.isEmpty()) {
+      return new Compared(differences);
+    }
+    if (holdsNothing(registry)) {
+      return new RegistryHasNoHoldings();
+    }
+    if (holdsNothing(report)) {
+      return new ReportHasNoSecurities();
+    }
+    return new Compared(differences);
   }
 
   private static boolean holdsNothing(Map<String, BigDecimal> quantities) {

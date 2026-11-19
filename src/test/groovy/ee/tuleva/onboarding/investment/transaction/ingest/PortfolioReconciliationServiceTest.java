@@ -348,6 +348,23 @@ class PortfolioReconciliationServiceTest {
   }
 
   @Test
+  void againstThePositionReport_aZeroRowAgainstAQuantityWithinToleranceIsNoDifference() {
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
+        .willReturn(List.of(costBasis(ISIN_A, "0.0000")));
+    given(costBasisService.snapshotForFundAndDate(TUK00, AS_OF))
+        .willReturn(List.of(costBasis(ISIN_A, "0.5000")));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK75, SECURITY))
+        .willReturn(List.of(reportRow(ISIN_A, "0.500000")));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK00, SECURITY))
+        .willReturn(List.of(reportRow(ISIN_A, "0.000000")));
+
+    assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of()))
+        .isEqualTo(new Compared(List.of()));
+    assertThat(service.againstPositionReport(TUK00, AS_OF, Set.of()))
+        .isEqualTo(new Compared(List.of()));
+  }
+
+  @Test
   void againstThePositionReport_leavesExcludedInstrumentsOutOfBothSides() {
     given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
         .willReturn(List.of(costBasis(ISIN_A, "1000.0000"), costBasis(ISIN_B, "500.0000")));

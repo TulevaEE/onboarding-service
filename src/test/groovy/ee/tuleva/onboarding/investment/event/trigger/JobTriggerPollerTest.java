@@ -21,6 +21,7 @@ import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
 import ee.tuleva.onboarding.investment.event.RunOverdueSettlementRequested;
 import ee.tuleva.onboarding.investment.event.RunPevaRavaFlowRecalcRequested;
 import ee.tuleva.onboarding.investment.event.RunPevaRavaPhaseUpdateRequested;
+import ee.tuleva.onboarding.investment.event.RunPortfolioCostBasisRebuildFromBaselineRequested;
 import ee.tuleva.onboarding.investment.event.RunR16FlowRecalcRequested;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationRequested;
@@ -389,6 +390,23 @@ class JobTriggerPollerTest {
     var captor = ArgumentCaptor.forClass(Object.class);
     then(eventPublisher).should().publishEvent(captor.capture());
     assertThat(captor.getValue()).isInstanceOf(RunTrackingDifferenceBackfillRequested.class);
+  }
+
+  @Test
+  void publishesTheCostBasisRebuildFromBaselineEvent() {
+    var trigger =
+        JobTrigger.builder()
+            .jobName("PortfolioCostBasisRebuildFromBaselineJob")
+            .status("PENDING")
+            .build();
+    givenPending(trigger);
+
+    poller.poll();
+
+    then(eventPublisher)
+        .should()
+        .publishEvent(any(RunPortfolioCostBasisRebuildFromBaselineRequested.class));
+    thenCompleted(trigger);
   }
 
   @Test

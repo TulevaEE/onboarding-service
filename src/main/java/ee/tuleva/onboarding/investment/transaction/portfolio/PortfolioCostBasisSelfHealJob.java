@@ -2,13 +2,13 @@ package ee.tuleva.onboarding.investment.transaction.portfolio;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 
+import ee.tuleva.onboarding.investment.event.RunPortfolioCostBasisRebuildFromBaselineRequested;
 import ee.tuleva.onboarding.investment.event.RunPortfolioCostBasisSelfHealRequested;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.List;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -36,8 +36,7 @@ public class PortfolioCostBasisSelfHealJob {
       lockAtLeastFor = "1m")
   public void run() {
     LocalDate today = LocalDate.now(clock);
-    LocalDate from = today.minusDays(SELF_HEAL_DAYS);
-    runForRange(from, today);
+    rebuildEveryFundWithABaseline("self-heal", baseline -> today.minusDays(SELF_HEAL_DAYS), today);
   }
 
   @EventListener(RunPortfolioCostBasisSelfHealRequested.class)
@@ -45,28 +44,41 @@ public class PortfolioCostBasisSelfHealJob {
     run();
   }
 
-  public void runForRange(LocalDate from, LocalDate to) {
-    List<TulevaFund> funds = Arrays.asList(TulevaFund.values());
+  @EventListener(RunPortfolioCostBasisRebuildFromBaselineRequested.class)
+  public void rebuildFromBaseline() {
+    rebuildEveryFundWithABaseline(
+        "rebuild from baseline",
+        baseline -> baseline.getBaselineDate().plusDays(1),
+        LocalDate.now(clock));
+  }
+
+  private void rebuildEveryFundWithABaseline(
+      String run, Function<PortfolioBaseline, LocalDate> firstDay, LocalDate today) {
+    for (TulevaFund fund : TulevaFund.values()) {
+      baselineRepository
+          .findByFundIsin(fund.getIsin())
+          .ifPresent(baseline -> rebuild(run, fund, firstDay.apply(baseline), today));
+    }
+  }
+
+  private void rebuild(String run, TulevaFund fund, LocalDate from, LocalDate to) {
     log.info(
-        "Running portfolio cost-basis self-heal: from={}, to={}, fundCount={}",
+        "Rebuilding portfolio cost basis: run={}, fundCode={}, from={}, to={}",
+        run,
+        fund.getCode(),
         from,
-        to,
-        funds.size());
-    for (TulevaFund fund : funds) {
-      if (baselineRepository.findByFundIsin(fund.getIsin()).isEmpty()) {
-        continue;
-      }
-      try {
-        service.rebuildRange(fund, from, to);
-      } catch (RuntimeException e) {
-        log.error(
-            "Self-heal failed: fundCode={}, from={}, to={}, error={}",
-            fund.getCode(),
-            from,
-            to,
-            e.getMessage(),
-            e);
-      }
+        to);
+    try {
+      service.rebuildRange(fund, from, to);
+    } catch (RuntimeException e) {
+      log.error(
+          "Cost-basis rebuild failed: run={}, fundCode={}, from={}, to={}, error={}",
+          run,
+          fund.getCode(),
+          from,
+          to,
+          e.getMessage(),
+          e);
     }
   }
 }

@@ -3,8 +3,10 @@ package ee.tuleva.onboarding.investment.transaction.portfolio;
 import static ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasisSelfHealJob.SELF_HEAL_DAYS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -50,6 +52,47 @@ class PortfolioCostBasisSelfHealJobTest {
       if (fund != TUK75) {
         verify(service, never()).rebuildRange(fund, TODAY.minusDays(SELF_HEAL_DAYS), TODAY);
       }
+    }
+  }
+
+  @Test
+  void rebuildFromBaseline_rebuildsEachFundFromTheDayAfterItsOwnBaselineToToday() {
+    LocalDate baselineDate = LocalDate.of(2026, 2, 27);
+    PortfolioBaseline baseline =
+        PortfolioBaseline.builder().fundIsin(TUK75.getIsin()).baselineDate(baselineDate).build();
+    given(baselineRepository.findByFundIsin(TUK75.getIsin())).willReturn(Optional.of(baseline));
+    for (TulevaFund fund : TulevaFund.values()) {
+      if (fund != TUK75) {
+        given(baselineRepository.findByFundIsin(fund.getIsin())).willReturn(Optional.empty());
+      }
+    }
+
+    job.rebuildFromBaseline();
+
+    verify(service).rebuildRange(TUK75, LocalDate.of(2026, 2, 28), TODAY);
+    verifyNoMoreInteractions(service);
+  }
+
+  @Test
+  void rebuildFromBaseline_keepsRebuildingTheOtherFundsWhenOneFails() {
+    LocalDate baselineDate = LocalDate.of(2026, 2, 27);
+    for (TulevaFund fund : TulevaFund.values()) {
+      given(baselineRepository.findByFundIsin(fund.getIsin()))
+          .willReturn(
+              Optional.of(
+                  PortfolioBaseline.builder()
+                      .fundIsin(fund.getIsin())
+                      .baselineDate(baselineDate)
+                      .build()));
+    }
+    willThrow(new IllegalStateException("Cost-basis oversell"))
+        .given(service)
+        .rebuildRange(TUK75, baselineDate.plusDays(1), TODAY);
+
+    job.rebuildFromBaseline();
+
+    for (TulevaFund fund : TulevaFund.values()) {
+      verify(service).rebuildRange(fund, baselineDate.plusDays(1), TODAY);
     }
   }
 

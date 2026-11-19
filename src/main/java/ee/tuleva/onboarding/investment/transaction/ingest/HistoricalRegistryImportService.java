@@ -43,7 +43,7 @@ public class HistoricalRegistryImportService {
 
   private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
 
-  static final String SOURCE_HISTORICAL_IMPORT = "HISTORICAL_IMPORT";
+  static final String SOURCE_HISTORICAL_IMPORT = TransactionBatch.HISTORICAL_IMPORT_SOURCE;
   static final String CREATED_BY_HISTORICAL_IMPORT = "historical-import";
 
   private final TransactionBatchRepository batchRepository;

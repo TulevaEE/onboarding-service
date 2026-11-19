@@ -34,11 +34,14 @@ class FtQuantityCheck {
     Optional<BigDecimal> executedQuantity = executedQuantity(order);
     if (executedQuantity.isEmpty()) {
       MissingExecution missing = executionWait.assess(confirmation.tradeDate());
-      executedQuantity =
-          missing.awaitsSebReport() ? Optional.empty() : executedQuantityReadAfterTheReport(order);
+      if (missing.awaitsSebReport()) {
+        details.putAll(missing.details());
+        return orderQuantityOk ? PENDING_EXECUTION : ERROR;
+      }
+      executedQuantity = executedQuantity(order);
       if (executedQuantity.isEmpty()) {
         details.putAll(missing.details());
-        return missing.awaitsSebReport() && orderQuantityOk ? PENDING_EXECUTION : ERROR;
+        return ERROR;
       }
     }
 
@@ -74,10 +77,6 @@ class FtQuantityCheck {
       details.put("executedQuantityMismatch", executedQuantity.toPlainString());
     }
     return executedQuantityOk;
-  }
-
-  private Optional<BigDecimal> executedQuantityReadAfterTheReport(TransactionOrder order) {
-    return executedQuantity(order);
   }
 
   private Optional<BigDecimal> executedQuantity(TransactionOrder order) {

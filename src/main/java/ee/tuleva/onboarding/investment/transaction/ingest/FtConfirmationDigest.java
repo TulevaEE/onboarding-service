@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
@@ -68,6 +69,11 @@ class FtConfirmationDigest {
         .append(actionable.size())
         .append(" issue(s) need attention");
     actionable.forEach(outcome -> message.append('\n').append(describe(outcome)));
+    actionable.stream()
+        .flatMap(outcome -> FtIssueCause.of(outcome.result().details()).stream())
+        .distinct()
+        .sorted()
+        .forEach(cause -> message.append("\nNext: ").append(cause.nextStep));
     return message.toString();
   }
 
@@ -83,13 +89,26 @@ class FtConfirmationDigest {
           confirmation.tradeDate(),
           confirmation.quantity().toPlainString());
     }
+    List<FtIssueCause> causes = FtIssueCause.of(result.details());
+    if (causes.isEmpty()) {
+      return String.format(
+          "FT issue: fund=%s, isin=%s, tradeDate=%s, quantity=%s, quantityStatus=%s,"
+              + " priceStatus=%s",
+          confirmation.fund().name(),
+          confirmation.isin(),
+          confirmation.tradeDate(),
+          confirmation.quantity().toPlainString(),
+          result.quantityStatus(),
+          result.priceStatus());
+    }
     return String.format(
-        "FT issue: fund=%s, isin=%s, tradeDate=%s, quantity=%s, quantityStatus=%s, priceStatus=%s",
+        "FT issue: fund=%s, isin=%s, tradeDate=%s, quantity=%s — %s",
         confirmation.fund().name(),
         confirmation.isin(),
         confirmation.tradeDate(),
         confirmation.quantity().toPlainString(),
-        result.quantityStatus(),
-        result.priceStatus());
+        causes.stream()
+            .map(cause -> cause.describe(confirmation, result.details()))
+            .collect(joining("; ")));
   }
 }

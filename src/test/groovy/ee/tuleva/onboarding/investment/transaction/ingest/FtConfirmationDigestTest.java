@@ -35,6 +35,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class FtConfirmationDigestTest {
 
   private static final String ISIN = "IE000F60HVH9";
+  private static final String OTHER_ISIN = "IE000I9HGDZ3";
   private static final LocalDate TRADE_DATE = LocalDate.of(2026, 6, 8);
 
   @Mock private OperationsNotificationService notificationService;
@@ -45,7 +46,138 @@ class FtConfirmationDigestTest {
   }
 
   @Test
-  void errorRow_whenRegistryAuthoritative_isSentAsOneInvestmentDigest() {
+  void missingExecutionAfterSebsReport_isSentWithItsCauseAndOneNextStep() {
+    digest(true)
+        .publish(
+            List.of(
+                outcome(
+                    ERROR,
+                    OK,
+                    Map.of(
+                        "orderQuantity", "40434",
+                        "executionMissing",
+                            "no execution after SEB pending report as of 2026-06-09",
+                        "sebReportAsOf", "2026-06-09"))));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "FT issue: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434"
+                + " — no execution in the registry after SEB pending report as of 2026-06-09\n"
+                + "Next: check SEB's pending report for these trades; the registry records an"
+                + " execution only from a row that carries SEB's Our ref",
+            INVESTMENT);
+  }
+
+  @Test
+  void severalRowsWithOneCause_shareOneNextStep() {
+    Map<String, String> missing =
+        Map.of(
+            "executionMissing", "no execution after SEB pending report as of 2026-06-09",
+            "sebReportAsOf", "2026-06-09");
+
+    digest(true)
+        .publish(
+            List.of(outcome(ISIN, ERROR, OK, missing), outcome(OTHER_ISIN, ERROR, OK, missing)));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 2 issue(s) need attention\n"
+                + "FT issue: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434"
+                + " — no execution in the registry after SEB pending report as of 2026-06-09\n"
+                + "FT issue: fund=TUK75, isin=IE000I9HGDZ3, tradeDate=2026-06-08, quantity=40434"
+                + " — no execution in the registry after SEB pending report as of 2026-06-09\n"
+                + "Next: check SEB's pending report for these trades; the registry records an"
+                + " execution only from a row that carries SEB's Our ref",
+            INVESTMENT);
+  }
+
+  @Test
+  void sebReportNeverReconciled_isSentAsAReportProblem() {
+    digest(true)
+        .publish(
+            List.of(
+                outcome(
+                    ERROR,
+                    OK,
+                    Map.of(
+                        "executionMissing",
+                        "no SEB pending report as of 2026-06-09 or later reconciled by 2026-06-10",
+                        "sebReportMissingAsOf",
+                        "2026-06-09"))));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "FT issue: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434"
+                + " — no SEB pending report as of 2026-06-09 or later reconciled\n"
+                + "Next: check that SEB's pending reports arrive and are imported",
+            INVESTMENT);
+  }
+
+  @Test
+  void quantityAndPriceBothWrong_nameBothCausesAndBothNextSteps() {
+    digest(true)
+        .publish(
+            List.of(
+                outcome(
+                    ERROR,
+                    ERROR,
+                    Map.of(
+                        "orderQuantity", "40432",
+                        "orderQuantityMismatch", "40432",
+                        "executedQuantity", "40434",
+                        "referencePrice", "10.20",
+                        "priceDeltaPercent", "1.078431372549019607843137254901961"))));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "FT issue: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434"
+                + " — order quantity 40432; price 10.09 vs reference 10.20 (1.08%)\n"
+                + "Next: correct the order in the registry, or have FT correct the confirmation\n"
+                + "Next: check the price with FT",
+            INVESTMENT);
+  }
+
+  @Test
+  void eachRemainingCause_isNamedWithItsNextStep() {
+    digest(true)
+        .publish(
+            List.of(
+                outcome(ISIN, ORPHAN, ORPHAN, Map.of("orphanReason", "no matching order")),
+                outcome(ISIN, AMBIGUOUS, AMBIGUOUS, Map.of("ambiguousOrderCount", "2")),
+                outcome(ISIN, ERROR, OK, Map.of("orderQuantityMissing", "order has no quantity")),
+                outcome(OTHER_ISIN, ERROR, OK, Map.of("executedQuantityMismatch", "40436")),
+                outcome(
+                    OTHER_ISIN,
+                    OK,
+                    ERROR,
+                    Map.of("referencePrice", "0", "invalidReferencePrice", "true"))));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 5 issue(s) need attention\n"
+                + "FT issue: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434"
+                + " — no FT order in the registry for this trade\n"
+                + "FT issue: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434"
+                + " — 2 registry orders match\n"
+                + "FT issue: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434"
+                + " — the order has no quantity\n"
+                + "FT issue: fund=TUK75, isin=IE000I9HGDZ3, tradeDate=2026-06-08, quantity=40434"
+                + " — executed quantity 40436\n"
+                + "FT issue: fund=TUK75, isin=IE000I9HGDZ3, tradeDate=2026-06-08, quantity=40434"
+                + " — reference price 0 is not positive\n"
+                + "Next: import the batch's orders into the registry\n"
+                + "Next: leave one live order for the trade in the registry\n"
+                + "Next: fill in the order's quantity in the registry\n"
+                + "Next: compare FT's confirmation with SEB's pending report\n"
+                + "Next: check the instrument's price source",
+            INVESTMENT);
+  }
+
+  @Test
+  void errorRowWithoutAKnownCause_isSentWithItsStatuses() {
     digest(true).publish(List.of(outcome(ERROR, OK)));
 
     verify(notificationService)
@@ -177,10 +309,25 @@ class FtConfirmationDigestTest {
 
   private static FtConfirmationOutcome outcome(
       FtVerificationStatus quantityStatus, FtVerificationStatus priceStatus) {
+    return outcome(quantityStatus, priceStatus, Map.of());
+  }
+
+  private static FtConfirmationOutcome outcome(
+      FtVerificationStatus quantityStatus,
+      FtVerificationStatus priceStatus,
+      Map<String, String> details) {
+    return outcome(ISIN, quantityStatus, priceStatus, details);
+  }
+
+  private static FtConfirmationOutcome outcome(
+      String isin,
+      FtVerificationStatus quantityStatus,
+      FtVerificationStatus priceStatus,
+      Map<String, String> details) {
     FtConfirmation confirmation =
         new FtConfirmation(
-            TUK75, ISIN, TRADE_DATE, new BigDecimal("40434"), new BigDecimal("10.09"));
+            TUK75, isin, TRADE_DATE, new BigDecimal("40434"), new BigDecimal("10.09"));
     return new FtConfirmationOutcome(
-        confirmation, new FtConfirmationResult(quantityStatus, priceStatus, Map.of()));
+        confirmation, new FtConfirmationResult(quantityStatus, priceStatus, details));
   }
 }

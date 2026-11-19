@@ -184,23 +184,41 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
-  void orderQuantityDiffersByMoreThanOneUnit_returnsError() {
+  void orderQuantityDiffersByMoreThanOneUnit_returnsErrorNamingTheOrderQuantity() {
     givenOrderAndExecution(new BigDecimal("40432"), new BigDecimal("40434"));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
     FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(ERROR);
+    assertThat(result.details())
+        .containsEntry("orderQuantityMismatch", "40432")
+        .doesNotContainKey("executedQuantityMismatch");
   }
 
   @Test
-  void executedQuantityDiffersByMoreThanOneUnit_returnsError() {
+  void executedQuantityDiffersByMoreThanOneUnit_returnsErrorNamingTheExecutedQuantity() {
     givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40436"));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
 
     FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(ERROR);
+    assertThat(result.details())
+        .containsEntry("executedQuantityMismatch", "40436")
+        .doesNotContainKey("orderQuantityMismatch");
+  }
+
+  @Test
+  void quantitiesWithinTolerance_recordNoMismatch() {
+    givenOrderAndExecution(new BigDecimal("40435"), new BigDecimal("40433"));
+    givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(OK);
+    assertThat(result.details())
+        .doesNotContainKeys("orderQuantityMismatch", "executedQuantityMismatch");
   }
 
   @Test
@@ -299,6 +317,7 @@ class FtConfirmationVerificationServiceTest {
     FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(ERROR);
+    assertThat(result.details()).containsEntry("orderQuantityMismatch", "40432");
   }
 
   @Test

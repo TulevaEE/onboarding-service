@@ -59,13 +59,21 @@ class FtQuantityCheck {
       return false;
     }
     details.put("orderQuantity", orderQuantity.toPlainString());
-    return withinQuantityTolerance(confirmation.quantity(), orderQuantity);
+    boolean orderQuantityOk = withinQuantityTolerance(confirmation.quantity(), orderQuantity);
+    if (!orderQuantityOk) {
+      details.put("orderQuantityMismatch", orderQuantity.toPlainString());
+    }
+    return orderQuantityOk;
   }
 
   private static boolean checkExecutedQuantity(
       FtConfirmation confirmation, BigDecimal executedQuantity, Map<String, String> details) {
     details.put("executedQuantity", executedQuantity.toPlainString());
-    return withinQuantityTolerance(confirmation.quantity(), executedQuantity);
+    boolean executedQuantityOk = withinQuantityTolerance(confirmation.quantity(), executedQuantity);
+    if (!executedQuantityOk) {
+      details.put("executedQuantityMismatch", executedQuantity.toPlainString());
+    }
+    return executedQuantityOk;
   }
 
   private Optional<BigDecimal> executedQuantityReadAfterTheReport(TransactionOrder order) {

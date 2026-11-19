@@ -40,9 +40,8 @@ public class RebalanceWindows {
   private final EstonianCalendar estonianCalendar;
 
   public Optional<RebalanceWindow> current(TulevaFund fund, LocalDate checkDate) {
-    return ModelChange.between(
-            allocationRepository.findPreviousByFundAsOf(fund, checkDate),
-            allocationRepository.findLatestByFundAsOf(fund, checkDate))
+    return ModelChange.latestIn(
+            allocationRepository.findByFundAndEffectiveDateLessThanEqual(fund, checkDate))
         .map(change -> window(fund, change, checkDate));
   }
 

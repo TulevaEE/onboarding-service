@@ -10,7 +10,6 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -25,6 +24,7 @@ import org.springframework.stereotype.Component;
 class ModelRebalanceCheckJob {
 
   private final RebalanceWindows rebalanceWindows;
+  private final RebalanceAnnouncements announcements;
   private final OperationsNotificationService notificationService;
   private final EstonianCalendar estonianCalendar;
   private final Clock clock;
@@ -36,30 +36,37 @@ class ModelRebalanceCheckJob {
     if (!estonianCalendar.isBusinessDay(today)) {
       return;
     }
-    stream(TulevaFund.values())
-        .forEach(fund -> messageFor(fund, today).ifPresent(message -> send(fund, message)));
+    stream(TulevaFund.values()).forEach(fund -> check(fund, today));
   }
 
-  private Optional<RebalanceMessage> messageFor(TulevaFund fund, LocalDate today) {
+  private void check(TulevaFund fund, LocalDate today) {
     try {
       var window = rebalanceWindows.current(fund, today);
       window.ifPresent(ModelRebalanceCheckJob::logWindow);
-      return window.flatMap(RebalanceMessage::of);
+      window.filter(announcements::isOwed).ifPresent(this::announce);
     } catch (RuntimeException e) {
       log.error("Model rebalance check could not run: fund={}, checkDate={}", fund, today, e);
-      return Optional.of(RebalanceMessage.couldNotRun(fund));
+      post(fund, RebalanceMessage.couldNotRun(fund));
     }
   }
 
-  private void send(TulevaFund fund, RebalanceMessage message) {
+  private void announce(RebalanceWindow window) {
+    RebalanceMessage.of(window)
+        .filter(message -> post(window.fund(), message))
+        .ifPresent(message -> announcements.recordAnnounced(window, clock.instant()));
+  }
+
+  private boolean post(TulevaFund fund, RebalanceMessage message) {
     try {
       notificationService.sendMessage(message.text(), INVESTMENT, message.severity());
+      return true;
     } catch (RuntimeException e) {
       log.error(
           "Model rebalance check notification failed: fund={}, severity={}",
           fund,
           message.severity(),
           e);
+      return false;
     }
   }
 

@@ -78,6 +78,47 @@ class ModelChangeTest {
     assertThat(ModelChange.between(previous, current)).isEmpty();
   }
 
+  @Test
+  void aLaterVersionWithTheSameWeights_keepsTheEarlierChangeAndItsEffectiveDate() {
+    var later = LocalDate.of(2026, 11, 1);
+    var history =
+        List.of(
+            allocation(PREVIOUS, "WORLD", "1.00"),
+            allocation(CURRENT, "WORLD", "0"),
+            allocation(CURRENT, "NEW_WORLD", "1.00"),
+            allocation(later, "NEW_WORLD", "1.000"));
+
+    var change = ModelChange.latestIn(history).orElseThrow();
+
+    assertThat(change.effectiveDate()).isEqualTo(CURRENT);
+    assertThat(change.changedIsins()).containsExactlyInAnyOrder("WORLD", "NEW_WORLD");
+  }
+
+  @Test
+  void ofTwoChanges_theLatestOneCounts() {
+    var later = LocalDate.of(2026, 11, 1);
+    var history =
+        List.of(
+            allocation(later, "EUROPE", "1.00"),
+            allocation(PREVIOUS, "WORLD", "1.00"),
+            allocation(CURRENT, "NEW_WORLD", "1.00"));
+
+    var change = ModelChange.latestIn(history).orElseThrow();
+
+    assertThat(change.effectiveDate()).isEqualTo(later);
+    assertThat(change.changedIsins()).containsExactlyInAnyOrder("NEW_WORLD", "EUROPE");
+  }
+
+  @Test
+  void aHistoryOfOneVersionOrOfVersionsWithTheSameWeights_hasNoChange() {
+    assertThat(ModelChange.latestIn(List.of(allocation(CURRENT, "WORLD", "1.00")))).isEmpty();
+    assertThat(
+            ModelChange.latestIn(
+                List.of(allocation(PREVIOUS, "WORLD", "1.00"), allocation(CURRENT, "WORLD", "1"))))
+        .isEmpty();
+    assertThat(ModelChange.latestIn(List.of())).isEmpty();
+  }
+
   private static ModelPortfolioAllocation allocation(
       LocalDate effectiveDate, @Nullable String isin, String weight) {
     return ModelPortfolioAllocation.builder()

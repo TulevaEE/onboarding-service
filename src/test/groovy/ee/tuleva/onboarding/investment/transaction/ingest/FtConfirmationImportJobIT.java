@@ -1,5 +1,10 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
+import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ERROR;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.OK;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_EXECUTION;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.CANCELLED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
@@ -14,6 +19,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
+import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
+import ee.tuleva.onboarding.investment.report.InvestmentReport;
+import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
+import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
+import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEvent;
@@ -34,6 +47,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -79,6 +93,8 @@ class FtConfirmationImportJobIT {
   private static final Clock FIXED_CLOCK =
       Clock.fixed(Instant.parse("2026-06-09T08:00:00Z"), ZoneOffset.UTC);
   private static final String KEY = "ft-confirmations/allocation-1.pdf";
+  private static final String FT_ISIN = "IE000I9HGDZ3";
+  private static final BigDecimal FT_QUANTITY = new BigDecimal("2500");
   private static final String DEDUP_KEY =
       TKF100.name() + "|IE00BFG1TM61|2026-01-15|2500|12.3456|NORMAL";
   private static final String FIRST_CONFIRMATION_KEY =
@@ -94,6 +110,11 @@ class FtConfirmationImportJobIT {
   @Autowired private FtConfirmationPdfParser parser;
   @Autowired private FtConfirmationVerificationService verificationService;
   @Autowired private TransactionAuditEventRepository auditEventRepository;
+  @Autowired private SebPendingTransactionReconciliationService reconciliationService;
+  @Autowired private InvestmentReportRepository reportRepository;
+  @Autowired private PositionPriceResolver positionPriceResolver;
+  @Autowired private ReconciliationAuditRecorder reconciliationRecorder;
+  @Autowired private FtConfirmationAuditRecorder ftAuditRecorder;
   @Autowired private TransactionBatchRepository batchRepository;
   @Autowired private TransactionOrderRepository orderRepository;
   @Autowired private TransactionExecutionRepository executionRepository;
@@ -723,5 +744,160 @@ class FtConfirmationImportJobIT {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Test
+  void ftTradeSebListsWithoutOurRef_staysPendingUntilSebsNextDayReportIsReconciled_thenErrors() {
+    UUID orderUuid = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-000000001117");
+    seedFtOrder(orderUuid);
+    reconcileSebReport(LocalDate.of(2026, 11, 17), List.of(pendingRow(orderUuid, null)));
+
+    FtConfirmationResult beforeNextDayReport =
+        verifyAt("2026-11-19T06:00:00Z", tuesdayConfirmation());
+
+    assertThat(beforeNextDayReport.quantityStatus()).isEqualTo(PENDING_EXECUTION);
+    assertThat(beforeNextDayReport.details()).containsEntry("awaitingSebReportAsOf", "2026-11-18");
+
+    reconcileSebReport(LocalDate.of(2026, 11, 18), List.of(pendingRow(orderUuid, null)));
+
+    FtConfirmationResult afterNextDayReport =
+        verifyAt("2026-11-19T09:00:00Z", tuesdayConfirmation());
+
+    assertThat(afterNextDayReport.quantityStatus()).isEqualTo(ERROR);
+    assertThat(afterNextDayReport.details()).containsEntry("sebReportAsOf", "2026-11-18");
+  }
+
+  @Test
+  void ftTradeWhoseOurRefArrivesInSebsNextDayReport_getsItsExecution_andPasses() {
+    UUID orderUuid = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-000000002117");
+    seedFtOrder(orderUuid);
+    reconcileSebReport(LocalDate.of(2026, 11, 17), List.of(pendingRow(orderUuid, null)));
+    reconcileSebReport(LocalDate.of(2026, 11, 18), List.of(pendingRow(orderUuid, "DLA0000001")));
+
+    FtConfirmationResult result = verifyAt("2026-11-19T09:00:00Z", tuesdayConfirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(OK);
+  }
+
+  @Test
+  void ftTradeWhoseNextDaySebReportListsNothingPending_isMissingOnceThatReportIsReconciled() {
+    UUID orderUuid = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-000000004117");
+    seedFtOrder(orderUuid);
+    reconcileSebReport(LocalDate.of(2026, 11, 17), List.of(pendingRow(orderUuid, null)));
+    reconcileSebReport(LocalDate.of(2026, 11, 18), List.of(blankPaddingRow()));
+
+    FtConfirmationResult result = verifyAt("2026-11-19T09:00:00Z", tuesdayConfirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(ERROR);
+    assertThat(result.details()).containsEntry("sebReportAsOf", "2026-11-18");
+  }
+
+  @Test
+  void noSebReportReconciledWithinTwoBusinessDays_errorsAsAnOverdueReport() {
+    seedFtOrder(UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-000000003117"));
+
+    FtConfirmationResult result = verifyAt("2026-11-20T06:00:00Z", tuesdayConfirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(ERROR);
+    assertThat(result.details()).containsEntry("sebReportMissingAsOf", "2026-11-18");
+  }
+
+  private void seedFtOrder(UUID orderUuid) {
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
+    orderRepository.save(
+        TransactionOrder.builder()
+            .batch(batch)
+            .fund(TKF100)
+            .instrumentIsin(FT_ISIN)
+            .transactionType(BUY)
+            .instrumentType(ETF)
+            .orderQuantity(FT_QUANTITY)
+            .orderVenue(OrderVenue.FT)
+            .orderUuid(orderUuid)
+            .orderStatus(SENT)
+            .orderTimestamp(Instant.parse("2026-11-17T15:30:00Z"))
+            .build());
+  }
+
+  private void reconcileSebReport(LocalDate asOfDate, List<Map<String, Object>> rows) {
+    InvestmentReport report =
+        reportRepository.save(
+            InvestmentReport.builder()
+                .provider(SEB)
+                .reportType(PENDING_TRANSACTIONS)
+                .reportDate(asOfDate)
+                .rawData(rows)
+                .metadata(Map.of("asOfDate", asOfDate.toString()))
+                .createdAt(Instant.now())
+                .build());
+    reconciliationService.reconcile(report, () -> true);
+  }
+
+  private static Map<String, Object> pendingRow(UUID clientRef, String ourRef) {
+    Map<String, Object> raw = new HashMap<>();
+    raw.put("Client name", "Tuleva Täiendav Kogumisfond");
+    raw.put("Account", "VP68168");
+    raw.put("Our ref", ourRef);
+    raw.put("ISIN", FT_ISIN);
+    raw.put("Instrument name", "SYNTHETIC TEST SECURITY");
+    raw.put("Currency", "EUR");
+    raw.put("Quantity", FT_QUANTITY);
+    raw.put("Price", new BigDecimal("10.00"));
+    raw.put("Settlement amount", new BigDecimal("25000.00"));
+    raw.put("Broker fee", new BigDecimal("0.00"));
+    raw.put("Total", new BigDecimal("25000.00"));
+    raw.put("Buy/Sell", "Buy");
+    raw.put("Client ref", clientRef.toString());
+    raw.put("Trade date", "2026-11-17T15:30:00Z");
+    raw.put("Settlement date", "2026-11-19");
+    return raw;
+  }
+
+  private static Map<String, Object> blankPaddingRow() {
+    Map<String, Object> raw = new HashMap<>();
+    List.of(
+            "Client name",
+            "Account",
+            "Client ref",
+            "Our ref",
+            "ISIN",
+            "Instrument name",
+            "Currency",
+            "Quantity",
+            "Price",
+            "Settlement amount",
+            "Broker fee",
+            "Total",
+            "Buy/Sell",
+            "Trade date",
+            "Settlement date")
+        .forEach(column -> raw.put(column, null));
+    return raw;
+  }
+
+  private static FtConfirmation tuesdayConfirmation() {
+    return new FtConfirmation(
+        TKF100, FT_ISIN, LocalDate.of(2026, 11, 17), FT_QUANTITY, new BigDecimal("10.00"));
+  }
+
+  private FtConfirmationResult verifyAt(String instant, FtConfirmation confirmation) {
+    Clock clock = Clock.fixed(Instant.parse(instant), ZoneOffset.UTC);
+    return new FtConfirmationVerificationService(
+            orderRepository,
+            new FtPriceCheck(
+                positionPriceResolver,
+                new PriceValidator(),
+                new Target2Calendar(),
+                clock,
+                ALERTS_FROM),
+            new FtQuantityCheck(
+                executionRepository,
+                new FtExecutionWait(
+                    reconciliationRecorder, new EstonianCalendar(new PublicHolidays()), clock)),
+            ftAuditRecorder,
+            new FtCancellationCheck(new Target2Calendar(), ftAuditRecorder, clock),
+            digest)
+        .verify(confirmation);
   }
 }

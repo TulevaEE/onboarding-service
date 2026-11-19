@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -28,6 +29,7 @@ class ReconciliationAuditRecorder {
   static final String SETTLEMENT_REDATED = "SETTLEMENT_REDATED";
   static final String SETTLEMENT_FROM_BANK = "SETTLEMENT_FROM_BANK";
   static final String INCONSISTENT_MATCHED_ROW = "INCONSISTENT_MATCHED_ROW";
+  static final String SEB_PENDING_REPORT_RECONCILED = "SEB_PENDING_REPORT_RECONCILED";
 
   static final String REASON_MISSING_OUR_REF = "MISSING_OUR_REF";
   static final String REASON_MISSING_ISIN = "MISSING_ISIN";
@@ -143,6 +145,25 @@ class ReconciliationAuditRecorder {
     Map<String, Object> payload = rowPayload(row, reportDate);
     payload.put("settlementReportDate", settlement.getReportDate().toString());
     save(SETTLEMENT_REAPPEARED, order, payload);
+  }
+
+  void recordReportReconciled(LocalDate reportDate, LocalDate asOfDate) {
+    String dedupKey = asOfDate.toString();
+    if (alreadyRecordedForDedupKey(SEB_PENDING_REPORT_RECONCILED, dedupKey)) {
+      return;
+    }
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("reportDate", reportDate.toString());
+    payload.put("asOfDate", dedupKey);
+    save(SEB_PENDING_REPORT_RECONCILED, null, payload, dedupKey);
+  }
+
+  Optional<LocalDate> firstReportReconciledAsOfOrAfter(LocalDate asOfDate) {
+    return auditEventRepository
+        .findFirstByEventTypeAndDedupKeyGreaterThanEqualOrderByDedupKeyAsc(
+            SEB_PENDING_REPORT_RECONCILED, asOfDate.toString())
+        .map(TransactionAuditEvent::getDedupKey)
+        .map(LocalDate::parse);
   }
 
   private boolean alreadyRecordedForReportDate(

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCHECKED;
+import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
@@ -65,6 +66,16 @@ record FtConfirmationOutcome(FtConfirmation confirmation, FtConfirmationResult r
               confirmation.quantity().toPlainString());
       case ISSUE ->
           String.format(
+              "FT issue: fund=%s, isin=%s, tradeDate=%s, quantity=%s — %s",
+              confirmation.fund().name(),
+              confirmation.isin(),
+              confirmation.tradeDate(),
+              confirmation.quantity().toPlainString(),
+              causes().stream()
+                  .map(cause -> cause.describe(confirmation, result.details()))
+                  .collect(joining("; ")));
+      case ISSUE_OF_NO_KNOWN_CAUSE ->
+          String.format(
               "FT issue: fund=%s, isin=%s, tradeDate=%s, quantity=%s, quantityStatus=%s,"
                   + " priceStatus=%s",
               confirmation.fund().name(),
@@ -78,7 +89,13 @@ record FtConfirmationOutcome(FtConfirmation confirmation, FtConfirmationResult r
 
   @Override
   public List<String> nextSteps() {
-    return line().nextSteps;
+    return line() == Line.ISSUE
+        ? causes().stream().map(cause -> cause.nextStep).toList()
+        : line().nextSteps;
+  }
+
+  private List<FtIssueCause> causes() {
+    return FtIssueCause.of(result.details());
   }
 
   private Line line() {
@@ -91,7 +108,7 @@ record FtConfirmationOutcome(FtConfirmation confirmation, FtConfirmationResult r
     if (confirmation.isCancellation()) {
       return Line.CANCELLED_WITHOUT_REPLACEMENT;
     }
-    return Line.ISSUE;
+    return causes().isEmpty() ? Line.ISSUE_OF_NO_KNOWN_CAUSE : Line.ISSUE;
   }
 
   private enum Line {
@@ -101,7 +118,8 @@ record FtConfirmationOutcome(FtConfirmation confirmation, FtConfirmationResult r
         List.of(
             "check the cancelled trade with FT; if it did not happen, cancel the order in the"
                 + " registry")),
-    ISSUE(List.of());
+    ISSUE(List.of()),
+    ISSUE_OF_NO_KNOWN_CAUSE(List.of());
 
     private final List<String> nextSteps;
 

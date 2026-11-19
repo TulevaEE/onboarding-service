@@ -20,7 +20,6 @@ import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisRefresh;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -138,19 +137,20 @@ public class PortfolioReconciliationService implements PositionReconciliation {
 
   private List<MismatchEntry> mismatchesBetween(
       Map<String, BigDecimal> ourQuantities, Map<String, BigDecimal> theirQuantities) {
-    List<MismatchEntry> mismatches = new ArrayList<>();
-    for (String isin : isinsOf(ourQuantities, theirQuantities)) {
-      BigDecimal ourQty = ourQuantities.get(isin);
-      BigDecimal theirQty = theirQuantities.get(isin);
-      BigDecimal ourEffective = ourQty == null ? ZERO : ourQty;
-      BigDecimal theirEffective = theirQty == null ? ZERO : theirQty;
-      BigDecimal delta = ourEffective.subtract(theirEffective);
+    return isinsOf(ourQuantities, theirQuantities).stream()
+        .map(isin -> mismatch(isin, ourQuantities.get(isin), theirQuantities.get(isin)))
+        .filter(mismatch -> exceedsTheTolerance(mismatch.delta()))
+        .toList();
+  }
 
-      if (exceedsTheTolerance(delta)) {
-        mismatches.add(new MismatchEntry(isin, ourQty, theirQty, delta));
-      }
-    }
-    return mismatches;
+  private static MismatchEntry mismatch(
+      String isin, @Nullable BigDecimal ourQuantity, @Nullable BigDecimal theirQuantity) {
+    BigDecimal delta = heldUnits(ourQuantity).subtract(heldUnits(theirQuantity));
+    return new MismatchEntry(isin, ourQuantity, theirQuantity, delta);
+  }
+
+  private static BigDecimal heldUnits(@Nullable BigDecimal quantity) {
+    return quantity == null ? ZERO : quantity;
   }
 
   private static Set<String> isinsOf(

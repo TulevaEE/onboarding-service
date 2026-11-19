@@ -41,6 +41,7 @@ class PortfolioReconciliationServiceTest {
   private static final String ISIN_B = "IE0009FT4LX4";
   private static final String ISIN_C = "IE000QWCYQT0";
   private static final String ISIN_D = "IE00BFNM3G45";
+  private static final String ISIN_E = "LU1291106356";
 
   @Mock private PortfolioCostBasisService costBasisService;
   @Mock private NavReportPositionLookup navReportLookup;
@@ -305,6 +306,29 @@ class PortfolioReconciliationServiceTest {
 
     assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of()))
         .isEqualTo(new Compared(List.of()));
+  }
+
+  @Test
+  void againstThePositionReport_aHoldingWithinToleranceThatOneSideDoesNotListIsADifference() {
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
+        .willReturn(
+            List.of(
+                costBasis(ISIN_A, "100.0000"),
+                costBasis(ISIN_B, "1.0000"),
+                costBasis(ISIN_C, "0.0000")));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                reportRow(ISIN_A, "100.000000"),
+                reportRow(ISIN_D, "0.500000"),
+                reportRow(ISIN_E, "0.000000")));
+
+    assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of()))
+        .isEqualTo(
+            new Compared(
+                List.of(
+                    new HoldingDifference(ISIN_B, new BigDecimal("1.0000"), null),
+                    new HoldingDifference(ISIN_D, null, new BigDecimal("0.500000")))));
   }
 
   @Test

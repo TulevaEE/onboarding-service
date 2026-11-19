@@ -102,7 +102,7 @@ public class PortfolioReconciliationService implements PositionReconciliation {
     }
     return new Compared(
         isinsOf(registry, report).stream()
-            .filter(isin -> differsBeyondTolerance(registry.get(isin), report.get(isin)))
+            .filter(isin -> differs(registry.get(isin), report.get(isin)))
             .map(isin -> new HoldingDifference(isin, registry.get(isin), report.get(isin)))
             .toList());
   }
@@ -116,17 +116,19 @@ public class PortfolioReconciliationService implements PositionReconciliation {
     return isin == null || !excludedIsins.contains(isin);
   }
 
-  private boolean differsBeyondTolerance(
+  private boolean differs(
       @Nullable BigDecimal registryQuantity, @Nullable BigDecimal reportQuantity) {
-    return heldUnits(registryQuantity)
-            .subtract(heldUnits(reportQuantity))
-            .abs()
-            .compareTo(tolerance)
-        > 0;
+    if (registryQuantity == null) {
+      return isHeld(reportQuantity);
+    }
+    if (reportQuantity == null) {
+      return isHeld(registryQuantity);
+    }
+    return registryQuantity.subtract(reportQuantity).abs().compareTo(tolerance) > 0;
   }
 
-  private static BigDecimal heldUnits(@Nullable BigDecimal quantity) {
-    return quantity == null ? ZERO : quantity;
+  private static boolean isHeld(@Nullable BigDecimal quantity) {
+    return quantity != null && quantity.signum() != 0;
   }
 
   private List<MismatchEntry> mismatchesBetween(

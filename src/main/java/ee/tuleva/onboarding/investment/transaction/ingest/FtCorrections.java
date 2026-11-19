@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.jspecify.annotations.NullMarked;
 
@@ -33,11 +34,15 @@ record FtCorrections(List<FtConfirmation> confirmations) {
             == liveOrders.size();
   }
 
-  List<FtConfirmation> standingConfirmations() {
+  List<FtConfirmation> standingConfirmations(Predicate<FtConfirmation> awaitingReplacement) {
     return distinctTrades(
         confirmations.stream()
             .filter(confirmation -> !confirmation.isCancellation())
-            .filter(confirmation -> !isVoided(confirmation)));
+            .filter(
+                confirmation ->
+                    confirmations.stream()
+                        .filter(confirmation::isCancelledBy)
+                        .allMatch(awaitingReplacement)));
   }
 
   private List<FtConfirmation> newConfirmationsAfter(FtConfirmation cancellation) {

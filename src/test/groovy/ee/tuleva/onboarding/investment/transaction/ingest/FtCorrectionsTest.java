@@ -283,7 +283,16 @@ class FtCorrectionsTest {
         FtCorrections.among(
             List.of(first, cancellation, newConfirmation, sameWithMoreDecimals, otherTrade));
 
-    assertThat(corrections.standingConfirmations()).containsExactly(newConfirmation, otherTrade);
+    assertThat(corrections.standingConfirmations(awaitingReplacement -> false))
+        .containsExactly(newConfirmation, otherTrade);
+  }
+
+  @Test
+  void confirmationFtCancelled_standsWhileItsCancellationAwaitsAReplacement() {
+    FtCorrections corrections = FtCorrections.among(List.of(first, cancellation));
+
+    assertThat(corrections.standingConfirmations(awaitingReplacement -> true))
+        .containsExactly(first);
   }
 
   @Test

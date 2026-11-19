@@ -21,7 +21,6 @@ import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.COMPA
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.NO_CODE;
 
 import ee.tuleva.onboarding.aml.ScreeningOutcome;
-import java.util.Optional;
 
 public final class PaymentAcceptance {
 
@@ -50,12 +49,6 @@ public final class PaymentAcceptance {
     ANOTHER_COMPANY,
     COMPANY_NAME_WITHOUT_CODE,
     NO_CODE,
-    NOT_CHECKED
-  }
-
-  public enum UncodedPayer {
-    CLIENT,
-    THIRD_PARTY,
     NOT_CHECKED
   }
 
@@ -107,7 +100,6 @@ public final class PaymentAcceptance {
       Client client,
       Name name,
       Onboarding onboarding,
-      UncodedPayer uncodedPayer,
       Screening payerScreening,
       Screening screening) {
 
@@ -119,54 +111,38 @@ public final class PaymentAcceptance {
           Client.NOT_CHECKED,
           Name.NOT_CHECKED,
           Onboarding.NOT_CHECKED,
-          UncodedPayer.NOT_CHECKED,
           Screening.NOT_CHECKED,
           Screening.NOT_CHECKED);
     }
 
     Payment withRemitter(Remitter remitter) {
       return new Payment(
-          code, remitter, minor, client, name, onboarding, uncodedPayer, payerScreening, screening);
+          code, remitter, minor, client, name, onboarding, payerScreening, screening);
     }
 
     Payment withMinor(Minor minor) {
       return new Payment(
-          code, remitter, minor, client, name, onboarding, uncodedPayer, payerScreening, screening);
+          code, remitter, minor, client, name, onboarding, payerScreening, screening);
     }
 
     Payment withParty(Client client, Name name) {
       return new Payment(
-          code, remitter, minor, client, name, onboarding, uncodedPayer, payerScreening, screening);
+          code, remitter, minor, client, name, onboarding, payerScreening, screening);
     }
 
     Payment withOnboarding(Onboarding onboarding) {
       return new Payment(
-          code, remitter, minor, client, name, onboarding, uncodedPayer, payerScreening, screening);
+          code, remitter, minor, client, name, onboarding, payerScreening, screening);
     }
 
     Payment withPayerScreening(Screening payerScreening) {
       return new Payment(
-          code, remitter, minor, client, name, onboarding, uncodedPayer, payerScreening, screening);
-    }
-
-    Payment withUncodedPayer(UncodedPayer uncodedPayer, Screening payerScreening) {
-      return new Payment(
-          code, remitter, minor, client, name, onboarding, uncodedPayer, payerScreening, screening);
-    }
-
-    boolean payerScreenedAsTheHolder() {
-      return remitter == Remitter.HOLDER || uncodedPayer == UncodedPayer.CLIENT;
-    }
-
-    Optional<Screening> payerNameScreening() {
-      return uncodedPayer == UncodedPayer.THIRD_PARTY && payerScreening != Screening.UNAVAILABLE
-          ? Optional.of(payerScreening)
-          : Optional.empty();
+          code, remitter, minor, client, name, onboarding, payerScreening, screening);
     }
 
     Payment withScreening(Screening screening) {
       return new Payment(
-          code, remitter, minor, client, name, onboarding, uncodedPayer, payerScreening, screening);
+          code, remitter, minor, client, name, onboarding, payerScreening, screening);
     }
   }
 

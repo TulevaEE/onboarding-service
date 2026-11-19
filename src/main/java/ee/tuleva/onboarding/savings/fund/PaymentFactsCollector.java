@@ -18,8 +18,6 @@ import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.COMPA
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.GUARDIAN;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.HOLDER;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.NO_CODE;
-import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.UncodedPayer.CLIENT;
-import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.UncodedPayer.THIRD_PARTY;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.outcome;
 
 import ee.tuleva.onboarding.party.ParentChildLinkService;
@@ -33,6 +31,7 @@ import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Minor;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Name;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Payment;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter;
+import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Screening;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -48,7 +47,27 @@ class PaymentFactsCollector {
   private final ParentChildLinkService parentChildLinkService;
   private final PaymentPartyScreener paymentPartyScreener;
 
-  Payment collect(
+  record Collected(Payment facts, Optional<Screening> payerNameScreening) {}
+
+  private record UncodedPayer(Kind kind, Screening screening) {
+
+    enum Kind {
+      CLIENT,
+      THIRD_PARTY,
+      NOT_CHECKED
+    }
+
+    static final UncodedPayer NOT_CHECKED =
+        new UncodedPayer(Kind.NOT_CHECKED, Screening.NOT_CHECKED);
+
+    Optional<Screening> nameScreening() {
+      return kind == Kind.THIRD_PARTY && screening != Screening.UNAVAILABLE
+          ? Optional.of(screening)
+          : Optional.empty();
+    }
+  }
+
+  Collected collect(
       SavingFundPayment payment,
       PartyId partyId,
       Optional<PartyId> partyIdFromDescription,
@@ -63,34 +82,42 @@ class PaymentFactsCollector {
     Optional<Party> party = partyResolved ? partyResolver.resolve(partyId) : Optional.empty();
     facts = withPartyAndOnboarding(facts, party, partyId, payment);
     var unitHolderName = party.map(Party::name).orElse(payment.getRemitterName());
+    var uncodedPayer = UncodedPayer.NOT_CHECKED;
     if (remitterPartyId.isPresent()) {
       var payerName = facts.remitter() == HOLDER ? unitHolderName : payment.getRemitterName();
       facts =
           facts.withPayerScreening(paymentPartyScreener.screen(remitterPartyId.get(), payerName));
     } else {
       var client = partyResolved ? party : partyResolver.resolve(partyId);
-      facts = withUncodedPayer(facts, payment.getRemitterName(), partyId, client);
+      uncodedPayer = uncodedPayer(payment.getRemitterName(), partyId, client);
+      facts = facts.withPayerScreening(uncodedPayer.screening());
     }
-    if (alreadyDecided(facts) || facts.payerScreenedAsTheHolder()) {
-      return facts;
+    if (alreadyDecided(facts)
+        || facts.remitter() == HOLDER
+        || uncodedPayer.kind() == UncodedPayer.Kind.CLIENT) {
+      return new Collected(facts, uncodedPayer.nameScreening());
     }
-    return facts.withScreening(paymentPartyScreener.screen(partyId, unitHolderName));
+    return new Collected(
+        facts.withScreening(paymentPartyScreener.screen(partyId, unitHolderName)),
+        uncodedPayer.nameScreening());
   }
 
-  private Payment withUncodedPayer(
-      Payment facts, @Nullable String payerName, PartyId partyId, Optional<Party> client) {
+  private UncodedPayer uncodedPayer(
+      @Nullable String payerName, PartyId partyId, Optional<Party> client) {
     if (payerName == null || payerName.isBlank()) {
-      return facts;
+      return UncodedPayer.NOT_CHECKED;
     }
     return client
         .filter(theClient -> nameMatcher.isSimilarName(payerName, theClient.name()))
         .map(
             theClient ->
-                facts.withUncodedPayer(
-                    CLIENT, paymentPartyScreener.screen(partyId, theClient.name())))
+                new UncodedPayer(
+                    UncodedPayer.Kind.CLIENT,
+                    paymentPartyScreener.screen(partyId, theClient.name())))
         .orElseGet(
             () ->
-                facts.withUncodedPayer(THIRD_PARTY, paymentPartyScreener.screenByName(payerName)));
+                new UncodedPayer(
+                    UncodedPayer.Kind.THIRD_PARTY, paymentPartyScreener.screenByName(payerName)));
   }
 
   private Payment withPartyAndOnboarding(

@@ -116,9 +116,10 @@ public class PaymentVerificationService {
     }
 
     PartyId partyId = partyIdOpt.orElseThrow();
-    var facts =
+    var collected =
         paymentFactsCollector.collect(payment, partyId, partyIdFromDescription, remitterPartyId);
-    facts
+    var facts = collected.facts();
+    collected
         .payerNameScreening()
         .ifPresent(
             screening ->

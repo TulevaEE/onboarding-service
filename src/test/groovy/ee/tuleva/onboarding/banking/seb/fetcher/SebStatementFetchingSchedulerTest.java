@@ -23,6 +23,7 @@ import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.CurrentDayFetches;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebCurrentDayTransactionsRequested;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebEodTransactionsRequested;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
@@ -446,6 +447,10 @@ class SebStatementFetchingSchedulerTest {
 
   private SebStatementFetchingScheduler scheduler() {
     return new SebStatementFetchingScheduler(
-        eventPublisher, bankAccounts, statementCoverage, clock);
+        eventPublisher,
+        new CurrentDayFetches(eventPublisher),
+        bankAccounts,
+        statementCoverage,
+        clock);
   }
 }

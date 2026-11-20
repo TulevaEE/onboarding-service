@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.banking.seb;
 
 import static org.springframework.http.MediaType.APPLICATION_XML_VALUE;
 
+import ee.tuleva.onboarding.banking.CurrentDayFetches;
 import ee.tuleva.onboarding.banking.ManagementCompanies;
 import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetcher;
 import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler;
@@ -191,11 +192,12 @@ public class SebGatewayConfiguration {
   @Profile("!staging")
   SebStatementFetchingScheduler sebStatementFetchingScheduler(
       ApplicationEventPublisher eventPublisher,
+      CurrentDayFetches currentDayFetches,
       SebBankAccounts sebBankAccounts,
       StatementCoverage statementCoverage,
       Clock clock) {
     return new SebStatementFetchingScheduler(
-        eventPublisher, sebBankAccounts, statementCoverage, clock);
+        eventPublisher, currentDayFetches, sebBankAccounts, statementCoverage, clock);
   }
 
   @Bean

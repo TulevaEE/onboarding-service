@@ -12,6 +12,7 @@ import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.CurrentDayFetches;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebCurrentDayTransactionsRequested;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,7 @@ class CurrentDayBankReportRefreshFailureTest {
   private final BankAccounts bankAccounts = mock(BankAccounts.class);
   private final ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
   private final CurrentDayBankReportRefresh refresh =
-      new CurrentDayBankReportRefresh(bankAccounts, publisher);
+      new CurrentDayBankReportRefresh(bankAccounts, new CurrentDayFetches(publisher));
 
   private final BankAccount deposit =
       new BankAccount("EE111111111111111111", DEPOSIT_EUR, TKF100, "client");

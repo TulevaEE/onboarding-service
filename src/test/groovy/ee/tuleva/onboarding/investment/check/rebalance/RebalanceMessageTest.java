@@ -10,7 +10,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
@@ -93,7 +92,7 @@ class RebalanceMessageTest {
 
   @Test
   void aClosedWindow_namesTheNavThatClosedItEvenWhenANewerNavIsOff() {
-    var closing = LocalDate.of(2026, 10, 30);
+    var closing = RebalanceClosure.byAnInLineNav(LocalDate.of(2026, 10, 30));
     var window = window(LocalDate.of(2026, 11, 3), LocalDate.of(2026, 11, 2), OUT_OF_LINE, closing);
 
     assertThat(RebalanceMessage.of(window))
@@ -111,8 +110,7 @@ class RebalanceMessageTest {
             LocalDate.of(2026, 10, 29),
             LocalDate.of(2026, 10, 28),
             OUT_OF_LINE,
-            null,
-            LocalDate.of(2026, 10, 28));
+            RebalanceClosure.byRebalancingTrades(LocalDate.of(2026, 10, 28)));
 
     assertThat(RebalanceMessage.of(window))
         .contains(
@@ -129,8 +127,7 @@ class RebalanceMessageTest {
             LocalDate.of(2026, 11, 3),
             LocalDate.of(2026, 11, 2),
             OUT_OF_LINE,
-            null,
-            LocalDate.of(2026, 10, 28));
+            RebalanceClosure.byRebalancingTrades(LocalDate.of(2026, 10, 28)));
 
     assertThat(
             RebalanceMessage.ofSuperseded(new SupersededWindow(window, LocalDate.of(2026, 11, 3))))
@@ -156,7 +153,7 @@ class RebalanceMessageTest {
 
   @Test
   void aSupersededWindowThatCameIntoLine_isClosedAsInLine() {
-    var closing = LocalDate.of(2026, 10, 30);
+    var closing = RebalanceClosure.byAnInLineNav(LocalDate.of(2026, 10, 30));
     var window = window(LocalDate.of(2026, 11, 3), LocalDate.of(2026, 11, 2), OUT_OF_LINE, closing);
 
     assertThat(
@@ -176,11 +173,9 @@ class RebalanceMessageTest {
             EFFECTIVE,
             LocalDate.of(2026, 10, 30),
             new BigDecimal("0.025"),
-            Set.of("IE00BFG1TM61"),
             LocalDate.of(2026, 10, 30),
             List.of(),
-            LocalDate.of(2026, 10, 30),
-            null,
+            RebalanceClosure.byAnInLineNav(LocalDate.of(2026, 10, 30)),
             DEADLINE,
             WARNING_FROM);
 
@@ -192,26 +187,15 @@ class RebalanceMessageTest {
       LocalDate checkDate,
       @Nullable LocalDate latestNavDate,
       List<Deviation> outsideTolerance,
-      @Nullable LocalDate inLineSince) {
-    return window(checkDate, latestNavDate, outsideTolerance, inLineSince, null);
-  }
-
-  private static RebalanceWindow window(
-      LocalDate checkDate,
-      @Nullable LocalDate latestNavDate,
-      List<Deviation> outsideTolerance,
-      @Nullable LocalDate inLineSince,
-      @Nullable LocalDate rebalancedOn) {
+      @Nullable RebalanceClosure closure) {
     return new RebalanceWindow(
         TUV100,
         EFFECTIVE,
         checkDate,
         new BigDecimal("0.05"),
-        Set.of("IE00BFG1TM61", "IE000I9HGDZ3"),
         latestNavDate,
         outsideTolerance,
-        inLineSince,
-        rebalancedOn,
+        closure,
         DEADLINE,
         WARNING_FROM);
   }

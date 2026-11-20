@@ -5,7 +5,6 @@ import static java.math.BigDecimal.ZERO;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -46,7 +45,8 @@ public class TransactionOrderFactory {
           trade.tradeAmount().compareTo(ZERO) > 0 ? TransactionType.BUY : TransactionType.SELL;
       var orderAmount = trade.tradeAmount().abs();
       var orderQuantity =
-          resolveOrderQuantity(instrumentType, transactionType, isin, orderAmount, asOfDate);
+          resolveOrderQuantity(
+              instrumentType, transactionType, isin, orderAmount, asOfDate, holdingOf(input, isin));
       if (!isAmountBasedOrder(instrumentType, transactionType)) {
         priceResolutions.put(isin, orderQuantity.resolvedPrice());
       }
@@ -91,7 +91,8 @@ public class TransactionOrderFactory {
       TransactionType transactionType,
       String isin,
       BigDecimal orderAmount,
-      LocalDate asOfDate) {
+      LocalDate asOfDate,
+      @Nullable PositionSnapshot holding) {
     if (isAmountBasedOrder(instrumentType, transactionType)) {
       return new OrderQuantity(null, null, null);
     }
@@ -123,9 +124,18 @@ public class TransactionOrderFactory {
           asOfDate);
       return new OrderQuantity(null, null, resolvedPrice);
     }
-    BigDecimal quantity = orderAmount.divide(price, 6, RoundingMode.HALF_UP);
+    BigDecimal quantity =
+        OrderUnits.of(instrumentType, transactionType, orderAmount, price, holding);
     String stalePriceComment = describeIfStale(isin, resolvedPrice, asOfDate);
     return new OrderQuantity(quantity, stalePriceComment, resolvedPrice);
+  }
+
+  @Nullable
+  private static PositionSnapshot holdingOf(FundTransactionInput input, String isin) {
+    return input.positions().stream()
+        .filter(position -> isin.equals(position.isin()))
+        .findFirst()
+        .orElse(null);
   }
 
   @Nullable

@@ -42,9 +42,16 @@ class TransactionOrderFactoryTest {
 
   private static FundTransactionInput inputWith(
       Map<String, InstrumentType> instrumentTypes, Map<String, OrderVenue> orderVenues) {
+    return inputWith(instrumentTypes, orderVenues, List.of());
+  }
+
+  private static FundTransactionInput inputWith(
+      Map<String, InstrumentType> instrumentTypes,
+      Map<String, OrderVenue> orderVenues,
+      List<PositionSnapshot> positions) {
     return FundTransactionInput.builder()
         .fund(TUV100)
-        .positions(List.of())
+        .positions(positions)
         .modelWeights(List.of())
         .grossPortfolioValue(new BigDecimal("600000"))
         .cashBuffer(new BigDecimal("10000"))
@@ -89,6 +96,137 @@ class TransactionOrderFactoryTest {
     assertThat(order.getComment()).isNull();
     assertThat(order.getCreatedAt()).isEqualTo(CREATED_AT);
     assertThat(calculated.priceResolutions()).containsEntry("IE00ETF", resolvedPrice);
+  }
+
+  @Test
+  void createOrders_etfBuy_roundsDownToWholeUnitsSoItNeverCostsMoreThanItsAmount() {
+    var input = inputWith(Map.of("IE00ETF", InstrumentType.ETF), Map.of("IE00ETF", OrderVenue.FT));
+    var trades = List.of(trade("IE00ETF", "50000"));
+    givenPrice("IE00ETF", "97.30");
+
+    var calculated =
+        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+
+    assertThat(calculated.orders().getFirst().getOrderQuantity()).isEqualTo(new BigDecimal("513"));
+  }
+
+  @Test
+  void createOrders_etfSell_roundsUpToWholeUnitsSoItRaisesAtLeastItsAmount() {
+    var input =
+        inputWith(
+            Map.of("IE00ETF", InstrumentType.ETF),
+            Map.of("IE00ETF", OrderVenue.FT),
+            List.of(holding("IE00ETF", "97300", "1000", "97.30")));
+    var trades = List.of(trade("IE00ETF", "-30000"));
+    givenPrice("IE00ETF", "97.30");
+
+    var calculated =
+        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+
+    assertThat(calculated.orders().getFirst().getOrderQuantity()).isEqualTo(new BigDecimal("309"));
+  }
+
+  @Test
+  void createOrders_etfSellRoundedAboveTheHeldUnits_sellsOnlyTheHeldUnits() {
+    var input =
+        inputWith(
+            Map.of("IE00ETF", InstrumentType.ETF),
+            Map.of("IE00ETF", OrderVenue.FT),
+            List.of(holding("IE00ETF", "29190", "300", "97.30")));
+    var trades = List.of(trade("IE00ETF", "-29150"));
+    givenPrice("IE00ETF", "97.00");
+
+    var calculated =
+        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+
+    assertThat(calculated.orders().getFirst().getOrderQuantity()).isEqualTo(new BigDecimal("300"));
+  }
+
+  @Test
+  void createOrders_etfSaleOfTheWholeHoldingAfterThePriceRose_sellsExactlyTheHeldUnits() {
+    var input =
+        inputWith(
+            Map.of("IE00ETF", InstrumentType.ETF),
+            Map.of("IE00ETF", OrderVenue.FT),
+            List.of(holding("IE00ETF", "29190", "300", "97.30")));
+    var trades = List.of(trade("IE00ETF", "-29190"));
+    givenPrice("IE00ETF", "98.50");
+
+    var calculated =
+        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+
+    assertThat(calculated.orders().getFirst().getOrderQuantity()).isEqualTo(new BigDecimal("300"));
+  }
+
+  @Test
+  void createOrders_fundSaleOfTheWholeHolding_sellsExactlyTheHeldUnits() {
+    var input =
+        inputWith(
+            Map.of("IE00FUND", InstrumentType.FUND),
+            Map.of("IE00FUND", OrderVenue.SEB),
+            List.of(holding("IE00FUND", "15000.00", "1234.567", "12.15")));
+    var trades = List.of(trade("IE00FUND", "-15000.00"));
+    givenPrice("IE00FUND", "12.20");
+
+    var calculated =
+        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+
+    assertThat(calculated.orders().getFirst().getOrderQuantity())
+        .isEqualTo(new BigDecimal("1234.567"));
+  }
+
+  @Test
+  void createOrders_partialFundSale_keepsSixDecimalUnits() {
+    var input =
+        inputWith(
+            Map.of("IE00FUND", InstrumentType.FUND),
+            Map.of("IE00FUND", OrderVenue.SEB),
+            List.of(holding("IE00FUND", "15000.00", "1234.567", "12.15")));
+    var trades = List.of(trade("IE00FUND", "-10000"));
+    givenPrice("IE00FUND", "12.20");
+
+    var calculated =
+        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+
+    assertThat(calculated.orders().getFirst().getOrderQuantity())
+        .isEqualTo(new BigDecimal("819.672131"));
+  }
+
+  @Test
+  void createOrders_etfSellOfAHoldingWithoutAReportedQuantity_roundsUpWithoutACap() {
+    var input =
+        inputWith(
+            Map.of("IE00ETF", InstrumentType.ETF),
+            Map.of("IE00ETF", OrderVenue.FT),
+            List.of(new PositionSnapshot("IE00ETF", new BigDecimal("29190"))));
+    var trades = List.of(trade("IE00ETF", "-29190"));
+    givenPrice("IE00ETF", "97.00");
+
+    var calculated =
+        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+
+    assertThat(calculated.orders().getFirst().getOrderQuantity()).isEqualTo(new BigDecimal("301"));
+  }
+
+  private static TradeCalculation trade(String isin, String amount) {
+    return new TradeCalculation(
+        isin, new BigDecimal(amount), new BigDecimal("0.10"), LimitStatus.OK);
+  }
+
+  private static PositionSnapshot holding(
+      String isin, String marketValue, String quantity, String unitPrice) {
+    return new PositionSnapshot(
+        isin, new BigDecimal(marketValue), new BigDecimal(quantity), new BigDecimal(unitPrice));
+  }
+
+  private void givenPrice(String isin, String price) {
+    given(positionPriceResolver.resolve(isin, AS_OF_DATE))
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal(price))
+                    .priceDate(AS_OF_DATE)
+                    .build()));
   }
 
   @Test

@@ -4,10 +4,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
-import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,8 +20,6 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 @ExtendWith(MockitoExtension.class)
 class FtUnreadableConfirmationWarningTest {
 
-  private static final Clock FIXED_CLOCK =
-      Clock.fixed(Instant.parse("2026-06-09T08:00:00Z"), ZoneOffset.UTC);
   private static final LocalDate ALERTS_FROM = LocalDate.of(2026, 6, 1);
   private static final String KEY = "ft-confirmations/a.pdf";
   private static final FtUnreadableConfirmation UNREADABLE =
@@ -37,13 +33,13 @@ class FtUnreadableConfirmationWarningTest {
 
   @BeforeEach
   void setUp() {
-    warning = new FtUnreadableConfirmationWarning(s3Source, digest, FIXED_CLOCK, ALERTS_FROM);
+    warning = new FtUnreadableConfirmationWarning(s3Source, digest, ALERTS_FROM);
   }
 
   @Test
-  void pdfUploadedOnTheDayAlertsStart_isWarnedAbout() {
+  void pdfUploadedAtTallinnMidnightOnTheDayAlertsStart_isWarnedAbout() {
     given(s3Source.lastModified(KEY))
-        .willReturn(Optional.of(Instant.parse("2026-06-01T00:00:00Z")));
+        .willReturn(Optional.of(Instant.parse("2026-05-31T21:00:00Z")));
 
     warning.publish(List.of(UNREADABLE));
 
@@ -51,9 +47,9 @@ class FtUnreadableConfirmationWarningTest {
   }
 
   @Test
-  void pdfUploadedBeforeAlertsStart_isNotWarnedAbout() {
+  void pdfUploadedBeforeTallinnMidnightOnTheDayAlertsStart_isNotWarnedAbout() {
     given(s3Source.lastModified(KEY))
-        .willReturn(Optional.of(Instant.parse("2026-05-31T23:59:59Z")));
+        .willReturn(Optional.of(Instant.parse("2026-05-31T20:59:59Z")));
 
     warning.publish(List.of(UNREADABLE));
 
@@ -75,7 +71,7 @@ class FtUnreadableConfirmationWarningTest {
         .willThrow(S3Exception.builder().statusCode(403).build());
     FtUnreadableConfirmationWarning warningOverRealSource =
         new FtUnreadableConfirmationWarning(
-            new FtConfirmationS3Source(s3Client), digest, FIXED_CLOCK, ALERTS_FROM);
+            new FtConfirmationS3Source(s3Client), digest, ALERTS_FROM);
 
     warningOverRealSource.publish(List.of(UNREADABLE));
 

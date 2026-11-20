@@ -112,7 +112,7 @@ class FtConfirmationImportJobIT {
             parser,
             verificationService,
             unconfirmedTradeCheck,
-            new FtUnreadableConfirmationWarning(s3Source, digest, FIXED_CLOCK, ALERTS_FROM),
+            new FtUnreadableConfirmationWarning(s3Source, digest, ALERTS_FROM),
             FIXED_CLOCK);
   }
 
@@ -534,6 +534,20 @@ class FtConfirmationImportJobIT {
                 + " hand",
             INVESTMENT);
     then(notificationService).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void run_unreadableConfirmationPdfUploadedBeforeAlertsFrom_isNotWarnedAbout() {
+    s3Holds(
+        Map.of(
+            "ft-confirmations/TEST0002-00_1.pdf",
+            confirmationPdf(
+                "Trade Confirmation", "TEST0002-00", "Unknown Account", "2,500", "12.345600 EUR")));
+    pdfsUploadedAt(Instant.parse("2026-01-14T21:59:59Z"));
+
+    job.run();
+
+    then(notificationService).shouldHaveNoInteractions();
   }
 
   @Test

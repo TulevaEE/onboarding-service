@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import java.time.Clock;
+import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
+
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +19,6 @@ class FtUnreadableConfirmationWarning {
 
   private final FtConfirmationS3Source s3Source;
   private final FtConfirmationDigest digest;
-  private final Clock clock;
 
   @Value("${transaction-registry.ft-confirmation.alerts-from}")
   private final LocalDate alertsFrom;
@@ -36,7 +37,7 @@ class FtUnreadableConfirmationWarning {
           .lastModified(pdf.key())
           .map(
               uploadedAt ->
-                  !uploadedAt.isBefore(alertsFrom.atStartOfDay(clock.getZone()).toInstant()))
+                  !uploadedAt.isBefore(alertsFrom.atStartOfDay(ZoneId.of(TIMEZONE)).toInstant()))
           .orElse(true);
     } catch (RuntimeException e) {
       log.error(

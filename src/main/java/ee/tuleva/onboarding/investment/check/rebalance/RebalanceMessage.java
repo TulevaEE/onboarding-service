@@ -57,7 +57,7 @@ record RebalanceMessage(String text, Severity severity) {
   private static RebalanceMessage deadlineApproaching(RebalanceWindow window) {
     return new RebalanceMessage(
         """
-        ⚠️ %s: tähtaeg %s, jäänud %d päeva; tasakaalustamise tehinguid pole tehtud
+        ⚠️ %s: tähtaeg %s, jäänud %d päeva; Rebalance-jooksu tehinguid pole
         %s
         Tee tasakaalustamise tehingud või vii fond tähtajaks %s pp piiresse"""
             .formatted(
@@ -72,8 +72,7 @@ record RebalanceMessage(String text, Severity severity) {
   private static RebalanceMessage deadlineMissed(RebalanceWindow window) {
     return new RebalanceMessage(
         """
-        🛑 %s: tähtaeg oli %s, fond pole mudeliga vastavuses ja tasakaalustamise tehinguid pole \
-        tehtud
+        🛑 %s: tähtaeg oli %s, fond pole mudeliga vastavuses ja Rebalance-jooksu tehinguid pole
         %s
         Vii fond %s pp piiresse (sisekord 4 p 2.6.1)"""
             .formatted(

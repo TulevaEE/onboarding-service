@@ -97,7 +97,11 @@ class PortfolioReconciliationAlertListener {
             event.fund().getDisplayName(),
             availableSource,
             formatTable(event.availableQuantities()),
-            whatToCheck);
+            event
+                .costBasisRefresh()
+                .staleLedgerNote()
+                .map(note -> note + "\n\n" + whatToCheck)
+                .orElse(whatToCheck));
   }
 
   private static String formatTable(Map<String, BigDecimal> quantities) {
@@ -130,8 +134,10 @@ class PortfolioReconciliationAlertListener {
         .append(event.fund().getDisplayName())
         .append(")\n")
         .append('\n')
-        .append(formatTable(event));
-    body.append('\n').append("Vajab käsitsi uurimist.\n");
+        .append(formatTable(event))
+        .append('\n');
+    event.costBasisRefresh().staleLedgerNote().ifPresent(note -> body.append(note).append("\n\n"));
+    body.append("Vajab käsitsi uurimist.\n");
     return body.toString();
   }
 

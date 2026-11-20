@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
+import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisRefresh;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -49,7 +50,8 @@ class PortfolioReconciliationAlertListenerTest {
                     new BigDecimal("10000.0000"),
                     new BigDecimal("5.0000")),
                 new MismatchEntry(
-                    "IE0009FT4LX4", new BigDecimal("250.0000"), null, new BigDecimal("250.0000"))));
+                    "IE0009FT4LX4", new BigDecimal("250.0000"), null, new BigDecimal("250.0000"))),
+            CostBasisRefresh.refreshed());
 
     listener().onMismatch(event);
 
@@ -93,7 +95,8 @@ class PortfolioReconciliationAlertListenerTest {
                 TUK75,
                 LocalDate.of(2026, 5, 18),
                 Map.of(),
-                Map.of(isinLongerThanColumnWidth, new BigDecimal("12.0000"))));
+                Map.of(isinLongerThanColumnWidth, new BigDecimal("12.0000")),
+                CostBasisRefresh.refreshed()));
 
     ArgumentCaptor<MandrillMessage> captor = ArgumentCaptor.forClass(MandrillMessage.class);
     verify(emailService).sendSystemEmail(captor.capture());
@@ -117,7 +120,8 @@ class PortfolioReconciliationAlertListenerTest {
                     "IE00BFG1TM61",
                     new BigDecimal("10005.0000"),
                     "IE0009FT4LX4",
-                    new BigDecimal("250.0000"))));
+                    new BigDecimal("250.0000")),
+                CostBasisRefresh.refreshed()));
 
     ArgumentCaptor<MandrillMessage> captor = ArgumentCaptor.forClass(MandrillMessage.class);
     verify(emailService).sendSystemEmail(captor.capture());
@@ -148,7 +152,8 @@ class PortfolioReconciliationAlertListenerTest {
                 TUK75,
                 LocalDate.of(2026, 5, 18),
                 Map.of("IE00BFG1TM61", new BigDecimal("10005.0000")),
-                Map.of()));
+                Map.of(),
+                CostBasisRefresh.refreshed()));
 
     ArgumentCaptor<MandrillMessage> captor = ArgumentCaptor.forClass(MandrillMessage.class);
     verify(emailService).sendSystemEmail(captor.capture());
@@ -174,8 +179,93 @@ class PortfolioReconciliationAlertListenerTest {
                 TUK75,
                 LocalDate.of(2026, 5, 18),
                 Map.of(),
-                Map.of("IE00BFG1TM61", new BigDecimal("12"))));
+                Map.of("IE00BFG1TM61", new BigDecimal("12")),
+                CostBasisRefresh.refreshed()));
 
     verify(emailService).sendSystemEmail(org.mockito.ArgumentMatchers.any(MandrillMessage.class));
+  }
+
+  @Test
+  void onMismatch_saysNothingAboutTheLedgerWhenItWasRefreshedBeforeTheComparison() {
+    given(emailService.sendSystemEmail(org.mockito.ArgumentMatchers.any(MandrillMessage.class)))
+        .willReturn(true);
+
+    listener().onMismatch(mismatchAfter(CostBasisRefresh.refreshed()));
+
+    assertThat(sentText()).doesNotContain("salvestatud seis").contains("Vajab käsitsi uurimist.");
+  }
+
+  @Test
+  void onMismatch_saysTheStoredLedgerWasComparedWhenAnotherCostBasisJobHeldTheLock() {
+    given(emailService.sendSystemEmail(org.mockito.ArgumentMatchers.any(MandrillMessage.class)))
+        .willReturn(true);
+
+    listener().onMismatch(mismatchAfter(CostBasisRefresh.lockNotTaken()));
+
+    assertThat(sentText())
+        .contains(
+            "Cost-basis pearaamatut ei arvutatud enne võrdlust ümber, sest teine cost-basis töö"
+                + " jooksis samal ajal. Võrdluses on pearaamatu salvestatud seis, kust võivad"
+                + " puududa pärast viimast ümberarvutust saabunud tehingud.\n\nVajab käsitsi"
+                + " uurimist.");
+  }
+
+  @Test
+  void onMismatch_namesTheFailureWhenTheLedgerRefreshFailed() {
+    given(emailService.sendSystemEmail(org.mockito.ArgumentMatchers.any(MandrillMessage.class)))
+        .willReturn(true);
+
+    listener()
+        .onMismatch(
+            mismatchAfter(
+                CostBasisRefresh.failed(
+                    "Cost-basis oversell: fund=EE3600109435, isin=IE000I9HGDZ3")));
+
+    assertThat(sentText())
+        .contains(
+            "Cost-basis pearaamatu ümberarvutus enne võrdlust ebaõnnestus: Cost-basis oversell:"
+                + " fund=EE3600109435, isin=IE000I9HGDZ3. Võrdluses on pearaamatu salvestatud"
+                + " seis");
+  }
+
+  @Test
+  void onSkipped_namesTheFailureWhenTheLedgerRefreshFailed() {
+    given(emailService.sendSystemEmail(org.mockito.ArgumentMatchers.any(MandrillMessage.class)))
+        .willReturn(true);
+
+    listener()
+        .onSkipped(
+            new PortfolioReconciliationSkippedEvent(
+                TUK75,
+                LocalDate.of(2026, 11, 19),
+                Map.of(),
+                Map.of("IE00BFG1TM61", new BigDecimal("8669802.22000000")),
+                CostBasisRefresh.failed("Cost-basis oversell")));
+
+    assertThat(sentText())
+        .contains(
+            "ebaõnnestus: Cost-basis oversell. Võrdluses on pearaamatu salvestatud seis, kust"
+                + " võivad puududa pärast viimast ümberarvutust saabunud tehingud.\n\nKontrolli,"
+                + " kas fondil on investment_portfolio_baseline kirje");
+  }
+
+  private static PortfolioReconciliationMismatchEvent mismatchAfter(
+      CostBasisRefresh costBasisRefresh) {
+    return new PortfolioReconciliationMismatchEvent(
+        TUK75,
+        LocalDate.of(2026, 11, 19),
+        List.of(
+            new MismatchEntry(
+                "IE00BFG1TM61",
+                new BigDecimal("8663419.3100"),
+                new BigDecimal("8669802.22000000"),
+                new BigDecimal("-6382.91000000"))),
+        costBasisRefresh);
+  }
+
+  private String sentText() {
+    ArgumentCaptor<MandrillMessage> captor = ArgumentCaptor.forClass(MandrillMessage.class);
+    verify(emailService).sendSystemEmail(captor.capture());
+    return captor.getValue().getText();
   }
 }

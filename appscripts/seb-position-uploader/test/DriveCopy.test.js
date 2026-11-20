@@ -99,7 +99,6 @@ function fakeDrive() {
 function fakeAttachment(name, content) {
   return {
     getName: () => name,
-    getContentType: () => "text/csv",
     getDataAsString: () => content,
     copyBlob: () => {
       let blobName = name;
@@ -2274,14 +2273,28 @@ describe("SEB sends some files as inline parts", () => {
     expect(unmatchedAlerts(fakes)).toEqual([]);
   });
 
-  test("an inline file that is no picture and matches no pattern is alerted, so a renamed confirmation is not skipped in silence", () => {
-    const thread = fakeThread([confirmationWithInline([inlinePdf("DLA1234567.pdf"), inlinePicture("image001.png")])], []);
+  test("an inline part that matches no pattern is not alerted, as before; a missing confirmation is os's alert to raise", () => {
+    const thread = fakeThread([confirmationWithInline([inlinePdf("DLA1234567.pdf")])], []);
     const fakes = withSlack([thread]);
 
     processNewEmails();
 
     expect(fakes.s3Keys).toEqual([]);
-    expect(unmatchedAlerts(fakes)).toEqual([expect.stringContaining("Unmatched files: `DLA1234567.pdf`")]);
+    expect(unmatchedAlerts(fakes)).toEqual([]);
+  });
+
+  test("a regular attachment that matches no pattern is still alerted beside an inline report, which is uploaded", () => {
+    const message = {
+      ...sebMessage("18f0a00000000013", []),
+      getAttachments: gmailAttachments([fakeAttachment("TULEVA_unknown_report.csv", "x")], [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")]),
+    };
+    const fakes = withSlack([fakeThread([message], [])]);
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["seb/2026-10-20_positions.csv"]);
+    expect(unmatchedAlerts(fakes)).toEqual([expect.stringContaining("alongside 1 matched")]);
+    expect(unmatchedAlerts(fakes)).toEqual([expect.stringContaining("Unmatched files: `TULEVA_unknown_report.csv`")]);
   });
 
   test("the scan of earlier uploads reads an inline report as the run uploaded it, so a catch-up keeps the newer e-mail's report", () => {

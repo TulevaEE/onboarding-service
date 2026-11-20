@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
 import org.jspecify.annotations.NullMarked;
@@ -12,7 +11,6 @@ record TradePrepOverrides(
     List<PriceOverride> prices,
     @Nullable AcceptedHoldingDifferences acceptedHoldingDifferences,
     PriceDateRule priceDateRule,
-    @Nullable BigDecimal cash,
     Set<String> confirmedPriceDeviations) {
 
   static TradePrepOverrides of(TransactionCommand command) {
@@ -21,7 +19,6 @@ record TradePrepOverrides(
         command.getPrices(),
         command.getAcceptedHoldingDifferences(),
         command.getPriceDateRule(),
-        command.getCash(),
         command.getConfirmedPriceDeviations());
   }
 

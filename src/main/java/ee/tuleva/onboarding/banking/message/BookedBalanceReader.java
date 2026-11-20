@@ -57,9 +57,14 @@ public class BookedBalanceReader implements BankStatementBalances {
   }
 
   @Override
-  public Optional<FetchedBalance> latestFetched(BankAccount account) {
-    return latest(account.iban())
-        .map(balance -> new FetchedBalance(balance.amount(), balance.asOf()));
+  public Optional<FetchedBalance> currentDayBalance(BankAccount account, LocalDate day) {
+    return bankingMessageRepository
+        .findLatestProcessedCurrentDayReport(SEB, account.iban(), day)
+        .flatMap(
+            message ->
+                statementOf(message)
+                    .bookedBalance()
+                    .map(amount -> new FetchedBalance(amount, message.getReceivedAt())));
   }
 
   @Override

@@ -29,6 +29,7 @@ public class TransactionPreparationService {
   private final TransactionOrderFactory orderFactory;
   private final SettlementTimingWarningService settlementTimingWarningService;
   private final TradePrepInputGates inputGates;
+  private final SameDayCashReader sameDayCashReader;
   private final Clock clock;
 
   @Transactional(isolation = REPEATABLE_READ)
@@ -74,6 +75,7 @@ public class TransactionPreparationService {
                   TransactionCommandPayloads.completed(
                       command,
                       gates,
+                      sameDayCashReader.read(command.getFund(), command.getCash()),
                       input,
                       result,
                       calculated,

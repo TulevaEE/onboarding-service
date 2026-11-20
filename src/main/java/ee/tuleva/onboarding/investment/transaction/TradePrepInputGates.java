@@ -26,7 +26,6 @@ class TradePrepInputGates {
   private final R16OutflowReader r16OutflowReader;
   private final TradePrepPriceGate priceGate;
   private final TradePrepPositionGate positionGate;
-  private final TradePrepCashGate cashGate;
   private final TradePrepPevaRavaGate pevaRavaGate;
 
   GateCheck verify(TransactionCommand command) {
@@ -62,8 +61,7 @@ class TradePrepInputGates {
                         positionReport,
                         r45(fund, asOfDate),
                         pevaRavaGate.missingReports(fund, asOfDate),
-                        r16OutflowReader.missingR16(fund, asOfDate),
-                        cashGate.missingSameDayCash(fund, overrides))
+                        r16OutflowReader.missingR16(fund, asOfDate))
                     .flatMap(Optional::stream),
                 prices.failures().stream(),
                 holdings.stream().flatMap(check -> check.failures().stream()))

@@ -56,6 +56,7 @@ final class TransactionCommandPayloads {
   static Map<String, Object> completed(
       TransactionCommand command,
       GateCheck gates,
+      CashSourceReport cash,
       FundTransactionInput input,
       FundCalculationResult result,
       CalculatedOrders calculated,
@@ -65,6 +66,7 @@ final class TransactionCommandPayloads {
     payload.put(
         "input", TransactionInputPayloads.serializeInput(input, command.getManualAdjustments()));
     putIfPresent(payload, "cashComment", command.getCashComment());
+    payload.put("cash", cash.payload());
     putExcludeIsins(payload, command);
     if (!gates.priceOverrides().isEmpty()) {
       payload.put("priceOverrides", priceOverrides(gates.priceOverrides()));

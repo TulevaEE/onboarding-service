@@ -16,92 +16,58 @@ import org.junit.jupiter.api.Test;
 
 class RebalanceWindowTest {
 
-  private static final LocalDate EFFECTIVE = LocalDate.of(2026, 10, 1);
-  private static final RebalanceDeadlines DEADLINES =
-      new RebalanceDeadlines(
-          LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 1), LocalDate.of(2027, 1, 4));
-  private static final Set<String> NO_TRADES = Set.of();
-  private static final Set<String> A_TRADE = Set.of("NEW_WORLD");
+  private static final LocalDate EFFECTIVE = LocalDate.of(2026, 9, 1);
+  private static final LocalDate DEADLINE = LocalDate.of(2026, 12, 1);
+  private static final LocalDate WARNING_FROM = LocalDate.of(2026, 11, 16);
 
   @Test
-  void inTheFirstMonthWithoutAnInLineNav_isInfoWhetherOrNotThereAreTrades() {
-    assertThat(window(LocalDate.of(2026, 10, 31), NO_TRADES, null).state()).isEqualTo(INFO);
-    assertThat(window(LocalDate.of(2026, 10, 31), A_TRADE, null).state()).isEqualTo(INFO);
+  void beforeTheWarningPeriod_isInfo() {
+    assertThat(window(EFFECTIVE, null).state()).isEqualTo(INFO);
+    assertThat(window(LocalDate.of(2026, 11, 15), null).state()).isEqualTo(INFO);
   }
 
   @Test
-  void
-      onTheTradesDueDateItself_isStillInfoAndFromTheDayAfterWithoutATrade_isWarningUntilATradeClearsIt() {
-    assertThat(window(LocalDate.of(2026, 11, 1), NO_TRADES, null).state()).isEqualTo(INFO);
-    assertThat(window(LocalDate.of(2026, 11, 2), NO_TRADES, null).state()).isEqualTo(WARNING);
-    assertThat(window(LocalDate.of(2026, 11, 30), NO_TRADES, null).state()).isEqualTo(WARNING);
-    assertThat(window(LocalDate.of(2026, 11, 2), A_TRADE, null).state()).isEqualTo(INFO);
+  void fromTheFirstWarningDayUpToAndIncludingTheDeadline_isWarning() {
+    assertThat(window(WARNING_FROM, null).state()).isEqualTo(WARNING);
+    assertThat(window(DEADLINE, null).state()).isEqualTo(WARNING);
   }
 
   @Test
-  void
-      onTheInLineDueDateItself_isNotYetFailAndFromTheDayAfterWithoutAnInLineNav_failsWithOrWithoutTrades() {
-    assertThat(window(LocalDate.of(2026, 12, 1), A_TRADE, null).state()).isEqualTo(INFO);
-    assertThat(window(LocalDate.of(2026, 12, 1), NO_TRADES, null).state()).isEqualTo(WARNING);
-    assertThat(window(LocalDate.of(2026, 12, 2), NO_TRADES, null).state()).isEqualTo(FAIL);
-    assertThat(window(LocalDate.of(2027, 3, 1), A_TRADE, null).state()).isEqualTo(FAIL);
+  void fromTheDayAfterTheDeadline_isFailUntilClosed() {
+    assertThat(window(DEADLINE.plusDays(1), null).state()).isEqualTo(FAIL);
+    assertThat(window(LocalDate.of(2027, 3, 1), null).state()).isEqualTo(FAIL);
   }
 
   @Test
-  void anInLineNavSinceTheEffectiveDate_closesTheWindowAtAnyTimeAndWithoutTrades() {
-    var inLineSince = LocalDate.of(2026, 10, 2);
+  void anInLineNavSinceTheEffectiveDate_closesTheWindowWhateverTheDate() {
+    var inLineSince = LocalDate.of(2026, 9, 2);
 
-    assertThat(window(LocalDate.of(2026, 10, 5), NO_TRADES, inLineSince).state()).isEqualTo(OK);
-    assertThat(window(LocalDate.of(2027, 3, 1), NO_TRADES, inLineSince).state()).isEqualTo(OK);
-    assertThat(window(LocalDate.of(2026, 10, 5), NO_TRADES, inLineSince).inLine()).isTrue();
-    assertThat(window(LocalDate.of(2026, 10, 5), NO_TRADES, null).inLine()).isFalse();
+    assertThat(window(LocalDate.of(2026, 9, 3), inLineSince).state()).isEqualTo(OK);
+    assertThat(window(WARNING_FROM, inLineSince).state()).isEqualTo(OK);
+    assertThat(window(LocalDate.of(2027, 3, 1), inLineSince).state()).isEqualTo(OK);
+    assertThat(window(LocalDate.of(2027, 3, 1), inLineSince).closedOn()).contains(inLineSince);
+    assertThat(window(LocalDate.of(2027, 3, 1), null).closedOn()).isEmpty();
   }
 
   @Test
-  void theWindowIsClosedOnTheFirstInLineNavWhicheverNavIsTheLatest() {
-    var closing = LocalDate.of(2026, 10, 30);
+  void countsDaysFromTheEffectiveDateAndUntilTheDeadline() {
+    var window = window(LocalDate.of(2026, 10, 1), null);
 
-    assertThat(window(closing, closing).closedOn()).contains(closing);
-    assertThat(window(closing, LocalDate.of(2026, 11, 2)).closedOn()).contains(closing);
-    assertThat(window(null, closing).closedOn()).isEmpty();
+    assertThat(window.daysSinceModelEffectiveDate()).isEqualTo(30);
+    assertThat(window.daysUntilDeadline()).isEqualTo(61);
   }
 
-  @Test
-  void countsDaysFromTheEffectiveDateAndUntilTheInLineDueDate() {
-    var window = window(LocalDate.of(2026, 10, 5), NO_TRADES, null);
-
-    assertThat(window.daysSinceModelEffectiveDate()).isEqualTo(4);
-    assertThat(window.daysUntilInLineDue()).isEqualTo(57);
-    assertThat(window.tradesDone()).isFalse();
-    assertThat(window(LocalDate.of(2026, 10, 5), A_TRADE, null).tradesDone()).isTrue();
-  }
-
-  private static RebalanceWindow window(
-      LocalDate checkDate, Set<String> tradedIsins, @Nullable LocalDate inLineSince) {
+  private static RebalanceWindow window(LocalDate checkDate, @Nullable LocalDate inLineSince) {
     return new RebalanceWindow(
         TUV100,
         EFFECTIVE,
         checkDate,
         new BigDecimal("0.05"),
         Set.of("WORLD", "NEW_WORLD"),
-        tradedIsins,
         null,
         List.of(),
         inLineSince,
-        DEADLINES);
-  }
-
-  private static RebalanceWindow window(@Nullable LocalDate inLineSince, LocalDate latestNavDate) {
-    return new RebalanceWindow(
-        TUV100,
-        EFFECTIVE,
-        latestNavDate.plusDays(3),
-        new BigDecimal("0.05"),
-        Set.of("WORLD", "NEW_WORLD"),
-        NO_TRADES,
-        latestNavDate,
-        List.of(),
-        inLineSince,
-        DEADLINES);
+        DEADLINE,
+        WARNING_FROM);
   }
 }

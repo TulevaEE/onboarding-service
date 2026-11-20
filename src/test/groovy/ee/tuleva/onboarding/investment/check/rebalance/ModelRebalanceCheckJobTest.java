@@ -178,7 +178,7 @@ class ModelRebalanceCheckJobTest {
     then(notificationService)
         .should(inOrder)
         .sendMessage(
-            startsWith("⚠️ TUV100 mudelportfell alates 01.10.2026"), eq(INVESTMENT), eq(WARNING));
+            startsWith("⚠️ TUV100 mudelportfell alates 03.08.2026"), eq(INVESTMENT), eq(WARNING));
     then(announcements).should().recordClose(closedWindow(), MONDAY_RUN);
   }
 
@@ -196,7 +196,7 @@ class ModelRebalanceCheckJobTest {
     then(notificationService)
         .should(inOrder)
         .sendMessage(
-            startsWith("⏹ TUV100 mudelportfell alates 01.10.2026: asendatud mudeliga alates"),
+            startsWith("⏹ TUV100 mudelportfell alates 03.08.2026: asendatud mudeliga alates"),
             eq(INVESTMENT),
             eq(INFO));
     then(announcements).should(inOrder).recordClose(warningWindow(), MONDAY_RUN);
@@ -228,26 +228,24 @@ class ModelRebalanceCheckJobTest {
         LocalDate.of(2026, 9, 30),
         new BigDecimal("0.05"),
         Set.of("IE00BFG1TM61"),
-        Set.of("IE00BFG1TM61"),
         LocalDate.of(2026, 9, 29),
         List.of(),
         LocalDate.of(2026, 9, 29),
-        new RebalanceDeadlines(
-            LocalDate.of(2026, 7, 1), LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1)));
+        LocalDate.of(2026, 9, 1),
+        LocalDate.of(2026, 8, 17));
   }
 
   private static RebalanceWindow warningWindow() {
     return new RebalanceWindow(
         TUV100,
-        LocalDate.of(2026, 10, 1),
+        LocalDate.of(2026, 8, 3),
         MONDAY,
         new BigDecimal("0.05"),
         Set.of("IE00BFG1TM61"),
-        Set.of(),
         null,
         List.of(),
         null,
-        new RebalanceDeadlines(
-            LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 1), LocalDate.of(2027, 1, 4)));
+        LocalDate.of(2026, 11, 3),
+        LocalDate.of(2026, 10, 19));
   }
 }

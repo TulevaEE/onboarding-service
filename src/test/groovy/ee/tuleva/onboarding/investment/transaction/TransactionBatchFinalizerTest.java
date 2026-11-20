@@ -460,7 +460,7 @@ class TransactionBatchFinalizerTest {
         .willReturn(List.of(etfOrderWithoutQuantity));
 
     assertThatThrownBy(() -> finalizer.finalizeConfirmedBatch(batch))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(TransactionBatchRefusedException.class);
 
     assertThat(batch.getStatus()).isEqualTo(CONFIRMED);
     verifyNoInteractions(exportService);

@@ -11,6 +11,8 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationReposit
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPrices;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoCommonPriceDate;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPricing.FreshestPerInstrument;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPricing.OnCommonDate;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,9 +20,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -50,64 +52,76 @@ class TradePrepPriceGate {
             .filter(isin -> !overrides.excludedIsins().contains(isin))
             .filter(isin -> !indexPrices.containsKey(isin) && !manual.prices(isin))
             .toList();
+    List<UsedPriceOverride> uses = manual.uses(overrides.excludedIsins(), indexPrices);
+    Map<String, ResolvedPrice> unmanuallyPriced = withoutManual(indexPrices, manual);
     if (!unpriced.isEmpty()) {
-      return checked(new MissingPrices(unpriced), manual, overrides, indexPrices);
+      return new PriceCheck(
+          Optional.of(new MissingPrices(unpriced)),
+          new FreshestPerInstrument(manual.withIndexPrices(unmanuallyPriced)),
+          uses);
     }
     if (overrides.priceDateRule() == PriceDateRule.FRESHEST_PER_INSTRUMENT) {
-      return passed(null, manual, overrides, indexPrices);
+      return new PriceCheck(
+          Optional.empty(),
+          new FreshestPerInstrument(manual.withIndexPrices(unmanuallyPriced)),
+          uses);
     }
-    return latestCommonDate(
-            indexPrices.keySet().stream().filter(isin -> !manual.prices(isin)).toList(), asOfDate)
-        .map(date -> passed(date, manual, overrides, indexPrices))
+    return latestCommonDate(unmanuallyPriced, asOfDate)
+        .map(
+            common ->
+                new PriceCheck(
+                    Optional.empty(),
+                    new OnCommonDate(manual.withIndexPrices(common.prices()), common.date()),
+                    uses))
         .orElseGet(
             () ->
-                checked(
-                    new NoCommonPriceDate(asOfDate.minusDays(MAX_LOOKBACK_DAYS), asOfDate),
-                    manual,
-                    overrides,
-                    indexPrices));
+                new PriceCheck(
+                    Optional.of(
+                        new NoCommonPriceDate(asOfDate.minusDays(MAX_LOOKBACK_DAYS), asOfDate)),
+                    new FreshestPerInstrument(manual.withIndexPrices(unmanuallyPriced)),
+                    uses));
   }
 
-  private static PriceCheck checked(
-      InputGateFailure failure,
-      ManualPrices manual,
-      TradePrepOverrides overrides,
-      Map<String, ResolvedPrice> indexPrices) {
-    return new PriceCheck(
-        Optional.of(failure),
-        manual.pricing(null),
-        manual.uses(overrides.excludedIsins(), indexPrices));
-  }
+  private record CommonDatePrices(LocalDate date, Map<String, ResolvedPrice> prices) {}
 
-  private static PriceCheck passed(
-      @Nullable LocalDate priceDate,
-      ManualPrices manual,
-      TradePrepOverrides overrides,
-      Map<String, ResolvedPrice> indexPrices) {
-    return new PriceCheck(
-        Optional.empty(),
-        manual.pricing(priceDate),
-        manual.uses(overrides.excludedIsins(), indexPrices));
-  }
-
-  private Optional<LocalDate> latestCommonDate(List<String> isins, LocalDate asOfDate) {
+  private Optional<CommonDatePrices> latestCommonDate(
+      Map<String, ResolvedPrice> atAsOfDate, LocalDate asOfDate) {
     LocalDate earliestAllowed = asOfDate.minusDays(MAX_LOOKBACK_DAYS);
-    LocalDate candidate = asOfDate;
-    while (!candidate.isBefore(earliestAllowed)) {
-      LocalDate day = candidate;
-      List<Optional<LocalDate>> priceDates =
-          isins.stream().map(isin -> indexPrice(isin, day).map(ResolvedPrice::priceDate)).toList();
-      if (priceDates.stream().anyMatch(Optional::isEmpty)) {
+    Map<String, ResolvedPrice> prices = atAsOfDate;
+    LocalDate latestPossible = asOfDate;
+    while (true) {
+      LocalDate earliestPriceDate =
+          prices.values().stream()
+              .map(ResolvedPrice::priceDate)
+              .min(naturalOrder())
+              .orElse(latestPossible);
+      if (earliestPriceDate.isBefore(earliestAllowed)) {
         return Optional.empty();
       }
-      LocalDate earliestPriceDate =
-          priceDates.stream().map(Optional::orElseThrow).min(naturalOrder()).orElse(day);
-      if (earliestPriceDate.equals(day)) {
-        return Optional.of(day);
+      LocalDate day = earliestPriceDate;
+      if (prices.values().stream().allMatch(price -> day.equals(price.priceDate()))) {
+        return Optional.of(new CommonDatePrices(day, prices));
       }
-      candidate = earliestPriceDate;
+      Map<String, ResolvedPrice> onOrBefore = pricesOnOrBefore(prices.keySet(), day);
+      if (onOrBefore.size() < prices.size()) {
+        return Optional.empty();
+      }
+      prices = onOrBefore;
+      latestPossible = day;
     }
-    return Optional.empty();
+  }
+
+  private Map<String, ResolvedPrice> pricesOnOrBefore(Set<String> isins, LocalDate day) {
+    return isins.stream()
+        .flatMap(isin -> indexPrice(isin, day).map(price -> Map.entry(isin, price)).stream())
+        .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
+  }
+
+  private static Map<String, ResolvedPrice> withoutManual(
+      Map<String, ResolvedPrice> indexPrices, ManualPrices manual) {
+    return indexPrices.entrySet().stream()
+        .filter(entry -> !manual.prices(entry.getKey()))
+        .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
   private Stream<String> heldIsins(TulevaFund fund, LocalDate asOfDate) {

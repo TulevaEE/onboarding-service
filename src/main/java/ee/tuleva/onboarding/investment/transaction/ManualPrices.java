@@ -1,17 +1,15 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static java.util.stream.Collectors.toUnmodifiableMap;
-
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.ManualPrice;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
-import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 @NullMarked
 record ManualPrices(List<PriceOverride> overrides) {
@@ -44,10 +42,11 @@ record ManualPrices(List<PriceOverride> overrides) {
     return overrides.stream().anyMatch(override -> override.isin().equals(isin));
   }
 
-  TradePrepPricing pricing(@Nullable LocalDate priceDate) {
-    Map<String, BigDecimal> byIsin =
-        overrides.stream().collect(toUnmodifiableMap(PriceOverride::isin, PriceOverride::price));
-    return new TradePrepPricing(byIsin, priceDate);
+  Map<String, TradePrepPrice> withIndexPrices(Map<String, ResolvedPrice> indexPrices) {
+    Map<String, TradePrepPrice> prices = new HashMap<>();
+    indexPrices.forEach((isin, price) -> prices.put(isin, new IndexPrice(price)));
+    overrides.forEach(override -> prices.put(override.isin(), new ManualPrice(override)));
+    return Map.copyOf(prices);
   }
 
   List<UsedPriceOverride> uses(Set<String> excludedIsins, Map<String, ResolvedPrice> indexPrices) {

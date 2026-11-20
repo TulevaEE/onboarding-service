@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.EPIS;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
 import static ee.tuleva.onboarding.investment.transaction.TradePrepOverridesFixture.noOverrides;
+import static ee.tuleva.onboarding.investment.transaction.TradePrepPricingFixture.noResolvedPrices;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.util.stream.Collectors.joining;
@@ -127,7 +128,7 @@ class TradePrepSnapshotIT {
   @Test
   void aSameDayR45ReuploadDuringTradePrepDoesNotMixItsVersions() {
     given(priceGate.check(any(), any(), any()))
-        .willReturn(new PriceCheck(Optional.empty(), TradePrepPricing.freshest(), List.of()));
+        .willReturn(new PriceCheck(Optional.empty(), noResolvedPrices(), List.of()));
     given(positionGate.check(any(), any(), any()))
         .willReturn(new PositionCheck(List.of(), List.of()));
     committed(

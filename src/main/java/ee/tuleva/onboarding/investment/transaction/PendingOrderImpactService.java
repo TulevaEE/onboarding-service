@@ -222,7 +222,7 @@ class PendingOrderImpactService {
   private BigDecimal latestPrice(String isin, LocalDate date, TradePrepPricing pricing) {
     return pricing
         .resolve(positionPriceResolver, isin, date)
-        .map(resolved -> resolved.usedPrice())
+        .map(TradePrepPrice::value)
         .filter(price -> price != null && price.signum() > 0)
         .orElse(null);
   }

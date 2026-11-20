@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.report.ReportType.R17_PEVA;
 import static ee.tuleva.onboarding.investment.report.ReportType.R21_RAVA;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
 import static ee.tuleva.onboarding.investment.transaction.TradePrepOverridesFixture.noOverrides;
+import static ee.tuleva.onboarding.investment.transaction.TradePrepPricingFixture.noResolvedPrices;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
@@ -128,7 +129,7 @@ class TradePrepInputGatesIT {
   @BeforeEach
   void startFromNoStoredReportsOrPositions() {
     given(priceGate.check(any(), any(), any()))
-        .willReturn(new PriceCheck(Optional.empty(), TradePrepPricing.freshest(), List.of()));
+        .willReturn(new PriceCheck(Optional.empty(), noResolvedPrices(), List.of()));
     given(positionGate.check(any(), any(), any()))
         .willReturn(new PositionCheck(List.of(), List.of()));
     summaryRepository.deleteAll();
@@ -177,8 +178,7 @@ class TradePrepInputGatesIT {
     var mismatch =
         new HoldingMismatch("IE0009FT4LX4", TUESDAY, new BigDecimal("1000"), new BigDecimal("990"));
     given(priceGate.check(TUK75, WEDNESDAY, noOverrides()))
-        .willReturn(
-            new PriceCheck(Optional.of(missingPrices), TradePrepPricing.freshest(), List.of()));
+        .willReturn(new PriceCheck(Optional.of(missingPrices), noResolvedPrices(), List.of()));
     given(positionGate.check(TUK75, TUESDAY, noOverrides()))
         .willReturn(new PositionCheck(List.of(mismatch), List.of()));
 

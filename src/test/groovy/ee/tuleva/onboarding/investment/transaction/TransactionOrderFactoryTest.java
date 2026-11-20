@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.transaction.TradePrepPricingFixture.noResolvedPrices;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -8,6 +9,9 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.ManualPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPricing.FreshestPerInstrument;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -65,6 +69,57 @@ class TransactionOrderFactoryTest {
   }
 
   @Test
+  void createOrders_sizesWithThePriceTheGateResolvedWithoutResolvingItAgain() {
+    var input = inputWith(Map.of("IE00ETF", InstrumentType.ETF), Map.of("IE00ETF", OrderVenue.FT));
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00ETF", new BigDecimal("50000"), new BigDecimal("0.10"), LimitStatus.OK));
+    var gatePrice =
+        new IndexPrice(
+            ResolvedPrice.builder()
+                .usedPrice(new BigDecimal("100.00"))
+                .priceDate(AS_OF_DATE)
+                .build());
+
+    var calculated =
+        factory.createOrders(
+            batch(),
+            resultWith(input, trades),
+            AS_OF_DATE,
+            CREATED_AT,
+            new FreshestPerInstrument(Map.of("IE00ETF", gatePrice)));
+
+    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("500.000000");
+    assertThat(calculated.priceResolutions()).containsEntry("IE00ETF", gatePrice);
+    verifyNoInteractions(positionPriceResolver);
+  }
+
+  @Test
+  void createOrders_sizesWithAManualPriceAndKeepsItMarkedAsManual() {
+    var input = inputWith(Map.of("IE00ETF", InstrumentType.ETF), Map.of("IE00ETF", OrderVenue.FT));
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00ETF", new BigDecimal("50000"), new BigDecimal("0.10"), LimitStatus.OK));
+    var manual =
+        new ManualPrice(new PriceOverride("IE00ETF", new BigDecimal("125"), "Issuer's NAV"));
+
+    var calculated =
+        factory.createOrders(
+            batch(),
+            resultWith(input, trades),
+            AS_OF_DATE,
+            CREATED_AT,
+            new FreshestPerInstrument(Map.of("IE00ETF", manual)));
+
+    var order = calculated.orders().get(0);
+    assertThat(order.getOrderQuantity()).isEqualByComparingTo("400.000000");
+    assertThat(order.getComment()).isNull();
+    assertThat(calculated.priceResolutions()).containsEntry("IE00ETF", manual);
+  }
+
+  @Test
   void createOrders_buyWithResolvedPrice_computesQuantityAndUsesConfiguredVenue() {
     var input = inputWith(Map.of("IE00ETF", InstrumentType.ETF), Map.of("IE00ETF", OrderVenue.FT));
     var trades =
@@ -78,11 +133,7 @@ class TransactionOrderFactoryTest {
 
     var calculated =
         factory.createOrders(
-            batch(),
-            resultWith(input, trades),
-            AS_OF_DATE,
-            CREATED_AT,
-            TradePrepPricing.freshest());
+            batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT, noResolvedPrices());
 
     assertThat(calculated.orders()).hasSize(1);
     var order = calculated.orders().get(0);
@@ -93,7 +144,8 @@ class TransactionOrderFactoryTest {
     assertThat(order.getOrderVenue()).isEqualTo(OrderVenue.FT);
     assertThat(order.getComment()).isNull();
     assertThat(order.getCreatedAt()).isEqualTo(CREATED_AT);
-    assertThat(calculated.priceResolutions()).containsEntry("IE00ETF", resolvedPrice);
+    assertThat(calculated.priceResolutions())
+        .containsEntry("IE00ETF", new IndexPrice(resolvedPrice));
   }
 
   @Test
@@ -107,11 +159,7 @@ class TransactionOrderFactoryTest {
 
     var calculated =
         factory.createOrders(
-            batch(),
-            resultWith(input, trades),
-            AS_OF_DATE,
-            CREATED_AT,
-            TradePrepPricing.freshest());
+            batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT, noResolvedPrices());
 
     var order = calculated.orders().get(0);
     assertThat(order.getTransactionType()).isEqualTo(TransactionType.SELL);
@@ -133,11 +181,7 @@ class TransactionOrderFactoryTest {
 
     var calculated =
         factory.createOrders(
-            batch(),
-            resultWith(input, trades),
-            AS_OF_DATE,
-            CREATED_AT,
-            TradePrepPricing.freshest());
+            batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT, noResolvedPrices());
 
     assertThat(calculated.orders())
         .extracting(TransactionOrder::getInstrumentIsin)
@@ -155,11 +199,7 @@ class TransactionOrderFactoryTest {
 
     var calculated =
         factory.createOrders(
-            batch(),
-            resultWith(input, trades),
-            AS_OF_DATE,
-            CREATED_AT,
-            TradePrepPricing.freshest());
+            batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT, noResolvedPrices());
 
     var order = calculated.orders().get(0);
     assertThat(order.getOrderQuantity()).isNull();
@@ -179,11 +219,7 @@ class TransactionOrderFactoryTest {
 
     var calculated =
         factory.createOrders(
-            batch(),
-            resultWith(input, trades),
-            AS_OF_DATE,
-            CREATED_AT,
-            TradePrepPricing.freshest());
+            batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT, noResolvedPrices());
 
     var order = calculated.orders().get(0);
     assertThat(order.getOrderQuantity()).isNull();
@@ -203,15 +239,12 @@ class TransactionOrderFactoryTest {
 
     var calculated =
         factory.createOrders(
-            batch(),
-            resultWith(input, trades),
-            AS_OF_DATE,
-            CREATED_AT,
-            TradePrepPricing.freshest());
+            batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT, noResolvedPrices());
 
     var order = calculated.orders().get(0);
     assertThat(order.getOrderQuantity()).isNull();
-    assertThat(calculated.priceResolutions()).containsEntry("IE00ETF", resolvedPrice);
+    assertThat(calculated.priceResolutions())
+        .containsEntry("IE00ETF", new IndexPrice(resolvedPrice));
   }
 
   @Test
@@ -228,11 +261,7 @@ class TransactionOrderFactoryTest {
 
     var calculated =
         factory.createOrders(
-            batch(),
-            resultWith(input, trades),
-            AS_OF_DATE,
-            CREATED_AT,
-            TradePrepPricing.freshest());
+            batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT, noResolvedPrices());
 
     assertThat(calculated.orders().get(0).getOrderQuantity()).isNull();
   }
@@ -255,11 +284,7 @@ class TransactionOrderFactoryTest {
 
     var calculated =
         factory.createOrders(
-            batch(),
-            resultWith(input, trades),
-            AS_OF_DATE,
-            CREATED_AT,
-            TradePrepPricing.freshest());
+            batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT, noResolvedPrices());
 
     assertThat(calculated.orders().get(0).getComment())
         .isEqualTo(
@@ -284,11 +309,7 @@ class TransactionOrderFactoryTest {
 
     var calculated =
         factory.createOrders(
-            batch(),
-            resultWith(input, trades),
-            AS_OF_DATE,
-            CREATED_AT,
-            TradePrepPricing.freshest());
+            batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT, noResolvedPrices());
 
     assertThat(calculated.orders().get(0).getComment()).isNull();
   }

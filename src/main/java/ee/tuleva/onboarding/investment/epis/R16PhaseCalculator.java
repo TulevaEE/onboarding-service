@@ -39,6 +39,14 @@ public class R16PhaseCalculator {
         fund, dates, asOfDate, () -> r45ReportService.getRedRowSettlementDatesOn(TUV100, asOfDate));
   }
 
+  public boolean isCoveredByTheTradeDaysR45(
+      TulevaFund fund, R16PaymentDates dates, LocalDate asOfDate) {
+    return isSuppressedByR45(
+        fund,
+        dates.paymentMonth(),
+        () -> r45ReportService.getRedRowSettlementDatesOn(TUV100, asOfDate));
+  }
+
   public boolean knowsTradePrepPhaseOf(TulevaFund fund, LocalDate asOfDate) {
     return fund != TUV100 || r45ReportService.hasReportOn(asOfDate);
   }

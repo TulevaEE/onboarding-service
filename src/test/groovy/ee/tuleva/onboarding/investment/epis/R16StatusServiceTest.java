@@ -76,6 +76,8 @@ class R16StatusServiceTest {
         new BigDecimal("1200"),
         LocalDate.of(2026, 6, 1),
         LocalDate.of(2026, 6, 15),
-        LocalDate.of(2026, 6, 8));
+        LocalDate.of(2026, 6, 8),
+        new BigDecimal("800"),
+        new BigDecimal("400"));
   }
 }

@@ -33,6 +33,7 @@ import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
+import ee.tuleva.onboarding.ledger.RegistrarCashFlowRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -66,6 +67,7 @@ import org.springframework.transaction.support.TransactionTemplate;
   TradePrepPevaRavaGate.class,
   TradePrepInputGateNotifier.class,
   R16OutflowReader.class,
+  RegistrarCashFlowRepository.class,
   R16FlowCalculationService.class,
   R16PhaseCalculator.class,
   R45ReportService.class,

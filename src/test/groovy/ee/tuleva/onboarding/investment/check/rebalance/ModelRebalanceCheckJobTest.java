@@ -231,7 +231,8 @@ class ModelRebalanceCheckJobTest {
         RebalanceClosure.byAnInLineNav(LocalDate.of(2026, 9, 29)),
         null,
         LocalDate.of(2026, 9, 1),
-        LocalDate.of(2026, 8, 17));
+        LocalDate.of(2026, 8, 17),
+        LocalDate.of(2026, 9, 3));
   }
 
   private static RebalanceWindow warningWindow() {
@@ -245,6 +246,7 @@ class ModelRebalanceCheckJobTest {
         null,
         null,
         LocalDate.of(2026, 11, 3),
-        LocalDate.of(2026, 10, 19));
+        LocalDate.of(2026, 10, 19),
+        LocalDate.of(2026, 11, 5));
   }
 }

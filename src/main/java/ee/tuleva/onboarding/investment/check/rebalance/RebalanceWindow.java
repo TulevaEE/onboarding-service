@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.rebalance;
 
+import static ee.tuleva.onboarding.investment.check.rebalance.RebalanceState.AWAITING_EXECUTION;
 import static ee.tuleva.onboarding.investment.check.rebalance.RebalanceState.FAIL;
 import static ee.tuleva.onboarding.investment.check.rebalance.RebalanceState.INFO;
 import static ee.tuleva.onboarding.investment.check.rebalance.RebalanceState.OK;
@@ -23,14 +24,15 @@ public record RebalanceWindow(
     @Nullable RebalanceClosure closure,
     @Nullable LocalDate rebalanceOrdersSentOn,
     LocalDate deadline,
-    LocalDate warningFrom) {
+    LocalDate warningFrom,
+    LocalDate awaitingExecutionUntil) {
 
   public RebalanceState state() {
     if (closed()) {
       return OK;
     }
     if (deadlinePassed()) {
-      return rebalanceOrdersSentByTheDeadlineAwaitExecution() ? WARNING : FAIL;
+      return rebalanceOrdersSentByTheDeadlineStillAwaitExecution() ? AWAITING_EXECUTION : FAIL;
     }
     if (!checkDate.isBefore(warningFrom)) {
       return WARNING;
@@ -46,12 +48,14 @@ public record RebalanceWindow(
     return Optional.ofNullable(closure).map(RebalanceClosure::on);
   }
 
-  public boolean deadlinePassed() {
+  private boolean deadlinePassed() {
     return checkDate.isAfter(deadline);
   }
 
-  private boolean rebalanceOrdersSentByTheDeadlineAwaitExecution() {
-    return rebalanceOrdersSentOn != null && !rebalanceOrdersSentOn.isAfter(deadline);
+  private boolean rebalanceOrdersSentByTheDeadlineStillAwaitExecution() {
+    return rebalanceOrdersSentOn != null
+        && !rebalanceOrdersSentOn.isAfter(deadline)
+        && !checkDate.isAfter(awaitingExecutionUntil);
   }
 
   public long daysUntilDeadline() {

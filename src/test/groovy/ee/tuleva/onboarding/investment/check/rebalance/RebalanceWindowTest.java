@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.rebalance;
 
+import static ee.tuleva.onboarding.investment.check.rebalance.RebalanceState.AWAITING_EXECUTION;
 import static ee.tuleva.onboarding.investment.check.rebalance.RebalanceState.FAIL;
 import static ee.tuleva.onboarding.investment.check.rebalance.RebalanceState.INFO;
 import static ee.tuleva.onboarding.investment.check.rebalance.RebalanceState.OK;
@@ -18,6 +19,7 @@ class RebalanceWindowTest {
   private static final LocalDate EFFECTIVE = LocalDate.of(2026, 9, 1);
   private static final LocalDate DEADLINE = LocalDate.of(2026, 12, 1);
   private static final LocalDate WARNING_FROM = LocalDate.of(2026, 11, 16);
+  private static final LocalDate AWAITING_EXECUTION_UNTIL = LocalDate.of(2026, 12, 3);
 
   @Test
   void beforeTheWarningPeriod_isInfo() {
@@ -38,9 +40,12 @@ class RebalanceWindowTest {
   }
 
   @Test
-  void pastTheDeadlineRebalanceOrdersSentByTheDeadlineAwaitingExecution_keepItAWarning() {
-    assertThat(window(DEADLINE.plusDays(1), null, DEADLINE).state()).isEqualTo(WARNING);
-    assertThat(window(DEADLINE.plusDays(1), null, WARNING_FROM).state()).isEqualTo(WARNING);
+  void pastTheDeadlineRebalanceOrdersSentByItAwaitExecutionUntilTheGraceEnds_thenItFails() {
+    assertThat(window(DEADLINE.plusDays(1), null, DEADLINE).state()).isEqualTo(AWAITING_EXECUTION);
+    assertThat(window(AWAITING_EXECUTION_UNTIL, null, WARNING_FROM).state())
+        .isEqualTo(AWAITING_EXECUTION);
+    assertThat(window(AWAITING_EXECUTION_UNTIL.plusDays(1), null, DEADLINE).state())
+        .isEqualTo(FAIL);
   }
 
   @Test
@@ -91,6 +96,7 @@ class RebalanceWindowTest {
         closure,
         rebalanceOrdersSentOn,
         DEADLINE,
-        WARNING_FROM);
+        WARNING_FROM,
+        AWAITING_EXECUTION_UNTIL);
   }
 }

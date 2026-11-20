@@ -34,6 +34,7 @@ class TransactionAdminService {
   private final TransactionOrderRepository orderRepository;
   private final TransactionAuditEventRepository auditEventRepository;
   private final TransactionBatchFinalizer batchFinalizer;
+  private final BatchConfirmations batchConfirmations;
   private final Clock clock;
 
   @Nullable
@@ -60,8 +61,16 @@ class TransactionAdminService {
   }
 
   @Transactional
-  TransactionBatchResponse confirmAndFinalize(Long id, String actor) {
+  TransactionBatchResponse giveFirstConfirmation(Long id, Long reviewedVersion, String actor) {
     TransactionBatch batch = draftBatch(id);
+    batchConfirmations.giveFirst(batch, reviewedVersion, actor);
+    return responseOf(batch);
+  }
+
+  @Transactional
+  TransactionBatchResponse confirmAndFinalize(Long id, Long reviewedVersion, String actor) {
+    TransactionBatch batch = draftBatch(id);
+    batchConfirmations.requireAllowedToSend(batch, reviewedVersion, actor);
     log.info("Admin confirmed transaction batch: id={}, actor={}", id, actor);
     batch.setStatus(BatchStatus.CONFIRMED);
     batch.setConfirmedBy(actor);
@@ -215,6 +224,7 @@ class TransactionAdminService {
                 () ->
                     new ResponseStatusException(
                         NOT_FOUND, "Transaction order not found: id=" + orderId));
+    batchConfirmations.lockForOrderTypeChange(order.getBatch());
     if (order.getOrderStatus() != OrderStatus.DRAFT) {
       throw new ResponseStatusException(
           CONFLICT,
@@ -237,7 +247,7 @@ class TransactionAdminService {
     auditEventRepository.save(
         TransactionAuditEvent.builder()
             .orderId(order.getId())
-            .eventType("ORDER_TYPE_CHANGED")
+            .eventType(BatchConfirmations.ORDER_TYPE_CHANGED)
             .actor(actor)
             .createdAt(now)
             .payload(

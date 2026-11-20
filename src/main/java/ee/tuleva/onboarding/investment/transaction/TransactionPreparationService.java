@@ -44,7 +44,8 @@ public class TransactionPreparationService {
           command.getMode());
 
       inputGates.verify(command);
-      input = gatherInput(command);
+      TradePrepPricing pricing = TradePrepPricing.freshest();
+      input = gatherInput(command, pricing);
       input = input.excluding(command.getExcludeIsins());
 
       var result = calculationEngine.calculate(input, command.getMode());
@@ -60,7 +61,8 @@ public class TransactionPreparationService {
       batchRepository.save(batch);
 
       CalculatedOrders calculated =
-          orderFactory.createOrders(batch, result, command.getAsOfDate(), Instant.now(clock));
+          orderFactory.createOrders(
+              batch, result, command.getAsOfDate(), Instant.now(clock), pricing);
       List<TransactionOrder> orders = calculated.orders();
       orderRepository.saveAll(orders);
 
@@ -122,11 +124,11 @@ public class TransactionPreparationService {
             .build());
   }
 
-  private FundTransactionInput gatherInput(TransactionCommand command) {
+  private FundTransactionInput gatherInput(TransactionCommand command, TradePrepPricing pricing) {
     BigDecimal cash = command.getCash();
     if (cash == null) {
       return inputService.gatherInput(
-          command.getFund(), command.getAsOfDate(), command.getManualAdjustments());
+          command.getFund(), command.getAsOfDate(), command.getManualAdjustments(), pricing);
     }
     String comment = command.getCashComment();
     if (comment == null || comment.isBlank()) {
@@ -134,7 +136,7 @@ public class TransactionPreparationService {
           "A cash figure needs a comment saying where it comes from: commandId=" + command.getId());
     }
     return inputService.gatherInput(
-        command.getFund(), command.getAsOfDate(), command.getManualAdjustments(), cash);
+        command.getFund(), command.getAsOfDate(), command.getManualAdjustments(), cash, pricing);
   }
 
   private static String actorOf(TransactionCommand command) {

@@ -84,7 +84,12 @@ class TransactionOrderFactoryTest {
         .willReturn(Optional.of(resolvedPrice));
 
     var calculated =
-        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+        factory.createOrders(
+            batch(),
+            resultWith(input, trades),
+            AS_OF_DATE,
+            CREATED_AT,
+            TradePrepPricing.freshest());
 
     assertThat(calculated.orders()).hasSize(1);
     var order = calculated.orders().get(0);
@@ -306,7 +311,12 @@ class TransactionOrderFactoryTest {
     given(positionPriceResolver.resolve("IE00ETF", AS_OF_DATE)).willReturn(Optional.empty());
 
     var calculated =
-        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+        factory.createOrders(
+            batch(),
+            resultWith(input, trades),
+            AS_OF_DATE,
+            CREATED_AT,
+            TradePrepPricing.freshest());
 
     var order = calculated.orders().get(0);
     assertThat(order.getTransactionType()).isEqualTo(TransactionType.SELL);
@@ -327,7 +337,12 @@ class TransactionOrderFactoryTest {
     given(positionPriceResolver.resolve("IE00B", AS_OF_DATE)).willReturn(Optional.empty());
 
     var calculated =
-        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+        factory.createOrders(
+            batch(),
+            resultWith(input, trades),
+            AS_OF_DATE,
+            CREATED_AT,
+            TradePrepPricing.freshest());
 
     assertThat(calculated.orders())
         .extracting(TransactionOrder::getInstrumentIsin)
@@ -344,7 +359,12 @@ class TransactionOrderFactoryTest {
                 "IE00FUND", new BigDecimal("50000"), new BigDecimal("0.10"), LimitStatus.OK));
 
     var calculated =
-        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+        factory.createOrders(
+            batch(),
+            resultWith(input, trades),
+            AS_OF_DATE,
+            CREATED_AT,
+            TradePrepPricing.freshest());
 
     var order = calculated.orders().get(0);
     assertThat(order.getOrderQuantity()).isNull();
@@ -363,7 +383,12 @@ class TransactionOrderFactoryTest {
     given(positionPriceResolver.resolve("IE00ETF", AS_OF_DATE)).willReturn(Optional.empty());
 
     var calculated =
-        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+        factory.createOrders(
+            batch(),
+            resultWith(input, trades),
+            AS_OF_DATE,
+            CREATED_AT,
+            TradePrepPricing.freshest());
 
     var order = calculated.orders().get(0);
     assertThat(order.getOrderQuantity()).isNull();
@@ -382,7 +407,12 @@ class TransactionOrderFactoryTest {
         .willReturn(Optional.of(resolvedPrice));
 
     var calculated =
-        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+        factory.createOrders(
+            batch(),
+            resultWith(input, trades),
+            AS_OF_DATE,
+            CREATED_AT,
+            TradePrepPricing.freshest());
 
     var order = calculated.orders().get(0);
     assertThat(order.getOrderQuantity()).isNull();
@@ -402,7 +432,12 @@ class TransactionOrderFactoryTest {
         .willReturn(Optional.of(resolvedPrice));
 
     var calculated =
-        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+        factory.createOrders(
+            batch(),
+            resultWith(input, trades),
+            AS_OF_DATE,
+            CREATED_AT,
+            TradePrepPricing.freshest());
 
     assertThat(calculated.orders().get(0).getOrderQuantity()).isNull();
   }
@@ -424,7 +459,12 @@ class TransactionOrderFactoryTest {
         .willReturn(Optional.of(resolvedPrice));
 
     var calculated =
-        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+        factory.createOrders(
+            batch(),
+            resultWith(input, trades),
+            AS_OF_DATE,
+            CREATED_AT,
+            TradePrepPricing.freshest());
 
     assertThat(calculated.orders().get(0).getComment())
         .isEqualTo(
@@ -448,7 +488,12 @@ class TransactionOrderFactoryTest {
         .willReturn(Optional.of(resolvedPrice));
 
     var calculated =
-        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+        factory.createOrders(
+            batch(),
+            resultWith(input, trades),
+            AS_OF_DATE,
+            CREATED_AT,
+            TradePrepPricing.freshest());
 
     assertThat(calculated.orders().get(0).getComment()).isNull();
   }

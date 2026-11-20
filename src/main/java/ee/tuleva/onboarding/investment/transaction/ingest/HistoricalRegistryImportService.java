@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.transaction.SettlementSource.HISTORICAL_IMPORT;
-import static ee.tuleva.onboarding.investment.transaction.TransactionBatch.HISTORICAL_IMPORT_SOURCE;
 import static ee.tuleva.onboarding.investment.transaction.ingest.TransactionExecutionMapper.navDateOfAnEtfFill;
 
 import ee.tuleva.onboarding.investment.transaction.BatchStatus;
@@ -44,6 +43,7 @@ public class HistoricalRegistryImportService {
 
   private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
 
+  static final String SOURCE_HISTORICAL_IMPORT = "HISTORICAL_IMPORT";
   static final String CREATED_BY_HISTORICAL_IMPORT = "historical-import";
 
   private final TransactionBatchRepository batchRepository;
@@ -134,7 +134,7 @@ public class HistoricalRegistryImportService {
             .status(BatchStatus.SENT)
             .metadata(
                 Map.of(
-                    "source", HISTORICAL_IMPORT_SOURCE, "importedAt", clock.instant().toString()))
+                    "source", SOURCE_HISTORICAL_IMPORT, "importedAt", clock.instant().toString()))
             .build());
   }
 
@@ -169,7 +169,7 @@ public class HistoricalRegistryImportService {
         .commissionAmount(row.commissionAmount())
         .scheduledSettlementDate(row.actualSettlementDate())
         .reportedDate(reportedDate(row))
-        .source(HISTORICAL_IMPORT_SOURCE)
+        .source(SOURCE_HISTORICAL_IMPORT)
         .modifiedBy(CREATED_BY_HISTORICAL_IMPORT)
         .build();
   }

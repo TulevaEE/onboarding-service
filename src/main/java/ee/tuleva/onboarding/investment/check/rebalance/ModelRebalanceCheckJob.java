@@ -94,14 +94,13 @@ class ModelRebalanceCheckJob {
   private static void logWindow(RebalanceWindow window) {
     log.info(
         "Model rebalance window: fund={}, modelEffectiveDate={}, checkDate={}, state={},"
-            + " tradesDone={}, inLineSince={}, latestNavDate={}, deadlines={}",
+            + " closedOn={}, latestNavDate={}, deadline={}",
         window.fund(),
         window.modelEffectiveDate(),
         window.checkDate(),
         window.state(),
-        window.tradesDone(),
-        window.inLineSince(),
+        window.closedOn(),
         window.latestNavDate(),
-        window.deadlines());
+        window.deadline());
   }
 }

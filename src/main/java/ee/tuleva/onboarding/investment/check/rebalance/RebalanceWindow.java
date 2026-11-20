@@ -20,20 +20,20 @@ public record RebalanceWindow(
     LocalDate checkDate,
     BigDecimal tolerance,
     Set<String> changedIsins,
-    Set<String> tradedIsins,
     @Nullable LocalDate latestNavDate,
     List<Deviation> outsideToleranceAtLatestNav,
     @Nullable LocalDate inLineSince,
-    RebalanceDeadlines deadlines) {
+    LocalDate deadline,
+    LocalDate warningFrom) {
 
   public RebalanceState state() {
     if (inLine()) {
       return OK;
     }
-    if (checkDate.isAfter(deadlines.inLineDue())) {
+    if (checkDate.isAfter(deadline)) {
       return FAIL;
     }
-    if (checkDate.isAfter(deadlines.tradesDue()) && !tradesDone()) {
+    if (!checkDate.isBefore(warningFrom)) {
       return WARNING;
     }
     return INFO;
@@ -43,19 +43,15 @@ public record RebalanceWindow(
     return inLineSince != null;
   }
 
-  public boolean tradesDone() {
-    return !tradedIsins.isEmpty();
+  public Optional<LocalDate> closedOn() {
+    return Optional.ofNullable(inLineSince);
   }
 
   public long daysSinceModelEffectiveDate() {
     return DAYS.between(modelEffectiveDate, checkDate);
   }
 
-  long daysUntilInLineDue() {
-    return DAYS.between(checkDate, deadlines.inLineDue());
-  }
-
-  public Optional<LocalDate> closedOn() {
-    return Optional.ofNullable(inLineSince);
+  public long daysUntilDeadline() {
+    return DAYS.between(checkDate, deadline);
   }
 }

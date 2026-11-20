@@ -67,7 +67,9 @@ class SameDayCashReader {
         .map(
             account ->
                 switch (bankStatementBalances.currentDayReport(account, today)) {
-                  case Booked booked -> new CurrentDayBalance(booked.balance(), booked.fetchedAt());
+                  case Booked booked ->
+                      new CurrentDayBalance(
+                          booked.balance(), booked.fetchedAt(), booked.pendingEntryReferences());
                   case Missing _ -> new NoCurrentDayReportToday();
                   case CurrentDayReport.NoBookedBalance _ -> new NoBookedBalance();
                   case CurrentDayReport.Unreadable _ -> new Unreadable();

@@ -9,6 +9,6 @@ final class TradePrepOverridesFixture {
 
   static TradePrepOverrides noOverrides() {
     return new TradePrepOverrides(
-        Set.of(), List.of(), null, PriceDateRule.FRESHEST_PER_INSTRUMENT, Set.of());
+        Set.of(), List.of(), null, PriceDateRule.FRESHEST_PER_INSTRUMENT, List.of());
   }
 }

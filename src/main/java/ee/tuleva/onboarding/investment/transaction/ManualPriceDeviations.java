@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -26,31 +27,58 @@ class ManualPriceDeviations {
       LocalDate asOfDate,
       TradePrepOverrides overrides,
       Map<String, ResolvedPrice> resolvedForTheCommandsDate) {
+    requireAManualPriceForEveryConfirmation(overrides);
     List<PriceOverride> considered =
         overrides.prices().stream()
             .filter(override -> !overrides.excludedIsins().contains(override.isin()))
             .toList();
     if (considered.isEmpty()) {
-      return new PriceDeviations(List.of(), List.of());
+      return new PriceDeviations(List.of(), List.of(), List.of());
     }
     BigDecimal threshold =
         investmentParameterRepository.findLatestValue(MANUAL_PRICE_DEVIATION_THRESHOLD, asOfDate);
+    Map<String, ResolvedPrice> lastIndexPrices = new HashMap<>();
+    considered.forEach(
+        override ->
+            lastIndexPrice(override.isin(), asOfDate, resolvedForTheCommandsDate)
+                .ifPresent(last -> lastIndexPrices.put(override.isin(), last)));
     List<PriceDeviation> beyondThreshold =
         considered.stream()
             .flatMap(
                 override ->
-                    lastIndexPrice(override.isin(), asOfDate, resolvedForTheCommandsDate)
+                    Optional.ofNullable(lastIndexPrices.get(override.isin()))
                         .map(last -> PriceDeviation.between(override, last))
                         .stream())
             .filter(deviation -> deviation.exceeds(threshold))
             .toList();
     return new PriceDeviations(
-        beyondThreshold.stream()
-            .filter(deviation -> !overrides.confirmedPriceDeviations().contains(deviation.isin()))
-            .toList(),
-        beyondThreshold.stream()
-            .filter(deviation -> overrides.confirmedPriceDeviations().contains(deviation.isin()))
+        beyondThreshold.stream().filter(deviation -> !isConfirmed(deviation, overrides)).toList(),
+        beyondThreshold.stream().filter(deviation -> isConfirmed(deviation, overrides)).toList(),
+        considered.stream()
+            .map(PriceOverride::isin)
+            .filter(isin -> !lastIndexPrices.containsKey(isin))
+            .sorted()
             .toList());
+  }
+
+  private static boolean isConfirmed(PriceDeviation deviation, TradePrepOverrides overrides) {
+    return overrides.confirmedPriceDeviations().stream()
+        .anyMatch(confirmation -> confirmation.confirms(deviation));
+  }
+
+  private static void requireAManualPriceForEveryConfirmation(TradePrepOverrides overrides) {
+    List<String> withoutManualPrice =
+        overrides.confirmedPriceDeviations().stream()
+            .map(PriceDeviationConfirmation::isin)
+            .filter(
+                isin -> overrides.prices().stream().noneMatch(price -> price.isin().equals(isin)))
+            .sorted()
+            .toList();
+    if (!withoutManualPrice.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Price deviation confirmed for an instrument without a manual price: isins=%s"
+              .formatted(withoutManualPrice));
+    }
   }
 
   private Optional<ResolvedPrice> lastIndexPrice(

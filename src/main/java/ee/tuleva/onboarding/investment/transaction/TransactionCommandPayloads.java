@@ -35,7 +35,17 @@ final class TransactionCommandPayloads {
           Map.of("isins", accepted.sortedIsins(), "comment", accepted.comment()));
     }
     if (!command.getConfirmedPriceDeviations().isEmpty()) {
-      payload.put("confirmedPriceDeviations", command.sortedConfirmedPriceDeviations());
+      payload.put(
+          "confirmedPriceDeviations",
+          command.sortedConfirmedPriceDeviations().stream()
+              .map(
+                  confirmation ->
+                      Map.of(
+                          "isin",
+                          confirmation.isin(),
+                          "price",
+                          confirmation.price().toPlainString()))
+              .toList());
     }
     if (command.getPriceDateRule() != PriceDateRule.FRESHEST_PER_INSTRUMENT) {
       payload.put("priceDateRule", command.getPriceDateRule().name());
@@ -70,7 +80,9 @@ final class TransactionCommandPayloads {
     payload.put("cash", cash.payload());
     putExcludeIsins(payload, command);
     if (!gates.priceOverrides().isEmpty()) {
-      payload.put("priceOverrides", priceOverrides(gates.priceOverrides()));
+      payload.put(
+          "priceOverrides",
+          priceOverrides(gates.priceOverrides(), gates.manualPricesWithoutIndexPriceHistory()));
     }
     AcceptedHoldingDifferences accepted = command.getAcceptedHoldingDifferences();
     if (accepted != null) {
@@ -123,17 +135,24 @@ final class TransactionCommandPayloads {
     }
   }
 
-  private static List<Map<String, Object>> priceOverrides(List<UsedPriceOverride> overrides) {
-    return overrides.stream().map(TransactionCommandPayloads::priceOverride).toList();
+  private static List<Map<String, Object>> priceOverrides(
+      List<UsedPriceOverride> overrides, List<String> withoutIndexPriceHistory) {
+    return overrides.stream()
+        .map(override -> priceOverride(override, withoutIndexPriceHistory))
+        .toList();
   }
 
   private static List<Map<String, Object>> requestedPrices(List<PriceOverride> prices) {
     return prices.stream().map(TransactionCommandPayloads::requestedPrice).toList();
   }
 
-  private static Map<String, Object> priceOverride(UsedPriceOverride used) {
+  private static Map<String, Object> priceOverride(
+      UsedPriceOverride used, List<String> withoutIndexPriceHistory) {
     Map<String, Object> map = requestedPrice(used.override());
     map.put("neededByGate", used.need().neededByGate());
+    if (withoutIndexPriceHistory.contains(used.override().isin())) {
+      map.put("deviationCheck", "NO_INDEX_PRICE_HISTORY");
+    }
     ResolvedPrice indexPrice = used.indexPrice();
     if (indexPrice != null) {
       putIfPresent(map, "indexPrice", plain(indexPrice.usedPrice()));

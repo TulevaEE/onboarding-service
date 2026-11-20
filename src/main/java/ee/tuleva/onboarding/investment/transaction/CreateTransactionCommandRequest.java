@@ -22,8 +22,7 @@ public record CreateTransactionCommandRequest(
     @Nullable List<@NotNull @Valid PriceOverride> prices,
     @Nullable @Valid AcceptedHoldingDifferences acceptedHoldingDifferences,
     @Nullable PriceDateRule priceDateRule,
-    @Nullable Set<@NotNull @Pattern(regexp = "[A-Z]{2}[A-Z0-9]{9}[0-9]") String>
-        confirmedPriceDeviations) {
+    @Nullable List<@NotNull @Valid PriceDeviationConfirmation> confirmedPriceDeviations) {
 
   static CreateTransactionCommandRequest withOnlyCash(
       TulevaFund fund, TransactionMode mode, LocalDate asOfDate, @Nullable CashOverride cash) {

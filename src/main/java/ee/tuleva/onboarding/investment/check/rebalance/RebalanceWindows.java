@@ -77,6 +77,9 @@ public class RebalanceWindows {
     var latest = navs.isEmpty() ? Optional.<NavWeights>empty() : Optional.of(navs.getLast());
     var tolerance = rules.tolerance();
     var deadline = RebalanceRules.deadlineFrom(change.effectiveDate(), estonianCalendar);
+    var awaitingExecution =
+        rebalanceTrades.rebalanceOrdersAwaitingExecution(
+            fund, change.effectiveDate(), measuredUntil);
     return new RebalanceWindow(
         fund,
         change.effectiveDate(),
@@ -91,12 +94,10 @@ public class RebalanceWindows {
                 rebalanceTrades.firstRebalancingTradeDate(
                     fund, change.effectiveDate(), measuredUntil))
             .orElse(null),
-        rebalanceTrades
-            .firstRebalanceOrderAwaitingExecution(fund, change.effectiveDate(), measuredUntil)
-            .orElse(null),
+        awaitingExecution.firstSentOn().orElse(null),
         deadline,
         rules.warningFrom(deadline),
-        RebalanceRules.awaitingExecutionUntil(deadline, estonianCalendar));
+        awaitingExecution.awaitedThrough(deadline, estonianCalendar).orElse(null));
   }
 
   private static Optional<LocalDate> firstNavInLine(

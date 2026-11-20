@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.check.rebalance;
 
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.CANCELLED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
@@ -36,6 +37,7 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.transaction.BatchStatus;
 import ee.tuleva.onboarding.investment.transaction.CommandStatus;
+import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatch;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatchRepository;
@@ -82,6 +84,10 @@ class ModelRebalanceCheckIT {
   private static final String NOT_IN_ANY_MODEL = "LU0476289540";
   private static final String CANADA = "IE00B4L5Y983";
   private static final String TRADE_REGISTRY_SQL_EXPORT_SOURCE = "GAS_REGISTRY";
+  private static final String AWAITING_THE_ORDERS_SENT_ON_THE_DEADLINE =
+      "⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole mudeliga"
+          + " vastavuses; Rebalance-jooksu tehingud saadetud 01.12.2026, ootavad SEB täitmise"
+          + " kinnitust";
   private static final TransactionMode BUY_MODE = TransactionMode.BUY;
   private static final LocalDate PREVIOUS_MODEL = LocalDate.of(2026, 6, 1);
   private static final LocalDate NEW_MODEL = LocalDate.of(2026, 10, 1);
@@ -207,12 +213,8 @@ class ModelRebalanceCheckIT {
   }
 
   @Test
-  void rebalanceOrdersSentOnTheDeadlineButNeverConfirmed_warnTwoWorkingDaysThenFailNamingThem() {
-    givenTuv100ModelSwitchesFromWorldToNewWorldOn(SEPTEMBER_MODEL);
-    givenNav(LocalDate.of(2026, 9, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
-    runCheckOn(LocalDate.of(2026, 10, 1));
-    givenNav(LocalDate.of(2026, 11, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
-    givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 12, 1));
+  void anEtfRebalanceOrderSentOnTheDeadlineAndNeverConfirmed_warnsUntilItsT2SettlementThenFails() {
+    givenAWindowPastItsDeadlineWithARebalanceOrderSentOnIt(ETF, LocalDate.of(2026, 12, 3));
 
     runCheckOn(LocalDate.of(2026, 12, 2));
     runCheckOn(LocalDate.of(2026, 12, 3));
@@ -220,12 +222,7 @@ class ModelRebalanceCheckIT {
     then(notificationService)
         .should(times(2))
         .sendMessage(
-            startsWith(
-                "⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole"
-                    + " mudeliga vastavuses; Rebalance-jooksu tehingud saadetud 01.12.2026, ootavad"
-                    + " SEB täitmise kinnitust"),
-            eq(INVESTMENT),
-            eq(WARNING));
+            startsWith(AWAITING_THE_ORDERS_SENT_ON_THE_DEADLINE), eq(INVESTMENT), eq(WARNING));
     then(notificationService).should(never()).sendMessage(any(), any(), eq(ERROR));
 
     runCheckOn(LocalDate.of(2026, 12, 4));
@@ -241,6 +238,34 @@ class ModelRebalanceCheckIT {
             Vii fond 5 pp piiresse (sisekord 4 p 2.6.1)""",
             INVESTMENT,
             ERROR);
+  }
+
+  @Test
+  void aFundRebalanceOrderSentOnTheDeadlineAndNeverConfirmed_warnsUntilItsT4SettlementThenFails() {
+    givenAWindowPastItsDeadlineWithARebalanceOrderSentOnIt(FUND, LocalDate.of(2026, 12, 7));
+
+    runCheckOn(LocalDate.of(2026, 12, 2));
+    runCheckOn(LocalDate.of(2026, 12, 3));
+    runCheckOn(LocalDate.of(2026, 12, 4));
+    runCheckOn(LocalDate.of(2026, 12, 7));
+
+    then(notificationService)
+        .should(times(4))
+        .sendMessage(
+            startsWith(AWAITING_THE_ORDERS_SENT_ON_THE_DEADLINE), eq(INVESTMENT), eq(WARNING));
+    then(notificationService).should(never()).sendMessage(any(), any(), eq(ERROR));
+
+    runCheckOn(LocalDate.of(2026, 12, 8));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            startsWith(
+                "🛑 TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole"
+                    + " mudeliga vastavuses ja Rebalance-jooksu tehingud saadetud 01.12.2026, SEB"
+                    + " pole täitmist kinnitanud"),
+            eq(INVESTMENT),
+            eq(ERROR));
   }
 
   @Test
@@ -829,6 +854,19 @@ class ModelRebalanceCheckIT {
         orderDate,
         Map.of(
             "source", TRADE_REGISTRY_SQL_EXPORT_SOURCE, "importKey", "GAS:" + UUID.randomUUID()));
+  }
+
+  private void givenAWindowPastItsDeadlineWithARebalanceOrderSentOnIt(
+      InstrumentType instrumentType, LocalDate expectedSettlementDate) {
+    givenTuv100ModelSwitchesFromWorldToNewWorldOn(SEPTEMBER_MODEL);
+    givenNav(LocalDate.of(2026, 9, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 1));
+    givenNav(LocalDate.of(2026, 11, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    var order =
+        givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 12, 1));
+    order.setInstrumentType(instrumentType);
+    order.setExpectedSettlementDate(expectedSettlementDate);
+    orderRepository.save(order);
   }
 
   private TransactionOrder givenOrderFromATradePrepRun(

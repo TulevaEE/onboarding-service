@@ -28,7 +28,6 @@ class ReconciliationAuditRecorder {
   static final String SETTLEMENT_REDATED = "SETTLEMENT_REDATED";
   static final String SETTLEMENT_FROM_BANK = "SETTLEMENT_FROM_BANK";
   static final String INCONSISTENT_MATCHED_ROW = "INCONSISTENT_MATCHED_ROW";
-  static final String POSSIBLE_REPORT_TRUNCATION = "POSSIBLE_REPORT_TRUNCATION";
 
   static final String REASON_MISSING_OUR_REF = "MISSING_OUR_REF";
   static final String REASON_MISSING_ISIN = "MISSING_ISIN";
@@ -144,20 +143,6 @@ class ReconciliationAuditRecorder {
     Map<String, Object> payload = rowPayload(row, reportDate);
     payload.put("settlementReportDate", settlement.getReportDate().toString());
     save(SETTLEMENT_REAPPEARED, order, payload);
-  }
-
-  void recordPossibleReportTruncation(
-      LocalDate reportDate, int rowCount, LocalDate priorReportDate, int priorRowCount) {
-    String dedupKey = reportDate.toString();
-    if (alreadyRecordedForDedupKey(POSSIBLE_REPORT_TRUNCATION, dedupKey)) {
-      return;
-    }
-    Map<String, Object> payload = new LinkedHashMap<>();
-    payload.put("reportDate", reportDate.toString());
-    payload.put("rowCount", rowCount);
-    payload.put("priorReportDate", priorReportDate.toString());
-    payload.put("priorRowCount", priorRowCount);
-    save(POSSIBLE_REPORT_TRUNCATION, null, payload, dedupKey);
   }
 
   private boolean alreadyRecordedForReportDate(

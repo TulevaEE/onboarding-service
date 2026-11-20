@@ -38,6 +38,24 @@ class RebalanceWindowTest {
   }
 
   @Test
+  void pastTheDeadlineRebalanceOrdersSentByTheDeadlineAwaitingExecution_keepItAWarning() {
+    assertThat(window(DEADLINE.plusDays(1), null, DEADLINE).state()).isEqualTo(WARNING);
+    assertThat(window(DEADLINE.plusDays(1), null, WARNING_FROM).state()).isEqualTo(WARNING);
+  }
+
+  @Test
+  void pastTheDeadlineRebalanceOrdersSentOnlyAfterIt_leaveItAFail() {
+    assertThat(window(DEADLINE.plusDays(2), null, DEADLINE.plusDays(1)).state()).isEqualTo(FAIL);
+  }
+
+  @Test
+  void beforeTheDeadlineRebalanceOrdersAwaitingExecution_changeNoState() {
+    assertThat(window(LocalDate.of(2026, 10, 1), null, LocalDate.of(2026, 9, 30)).state())
+        .isEqualTo(INFO);
+    assertThat(window(WARNING_FROM, null, WARNING_FROM).state()).isEqualTo(WARNING);
+  }
+
+  @Test
   void aClosure_closesTheWindowWhateverTheDate() {
     var closure = RebalanceClosure.byAnInLineNav(LocalDate.of(2026, 9, 2));
 
@@ -56,6 +74,13 @@ class RebalanceWindowTest {
   }
 
   private static RebalanceWindow window(LocalDate checkDate, @Nullable RebalanceClosure closure) {
+    return window(checkDate, closure, null);
+  }
+
+  private static RebalanceWindow window(
+      LocalDate checkDate,
+      @Nullable RebalanceClosure closure,
+      @Nullable LocalDate rebalanceOrdersSentOn) {
     return new RebalanceWindow(
         TUV100,
         EFFECTIVE,
@@ -64,6 +89,7 @@ class RebalanceWindowTest {
         null,
         List.of(),
         closure,
+        rebalanceOrdersSentOn,
         DEADLINE,
         WARNING_FROM);
   }

@@ -21,6 +21,7 @@ public record RebalanceWindow(
     @Nullable LocalDate latestNavDate,
     List<Deviation> outsideToleranceAtLatestNav,
     @Nullable RebalanceClosure closure,
+    @Nullable LocalDate rebalanceOrdersSentOn,
     LocalDate deadline,
     LocalDate warningFrom) {
 
@@ -28,8 +29,8 @@ public record RebalanceWindow(
     if (closed()) {
       return OK;
     }
-    if (checkDate.isAfter(deadline)) {
-      return FAIL;
+    if (deadlinePassed()) {
+      return rebalanceOrdersSentByTheDeadlineAwaitExecution() ? WARNING : FAIL;
     }
     if (!checkDate.isBefore(warningFrom)) {
       return WARNING;
@@ -43,6 +44,14 @@ public record RebalanceWindow(
 
   public Optional<LocalDate> closedOn() {
     return Optional.ofNullable(closure).map(RebalanceClosure::on);
+  }
+
+  public boolean deadlinePassed() {
+    return checkDate.isAfter(deadline);
+  }
+
+  private boolean rebalanceOrdersSentByTheDeadlineAwaitExecution() {
+    return rebalanceOrdersSentOn != null && !rebalanceOrdersSentOn.isAfter(deadline);
   }
 
   public long daysUntilDeadline() {

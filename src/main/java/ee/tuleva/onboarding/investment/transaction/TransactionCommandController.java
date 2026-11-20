@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static org.springframework.http.HttpStatus.ACCEPTED;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 import ee.tuleva.onboarding.investment.transaction.export.ExportFile;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -33,6 +36,7 @@ public class TransactionCommandController {
   private final TransactionAdminService adminService;
   private final TransactionCommandRunner commandRunner;
   private final AdminTokenAuthenticator authenticator;
+  private final CurrentDayBankReportRefresh currentDayBankReportRefresh;
 
   @PostMapping("/transaction-commands")
   public TransactionCommandResponse createCommand(
@@ -71,6 +75,15 @@ public class TransactionCommandController {
         request.asOfDate(),
         actor,
         request.cash() == null ? Map.of() : request.cash());
+  }
+
+  @PostMapping("/funds/{fund}/current-day-bank-report-refresh")
+  @ResponseStatus(ACCEPTED)
+  public void refreshCurrentDayBankReports(
+      @RequestHeader("X-Admin-Token") String token, @PathVariable TulevaFund fund) {
+    var actor = authenticator.resolveActor(token);
+    log.info("Admin requested SEB current-day reports: fund={}, actor={}", fund, actor);
+    currentDayBankReportRefresh.requestFor(fund);
   }
 
   @GetMapping("/transaction-commands/{id}")

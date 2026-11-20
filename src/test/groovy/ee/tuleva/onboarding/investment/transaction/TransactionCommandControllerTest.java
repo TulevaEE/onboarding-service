@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -59,6 +60,7 @@ class TransactionCommandControllerTest {
 
   @MockitoBean private TransactionAdminService adminService;
   @MockitoBean private TransactionCommandRunner commandRunner;
+  @MockitoBean CurrentDayBankReportRefresh currentDayBankReportRefresh;
 
   private static TransactionOrderResponse orderResponse() {
     return orderResponse(OrderType.MOC);
@@ -268,6 +270,18 @@ class TransactionCommandControllerTest {
                     .isInstanceOf(MethodArgumentNotValidException.class));
 
     then(commandRunner).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void requestingTheCurrentDayBankReportsOfAFundIsAcceptedAtOnce() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/funds/TKF100/current-day-bank-report-refresh")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isAccepted());
+
+    then(currentDayBankReportRefresh).should().requestFor(TKF100);
   }
 
   @Test

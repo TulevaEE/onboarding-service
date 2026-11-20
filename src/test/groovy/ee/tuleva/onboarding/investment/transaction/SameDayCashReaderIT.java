@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.INTRA_DAY_REPORT;
 import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.currentDayReport;
+import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.currentDayReportWithoutBookedBalance;
 import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.endOfDayStatement;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,6 +18,7 @@ import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
 import ee.tuleva.onboarding.banking.xml.Iso20022Marshaller;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.CurrentDayBalance;
+import ee.tuleva.onboarding.investment.transaction.GatewayCash.NoBookedBalance;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.NoCurrentDayReportToday;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.Unreadable;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
@@ -141,6 +143,17 @@ class SameDayCashReaderIT {
     store(INTRA_DAY_REPORT, TODAY, THIS_MORNING, "<not-a-report/>");
 
     assertThat(reader.read(TUK75, TODAY, null, null).gateway()).isEqualTo(new Unreadable());
+  }
+
+  @Test
+  void aCurrentDayReportThatReadsButCarriesNoBookedBalanceIsSaidSoNotUnreadable() {
+    store(
+        INTRA_DAY_REPORT,
+        TODAY,
+        THIS_MORNING,
+        currentDayReportWithoutBookedBalance(TUK75_INVESTMENT_IBAN, TODAY));
+
+    assertThat(reader.read(TUK75, TODAY, null, null).gateway()).isEqualTo(new NoBookedBalance());
   }
 
   @Test

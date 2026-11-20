@@ -39,6 +39,33 @@ final class SebStatementFixture {
         .formatted(day, iban, interimBooked);
   }
 
+  static String currentDayReportWithoutBookedBalance(String iban, LocalDate day) {
+    return """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.052.001.02">
+          <BkToCstmrAcctRpt>
+            <GrpHdr><MsgId>report</MsgId><CreDtTm>%1$sT09:00:00+02:00</CreDtTm></GrpHdr>
+            <Rpt>
+              <Id>report</Id>
+              <CreDtTm>%1$sT09:00:00+02:00</CreDtTm>
+              <FrToDt><FrDtTm>%1$sT00:00:00+02:00</FrDtTm><ToDtTm>%1$sT09:00:00+02:00</ToDtTm></FrToDt>
+              <Acct>
+                <Id><IBAN>%2$s</IBAN></Id>
+                <Ownr><Nm>BGW TESTCLIENT1</Nm><Id><OrgId><Othr><Id>22255887</Id></Othr></OrgId></Id></Ownr>
+              </Acct>
+              <Bal>
+                <Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp>
+                <Amt Ccy="EUR">0.00</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Dt><Dt>%1$s</Dt></Dt>
+              </Bal>
+            </Rpt>
+          </BkToCstmrAcctRpt>
+        </Document>
+        """
+        .formatted(day, iban);
+  }
+
   static String endOfDayStatement(String iban, LocalDate day, String closingBooked) {
     return """
         <?xml version="1.0" encoding="UTF-8"?>

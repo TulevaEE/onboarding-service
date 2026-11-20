@@ -11,5 +11,7 @@ public sealed interface CurrentDayReport {
 
   record Missing() implements CurrentDayReport {}
 
+  record NoBookedBalance() implements CurrentDayReport {}
+
   record Unreadable() implements CurrentDayReport {}
 }

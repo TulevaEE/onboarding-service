@@ -82,14 +82,58 @@ class CostBasisRefresherTest {
   }
 
   @Test
-  void leavesTheStoredLedgerWhenTheNodeHasNoLockProvider() {
+  void reportsTheMissingLockProviderAsAFailureWithoutRebuildingUnlocked() {
     givenABaseline();
     given(lockProviders.getIfAvailable()).willReturn(null);
 
     CostBasisRefresh refresh = refresher.refresh(TUK75);
 
-    assertThat(refresh).isEqualTo(CostBasisRefresh.lockNotTaken());
+    assertThat(refresh)
+        .isEqualTo(
+            CostBasisRefresh.failed(
+                "Cost-basis refresh refused to run unlocked: no ShedLock LockProvider on this"
+                    + " node"));
     verifyNoInteractions(service);
+  }
+
+  @Test
+  void releasesTheOtherLockAndKeepsTheRefreshWhenOneReleaseFails() {
+    givenABaseline();
+    givenTheLocks(Optional.of(selfHealLock), Optional.of(dailyJobLock));
+    willThrow(new IllegalStateException("connection reset")).given(selfHealLock).unlock();
+
+    CostBasisRefresh refresh = refresher.refresh(TUK75);
+
+    assertThat(refresh).isEqualTo(CostBasisRefresh.refreshed());
+    verify(dailyJobLock).unlock();
+  }
+
+  @Test
+  void alertsTheFirstNonBlankLineOfAMultiLineFailureWithoutItsFullStop() {
+    givenABaseline();
+    givenTheLocks(Optional.of(selfHealLock), Optional.of(dailyJobLock));
+    willThrow(
+            new IllegalStateException(
+                "\n  could not execute statement.\n[insert into investment_portfolio_cost_basis]"))
+        .given(service)
+        .rebuildRange(TUK75, SELF_HEAL_WINDOW_START, TALLINN_TODAY);
+
+    CostBasisRefresh refresh = refresher.refresh(TUK75);
+
+    assertThat(refresh).isEqualTo(CostBasisRefresh.failed("could not execute statement"));
+  }
+
+  @Test
+  void shortensAFailureLineTooLongForTheAlert() {
+    givenABaseline();
+    givenTheLocks(Optional.of(selfHealLock), Optional.of(dailyJobLock));
+    willThrow(new IllegalStateException("x".repeat(400)))
+        .given(service)
+        .rebuildRange(TUK75, SELF_HEAL_WINDOW_START, TALLINN_TODAY);
+
+    CostBasisRefresh refresh = refresher.refresh(TUK75);
+
+    assertThat(refresh).isEqualTo(CostBasisRefresh.failed("x".repeat(300) + "…"));
   }
 
   @Test

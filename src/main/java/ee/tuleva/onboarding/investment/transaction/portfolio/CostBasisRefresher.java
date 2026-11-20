@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction.portfolio;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasisSelfHealJob.LOCKS_OF_THE_JOBS_WRITING_COST_BASIS_ROWS;
 import static ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasisSelfHealJob.SELF_HEAL_DAYS;
+import static java.util.function.Predicate.not;
 
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -29,6 +30,7 @@ import org.springframework.stereotype.Component;
 public class CostBasisRefresher {
 
   private static final Duration A_STOPPED_REFRESH_HOLDS_THE_LOCKS_AT_MOST = Duration.ofMinutes(30);
+  private static final int AN_ALERT_LINE_HOLDS_AT_MOST = 300;
 
   private final Clock clock;
   private final PortfolioCostBasisService service;
@@ -66,30 +68,46 @@ public class CostBasisRefresher {
       service.rebuildRange(fund, today.minusDays(SELF_HEAL_DAYS), today);
       return CostBasisRefresh.refreshed();
     } finally {
-      locks.get().forEach(SimpleLock::unlock);
+      releaseEach(locks.get());
     }
   }
 
   private Optional<List<SimpleLock>> lockEveryJobWritingCostBasisRows() {
     LockProvider lockProvider = lockProviders.getIfAvailable();
     if (lockProvider == null) {
-      return Optional.empty();
+      throw new IllegalStateException(
+          "Cost-basis refresh refused to run unlocked: no ShedLock LockProvider on this node");
     }
     List<SimpleLock> held = new ArrayList<>();
     try {
       for (String name : LOCKS_OF_THE_JOBS_WRITING_COST_BASIS_ROWS) {
         Optional<SimpleLock> lock = lockProvider.lock(lockConfiguration(name));
         if (lock.isEmpty()) {
-          held.forEach(SimpleLock::unlock);
+          releaseEach(held);
           return Optional.empty();
         }
         held.add(lock.get());
       }
     } catch (RuntimeException e) {
-      held.forEach(SimpleLock::unlock);
+      releaseEach(held);
       throw e;
     }
     return Optional.of(held);
+  }
+
+  private static void releaseEach(List<SimpleLock> locks) {
+    locks.forEach(CostBasisRefresher::release);
+  }
+
+  private static void release(SimpleLock lock) {
+    try {
+      lock.unlock();
+    } catch (RuntimeException e) {
+      log.error(
+          "Cost-basis lock release failed, the lock expires on its own: error={}",
+          e.getMessage(),
+          e);
+    }
   }
 
   private LockConfiguration lockConfiguration(String name) {
@@ -98,7 +116,18 @@ public class CostBasisRefresher {
   }
 
   private static String describe(RuntimeException e) {
-    String message = e.getMessage();
-    return message == null ? e.getClass().getSimpleName() : message;
+    return Optional.ofNullable(e.getMessage())
+        .flatMap(
+            message -> message.lines().map(String::strip).filter(not(String::isEmpty)).findFirst())
+        .map(CostBasisRefresher::asOneAlertLine)
+        .orElseGet(() -> e.getClass().getSimpleName());
+  }
+
+  private static String asOneAlertLine(String line) {
+    String withoutFullStop = line.endsWith(".") ? line.substring(0, line.length() - 1) : line;
+    if (withoutFullStop.length() <= AN_ALERT_LINE_HOLDS_AT_MOST) {
+      return withoutFullStop;
+    }
+    return withoutFullStop.substring(0, AN_ALERT_LINE_HOLDS_AT_MOST) + "…";
   }
 }

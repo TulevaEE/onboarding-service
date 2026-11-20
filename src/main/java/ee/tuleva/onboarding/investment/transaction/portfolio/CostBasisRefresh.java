@@ -14,6 +14,13 @@ public record CostBasisRefresh(Outcome outcome, @Nullable String failure) {
       " Võrdluses on pearaamatu salvestatud seis, kust võivad puududa pärast viimast"
           + " ümberarvutust saabunud tehingud.";
 
+  public CostBasisRefresh {
+    if ((outcome == FAILED) != (failure != null)) {
+      throw new IllegalArgumentException(
+          "Only a failed refresh carries a failure: outcome=" + outcome + ", failure=" + failure);
+    }
+  }
+
   public enum Outcome {
     REFRESHED,
     NO_BASELINE,

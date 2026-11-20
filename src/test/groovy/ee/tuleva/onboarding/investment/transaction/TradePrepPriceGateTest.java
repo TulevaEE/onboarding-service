@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
@@ -16,6 +17,7 @@ import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPrice
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -48,7 +50,7 @@ class TradePrepPriceGateTest {
         .willReturn(Optional.of(ResolvedPrice.builder().validationStatus(NO_PRICE_DATA).build()));
     givenPrice("IN_BOTH", "25.00");
 
-    assertThat(gates.missingPrices(TKF100, TRADE_DATE, Set.of()))
+    assertThat(gates.check(TKF100, TRADE_DATE, TradePrepOverrides.none()).missingPrices())
         .contains(new MissingPrices(List.of("HELD_UNKNOWN_INSTRUMENT", "MODEL_NO_PRICE_DATA")));
   }
 
@@ -58,7 +60,7 @@ class TradePrepPriceGateTest {
     givenModel();
     givenPrice("ZERO_PRICE", "0");
 
-    assertThat(gates.missingPrices(TKF100, TRADE_DATE, Set.of()))
+    assertThat(gates.check(TKF100, TRADE_DATE, TradePrepOverrides.none()).missingPrices())
         .contains(new MissingPrices(List.of("ZERO_PRICE")));
   }
 
@@ -68,7 +70,8 @@ class TradePrepPriceGateTest {
         .willReturn(Optional.empty());
     givenModel(model("SOLD_OUT_OF_THE_MODEL", "0"));
 
-    assertThat(gates.missingPrices(TKF100, TRADE_DATE, Set.of())).isEmpty();
+    assertThat(gates.check(TKF100, TRADE_DATE, TradePrepOverrides.none()).missingPrices())
+        .isEmpty();
   }
 
   @Test
@@ -76,7 +79,11 @@ class TradePrepPriceGateTest {
     givenHeld("EXCLUDED");
     givenModel(model("EXCLUDED", "1"));
 
-    assertThat(gates.missingPrices(TKF100, TRADE_DATE, Set.of("EXCLUDED"))).isEmpty();
+    assertThat(
+            gates
+                .check(TKF100, TRADE_DATE, new TradePrepOverrides(Set.of("EXCLUDED"), List.of()))
+                .missingPrices())
+        .isEmpty();
   }
 
   @Test
@@ -88,7 +95,72 @@ class TradePrepPriceGateTest {
             List.of(new PositionSnapshot("SOLD_OUT", ZERO, new BigDecimal("0.000000"), null)));
     givenModel();
 
-    assertThat(gates.missingPrices(TKF100, TRADE_DATE, Set.of())).isEmpty();
+    assertThat(gates.check(TKF100, TRADE_DATE, TradePrepOverrides.none()).missingPrices())
+        .isEmpty();
+  }
+
+  @Test
+  void aManualPriceStandsInForAMissingOneAndSaysItClearedTheStop() {
+    givenHeld("HELD_NO_PRICE");
+    givenModel();
+    given(positionPriceResolver.resolve("HELD_NO_PRICE", TRADE_DATE)).willReturn(Optional.empty());
+    var manual = new PriceOverride("HELD_NO_PRICE", new BigDecimal("12.5"), "Issuer's NAV");
+
+    var check = gates.check(TKF100, TRADE_DATE, new TradePrepOverrides(Set.of(), List.of(manual)));
+
+    assertThat(check)
+        .isEqualTo(
+            new PriceCheck(
+                Optional.empty(),
+                new TradePrepPricing(Map.of("HELD_NO_PRICE", new BigDecimal("12.5"))),
+                List.of(new UsedPriceOverride(manual, GateNeed.CLEARED_A_STOP, null))));
+  }
+
+  @Test
+  void aManualPriceForAPricedInstrumentIsStillUsedAndSaysTheGateDidNotNeedIt() {
+    givenHeld("HELD_PRICED");
+    givenModel();
+    givenPrice("HELD_PRICED", "100.00");
+    var manual = new PriceOverride("HELD_PRICED", new BigDecimal("98"), "Index price is stale");
+
+    var check = gates.check(TKF100, TRADE_DATE, new TradePrepOverrides(Set.of(), List.of(manual)));
+
+    assertThat(check.pricing())
+        .isEqualTo(new TradePrepPricing(Map.of("HELD_PRICED", new BigDecimal("98"))));
+    assertThat(check.priceOverrides())
+        .singleElement()
+        .satisfies(
+            used -> {
+              assertThat(used.need()).isEqualTo(GateNeed.NOT_NEEDED);
+              assertThat(used.indexPrice().usedPrice()).isEqualByComparingTo("100.00");
+            });
+  }
+
+  @Test
+  void aManualPriceForAnInstrumentTheFundNeitherHoldsNorHasInItsModelIsRejected() {
+    givenHeld("HELD_PRICED");
+    givenModel();
+    var stranger = new PriceOverride("NOT_IN_THE_FUND", new BigDecimal("1"), "Typo");
+
+    assertThatThrownBy(
+            () ->
+                gates.check(
+                    TKF100, TRADE_DATE, new TradePrepOverrides(Set.of(), List.of(stranger))))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void twoManualPricesForOneInstrumentAreRejected() {
+    givenHeld("HELD_PRICED");
+    givenModel();
+    var first = new PriceOverride("HELD_PRICED", new BigDecimal("1"), "First");
+    var second = new PriceOverride("HELD_PRICED", new BigDecimal("2"), "Second");
+
+    assertThatThrownBy(
+            () ->
+                gates.check(
+                    TKF100, TRADE_DATE, new TradePrepOverrides(Set.of(), List.of(first, second))))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -97,7 +169,8 @@ class TradePrepPriceGateTest {
     givenModel(model("HELD_PRICED", "1"));
     givenPrice("HELD_PRICED", "100.00");
 
-    assertThat(gates.missingPrices(TKF100, TRADE_DATE, Set.of())).isEmpty();
+    assertThat(gates.check(TKF100, TRADE_DATE, TradePrepOverrides.none()).missingPrices())
+        .isEmpty();
   }
 
   private void givenHeld(String... isins) {

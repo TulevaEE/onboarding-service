@@ -90,6 +90,7 @@ class TransactionCommandControllerTest {
         null,
         null,
         List.of(),
+        List.of(),
         List.of(orderResponse()),
         null);
   }
@@ -113,7 +114,13 @@ class TransactionCommandControllerTest {
     given(
             commandRunner.createAndProcess(
                 new CreateTransactionCommandRequest(
-                    TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), null, null),
+                    TUK75,
+                    REBALANCE,
+                    AS_OF_DATE,
+                    Map.of("IE00BFG1TM61", "1000.00"),
+                    null,
+                    null,
+                    null),
                 "shared-admin-token"))
         .willReturn(commandResponse());
 
@@ -145,7 +152,8 @@ class TransactionCommandControllerTest {
   void createCommand_passesAdminActorToService() throws Exception {
     given(
             commandRunner.createAndProcess(
-                new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null),
+                new CreateTransactionCommandRequest(
+                    TUK75, REBALANCE, AS_OF_DATE, null, null, null, null),
                 "operator-7"))
         .willReturn(commandResponse());
 
@@ -164,7 +172,8 @@ class TransactionCommandControllerTest {
     then(commandRunner)
         .should()
         .createAndProcess(
-            new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null),
+            new CreateTransactionCommandRequest(
+                TUK75, REBALANCE, AS_OF_DATE, null, null, null, null),
             "operator-7");
   }
 
@@ -173,7 +182,8 @@ class TransactionCommandControllerTest {
     var cash = new CashOverride(new BigDecimal("40000"), "Gateway balance at 10:15");
     given(
             commandRunner.createAndProcess(
-                new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, cash, null),
+                new CreateTransactionCommandRequest(
+                    TUK75, REBALANCE, AS_OF_DATE, null, cash, null, null),
                 "shared-admin-token"))
         .willReturn(commandResponse());
 
@@ -193,7 +203,8 @@ class TransactionCommandControllerTest {
     then(commandRunner)
         .should()
         .createAndProcess(
-            new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, cash, null),
+            new CreateTransactionCommandRequest(
+                TUK75, REBALANCE, AS_OF_DATE, null, cash, null, null),
             "shared-admin-token");
   }
 
@@ -201,7 +212,7 @@ class TransactionCommandControllerTest {
   void createCommand_passesTheExcludedInstrumentsToService() throws Exception {
     var request =
         new CreateTransactionCommandRequest(
-            TUK75, REBALANCE, AS_OF_DATE, null, null, Set.of("IE00BFG1TM61", "IE00BMDBMY19"));
+            TUK75, REBALANCE, AS_OF_DATE, null, null, Set.of("IE00BFG1TM61", "IE00BMDBMY19"), null);
     given(commandRunner.createAndProcess(request, "shared-admin-token"))
         .willReturn(commandResponse());
 
@@ -508,6 +519,7 @@ class TransactionCommandControllerTest {
                     11L,
                     null,
                     null,
+                    List.of(),
                     List.of(),
                     List.of(),
                     null)));

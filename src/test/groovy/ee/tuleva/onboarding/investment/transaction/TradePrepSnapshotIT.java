@@ -7,6 +7,8 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.context.annotation.FilterType.REGEX;
 import static org.springframework.transaction.TransactionDefinition.ISOLATION_REPEATABLE_READ;
 import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
@@ -38,7 +40,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -121,6 +123,8 @@ class TradePrepSnapshotIT {
 
   @Test
   void aSameDayR45ReuploadDuringTradePrepDoesNotMixItsVersions() {
+    given(priceGate.check(any(), any(), any()))
+        .willReturn(new PriceCheck(Optional.empty(), TradePrepPricing.freshest(), List.of()));
     committed(
         () -> {
           positionId = position(TUV100, LocalDate.of(2026, 11, 17));
@@ -132,7 +136,8 @@ class TradePrepSnapshotIT {
 
     tradePrep.executeWithoutResult(
         status -> {
-          assertThat(gates.failures(TUV100, TRADE_DATE, Set.of())).isEmpty();
+          assertThat(gates.check(TUV100, TRADE_DATE, TradePrepOverrides.none()).failures())
+              .isEmpty();
 
           reuploadInItsOwnTransaction("SUB;EE3600109435;0.80000;0;1500.00;19.11.2026");
 

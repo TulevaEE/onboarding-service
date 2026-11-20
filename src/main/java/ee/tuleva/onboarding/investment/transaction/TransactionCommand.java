@@ -62,6 +62,10 @@ public class TransactionCommand {
   @JdbcTypeCode(JSON)
   private Set<String> excludeIsins = Set.of();
 
+  @Builder.Default
+  @JdbcTypeCode(JSON)
+  private List<PriceOverride> prices = List.of();
+
   @NotNull
   @Enumerated(STRING)
   @Builder.Default
@@ -81,6 +85,7 @@ public class TransactionCommand {
     Map<String, Object> manualAdjustments = request.manualAdjustments();
     CashOverride cash = request.cash();
     Set<String> excludeIsins = request.excludeIsins();
+    List<PriceOverride> prices = request.prices();
     return TransactionCommand.builder()
         .fund(request.fund())
         .mode(request.mode())
@@ -89,6 +94,7 @@ public class TransactionCommand {
         .cash(cash == null ? null : cash.amount())
         .cashComment(cash == null ? null : cash.comment())
         .excludeIsins(excludeIsins == null ? Set.of() : Set.copyOf(excludeIsins))
+        .prices(prices == null ? List.of() : List.copyOf(prices))
         .actor(actor)
         .status(CommandStatus.PROCESSING)
         .build();

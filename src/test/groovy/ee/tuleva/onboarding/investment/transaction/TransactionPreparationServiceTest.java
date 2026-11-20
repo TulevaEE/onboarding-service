@@ -70,6 +70,9 @@ class TransactionPreparationServiceTest {
             settlementTimingWarningService,
             inputGates,
             clock);
+    lenient()
+        .when(inputGates.verify(any()))
+        .thenReturn(new GateCheck(List.of(), TradePrepPricing.freshest(), List.of()));
   }
 
   private static BigDecimal netInvestable(FundTransactionInput input) {

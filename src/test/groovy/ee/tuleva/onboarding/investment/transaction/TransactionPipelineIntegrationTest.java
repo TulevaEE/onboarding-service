@@ -28,6 +28,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -98,6 +99,7 @@ class TransactionPipelineIntegrationTest {
     }
   }
 
+  @Autowired private PositionPriceResolver positionPriceResolver;
   @Autowired private TransactionPreparationService preparationService;
   @Autowired private TransactionBatchFinalizer batchFinalizer;
   @Autowired private TransactionCommandRepository commandRepository;
@@ -549,7 +551,8 @@ class TransactionPipelineIntegrationTest {
 
     var response =
         commandRunner.createAndProcess(
-            new CreateTransactionCommandRequest(TKF100, REBALANCE, TEST_DATE, null, null, null),
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -569,7 +572,8 @@ class TransactionPipelineIntegrationTest {
 
     var response =
         commandRunner.createAndProcess(
-            new CreateTransactionCommandRequest(TKF100, REBALANCE, TEST_DATE, null, null, null),
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -596,7 +600,8 @@ class TransactionPipelineIntegrationTest {
 
     var response =
         commandRunner.createAndProcess(
-            new CreateTransactionCommandRequest(TKF100, REBALANCE, TEST_DATE, null, null, null),
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -619,7 +624,8 @@ class TransactionPipelineIntegrationTest {
 
     var response =
         commandRunner.createAndProcess(
-            new CreateTransactionCommandRequest(TKF100, REBALANCE, TEST_DATE, null, null, null),
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -639,7 +645,8 @@ class TransactionPipelineIntegrationTest {
 
     var response =
         commandRunner.createAndProcess(
-            new CreateTransactionCommandRequest(TKF100, REBALANCE, TEST_DATE, null, null, null),
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -651,7 +658,8 @@ class TransactionPipelineIntegrationTest {
 
     var response =
         commandRunner.createAndProcess(
-            new CreateTransactionCommandRequest(TKF100, REBALANCE, TEST_DATE, null, null, null),
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -672,11 +680,103 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, Set.of("LU1291106356")),
+                TKF100, REBALANCE, TEST_DATE, null, null, Set.of("LU1291106356"), null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
     assertThat(response.excludeIsins()).containsExactly("LU1291106356");
+  }
+
+  @Test
+  void aManualPriceForAnInstrumentWithNoPriceInIndexValuesLetsTheFundMakeADraftAndIsRecorded() {
+    jdbcClient.sql("DELETE FROM index_values WHERE key = 'PAC.DE'").update();
+    var manual =
+        new PriceOverride("LU1291106356", new BigDecimal("60.12"), "Price from the issuer's site");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(manual)),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.prices()).containsExactly(manual);
+    assertThat(response.calculationSnapshot())
+        .containsEntry(
+            "priceOverrides",
+            List.of(
+                Map.of(
+                    "isin", "LU1291106356",
+                    "price", "60.12",
+                    "comment", "Price from the issuer's site",
+                    "neededByGate", true)));
+  }
+
+  @Test
+  void aManualPriceSizesTheOrderAndIsRecordedBesideTheIndexPriceItReplaced() {
+    var indexPrice = positionPriceResolver.resolve("IE000O58J820", TEST_DATE).orElseThrow();
+    var manual = new PriceOverride("IE000O58J820", new BigDecimal("5.00"), "Index price is stale");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(manual)),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    var order =
+        response.orders().stream()
+            .filter(candidate -> candidate.instrumentIsin().equals("IE000O58J820"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(order.orderQuantity())
+        .isEqualByComparingTo(order.orderAmount().divide(new BigDecimal("5.00"), 6, HALF_UP));
+    assertThat(response.calculationSnapshot())
+        .containsEntry(
+            "priceOverrides",
+            List.of(
+                Map.of(
+                    "isin",
+                    "IE000O58J820",
+                    "price",
+                    "5.00",
+                    "comment",
+                    "Index price is stale",
+                    "neededByGate",
+                    false,
+                    "indexPrice",
+                    indexPrice.usedPrice().toPlainString(),
+                    "indexPriceDate",
+                    indexPrice.priceDate().toString())));
+  }
+
+  @Test
+  void aManualPriceForAnInstrumentTheFundNeitherHoldsNorHasInItsModelFailsTheCommand() {
+    var stranger = new PriceOverride("IE0000000000", new BigDecimal("1"), "Wrong instrument");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(stranger)),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    assertThat(auditEventRepository.findAll())
+        .filteredOn(event -> String.valueOf(response.id()).equals(event.getDedupKey()))
+        .singleElement()
+        .satisfies(
+            event ->
+                assertThat(event.getPayload())
+                    .containsEntry(
+                        "prices",
+                        List.of(
+                            Map.of(
+                                "isin",
+                                "IE0000000000",
+                                "price",
+                                "1",
+                                "comment",
+                                "Wrong instrument"))));
   }
 
   private void registryRow(String isin, String quantity) {

@@ -115,6 +115,30 @@ class PortfolioReconciliationIT {
   }
 
   @Test
+  void zeroLedgerRowTheNavReportOmits_isNotAMismatch() {
+    seedCostBasis(ISIN_A, "10000.0000");
+    seedCostBasis(ISIN_B, "0.0000");
+    seedNavReport(ISIN_A, new BigDecimal("10000.0000"));
+
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.refreshed());
+
+    assertThat(recorder.events).isEmpty();
+    assertThat(recorder.skippedEvents).isEmpty();
+  }
+
+  @Test
+  void ledgerDustBelowTheToleranceTheNavReportOmits_isNotAMismatch() {
+    seedCostBasis(ISIN_A, "10000.0000");
+    seedCostBasis(ISIN_B, "0.0040");
+    seedNavReport(ISIN_A, new BigDecimal("10000.0000"));
+
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.refreshed());
+
+    assertThat(recorder.events).isEmpty();
+    assertThat(recorder.skippedEvents).isEmpty();
+  }
+
+  @Test
   void wholeCostBasisLedgerMissing_emitsSkippedInsteadOfMismatch() {
     UUID calculationId = UUID.randomUUID();
     seedNavReport(ISIN_A, new BigDecimal("10000.0000"), calculationId);

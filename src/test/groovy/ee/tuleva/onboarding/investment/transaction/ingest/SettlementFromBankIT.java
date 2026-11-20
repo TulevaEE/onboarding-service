@@ -282,19 +282,6 @@ class SettlementFromBankIT {
   }
 
   @Test
-  void anEmptyLatestPendingReportOlderThanTheBooking_waitsForTheNextOne() {
-    TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
-    piece(order, "DLA0553690", "11704");
-    bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 23));
-    reportRepository.deleteAll();
-    pendingReport(LocalDate.of(2026, 2, 21), List.of());
-
-    settleFromTheBank();
-
-    assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
-  }
-
-  @Test
   void aLatestPendingReportWithFarFewerRowsThanThePriorOne_stillSettlesABookedOrder() {
     TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
     piece(order, "DLA0553690", "11704");

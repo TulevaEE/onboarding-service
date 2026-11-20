@@ -1978,8 +1978,6 @@ class SebPendingTransactionReconciliationServiceTest {
     return reportOf(validRawRow(clientRef));
   }
 
-  // Builds a report with one row matching clientRef (if given) plus enough noise rows —
-  // referencing no known order — to reach rowCount, so only row count is exercised.
   private static InvestmentReport reportOf(Map<String, Object> raw) {
     return reportOf(raw, Map.of("asOfDate", "2026-05-13"));
   }

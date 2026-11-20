@@ -7,10 +7,14 @@ import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankStatementBalances;
-import ee.tuleva.onboarding.banking.FetchedBalance;
+import ee.tuleva.onboarding.banking.CurrentDayReport;
+import ee.tuleva.onboarding.banking.CurrentDayReport.Booked;
+import ee.tuleva.onboarding.banking.CurrentDayReport.Missing;
+import ee.tuleva.onboarding.banking.CurrentDayReport.Unreadable;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
+import ee.tuleva.onboarding.banking.statement.BankStatementParseException;
 import ee.tuleva.onboarding.banking.statement.DayClosingBalance;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,8 +22,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class BookedBalanceReader implements BankStatementBalances {
@@ -57,14 +63,23 @@ public class BookedBalanceReader implements BankStatementBalances {
   }
 
   @Override
-  public Optional<FetchedBalance> currentDayBalance(BankAccount account, LocalDate day) {
+  public CurrentDayReport currentDayReport(BankAccount account, LocalDate day) {
     return bankingMessageRepository
         .findLatestProcessedCurrentDayReport(SEB, account.iban(), day)
-        .flatMap(
-            message ->
-                statementOf(message)
-                    .bookedBalance()
-                    .map(amount -> new FetchedBalance(amount, message.getReceivedAt())));
+        .map(this::bookedBalanceOf)
+        .orElseGet(Missing::new);
+  }
+
+  private CurrentDayReport bookedBalanceOf(BankingMessage message) {
+    try {
+      return statementOf(message)
+          .bookedBalance()
+          .<CurrentDayReport>map(balance -> new Booked(balance, message.getReceivedAt()))
+          .orElseGet(Unreadable::new);
+    } catch (BankStatementParseException e) {
+      log.error("Stored current-day report cannot be read: messageId={}", message.getId(), e);
+      return new Unreadable();
+    }
   }
 
   @Override

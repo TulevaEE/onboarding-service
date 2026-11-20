@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -65,7 +66,7 @@ class TradePrepInputGates {
                     .flatMap(Optional::stream),
                 prices.failures().stream(),
                 holdings.stream().flatMap(check -> check.failures().stream()))
-            .flatMap(failure -> failure)
+            .flatMap(Function.identity())
             .toList();
     return new GateCheck(
         failures,

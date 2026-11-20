@@ -75,6 +75,22 @@ class SameDayCashReaderIT {
   }
 
   @Test
+  void aRunForAnotherDayDoesNotReadTheGatewayAndSaysWhy() {
+    store(
+        INTRA_DAY_REPORT,
+        TODAY,
+        THIS_MORNING,
+        currentDayReport(TUK75_INVESTMENT_IBAN, TODAY, "900.00"));
+
+    assertThat(
+            reader
+                .read(TUK75, TODAY.minusDays(1), null, new BigDecimal("900.00"))
+                .gateway()
+                .payload())
+        .isEqualTo(java.util.Map.of("status", "NOT_TODAYS_RUN"));
+  }
+
+  @Test
   void readsTheLatestCurrentDayReportForToday() {
     store(
         INTRA_DAY_REPORT,

@@ -12,6 +12,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -57,7 +58,12 @@ public class PriorityPriceProvider {
   public Optional<FundValue> resolveAnyAge(String isin, LocalDate date) {
     return instrumentReferenceService
         .findByIsin(isin)
-        .flatMap(instrument -> resolveForInstrument(instrument, date, null, LocalDate.MIN));
+        .flatMap(
+            instrument ->
+                latest(
+                    candidates(
+                        instrument,
+                        storageKey -> fundValueProvider.getLatestValue(storageKey, date))));
   }
 
   private Optional<FundValue> resolveForInstrument(
@@ -65,19 +71,26 @@ public class PriorityPriceProvider {
       LocalDate date,
       @Nullable Instant updatedBefore,
       LocalDate earliestAllowed) {
+    return latest(
+        candidates(instrument, storageKey -> fetchLatestValue(storageKey, date, updatedBefore))
+            .filter(fundValue -> !fundValue.date().isBefore(earliestAllowed)));
+  }
+
+  private Stream<FundValue> candidates(
+      InstrumentReference instrument, Function<String, Optional<FundValue>> latestValue) {
     return PRICE_FEEDS.stream()
         .map(feed -> feed.storageKey().apply(instrument))
-        .filter(Optional::isPresent)
-        .map(Optional::get)
-        .map(storageKey -> fetchLatestValue(storageKey, date, updatedBefore))
-        .filter(Optional::isPresent)
-        .map(Optional::get)
+        .flatMap(Optional::stream)
+        .map(latestValue)
+        .flatMap(Optional::stream)
         .filter(fundValue -> fundValue.value().compareTo(ZERO) != 0)
-        .filter(fundValue -> !isEodhdLastTradeOfAParisListing(instrument, fundValue))
-        .filter(fundValue -> !fundValue.date().isBefore(earliestAllowed))
-        .max(
-            Comparator.comparing(FundValue::date)
-                .thenComparing(fundValue -> providerPriority(fundValue.provider())));
+        .filter(fundValue -> !isEodhdLastTradeOfAParisListing(instrument, fundValue));
+  }
+
+  private Optional<FundValue> latest(Stream<FundValue> candidates) {
+    return candidates.max(
+        Comparator.comparing(FundValue::date)
+            .thenComparing(fundValue -> providerPriority(fundValue.provider())));
   }
 
   private static boolean isEodhdLastTradeOfAParisListing(

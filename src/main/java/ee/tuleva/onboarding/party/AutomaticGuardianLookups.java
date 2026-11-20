@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.party;
 
 import static java.util.function.Predicate.not;
 
+import ee.tuleva.onboarding.aml.RegisterRequester;
 import ee.tuleva.onboarding.analytics.UnitOwnerSnapshotSynchronized;
 import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.personalcode.PersonalCodeValidator;
@@ -9,9 +10,9 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
-import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
@@ -32,8 +33,8 @@ public class AutomaticGuardianLookups {
   private final MinorGuardianLookupService minorGuardianLookupService;
   private final AutomaticGuardianLookupCandidates candidates;
   private final GuardianLookupRepository guardianLookupRepository;
+  private final RegisterRequester registerRequester;
   private final Clock clock;
-  private final @Nullable String requester;
   private final Duration pause;
 
   @Autowired
@@ -41,23 +42,22 @@ public class AutomaticGuardianLookups {
       MinorGuardianLookupService minorGuardianLookupService,
       AutomaticGuardianLookupCandidates candidates,
       GuardianLookupRepository guardianLookupRepository,
+      RegisterRequester registerRequester,
       Clock clock,
-      @Value("${guardian-lookup.automatic-requester:#{@populationRegisterMember.memberCode()}}")
-          @Nullable String requester,
       @Value("${guardian-lookup.automatic-pause:PT1S}") Duration pause) {
     this.minorGuardianLookupService = minorGuardianLookupService;
     this.candidates = candidates;
     this.guardianLookupRepository = guardianLookupRepository;
+    this.registerRequester = registerRequester;
     this.clock = clock;
-    this.requester = requester == null || requester.isBlank() ? null : requester;
     this.pause = pause;
   }
 
   public void lookUpOnce(String childPersonalCode) {
-    if (requester == null) {
-      logSkipped();
-      return;
-    }
+    designatedRequester().ifPresent(requester -> lookUpOnce(requester, childPersonalCode));
+  }
+
+  private void lookUpOnce(String requester, String childPersonalCode) {
     try {
       minorGuardianLookupService
           .lookUpChildOnce(requester, childPersonalCode)
@@ -70,15 +70,15 @@ public class AutomaticGuardianLookups {
   @Async
   @EventListener(UnitOwnerSnapshotSynchronized.class)
   public void onUnitOwnerSnapshot() {
-    lookUpNewHoldersAndPayouts();
-    backfillMinorThirdPillarHolders();
+    designatedRequester()
+        .ifPresent(
+            requester -> {
+              lookUpNewHoldersAndPayouts(requester);
+              backfillMinorThirdPillarHolders(requester);
+            });
   }
 
-  void lookUpNewHoldersAndPayouts() {
-    if (requester == null) {
-      logSkipped();
-      return;
-    }
+  private void lookUpNewHoldersAndPayouts(String requester) {
     List<String> children = candidates();
     log.info("Starting automatic guardian lookups: children={}", children.size());
     int lookedUp = 0;
@@ -103,25 +103,28 @@ public class AutomaticGuardianLookups {
   }
 
   public MinorGuardianLookupRun backfillNow(int batchSize) {
-    String asRequester = requester;
-    if (asRequester == null || backfillIsOver()) {
+    if (backfillIsOver()) {
       throw new MinorGuardianBackfillUnavailable();
     }
-    return minorGuardianLookupService.backfillMinorThirdPillarHolders(
-        asRequester, batchSize, pause);
+    String requester = designatedRequester().orElseThrow(MinorGuardianBackfillUnavailable::new);
+    return backfill(requester, batchSize);
   }
 
-  void backfillMinorThirdPillarHolders() {
-    if (requester == null || Thread.currentThread().isInterrupted() || backfillIsOver()) {
+  private void backfillMinorThirdPillarHolders(String requester) {
+    if (Thread.currentThread().isInterrupted() || backfillIsOver()) {
       return;
     }
     try {
-      backfillNow(MAX_BACKFILL_PER_RUN);
+      backfill(requester, MAX_BACKFILL_PER_RUN);
     } catch (RuntimeException e) {
       log.error(
           "Minor guardian backfill did not run, it is tried again at the next snapshot: {}",
           RegisterFailure.of(e));
     }
+  }
+
+  private MinorGuardianLookupRun backfill(String requester, int batchSize) {
+    return minorGuardianLookupService.backfillMinorThirdPillarHolders(requester, batchSize, pause);
   }
 
   private boolean backfillIsOver() {
@@ -141,14 +144,27 @@ public class AutomaticGuardianLookups {
         .toList();
   }
 
+  private Optional<String> designatedRequester() {
+    Optional<String> requester;
+    try {
+      requester = registerRequester.designatedXRoadUserId();
+    } catch (RuntimeException e) {
+      log.error(
+          "Automatic guardian lookup skipped, aml-service did not name the requester, it is asked"
+              + " again at the next run: error={}",
+          e.getClass().getSimpleName());
+      return Optional.empty();
+    }
+    if (requester.isEmpty()) {
+      log.info("Automatic guardian lookup skipped, no requester designated in aml-service");
+    }
+    return requester;
+  }
+
   private static void logFailure(RuntimeException e) {
     log.error(
         "Automatic guardian lookup failed, the child is asked again at the next event: {}",
         RegisterFailure.of(e));
-  }
-
-  private static void logSkipped() {
-    log.info("Automatic guardian lookup skipped, no requester configured");
   }
 
   private boolean pauseBetweenQueries() {

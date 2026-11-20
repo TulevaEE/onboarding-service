@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 public class MinorGuardianBackfillUnavailable extends RuntimeException {
 
   public MinorGuardianBackfillUnavailable() {
-    super("Minor guardian backfill cannot run: no requester is configured or its last day is past");
+    super(
+        "Minor guardian backfill cannot run: aml-service designates no requester or cannot be"
+            + " asked, or its last day is past");
   }
 }

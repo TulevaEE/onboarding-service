@@ -68,11 +68,21 @@ Anything else, such as a pending or completed onboarding, is left as it is. A fa
 nothing and the next run asks again; one person's failure does not stop the others. In dev and
 staging `DevOnboardingReviews` answers no reviews.
 
+The population register wants a natural person in `X-Road-UserId`, even for a query nobody started
+by hand, so the person the automatic guardian lookups (party module) ask as is designated in
+aml-service. `AmlServiceRegisterRequester` asks `GET /v1/register-requester` at each run, so a new
+designation takes effect at the next run without a deploy, and names that person as the X-Road user
+`EE` + their personal code. A 404 means no one is designated and the run looks up no one; a 5xx or
+I/O error (retried once), any other 4xx, a missing token or an answer without a valid personal code
+throws, and the run looks up no one either. In dev and staging `DevRegisterRequester` designates no
+one.
+
 Staging runs no aml-service, so in the `dev` and `staging` profiles nothing asks it: the nightly job
 does not run, and the KYC check and the payout hold get a mock in its place. `DevKycChecker` passes
 every KYC check as `LOW`, its metadata saying nothing was assessed, and `DevRiskLevels` holds no
-person's or company's payout. Every other profile gets the real ones above, so a missing profile
-cannot quietly give production the fail-open mock.
+person's or company's payout, and `DevRegisterRequester` lets no automatic guardian lookup run.
+Every other profile gets the real ones above, so a missing profile cannot quietly give production
+the fail-open mock.
 
 The `db/dev` stand-ins for the old risk views (`V1_173.1`, `V1_173.2`) are applied migrations, so
 they stay, but nothing reads them.

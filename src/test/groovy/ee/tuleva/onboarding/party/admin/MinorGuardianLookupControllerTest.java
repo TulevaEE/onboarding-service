@@ -204,7 +204,7 @@ class MinorGuardianLookupControllerTest {
   }
 
   @Test
-  void backfillsOneBatchNowAsTheConfiguredRequesterAndReturnsTheCounts() throws Exception {
+  void backfillsOneBatchNowAsTheDesignatedRequesterAndReturnsTheCounts() throws Exception {
     given(automaticGuardianLookups.backfillNow(10))
         .willReturn(new MinorGuardianLookupRun(10, 0, 5404));
 

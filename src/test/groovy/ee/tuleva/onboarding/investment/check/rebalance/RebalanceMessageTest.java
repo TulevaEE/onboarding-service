@@ -75,7 +75,7 @@ class RebalanceMessageTest {
   void twoMonthsOutOfLine_failsWithTheLegalDeadline() {
     var window =
         window(
-            LocalDate.of(2026, 12, 1),
+            LocalDate.of(2026, 12, 2),
             Set.of("IE00BFG1TM61", "IE000I9HGDZ3"),
             LocalDate.of(2026, 11, 30),
             OUT_OF_LINE,

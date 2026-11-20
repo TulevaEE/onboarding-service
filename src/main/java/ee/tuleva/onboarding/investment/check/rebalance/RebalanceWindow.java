@@ -30,10 +30,10 @@ public record RebalanceWindow(
     if (inLine()) {
       return OK;
     }
-    if (!checkDate.isBefore(deadlines.inLineDue())) {
+    if (checkDate.isAfter(deadlines.inLineDue())) {
       return FAIL;
     }
-    if (!checkDate.isBefore(deadlines.tradesDue()) && !tradesDone()) {
+    if (checkDate.isAfter(deadlines.tradesDue()) && !tradesDone()) {
       return WARNING;
     }
     return INFO;

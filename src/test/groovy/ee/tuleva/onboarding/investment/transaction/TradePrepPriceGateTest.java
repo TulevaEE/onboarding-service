@@ -86,7 +86,11 @@ class TradePrepPriceGateTest {
                     TKF100,
                     TRADE_DATE,
                     new TradePrepOverrides(
-                        Set.of("EXCLUDED"), List.of(), null, PriceDateRule.FRESHEST_PER_INSTRUMENT))
+                        Set.of("EXCLUDED"),
+                        List.of(),
+                        null,
+                        PriceDateRule.FRESHEST_PER_INSTRUMENT,
+                        null))
                 .missingPrices())
         .isEmpty();
   }
@@ -116,7 +120,7 @@ class TradePrepPriceGateTest {
             TKF100,
             TRADE_DATE,
             new TradePrepOverrides(
-                Set.of(), List.of(manual), null, PriceDateRule.FRESHEST_PER_INSTRUMENT));
+                Set.of(), List.of(manual), null, PriceDateRule.FRESHEST_PER_INSTRUMENT, null));
 
     assertThat(check)
         .isEqualTo(
@@ -138,7 +142,7 @@ class TradePrepPriceGateTest {
             TKF100,
             TRADE_DATE,
             new TradePrepOverrides(
-                Set.of(), List.of(manual), null, PriceDateRule.FRESHEST_PER_INSTRUMENT));
+                Set.of(), List.of(manual), null, PriceDateRule.FRESHEST_PER_INSTRUMENT, null));
 
     assertThat(check.pricing())
         .isEqualTo(new TradePrepPricing(Map.of("HELD_PRICED", new BigDecimal("98")), null));
@@ -163,7 +167,11 @@ class TradePrepPriceGateTest {
                     TKF100,
                     TRADE_DATE,
                     new TradePrepOverrides(
-                        Set.of(), List.of(stranger), null, PriceDateRule.FRESHEST_PER_INSTRUMENT)))
+                        Set.of(),
+                        List.of(stranger),
+                        null,
+                        PriceDateRule.FRESHEST_PER_INSTRUMENT,
+                        null)))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -183,7 +191,8 @@ class TradePrepPriceGateTest {
                         Set.of(),
                         List.of(first, second),
                         null,
-                        PriceDateRule.FRESHEST_PER_INSTRUMENT)))
+                        PriceDateRule.FRESHEST_PER_INSTRUMENT,
+                        null)))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -232,14 +241,15 @@ class TradePrepPriceGateTest {
             TKF100,
             TRADE_DATE,
             new TradePrepOverrides(
-                Set.of(), List.of(manual), null, PriceDateRule.LATEST_COMMON_DATE));
+                Set.of(), List.of(manual), null, PriceDateRule.LATEST_COMMON_DATE, null));
 
     assertThat(check.pricing())
         .isEqualTo(new TradePrepPricing(Map.of("B", new BigDecimal("21")), TRADE_DATE));
   }
 
   private static TradePrepOverrides commonDate() {
-    return new TradePrepOverrides(Set.of(), List.of(), null, PriceDateRule.LATEST_COMMON_DATE);
+    return new TradePrepOverrides(
+        Set.of(), List.of(), null, PriceDateRule.LATEST_COMMON_DATE, null);
   }
 
   private void givenPriceOn(String isin, LocalDate asked, LocalDate priced, String price) {

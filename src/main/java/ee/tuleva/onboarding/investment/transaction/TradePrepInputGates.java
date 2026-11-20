@@ -1,18 +1,9 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.investment.report.ReportType.R17_PEVA;
-import static ee.tuleva.onboarding.investment.report.ReportType.R21_RAVA;
-
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.investment.epis.PevaRavaCycleReports;
-import ee.tuleva.onboarding.investment.epis.PevaRavaCycleRepository;
-import ee.tuleva.onboarding.investment.epis.PevaRavaPeriod;
-import ee.tuleva.onboarding.investment.epis.PevaRavaPeriodService;
 import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
-import ee.tuleva.onboarding.investment.report.ReportType;
 import ee.tuleva.onboarding.investment.transaction.CommandOutcome.StoppedByInputGates;
-import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPevaRavaReports;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPositionReport;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR45;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoR45Loaded;
@@ -32,11 +23,11 @@ class TradePrepInputGates {
   private final FundPositionRepository fundPositionRepository;
   private final PublicHolidays publicHolidays;
   private final R45ReportService r45ReportService;
-  private final PevaRavaPeriodService pevaRavaPeriodService;
-  private final PevaRavaCycleRepository pevaRavaCycleRepository;
   private final R16OutflowReader r16OutflowReader;
   private final TradePrepPriceGate priceGate;
   private final TradePrepPositionGate positionGate;
+  private final TradePrepCashGate cashGate;
+  private final TradePrepPevaRavaGate pevaRavaGate;
 
   GateCheck verify(TransactionCommand command) {
     GateCheck check =
@@ -70,8 +61,9 @@ class TradePrepInputGates {
                 Stream.of(
                         positionReport,
                         r45(fund, asOfDate),
-                        pevaRavaReports(fund, asOfDate),
+                        pevaRavaGate.missingReports(fund, asOfDate),
                         r16OutflowReader.missingR16(fund, asOfDate),
+                        cashGate.missingSameDayCash(fund, overrides),
                         prices.missingPrices())
                     .flatMap(Optional::stream),
                 holdings.stream().flatMap(check -> check.failures().stream()))
@@ -92,27 +84,5 @@ class TradePrepInputGates {
             .latestReportDateBefore(asOfDate)
             .<InputGateFailure>map(latest -> new MissingR45(asOfDate, latest))
             .orElseGet(() -> new NoR45Loaded(asOfDate)));
-  }
-
-  private Optional<InputGateFailure> pevaRavaReports(TulevaFund fund, LocalDate asOfDate) {
-    return pevaRavaPeriodService
-        .getCurrentPeriod(asOfDate)
-        .filter(period -> period.countsFlowsOf(fund))
-        .flatMap(period -> missingPevaRavaReports(fund, period));
-  }
-
-  private Optional<InputGateFailure> missingPevaRavaReports(
-      TulevaFund fund, PevaRavaPeriod period) {
-    List<ReportType> missing =
-        pevaRavaCycleRepository
-            .findReportsByExecDate(period.cycle().execDate())
-            .map(PevaRavaCycleReports::missingReports)
-            .orElse(List.of(R17_PEVA, R21_RAVA));
-    if (missing.isEmpty()) {
-      return Optional.empty();
-    }
-    return Optional.of(
-        new MissingPevaRavaReports(
-            missing, period.cycle().execDate(), period.timelineFor(fund).dActiveDate()));
   }
 }

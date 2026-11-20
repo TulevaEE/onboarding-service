@@ -76,6 +76,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @Import({
   TradePrepInputGatesIT.EpisNavProvider.class,
   TradePrepInputGates.class,
+  TradePrepPevaRavaGate.class,
   TradePrepInputGateNotifier.class,
   R16OutflowReader.class,
   R16FlowCalculationService.class,
@@ -111,6 +112,7 @@ class TradePrepInputGatesIT {
   @MockitoBean OperationsNotificationService notificationService;
   @MockitoBean TradePrepPriceGate priceGate;
   @MockitoBean TradePrepPositionGate positionGate;
+  @MockitoBean TradePrepCashGate cashGate;
 
   @Autowired TradePrepInputGates gates;
   @Autowired R16OutflowReader r16OutflowReader;

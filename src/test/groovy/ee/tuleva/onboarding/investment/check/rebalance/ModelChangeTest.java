@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
@@ -26,7 +27,7 @@ class ModelChangeTest {
             allocation(CURRENT, "EUROPE", "0.10"),
             allocation(CURRENT, "USA", "0.60"));
 
-    var change = ModelChange.between(previous, current).orElseThrow();
+    var change = ModelChange.latestIn(history(previous, current)).orElseThrow();
 
     assertThat(change.effectiveDate()).isEqualTo(CURRENT);
     assertThat(change.changedIsins())
@@ -49,7 +50,7 @@ class ModelChangeTest {
             allocation(CURRENT, "LIQUIDATED", "0"),
             allocation(CURRENT, "NEW_WORLD", "1.00"));
 
-    var change = ModelChange.between(previous, current).orElseThrow();
+    var change = ModelChange.latestIn(history(previous, current)).orElseThrow();
 
     assertThat(change.changedIsins()).containsExactlyInAnyOrder("WORLD", "NEW_WORLD");
   }
@@ -59,14 +60,7 @@ class ModelChangeTest {
     var previous = List.of(allocation(PREVIOUS, "WORLD", "1.00"));
     var current = List.of(allocation(CURRENT, "WORLD", "1.00000000"));
 
-    assertThat(ModelChange.between(previous, current)).isEmpty();
-  }
-
-  @Test
-  void aFundsFirstModel_isNoChange() {
-    var current = List.of(allocation(CURRENT, "WORLD", "1.00"));
-
-    assertThat(ModelChange.between(List.of(), current)).isEmpty();
+    assertThat(ModelChange.latestIn(history(previous, current))).isEmpty();
   }
 
   @Test
@@ -75,7 +69,7 @@ class ModelChangeTest {
         List.of(allocation(PREVIOUS, "WORLD", "0.99"), allocation(PREVIOUS, null, "0.01"));
     var current = List.of(allocation(CURRENT, "WORLD", "0.99"), allocation(CURRENT, null, "0.005"));
 
-    assertThat(ModelChange.between(previous, current)).isEmpty();
+    assertThat(ModelChange.latestIn(history(previous, current))).isEmpty();
   }
 
   @Test
@@ -133,6 +127,11 @@ class ModelChangeTest {
     assertThat(ModelChange.allIn(history))
         .extracting(ModelChange::effectiveDate)
         .containsExactly(november, august);
+  }
+
+  private static List<ModelPortfolioAllocation> history(
+      List<ModelPortfolioAllocation> previous, List<ModelPortfolioAllocation> current) {
+    return Stream.concat(previous.stream(), current.stream()).toList();
   }
 
   private static ModelPortfolioAllocation allocation(

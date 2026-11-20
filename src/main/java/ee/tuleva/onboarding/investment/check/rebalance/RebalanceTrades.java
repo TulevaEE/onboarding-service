@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.rebalance;
 
+import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
@@ -21,7 +22,7 @@ import org.springframework.stereotype.Component;
 class RebalanceTrades {
 
   private static final Set<OrderStatus> PLACED_ORDERS = EnumSet.of(SENT, EXECUTED, SETTLED);
-  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+  private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
 
   private final TransactionOrderRepository orderRepository;
 

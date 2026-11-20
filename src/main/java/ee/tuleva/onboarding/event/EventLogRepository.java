@@ -16,6 +16,9 @@ public interface EventLogRepository extends CrudRepository<EventLog, Long> {
   boolean existsByTypeAndPrincipalAndTimestampGreaterThanEqual(
       String type, String principal, Instant since);
 
+  Optional<EventLog> findFirstByPrincipalAndTypeInOrderByTimestampDescIdDesc(
+      String principal, Collection<String> types);
+
   List<EventLog> findAllByTypeInAndTimestampGreaterThanEqualOrderByTimestamp(
       Collection<String> types, Instant since);
 

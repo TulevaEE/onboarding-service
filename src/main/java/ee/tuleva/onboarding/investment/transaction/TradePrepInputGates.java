@@ -21,7 +21,6 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -39,16 +38,17 @@ class TradePrepInputGates {
   private final TradePrepPriceGate priceGate;
   private final TradePrepPositionGate positionGate;
 
-  void verify(TransactionCommand command) {
-    List<InputGateFailure> failures =
-        failures(command.getFund(), command.getAsOfDate(), command.getExcludeIsins());
-    if (!failures.isEmpty()) {
+  GateCheck verify(TransactionCommand command) {
+    GateCheck check =
+        check(command.getFund(), command.getAsOfDate(), TradePrepOverrides.of(command));
+    if (!check.failures().isEmpty()) {
       throw new TradePrepInputGateException(
-          new StoppedByInputGates(command.getFund(), command.getAsOfDate(), failures));
+          new StoppedByInputGates(command.getFund(), command.getAsOfDate(), check.failures()));
     }
+    return check;
   }
 
-  List<InputGateFailure> failures(TulevaFund fund, LocalDate asOfDate, Set<String> excludedIsins) {
+  GateCheck check(TulevaFund fund, LocalDate asOfDate, TradePrepOverrides overrides) {
     LocalDate requiredReportDate = publicHolidays.previousWorkingDay(asOfDate);
     Optional<LocalDate> latestReportDate =
         fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
@@ -66,17 +66,22 @@ class TradePrepInputGates {
         currentReportDate.stream()
             .flatMap(
                 date ->
-                    positionGate.differencesFromPositionReport(fund, date, excludedIsins).stream());
-    return Stream.concat(
-            Stream.of(
-                    positionReport,
-                    r45(fund, asOfDate),
-                    pevaRavaReports(fund, asOfDate),
-                    r16OutflowReader.missingR16(fund, asOfDate),
-                    priceGate.missingPrices(fund, asOfDate, excludedIsins))
-                .flatMap(Optional::stream),
-            holdingDifferences)
-        .toList();
+                    positionGate
+                        .differencesFromPositionReport(fund, date, overrides.excludedIsins())
+                        .stream());
+    PriceCheck prices = priceGate.check(fund, asOfDate, overrides);
+    List<InputGateFailure> failures =
+        Stream.concat(
+                Stream.of(
+                        positionReport,
+                        r45(fund, asOfDate),
+                        pevaRavaReports(fund, asOfDate),
+                        r16OutflowReader.missingR16(fund, asOfDate),
+                        prices.missingPrices())
+                    .flatMap(Optional::stream),
+                holdingDifferences)
+            .toList();
+    return new GateCheck(failures, prices.pricing(), prices.priceOverrides());
   }
 
   private Optional<InputGateFailure> r45(TulevaFund fund, LocalDate asOfDate) {

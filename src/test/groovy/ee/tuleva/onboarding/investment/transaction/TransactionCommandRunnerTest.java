@@ -92,7 +92,7 @@ class TransactionCommandRunnerTest {
     TransactionCommandResponse response =
         runner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), null, null),
+                TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), null, null, null),
             "operator-9");
 
     then(commandRepository)
@@ -120,7 +120,8 @@ class TransactionCommandRunnerTest {
 
     TransactionCommandResponse response =
         runner.createAndProcess(
-            new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null),
+            new CreateTransactionCommandRequest(
+                TUK75, REBALANCE, AS_OF_DATE, null, null, null, null),
             "admin");
 
     InOrder inOrder = inOrder(preparationService, inputGateNotifier);
@@ -192,7 +193,7 @@ class TransactionCommandRunnerTest {
         .willReturn(new ProcessCommandResult(batch(10L, DRAFT), List.of()));
 
     runner.createAndProcess(
-        new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null),
+        new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null, null),
         "admin");
 
     then(commandRepository)
@@ -220,6 +221,7 @@ class TransactionCommandRunnerTest {
             AS_OF_DATE,
             null,
             new CashOverride(new BigDecimal("40000.00"), "Gateway balance at 10:15"),
+            null,
             null),
         "operator-9");
 
@@ -246,7 +248,13 @@ class TransactionCommandRunnerTest {
     TransactionCommandResponse response =
         runner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TUK75, REBALANCE, AS_OF_DATE, null, null, Set.of("IE00BMDBMY19", "IE00BFG1TM61")),
+                TUK75,
+                REBALANCE,
+                AS_OF_DATE,
+                null,
+                null,
+                Set.of("IE00BMDBMY19", "IE00BFG1TM61"),
+                null),
             "operator-9");
 
     then(commandRepository)
@@ -283,6 +291,7 @@ class TransactionCommandRunnerTest {
                 AS_OF_DATE,
                 null,
                 new CashOverride(new BigDecimal("40000.00"), "Gateway balance at 10:15"),
+                null,
                 null),
             "admin");
 
@@ -304,7 +313,8 @@ class TransactionCommandRunnerTest {
 
     TransactionCommandResponse response =
         runner.createAndProcess(
-            new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null),
+            new CreateTransactionCommandRequest(
+                TUK75, REBALANCE, AS_OF_DATE, null, null, null, null),
             "admin");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -397,7 +407,8 @@ class TransactionCommandRunnerTest {
 
     TransactionCommandResponse response =
         runner.createAndProcess(
-            new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null),
+            new CreateTransactionCommandRequest(
+                TUK75, REBALANCE, AS_OF_DATE, null, null, null, null),
             "admin");
 
     assertThat(response.calculationSnapshot()).isEqualTo(payload);

@@ -20,6 +20,7 @@ public record TransactionCommandResponse(
     @Nullable BigDecimal cash,
     @Nullable String cashComment,
     List<String> excludeIsins,
+    List<PriceOverride> prices,
     List<TransactionOrderResponse> orders,
     @Nullable Map<String, Object> calculationSnapshot) {
 
@@ -38,6 +39,7 @@ public record TransactionCommandResponse(
         command.getCash(),
         command.getCashComment(),
         command.sortedExcludeIsins(),
+        command.getPrices(),
         orders.stream().map(TransactionOrderResponse::from).toList(),
         calculationSnapshot);
   }

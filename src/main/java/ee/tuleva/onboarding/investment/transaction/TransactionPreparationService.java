@@ -7,7 +7,6 @@ import ee.tuleva.onboarding.investment.transaction.calculation.TradeCalculationE
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -43,9 +42,8 @@ public class TransactionPreparationService {
           command.getFund(),
           command.getMode());
 
-      inputGates.verify(command);
-      TradePrepPricing pricing = TradePrepPricing.freshest();
-      input = gatherInput(command, pricing);
+      GateCheck gates = inputGates.verify(command);
+      input = gatherInput(command, gates.pricing());
       input = input.excluding(command.getExcludeIsins());
 
       var result = calculationEngine.calculate(input, command.getMode());
@@ -62,7 +60,7 @@ public class TransactionPreparationService {
 
       CalculatedOrders calculated =
           orderFactory.createOrders(
-              batch, result, command.getAsOfDate(), Instant.now(clock), pricing);
+              batch, result, command.getAsOfDate(), Instant.now(clock), gates.pricing());
       List<TransactionOrder> orders = calculated.orders();
       orderRepository.saveAll(orders);
 
@@ -72,7 +70,15 @@ public class TransactionPreparationService {
               .eventType("CALCULATION_COMPLETED")
               .actor(actorOf(command))
               .createdAt(Instant.now(clock))
-              .payload(completedPayload(command, input, result, orders, calculated))
+              .payload(
+                  TransactionCommandPayloads.completed(
+                      command,
+                      gates,
+                      input,
+                      result,
+                      calculated,
+                      TransactionAuditPayloads.serializeSettlementWarnings(
+                          settlementTimingWarningService.activeWarnings(command.getFund()))))
               .build());
 
       command.setStatus(CommandStatus.CALCULATED);
@@ -120,7 +126,7 @@ public class TransactionPreparationService {
             .dedupKey(String.valueOf(command.getId()))
             .actor(actorOf(command))
             .createdAt(Instant.now(clock))
-            .payload(failedPayload(command, input, e))
+            .payload(TransactionCommandPayloads.failed(command, input, e))
             .build());
   }
 
@@ -141,87 +147,5 @@ public class TransactionPreparationService {
 
   private static String actorOf(TransactionCommand command) {
     return command.getActor() == null ? "system" : command.getActor();
-  }
-
-  private Map<String, Object> failedPayload(
-      TransactionCommand command, @Nullable FundTransactionInput input, RuntimeException e) {
-    Map<String, Object> payload = new LinkedHashMap<>();
-    payload.put("fund", command.getFund().name());
-    payload.put("asOfDate", command.getAsOfDate().toString());
-    payload.put("manualAdjustments", Map.copyOf(command.getManualAdjustments()));
-    putIfPresent(payload, "cash", plain(command.getCash()));
-    putIfPresent(payload, "cashComment", command.getCashComment());
-    putExcludeIsins(payload, command);
-    if (input != null) {
-      payload.put(
-          "input", TransactionInputPayloads.serializeInput(input, command.getManualAdjustments()));
-      if (!input.inputWarnings().isEmpty()) {
-        payload.put(
-            "calculationWarnings",
-            TransactionAuditPayloads.serializeCalculationWarnings(input.inputWarnings()));
-      }
-    }
-    payload.put("exceptionClass", e.getClass().getName());
-    putIfPresent(payload, "errorMessage", command.getErrorMessage());
-    return payload;
-  }
-
-  private Map<String, Object> completedPayload(
-      TransactionCommand command,
-      FundTransactionInput input,
-      FundCalculationResult result,
-      List<TransactionOrder> orders,
-      CalculatedOrders calculated) {
-    Map<String, Object> payload = new LinkedHashMap<>();
-    payload.put(
-        "input", TransactionInputPayloads.serializeInput(input, command.getManualAdjustments()));
-    putIfPresent(payload, "cashComment", command.getCashComment());
-    putExcludeIsins(payload, command);
-    payload.put(
-        "output",
-        TransactionAuditPayloads.serializeTrades(
-            result.trades(), ordersByIsin(orders), calculated.priceResolutions()));
-    payload.put(
-        "priceResolutions",
-        TransactionAuditPayloads.serializePriceResolutions(calculated.priceResolutions()));
-    payload.put(
-        "settlementWarnings",
-        TransactionAuditPayloads.serializeSettlementWarnings(
-            settlementTimingWarningService.activeWarnings(command.getFund())));
-    payload.put(
-        "calculationWarnings",
-        TransactionAuditPayloads.serializeCalculationWarnings(result.warnings()));
-    payload.put("modelDrift", TransactionAuditPayloads.serializeModelDrift(input, result));
-    Map<String, Object> summary = new LinkedHashMap<>();
-    summary.put("fund", command.getFund().name());
-    summary.put("mode", command.getMode().name());
-    summary.put("tradeCount", orders.size());
-    putIfPresent(summary, "netInvestable", plain(result.netInvestable()));
-    putIfPresent(summary, "noTradeReason", result.noTradeReason());
-    payload.put("summary", summary);
-    return payload;
-  }
-
-  private static Map<String, TransactionOrder> ordersByIsin(List<TransactionOrder> orders) {
-    Map<String, TransactionOrder> map = new LinkedHashMap<>();
-    orders.forEach(order -> map.put(order.getInstrumentIsin(), order));
-    return map;
-  }
-
-  private static void putExcludeIsins(Map<String, Object> payload, TransactionCommand command) {
-    if (!command.getExcludeIsins().isEmpty()) {
-      payload.put("excludeIsins", command.sortedExcludeIsins());
-    }
-  }
-
-  private static void putIfPresent(Map<String, Object> map, String key, @Nullable Object value) {
-    if (value != null) {
-      map.put(key, value);
-    }
-  }
-
-  @Nullable
-  private static String plain(@Nullable BigDecimal value) {
-    return value == null ? null : value.toPlainString();
   }
 }

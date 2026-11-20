@@ -34,11 +34,8 @@ class TradePrepPositionGate {
               noHoldings.differences(),
               accepted,
               _ -> List.of(new NoRegistryHoldings(positionDate)));
-      case ReportHasNoSecurities noSecurities ->
-          afterAccepting(
-              noSecurities.differences(),
-              accepted,
-              _ -> List.of(new NoReportSecurities(positionDate)));
+      case ReportHasNoSecurities _ ->
+          new PositionCheck(List.of(new NoReportSecurities(positionDate)), notNeeded(accepted));
       case ReportRowsWithoutQuantity unquantified ->
           new PositionCheck(
               List.of(new UnquantifiedReportHoldings(positionDate, unquantified.isins())),

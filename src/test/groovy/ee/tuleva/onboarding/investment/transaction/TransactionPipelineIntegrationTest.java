@@ -1071,6 +1071,48 @@ class TransactionPipelineIntegrationTest {
         .formatted(iban);
   }
 
+  @Test
+  void aSebReportWithoutSecuritiesStopsTheFundEvenWhenEveryHoldingIsAccepted() {
+    jdbcClient
+        .sql(
+            "DELETE FROM investment_fund_position WHERE fund_code = 'TKF100'"
+                + " AND nav_date = :navDate AND account_type = 'SECURITY'")
+        .param("navDate", TEST_DATE)
+        .update();
+    Set<String> registryHoldings =
+        Set.copyOf(
+            jdbcClient
+                .sql(
+                    "SELECT instrument_isin FROM investment_portfolio_cost_basis"
+                        + " WHERE fund_isin = :fundIsin AND quantity <> 0")
+                .param("fundIsin", TKF100.getIsin())
+                .query(String.class)
+                .list());
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                null,
+                new AcceptedHoldingDifferences(registryHoldings, "Report is late"),
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            SEB raportis pole 2026-02-10 väärtpabereid: kontrolli raporti importi\
+            """,
+            INVESTMENT);
+  }
+
   private void registryRow(String isin, String quantity) {
     jdbcClient
         .sql(

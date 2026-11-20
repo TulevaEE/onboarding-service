@@ -226,10 +226,23 @@ class FtConfirmationImportJobIT {
 
   private static Map<String, Object> blankPaddingRow() {
     Map<String, Object> raw = new HashMap<>();
-    raw.put("Client name", null);
-    raw.put("Client ref", null);
-    raw.put("Our ref", null);
-    raw.put("ISIN", null);
+    List.of(
+            "Client name",
+            "Account",
+            "Client ref",
+            "Our ref",
+            "ISIN",
+            "Instrument name",
+            "Currency",
+            "Quantity",
+            "Price",
+            "Settlement amount",
+            "Broker fee",
+            "Total",
+            "Buy/Sell",
+            "Trade date",
+            "Settlement date")
+        .forEach(column -> raw.put(column, null));
     return raw;
   }
 

@@ -156,14 +156,6 @@ class SebPendingTransactionExtractorTest {
   }
 
   @Test
-  void trustedAsOfDate_ofAReportWhoseRowsWereAllRead_isItsAsOfDate() {
-    InvestmentReport report = reportAsOf(Map.of("asOfDate", "2026-11-18"), List.of(validRow()));
-
-    assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report))
-        .contains(LocalDate.of(2026, 11, 18));
-  }
-
-  @Test
   void trustedAsOfDate_ofSebsCsv_isItsAsOfDate() {
     InvestmentReport report = reportFromSebCsv(PREAMBLE + SPACER + COLUMNS + TRADE + SPACER);
 
@@ -175,6 +167,19 @@ class SebPendingTransactionExtractorTest {
   void trustedAsOfDate_ofSebsCsvListingNothingPending_isItsAsOfDate() {
     InvestmentReport report =
         reportFromSebCsv(PREAMBLE + SPACER + COLUMNS + SPACER + SPACER + SPACER + SPACER);
+
+    assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report))
+        .contains(LocalDate.of(2026, 11, 18));
+  }
+
+  @Test
+  void trustedAsOfDate_ofSebsCsvWithAColumnAdded_isItsAsOfDate() {
+    InvestmentReport report =
+        reportFromSebCsv(
+            PREAMBLE
+                + SPACER
+                + COLUMNS.replace("\r\n", ";Venue\r\n")
+                + TRADE.replace("\r\n", ";XOFF\r\n"));
 
     assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report))
         .contains(LocalDate.of(2026, 11, 18));
@@ -204,23 +209,39 @@ class SebPendingTransactionExtractorTest {
   }
 
   @Test
-  void trustedAsOfDate_ofAReportWithARowThatCouldNotBeRead_isEmpty() {
+  void trustedAsOfDate_ofSebsCsvWithItsBuySellColumnRenamed_isEmpty() {
     InvestmentReport report =
-        reportAsOf(Map.of("asOfDate", "2026-11-18"), List.of(validRow(), malformedRow()));
+        reportFromSebCsv(PREAMBLE + SPACER + COLUMNS.replace("Buy/Sell", "Side") + TRADE);
 
     assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report)).isEmpty();
   }
 
   @Test
-  void trustedAsOfDate_ofAReportWhoseOnlyRowCouldNotBeRead_isEmpty() {
-    InvestmentReport report = reportAsOf(Map.of("asOfDate", "2026-11-18"), List.of(malformedRow()));
+  void trustedAsOfDate_ofSebsCsvWithItsQuantityColumnRenamed_isEmpty() {
+    InvestmentReport report =
+        reportFromSebCsv(PREAMBLE + SPACER + COLUMNS.replace("Quantity", "Units") + TRADE);
 
     assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report)).isEmpty();
   }
 
   @Test
-  void trustedAsOfDate_ofAReportWhoseAsOfDateCannotBeRead_isEmpty() {
-    InvestmentReport report = reportAsOf(Map.of(), List.of(validRow()));
+  void trustedAsOfDate_ofSebsCsvWithARowThatCouldNotBeRead_isEmpty() {
+    InvestmentReport report =
+        reportFromSebCsv(
+            PREAMBLE
+                + SPACER
+                + COLUMNS
+                + TRADE
+                + TRADE.replace("aaaaaaaa-bbbb-cccc-dddd-000000001117", "not-a-uuid"));
+
+    assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report)).isEmpty();
+  }
+
+  @Test
+  void trustedAsOfDate_ofSebsCsvWhoseAsOfDateCannotBeRead_isEmpty() {
+    InvestmentReport report =
+        reportFromSebCsv(
+            PREAMBLE.replace("As of:;2026-11-18", "As of:;18.11.2026") + SPACER + COLUMNS + TRADE);
 
     assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report)).isEmpty();
   }
@@ -249,33 +270,5 @@ class SebPendingTransactionExtractorTest {
             new CsvToJsonConverter()
                 .convert(new ByteArrayInputStream(bytes), ';', sebReportSource.getHeaderRowIndex()))
         .build();
-  }
-
-  private static InvestmentReport reportAsOf(
-      Map<String, Object> metadata, List<Map<String, Object>> rawData) {
-    return InvestmentReport.builder()
-        .provider(SEB)
-        .reportType(PENDING_TRANSACTIONS)
-        .reportDate(LocalDate.of(2026, 11, 19))
-        .metadata(metadata)
-        .rawData(rawData)
-        .build();
-  }
-
-  private static Map<String, Object> validRow() {
-    return Map.of(
-        "ISIN", "IE000F60HVH9",
-        "Our ref", "DLA0799512",
-        "Buy/Sell", "Buy",
-        "Quantity", new BigDecimal("15007"),
-        "Client ref", "bd83f551-8c79-4193-b92b-18e1dfd0bd29",
-        "Trade date", "2026-05-11T10:26:04Z");
-  }
-
-  private static Map<String, Object> malformedRow() {
-    return Map.of(
-        "ISIN", "IE000F60HVH9",
-        "Client ref", "not-a-uuid",
-        "Our ref", "DLA9999999");
   }
 }

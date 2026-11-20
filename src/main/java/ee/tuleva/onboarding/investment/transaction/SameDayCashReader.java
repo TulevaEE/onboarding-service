@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.CurrentDayBalance;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.NoBookedBalance;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.NoCurrentDayReportToday;
+import ee.tuleva.onboarding.investment.transaction.GatewayCash.NoInvestmentAccount;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.NotTodaysRun;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.Unreadable;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
@@ -70,7 +71,7 @@ class SameDayCashReader {
                   case CurrentDayReport.NoBookedBalance _ -> new NoBookedBalance();
                   case CurrentDayReport.Unreadable _ -> new Unreadable();
                 })
-        .orElseGet(NoCurrentDayReportToday::new);
+        .orElseGet(NoInvestmentAccount::new);
   }
 
   private Optional<CalculationWarning> differenceWarning(

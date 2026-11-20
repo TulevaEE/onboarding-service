@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.INTRA_DAY_REPORT;
@@ -20,6 +21,7 @@ import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.CurrentDayBalance;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.NoBookedBalance;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.NoCurrentDayReportToday;
+import ee.tuleva.onboarding.investment.transaction.GatewayCash.NoInvestmentAccount;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.Unreadable;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import java.math.BigDecimal;
@@ -154,6 +156,20 @@ class SameDayCashReaderIT {
         currentDayReportWithoutBookedBalance(TUK75_INVESTMENT_IBAN, TODAY));
 
     assertThat(reader.read(TUK75, TODAY, null, null).gateway()).isEqualTo(new NoBookedBalance());
+  }
+
+  @Test
+  void aFundWithoutAnInvestmentAccountIsSaidToHaveNoneRatherThanNoReportToday() {
+    given(bankAccounts.findAll(TUK75))
+        .willReturn(List.of(new BankAccount(TUK75_INVESTMENT_IBAN, DEPOSIT_EUR, TUK75, "client")));
+    store(
+        INTRA_DAY_REPORT,
+        TODAY,
+        THIS_MORNING,
+        currentDayReport(TUK75_INVESTMENT_IBAN, TODAY, "1000.00"));
+
+    assertThat(reader.read(TUK75, TODAY, null, null).gateway())
+        .isEqualTo(new NoInvestmentAccount());
   }
 
   @Test

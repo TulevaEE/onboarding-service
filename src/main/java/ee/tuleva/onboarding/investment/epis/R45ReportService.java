@@ -161,6 +161,18 @@ public class R45ReportService {
         .orElse(List.of());
   }
 
+  public List<R45Row> getRowsOn(TulevaFund fund, LocalDate reportDate) {
+    return reportRepository
+        .findByProviderAndReportTypeAndReportDate(EPIS, R45, reportDate)
+        .map(
+            report ->
+                r45ReportParser
+                    .parse(rawCsv(report), reportDate, fallbackNavsByIsin(reportDate))
+                    .rowsByFundCode()
+                    .getOrDefault(fund.getCode(), List.of()))
+        .orElse(List.of());
+  }
+
   private Optional<EpisReportSummary> latestSummary(TulevaFund fund) {
     return summaryRepository.findTopByReportTypeAndFundOrderByReportDateDescIdDesc(R45, fund);
   }

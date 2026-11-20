@@ -95,7 +95,8 @@ public class RebalanceWindows {
             .firstRebalanceOrderAwaitingExecution(fund, change.effectiveDate(), measuredUntil)
             .orElse(null),
         deadline,
-        rules.warningFrom(deadline));
+        rules.warningFrom(deadline),
+        RebalanceRules.awaitingExecutionUntil(deadline, estonianCalendar));
   }
 
   private static Optional<LocalDate> firstNavInLine(

@@ -22,7 +22,7 @@ class RebalanceAnnouncements {
 
   boolean isOwed(RebalanceWindow window) {
     return switch (window.state()) {
-      case WARNING, FAIL -> true;
+      case WARNING, AWAITING_EXECUTION, FAIL -> true;
       case INFO -> !closeOwed(window.fund(), window.modelEffectiveDate());
       case OK -> closeOwed(window.fund(), window.modelEffectiveDate());
     };

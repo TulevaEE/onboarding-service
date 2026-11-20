@@ -95,7 +95,6 @@ class TradePrepSnapshotIT {
   @MockitoBean OperationsNotificationService notificationService;
   @MockitoBean TradePrepPriceGate priceGate;
   @MockitoBean TradePrepPositionGate positionGate;
-  @MockitoBean TradePrepCashGate cashGate;
 
   @Autowired TradePrepInputGates gates;
   @Autowired R45ReportService r45ReportService;

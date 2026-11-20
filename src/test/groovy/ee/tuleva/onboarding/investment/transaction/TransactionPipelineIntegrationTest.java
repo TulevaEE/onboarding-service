@@ -9,6 +9,8 @@ import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.FT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
+import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.currentDayReport;
+import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.endOfDayStatement;
 import static ee.tuleva.onboarding.investment.transaction.TradePrepPricingFixture.noResolvedPrices;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
@@ -119,7 +121,11 @@ class TransactionPipelineIntegrationTest {
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(FIXED_CLOCK);
-    storeTheInvestmentAccountsBalanceFetchedAt(FIXED_INSTANT);
+    storeInvestmentAccountMessage(
+        "INTRA_DAY_REPORT",
+        TEST_DATE,
+        FIXED_INSTANT,
+        currentDayReport(investmentIban(), TEST_DATE, "500000.00"));
   }
 
   @AfterEach
@@ -1016,9 +1022,35 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Test
-  void withoutABalanceFetchedTodayTheFundStopsAndSaysWhenItWasLastFetched() {
+  void aCurrentDayReportForTodayIsShownBesideTheRunsCash() {
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.calculationSnapshot())
+        .containsEntry(
+            "cash",
+            Map.of(
+                "source",
+                "POSITION_REPORT",
+                "gateway",
+                Map.of(
+                    "status", "CURRENT_DAY_BALANCE",
+                    "balance", "500000.00",
+                    "fetchedAt", "2026-02-09T23:00:00Z")));
+  }
+
+  @Test
+  void withoutACurrentDayReportForTodayTheRunUsesReportCashAndSaysSo() {
     jdbcClient.sql("DELETE FROM banking_message").update();
-    storeTheInvestmentAccountsBalanceFetchedAt(Instant.parse("2026-02-09T14:50:00Z"));
+    storeInvestmentAccountMessage(
+        "HISTORIC_STATEMENT",
+        TEST_DATE.minusDays(1),
+        FIXED_INSTANT,
+        endOfDayStatement(investmentIban(), TEST_DATE.minusDays(1), "500000.00"));
 
     var response =
         commandRunner.createAndProcess(
@@ -1026,14 +1058,37 @@ class TransactionPipelineIntegrationTest {
                 TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
             "operator");
 
-    assertThat(response.status()).isEqualTo(FAILED);
-    verify(notificationService)
-        .sendMessage(
-            """
-            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
-            SEB-st pole tänast saldot (viimane 2026-02-09 16:50): kontrolli SEB päringuid või anna raha käsitsi (cash ja kommentaar)\
-            """,
-            INVESTMENT);
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.calculationSnapshot())
+        .containsEntry(
+            "cash",
+            Map.of(
+                "source",
+                "POSITION_REPORT",
+                "gateway",
+                Map.of("status", "NO_CURRENT_DAY_REPORT_TODAY")));
+  }
+
+  @Test
+  void aCurrentDayReportThatCannotBeReadLeavesTheRunOnReportCashAndSaysSo() {
+    jdbcClient.sql("DELETE FROM banking_message").update();
+    storeInvestmentAccountMessage("INTRA_DAY_REPORT", TEST_DATE, FIXED_INSTANT, "<not-a-report/>");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.calculationSnapshot())
+        .containsEntry(
+            "cash",
+            Map.of(
+                "source",
+                "POSITION_REPORT",
+                "gateway",
+                Map.of("status", "CURRENT_DAY_REPORT_UNREADABLE")));
   }
 
   @Test
@@ -1057,10 +1112,17 @@ class TransactionPipelineIntegrationTest {
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.calculationSnapshot().get("cash"))
+        .asInstanceOf(MAP)
+        .containsEntry("source", "OPERATOR_AMOUNT");
   }
 
-  private void storeTheInvestmentAccountsBalanceFetchedAt(Instant fetchedAt) {
-    String iban = bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR);
+  private String investmentIban() {
+    return bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR);
+  }
+
+  private void storeInvestmentAccountMessage(
+      String messageType, LocalDate statementDate, Instant receivedAt, String rawResponse) {
     jdbcClient
         .sql(
             """
@@ -1068,41 +1130,15 @@ class TransactionPipelineIntegrationTest {
               timezone, message_type, account_iban, statement_from, statement_to, processed_at,
               received_at)
             values (:id, 'SEB', 'request', 'tracking', :rawResponse, 'Europe/Tallinn',
-              'HISTORIC_STATEMENT', :iban, :day, :day, :fetchedAt, :fetchedAt)
+              :messageType, :iban, :day, :day, :receivedAt, :receivedAt)
             """)
         .param("id", randomUUID())
-        .param("rawResponse", statementWithBalance(iban))
-        .param("iban", iban)
-        .param("day", fetchedAt.atZone(TALLINN).toLocalDate())
-        .param("fetchedAt", Timestamp.from(fetchedAt))
+        .param("rawResponse", rawResponse)
+        .param("messageType", messageType)
+        .param("iban", investmentIban())
+        .param("day", statementDate)
+        .param("receivedAt", Timestamp.from(receivedAt))
         .update();
-  }
-
-  private static String statementWithBalance(String iban) {
-    return """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
-          <BkToCstmrStmt>
-            <GrpHdr><MsgId>statement</MsgId><CreDtTm>2026-02-10T01:00:00+02:00</CreDtTm></GrpHdr>
-            <Stmt>
-              <Id>statement</Id>
-              <CreDtTm>2026-02-10T01:00:00+02:00</CreDtTm>
-              <FrToDt><FrDtTm>2026-02-09T00:00:00+02:00</FrDtTm><ToDtTm>2026-02-09T23:59:59+02:00</ToDtTm></FrToDt>
-              <Acct>
-                <Id><IBAN>%s</IBAN></Id>
-                <Ownr><Nm>BGW TESTCLIENT1</Nm><Id><OrgId><Othr><Id>22255887</Id></Othr></OrgId></Id></Ownr>
-              </Acct>
-              <Bal>
-                <Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp>
-                <Amt Ccy="EUR">500000.00</Amt>
-                <CdtDbtInd>CRDT</CdtDbtInd>
-                <Dt><Dt>2026-02-09</Dt></Dt>
-              </Bal>
-            </Stmt>
-          </BkToCstmrStmt>
-        </Document>
-        """
-        .formatted(iban);
   }
 
   @Test

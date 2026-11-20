@@ -52,6 +52,7 @@ class TransactionPreparationServiceTest {
   @Mock private PositionPriceResolver positionPriceResolver;
   @Mock private SettlementTimingWarningService settlementTimingWarningService;
   @Mock private TradePrepInputGates inputGates;
+  @Mock private SameDayCashReader sameDayCashReader;
   @Mock private Clock clock;
 
   private TransactionPreparationService service;
@@ -70,7 +71,13 @@ class TransactionPreparationServiceTest {
             orderFactory,
             settlementTimingWarningService,
             inputGates,
+            sameDayCashReader,
             clock);
+    lenient()
+        .when(sameDayCashReader.read(any(), any()))
+        .thenReturn(
+            new CashSourceReport(
+                CashSource.POSITION_REPORT, new GatewayCash.NoCurrentDayReportToday()));
     lenient()
         .when(inputGates.verify(any()))
         .thenReturn(new GateCheck(List.of(), noResolvedPrices(), List.of(), List.of(), List.of()));
@@ -194,6 +201,11 @@ class TransactionPreparationServiceTest {
               return batch;
             });
 
+    given(sameDayCashReader.read(TUV100, new BigDecimal("40000")))
+        .willReturn(
+            new CashSourceReport(
+                CashSource.OPERATOR_AMOUNT, new GatewayCash.NoCurrentDayReportToday()));
+
     service.processCommand(command);
 
     verify(inputService)
@@ -206,7 +218,12 @@ class TransactionPreparationServiceTest {
                     "CALCULATION_COMPLETED".equals(event.getEventType())
                         && "Cash line confirmed with the custodian"
                             .equals(event.getPayload().get("cashComment"))
-                        && !event.getPayload().containsKey("cash")));
+                        && Map.of(
+                                "source",
+                                "OPERATOR_AMOUNT",
+                                "gateway",
+                                Map.of("status", "NO_CURRENT_DAY_REPORT_TODAY"))
+                            .equals(event.getPayload().get("cash"))));
   }
 
   @Test

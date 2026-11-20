@@ -15,12 +15,9 @@ import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoCommonPric
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoR45Loaded;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoRegistryHoldings;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoReportSecurities;
-import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoSameDayCash;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.StalePositionReport;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.UnquantifiedReportHoldings;
-import ee.tuleva.onboarding.investment.transaction.InputGateFailure.UnreadableSameDayCash;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
@@ -120,22 +117,6 @@ class InputGateFailureTest {
         .isEqualTo(
             "IE00BFG1TM61: registris puudub, SEB raportis 40 (2026-11-17): kontrolli registri"
                 + " tehinguid");
-  }
-
-  @Test
-  void noSameDayCashSaysWhenTheBalanceWasLastFetchedAndHowToGoOn() {
-    assertThat(new NoSameDayCash(Instant.parse("2026-11-19T14:50:00Z")).slackLine())
-        .isEqualTo(
-            "SEB-st pole tänast saldot (viimane 2026-11-19 16:50): kontrolli SEB päringuid või"
-                + " anna raha käsitsi (cash ja kommentaar)");
-    assertThat(new NoSameDayCash(null).slackLine())
-        .isEqualTo(
-            "SEB-st pole tänast saldot: kontrolli SEB päringuid või anna raha käsitsi (cash ja"
-                + " kommentaar)");
-    assertThat(new UnreadableSameDayCash().slackLine())
-        .isEqualTo(
-            "SEB saldot ei saanud lugeda: kontrolli SEB sõnumeid või anna raha käsitsi (cash ja"
-                + " kommentaar)");
   }
 
   @Test

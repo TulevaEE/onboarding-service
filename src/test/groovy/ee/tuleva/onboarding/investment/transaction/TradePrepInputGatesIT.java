@@ -114,7 +114,6 @@ class TradePrepInputGatesIT {
   @MockitoBean OperationsNotificationService notificationService;
   @MockitoBean TradePrepPriceGate priceGate;
   @MockitoBean TradePrepPositionGate positionGate;
-  @MockitoBean TradePrepCashGate cashGate;
 
   @Autowired TradePrepInputGates gates;
   @Autowired R16OutflowReader r16OutflowReader;

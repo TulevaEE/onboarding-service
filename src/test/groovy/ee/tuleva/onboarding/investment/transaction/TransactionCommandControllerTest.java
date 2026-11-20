@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.springframework.http.HttpStatus.CONFLICT;
@@ -38,6 +39,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.server.ResponseStatusException;
 
 @WebMvcTest(TransactionCommandController.class)
@@ -241,6 +243,28 @@ class TransactionCommandControllerTest {
         .andExpect(status().isOk());
 
     then(commandRunner).should().createAndProcess(request, "shared-admin-token");
+  }
+
+  @Test
+  void createCommand_anAcceptedDifferenceWithoutAnIsin_isRejectedByValidation() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10",
+                     "acceptedHoldingDifferences": {"isins": [null], "comment": "Late fill"}}
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            result ->
+                assertThat(result.getResolvedException())
+                    .isInstanceOf(MethodArgumentNotValidException.class));
+
+    then(commandRunner).shouldHaveNoInteractions();
   }
 
   @Test

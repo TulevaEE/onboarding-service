@@ -42,9 +42,15 @@ public record TransactionCommandResponse(
         command.getCashComment(),
         command.sortedExcludeIsins(),
         command.getPrices(),
-        command.getAcceptedHoldingDifferences(),
+        acceptedInIsinOrder(command),
         command.getPriceDateRule(),
         orders.stream().map(TransactionOrderResponse::from).toList(),
         calculationSnapshot);
+  }
+
+  @Nullable
+  private static AcceptedHoldingDifferences acceptedInIsinOrder(TransactionCommand command) {
+    AcceptedHoldingDifferences accepted = command.getAcceptedHoldingDifferences();
+    return accepted == null ? null : accepted.inIsinOrder();
   }
 }

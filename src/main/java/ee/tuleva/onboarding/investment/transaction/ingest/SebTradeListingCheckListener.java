@@ -56,14 +56,14 @@ class SebTradeListingCheckListener {
 
   @EventListener(RunSebTradeListingCheckRequested.class)
   void onSebTradeListingCheckRequested() {
-    if (!reconciliationLock.runIfFree(stillHoldsTheLock -> check.run())) {
+    if (!reconciliationLock.runIfFree(check::run)) {
       throw new SebReconciliationAlreadyRunningException(SebReconciliationLock.NAME);
     }
   }
 
   private void runUnderTheLock(String trigger) {
     try {
-      if (!reconciliationLock.runIfFree(stillHoldsTheLock -> check.run())) {
+      if (!reconciliationLock.runIfFree(check::run)) {
         log.debug(
             "SEB trade listing check skipped, the reconciliation lock is held: trigger={}",
             trigger);

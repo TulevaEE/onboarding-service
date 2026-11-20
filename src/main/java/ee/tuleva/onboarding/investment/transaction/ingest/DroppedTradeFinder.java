@@ -53,28 +53,28 @@ class DroppedTradeFinder {
             .findByOrderIdIn(orders.stream().map(TransactionOrder::getId).toList())
             .stream()
             .collect(groupingBy(TransactionExecution::getOrderId));
-    Set<String> paidReferences = paidReferencesSince(since);
-    List<DroppedTrade> candidates =
+    List<DroppedTrade> offTheList =
         orders.stream()
             .flatMap(
                 order ->
-                    unpaidPiecesOffTheList(
-                        order,
-                        executionsByOrder.getOrDefault(order.getId(), List.of()),
-                        listing,
-                        paidReferences))
+                    piecesOffTheList(
+                        order, executionsByOrder.getOrDefault(order.getId(), List.of()), listing))
             .toList();
-    return bankStatementArrival.keepThoseWhoseStatementIsIn(candidates, listing.asOfDate());
+    DroppedTrades withTheStatementIn =
+        bankStatementArrival.keepThoseWhoseStatementIsIn(offTheList, listing.asOfDate());
+    Set<String> paidReferences = paidReferencesSince(since);
+    return new DroppedTrades(
+        withTheStatementIn.trades().stream()
+            .filter(trade -> !paidReferences.contains(trade.reference()))
+            .toList(),
+        withTheStatementIn.fundsNotChecked());
   }
 
-  private Stream<DroppedTrade> unpaidPiecesOffTheList(
-      TransactionOrder order,
-      List<TransactionExecution> executions,
-      PendingListing listing,
-      Set<String> paidReferences) {
+  private Stream<DroppedTrade> piecesOffTheList(
+      TransactionOrder order, List<TransactionExecution> executions, PendingListing listing) {
     return executions.stream()
-        .flatMap(execution -> unpaid(order, execution, paidReferences).stream())
-        .filter(trade -> !listing.mayStillListPiece(order, executions, trade.reference()))
+        .flatMap(execution -> dueSinceAlertsFrom(order, execution).stream())
+        .filter(trade -> !listing.mayStillListPiece(order, trade.reference()))
         .filter(trade -> !listing.asOfDate().isBefore(trade.settlementDate()));
   }
 
@@ -89,13 +89,12 @@ class DroppedTradeFinder {
         .collect(toSet());
   }
 
-  private Optional<DroppedTrade> unpaid(
-      TransactionOrder order, TransactionExecution execution, Set<String> paidReferences) {
+  private Optional<DroppedTrade> dueSinceAlertsFrom(
+      TransactionOrder order, TransactionExecution execution) {
     String reference = execution.getBrokerTransactionId();
     LocalDate settlementDate = execution.getScheduledSettlementDate();
     if (reference == null
         || settlementDate == null
-        || paidReferences.contains(reference)
         || settlementDate.isBefore(properties.alertsFrom())) {
       return Optional.empty();
     }

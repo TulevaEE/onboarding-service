@@ -62,6 +62,11 @@ class LatestPendingReport {
                 .filter(row -> row.clientRef() == null && row.ourRef() == null)
                 .map(SebPendingTransactionRow::isin)
                 .filter(Objects::nonNull)
+                .collect(toSet()),
+            rows.stream()
+                .filter(row -> row.ourRef() == null)
+                .map(SebPendingTransactionRow::clientRef)
+                .filter(Objects::nonNull)
                 .collect(toSet())));
   }
 }

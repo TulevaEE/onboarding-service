@@ -52,16 +52,27 @@ public class TransactionBatchFinalizer {
   private final PlatformTransactionManager transactionManager;
   private final Clock clock;
 
+  private static void requirePreparedOn(TransactionBatch batch, LocalDate tradeDate) {
+    Instant createdAt = batch.getCreatedAt();
+    LocalDate preparedOn = createdAt == null ? null : createdAt.atZone(TALLINN).toLocalDate();
+    if (!tradeDate.equals(preparedOn)) {
+      throw new TransactionBatchRefusedException(
+          ("A batch is sent only on the day it was prepared, prepare it again: batchId=%s,"
+                  + " preparedOn=%s, today=%s")
+              .formatted(batch.getId(), preparedOn, tradeDate));
+    }
+  }
+
   @Transactional
   public void finalizeConfirmedBatch(TransactionBatch batch) {
     if (batch.getStatus() == BatchStatus.SENT) {
       throw new IllegalStateException(
           "Batch already finalized: id=" + batch.getId() + ", status=" + batch.getStatus());
     }
-    log.info("Finalizing batch: id={}", batch.getId());
-
     Instant now = Instant.now(clock);
     LocalDate tradeDate = now.atZone(TALLINN).toLocalDate();
+    requirePreparedOn(batch, tradeDate);
+    log.info("Finalizing batch: id={}", batch.getId());
 
     List<TransactionOrder> orders = orderRepository.findByBatchId(batch.getId());
     orderFactory.requireQuantitiesForNonAmountOrders(batch, orders);

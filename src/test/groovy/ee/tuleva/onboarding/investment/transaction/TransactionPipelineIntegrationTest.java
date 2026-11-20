@@ -1339,7 +1339,8 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Test
-  void aConfirmationForAnotherManualPriceDoesNotLetTheNewPriceThrough() {
+  void
+      aConfirmationForAnotherManualPriceDoesNotLetTheNewPriceThroughAndTheStopSaysWhichPriceItConfirmed() {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
@@ -1362,7 +1363,7 @@ class TransactionPipelineIntegrationTest {
         .sendMessage(
             """
             🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
-            ⚠️ IE000O58J820: käsitsi hind 5, viimane indeksihind 50 (2026-02-10), erinevus -90.0%: kontrolli hinda või kinnita see (confirmedPriceDeviations)\
+            ⚠️ IE000O58J820: käsitsi hind 5, viimane indeksihind 50 (2026-02-10), erinevus -90.0%, kinnitus on hinnale 6: kontrolli hinda või kinnita see (confirmedPriceDeviations)\
             """,
             INVESTMENT);
   }

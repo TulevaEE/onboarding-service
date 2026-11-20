@@ -54,7 +54,7 @@ class TradePrepPriceGateTest {
   void noManualPriceDeviatesUnlessATestSaysSo() {
     lenient()
         .when(manualPriceDeviations.check(any(), any(), any()))
-        .thenReturn(new PriceDeviations(List.of(), List.of(), List.of()));
+        .thenReturn(new PriceDeviations(List.of(), List.of(), List.of(), List.of()));
   }
 
   @Test
@@ -365,11 +365,13 @@ class TradePrepPriceGateTest {
     var confirmed =
         new PriceDeviation("A", new BigDecimal("80"), new BigDecimal("100.00"), POSITION_DATE);
     given(manualPriceDeviations.check(any(), any(), any()))
-        .willReturn(new PriceDeviations(List.of(unconfirmed), List.of(confirmed), List.of()));
+        .willReturn(
+            new PriceDeviations(List.of(unconfirmed), List.of(), List.of(confirmed), List.of()));
 
     var check = gates.check(TKF100, TRADE_DATE, noOverrides());
 
-    assertThat(check.failures()).containsExactly(new ManualPriceDeviates(List.of(unconfirmed)));
+    assertThat(check.failures())
+        .containsExactly(new ManualPriceDeviates(List.of(unconfirmed), List.of()));
     assertThat(check.confirmedDeviations()).containsExactly(confirmed);
   }
 

@@ -88,7 +88,7 @@ class FtUnconfirmedTradeCheck {
   private FtExecutedTrade trade(
       TransactionOrder order, SebExecutedTotal executed, Set<Long> confirmedOrderIds) {
     return confirmedOrderIds.contains(order.getId())
-        ? executionCheck.confirmed(order, executed)
+        ? FtExecutedTrade.confirmedByFt(order, executed)
         : executionCheck.unconfirmed(order, executed);
   }
 

@@ -7,7 +7,9 @@ import static ee.tuleva.onboarding.banking.message.BankMessageType.INTRA_DAY_REP
 import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.currentDayReport;
 import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.currentDayReportWithoutBookedBalance;
 import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.endOfDayStatement;
+import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.entry;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
@@ -31,6 +33,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -111,9 +114,32 @@ class SameDayCashReaderIT {
         .isEqualTo(
             new CashSourceReport(
                 CashSource.POSITION_REPORT,
-                new CurrentDayBalance(new BigDecimal("1000.00"), LATER_THIS_MORNING),
+                new CurrentDayBalance(new BigDecimal("1000.00"), LATER_THIS_MORNING, Set.of()),
                 null,
                 List.of()));
+  }
+
+  @Test
+  void theBalanceNamesTheEntriesSebStillShowsAsPendingSoNothingIsNettedAgainstThem() {
+    store(
+        INTRA_DAY_REPORT,
+        TODAY,
+        THIS_MORNING,
+        currentDayReport(
+            TUK75_INVESTMENT_IBAN,
+            TODAY,
+            "1000.00",
+            entry("BOOKED-1", "200.00", "DBIT", "BOOK"),
+            entry("PENDING-1", "300.00", "DBIT", "PDNG")));
+
+    assertThat(reader.read(TUK75, TODAY, null, null).gateway())
+        .isEqualTo(
+            new CurrentDayBalance(
+                new BigDecimal("1000.00"),
+                THIS_MORNING,
+                Set.of(
+                    UUID.nameUUIDFromBytes(
+                        (TUK75_INVESTMENT_IBAN + ":PENDING-1").getBytes(UTF_8)))));
   }
 
   @Test
@@ -184,7 +210,7 @@ class SameDayCashReaderIT {
         .isEqualTo(
             new CashSourceReport(
                 CashSource.OPERATOR_AMOUNT,
-                new CurrentDayBalance(new BigDecimal("1000.00"), THIS_MORNING),
+                new CurrentDayBalance(new BigDecimal("1000.00"), THIS_MORNING, Set.of()),
                 null,
                 List.of()));
   }

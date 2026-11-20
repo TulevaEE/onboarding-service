@@ -39,6 +39,27 @@ final class SebStatementFixture {
         .formatted(day, iban, interimBooked);
   }
 
+  static String currentDayReport(
+      String iban, LocalDate day, String interimBooked, String... entries) {
+    return currentDayReport(iban, day, interimBooked)
+        .replace("</Rpt>", String.join("", entries) + "</Rpt>");
+  }
+
+  static String entry(String externalId, String amount, String creditOrDebit, String status) {
+    return """
+        <Ntry>
+          <NtryRef>%1$s</NtryRef>
+          <Amt Ccy="EUR">%2$s</Amt>
+          <CdtDbtInd>%3$s</CdtDbtInd>
+          <Sts>%4$s</Sts>
+          <BkTxCd><Domn><Cd>SECU</Cd><Fmly><Cd>SETT</Cd><SubFmlyCd>TRAD</SubFmlyCd></Fmly></Domn></BkTxCd>
+          <NtryDtls><TxDtls><Refs><AcctSvcrRef>%1$s</AcctSvcrRef></Refs>
+            <RmtInf><Ustrd>Synthetic trade settlement</Ustrd></RmtInf></TxDtls></NtryDtls>
+        </Ntry>
+        """
+        .formatted(externalId, amount, creditOrDebit, status);
+  }
+
   static String currentDayReportWithoutBookedBalance(String iban, LocalDate day) {
     return """
         <?xml version="1.0" encoding="UTF-8"?>

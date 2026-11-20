@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNCLASSIFIED_BANK_OPERATION;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.banking.BankAccount;
+import ee.tuleva.onboarding.banking.BankEntryReference;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
@@ -49,8 +49,7 @@ public class BankOperationProcessor {
               .formatted(account, entry.amount()));
     }
 
-    var externalReference =
-        UUID.nameUUIDFromBytes((account.iban() + ":" + entry.externalId()).getBytes(UTF_8));
+    var externalReference = BankEntryReference.of(account.iban(), entry.externalId());
 
     if (fundBankLedger.existsForExternalReference(externalReference)) {
       log.debug(

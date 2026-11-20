@@ -4,9 +4,9 @@ import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WA
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNCLASSIFIED_BANK_OPERATION;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT;
 import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType.INTRA_DAY_REPORT;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.banking.BankAccount;
+import ee.tuleva.onboarding.banking.BankEntryReference;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementBalance;
@@ -92,8 +92,7 @@ public class PensionFundStatementProcessor {
               .formatted(account, entry.amount()));
     }
 
-    var externalReference =
-        UUID.nameUUIDFromBytes((account.iban() + ":" + entry.externalId()).getBytes(UTF_8));
+    var externalReference = BankEntryReference.of(account.iban(), entry.externalId());
 
     if (fundBankLedger.existsForExternalReference(externalReference)) {
       log.debug(

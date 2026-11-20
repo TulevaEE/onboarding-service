@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import org.jspecify.annotations.NullMarked;
 
 @NullMarked
@@ -11,7 +13,8 @@ sealed interface GatewayCash {
 
   Map<String, Object> payload();
 
-  record CurrentDayBalance(BigDecimal balance, Instant fetchedAt) implements GatewayCash {
+  record CurrentDayBalance(BigDecimal balance, Instant fetchedAt, Set<UUID> pendingEntryReferences)
+      implements GatewayCash {
 
     @Override
     public Map<String, Object> payload() {

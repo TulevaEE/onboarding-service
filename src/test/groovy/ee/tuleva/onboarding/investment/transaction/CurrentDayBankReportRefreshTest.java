@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.CurrentDayFetches;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebCurrentDayTransactionsRequested;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -17,7 +18,7 @@ import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
-@SpringJUnitConfig(CurrentDayBankReportRefresh.class)
+@SpringJUnitConfig({CurrentDayBankReportRefresh.class, CurrentDayFetches.class})
 @RecordApplicationEvents
 class CurrentDayBankReportRefreshTest {
 

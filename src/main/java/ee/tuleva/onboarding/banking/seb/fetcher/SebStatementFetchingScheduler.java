@@ -5,13 +5,12 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccounts;
-import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebCurrentDayTransactionsRequested;
+import ee.tuleva.onboarding.banking.CurrentDayFetches;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebEodTransactionsRequested;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
 import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -36,6 +35,7 @@ public class SebStatementFetchingScheduler {
   private static final int CATCH_UP_DAYS = 7;
 
   private final ApplicationEventPublisher eventPublisher;
+  private final CurrentDayFetches currentDayFetches;
   private final BankAccounts bankAccounts;
   private final StatementCoverage statementCoverage;
   private final Clock clock;
@@ -47,7 +47,7 @@ public class SebStatementFetchingScheduler {
       lockAtLeastFor = "1m")
   public void fetchCurrentDayTransactionsForTradePreparation() {
     log.info("Running SEB current day transactions fetch for every fund's accounts");
-    publishCurrentDayFetches(bankAccounts.findAll());
+    currentDayFetches.requestFor(bankAccounts.findAll());
   }
 
   @Scheduled(cron = CURRENT_DAY_FETCH_CRON, zone = "Europe/Tallinn")
@@ -94,20 +94,7 @@ public class SebStatementFetchingScheduler {
   }
 
   private void publishSavingsFundCurrentDayFetches() {
-    publishCurrentDayFetches(bankAccounts.findAll(TKF100));
-  }
-
-  private void publishCurrentDayFetches(List<BankAccount> accounts) {
-    for (BankAccount account : accounts) {
-      try {
-        eventPublisher.publishEvent(new FetchSebCurrentDayTransactionsRequested(account));
-      } catch (Exception exception) {
-        log.error("SEB current day transactions fetch failed: account={}", account, exception);
-        if (isGatewayUnavailable(exception)) {
-          return;
-        }
-      }
-    }
+    currentDayFetches.requestFor(bankAccounts.findAll(TKF100));
   }
 
   @Scheduled(cron = END_OF_DAY_FETCH_CRON, zone = "Europe/Tallinn")

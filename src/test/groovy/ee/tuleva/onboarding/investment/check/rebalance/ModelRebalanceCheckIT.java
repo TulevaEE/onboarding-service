@@ -1,8 +1,12 @@
 package ee.tuleva.onboarding.investment.check.rebalance;
 
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.CANCELLED;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
+import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
@@ -30,9 +34,13 @@ import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.transaction.BatchStatus;
+import ee.tuleva.onboarding.investment.transaction.CommandStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatch;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatchRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionCommand;
+import ee.tuleva.onboarding.investment.transaction.TransactionCommandRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionMode;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionType;
@@ -56,6 +64,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @Import({
   RebalanceWindows.class,
   RebalanceAnnouncements.class,
+  RebalanceTrades.class,
   NavWeightsReader.class,
   InvestmentParameterRepository.class,
   EstonianCalendar.class,
@@ -69,6 +78,7 @@ class ModelRebalanceCheckIT {
   private static final String EMERGING = "IE00BMDBMY19";
   private static final String NOT_IN_ANY_MODEL = "LU0476289540";
   private static final String TRADE_REGISTRY_SQL_EXPORT_SOURCE = "GAS_REGISTRY";
+  private static final TransactionMode BUY_MODE = TransactionMode.BUY;
   private static final LocalDate PREVIOUS_MODEL = LocalDate.of(2026, 6, 1);
   private static final LocalDate NEW_MODEL = LocalDate.of(2026, 10, 1);
   private static final LocalDate SEPTEMBER_MODEL = LocalDate.of(2026, 9, 1);
@@ -80,6 +90,7 @@ class ModelRebalanceCheckIT {
   @Autowired private ModelPortfolioAllocationRepository allocationRepository;
   @Autowired private TransactionBatchRepository batchRepository;
   @Autowired private TransactionOrderRepository orderRepository;
+  @Autowired private TransactionCommandRepository commandRepository;
   @Autowired private JdbcClient jdbcClient;
 
   @MockitoBean private OperationsNotificationService notificationService;
@@ -381,6 +392,69 @@ class ModelRebalanceCheckIT {
   }
 
   @Test
+  void anOrderFromARebalanceRun_closesTheWindowOnTheDayItsFirstPlacedOrderWentOut() {
+    givenTuv100ModelSwitchesFromWorldToNewWorld();
+    givenNav(LocalDate.of(2026, 10, 2), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 5));
+    givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 9, 30));
+    givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, CANCELLED, LocalDate.of(2026, 10, 20));
+    givenOrderFromATradePrepRun(REBALANCE, WORLD, SELL, DRAFT, LocalDate.of(2026, 10, 21));
+    givenOrderFromATradePrepRun(REBALANCE, WORLD, SELL, SENT, LocalDate.of(2026, 10, 28));
+    givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, EXECUTED, LocalDate.of(2026, 10, 29));
+
+    runCheckOn(LocalDate.of(2026, 10, 30));
+    runCheckOn(LocalDate.of(2026, 11, 2));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "✅ TUV100 mudelportfell alates 01.10.2026: tasakaalustamise tehingud tehtud"
+                + " 28.10.2026, kontroll suletud",
+            INVESTMENT,
+            INFO);
+    then(notificationService)
+        .should()
+        .sendMessage(startsWith("ℹ️ TUV100"), eq(INVESTMENT), eq(INFO));
+    then(notificationService).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void anOrderFromABuyRunInAChangedInstrument_doesNotCloseTheWindow() {
+    givenTuv100ModelSwitchesFromWorldToNewWorld();
+    givenNav(LocalDate.of(2026, 10, 2), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 5));
+    givenOrderFromATradePrepRun(BUY_MODE, NEW_WORLD, BUY, EXECUTED, LocalDate.of(2026, 10, 28));
+
+    runCheckOn(LocalDate.of(2026, 10, 30));
+
+    then(notificationService)
+        .should()
+        .sendMessage(startsWith("ℹ️ TUV100"), eq(INVESTMENT), eq(INFO));
+    then(notificationService).shouldHaveNoMoreInteractions();
+    assertThat(
+            rebalanceWindows.current(TUV100, LocalDate.of(2026, 10, 30)).orElseThrow().closedOn())
+        .isEmpty();
+  }
+
+  @Test
+  void anOrderImportedFromTheTradeRegistry_doesNotCloseTheWindow() {
+    givenTuv100ModelSwitchesFromWorldToNewWorld();
+    givenNav(LocalDate.of(2026, 10, 2), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 5));
+    givenOrder(TUV100, WORLD, SELL, EXECUTED, LocalDate.of(2026, 10, 28));
+
+    runCheckOn(LocalDate.of(2026, 10, 30));
+
+    then(notificationService)
+        .should()
+        .sendMessage(startsWith("ℹ️ TUV100"), eq(INVESTMENT), eq(INFO));
+    then(notificationService).shouldHaveNoMoreInteractions();
+    assertThat(
+            rebalanceWindows.current(TUV100, LocalDate.of(2026, 10, 30)).orElseThrow().closedOn())
+        .isEmpty();
+  }
+
+  @Test
   void aHeldInstrumentWithNoModelRow_doesNotKeepTheWindowOpen() {
     givenTuv100ModelSwitchesFromWorldToNewWorld();
     givenNav(LocalDate.of(2026, 10, 29), Map.of(WORLD, "790000", EMERGING, "200000"));
@@ -440,7 +514,7 @@ class ModelRebalanceCheckIT {
     assertThat(window.changedIsins()).containsExactlyInAnyOrder(WORLD, NEW_WORLD);
     assertThat(window.deadline()).isEqualTo(LocalDate.of(2027, 1, 4));
     assertThat(window.closedOn()).isEmpty();
-    assertThat(window.inLine()).isFalse();
+    assertThat(window.closed()).isFalse();
     assertThat(window.state()).isEqualTo(RebalanceState.INFO);
   }
 
@@ -553,9 +627,9 @@ class ModelRebalanceCheckIT {
         .update();
   }
 
-  private void givenOrder(
+  private TransactionOrder givenOrder(
       TulevaFund fund, String isin, TransactionType side, OrderStatus status, LocalDate orderDate) {
-    givenOrder(
+    return givenOrder(
         fund,
         isin,
         side,
@@ -565,12 +639,24 @@ class ModelRebalanceCheckIT {
             "source", TRADE_REGISTRY_SQL_EXPORT_SOURCE, "importKey", "GAS:" + UUID.randomUUID()));
   }
 
-  private void givenOrderFromABatchFinalisedInThisService(
-      String isin, TransactionType side, OrderStatus status, LocalDate orderDate) {
-    givenOrder(TUV100, isin, side, status, orderDate, Map.of("commandId", 7L, "mode", "REBALANCE"));
+  private void givenOrderFromATradePrepRun(
+      TransactionMode mode,
+      String isin,
+      TransactionType side,
+      OrderStatus status,
+      LocalDate orderDate) {
+    var order = givenOrder(TUV100, isin, side, status, orderDate, Map.of("mode", mode.name()));
+    commandRepository.save(
+        TransactionCommand.builder()
+            .fund(TUV100)
+            .mode(mode)
+            .asOfDate(orderDate)
+            .status(CommandStatus.CALCULATED)
+            .batchId(order.getBatch().getId())
+            .build());
   }
 
-  private void givenOrder(
+  private TransactionOrder givenOrder(
       TulevaFund fund,
       String isin,
       TransactionType side,
@@ -585,7 +671,7 @@ class ModelRebalanceCheckIT {
                 .status(BatchStatus.SENT)
                 .metadata(batchMetadata)
                 .build());
-    orderRepository.save(
+    return orderRepository.save(
         TransactionOrder.builder()
             .batch(batch)
             .fund(fund)

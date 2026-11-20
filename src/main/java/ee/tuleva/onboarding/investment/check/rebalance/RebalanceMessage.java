@@ -22,15 +22,15 @@ record RebalanceMessage(String text, Severity severity) {
       case INFO -> Optional.of(opened(window));
       case WARNING -> Optional.of(deadlineApproaching(window));
       case FAIL -> Optional.of(deadlineMissed(window));
-      case OK -> window.closedOn().map(navDate -> closed(window, navDate));
+      case OK -> window.closure().map(closure -> closed(window, closure));
     };
   }
 
   static RebalanceMessage ofSuperseded(SupersededWindow superseded) {
     var window = superseded.window();
     return window
-        .closedOn()
-        .map(navDate -> closed(window, navDate))
+        .closure()
+        .map(closure -> closed(window, closure))
         .orElseGet(() -> replacedBeforeComingIntoLine(window, superseded.replacedOn()));
   }
 
@@ -85,10 +85,16 @@ record RebalanceMessage(String text, Severity severity) {
         ERROR);
   }
 
-  private static RebalanceMessage closed(RebalanceWindow window, LocalDate closingNavDate) {
+  private static RebalanceMessage closed(RebalanceWindow window, RebalanceClosure closure) {
     return new RebalanceMessage(
-        "✅ %s: fond on mudeliga vastavuses (kõik osakaalud %s pp piires, NAV %s), kontroll suletud"
-            .formatted(model(window), points(window.tolerance()), date(closingNavDate)),
+        switch (closure.by()) {
+          case AN_IN_LINE_NAV ->
+              "✅ %s: fond on mudeliga vastavuses (kõik osakaalud %s pp piires, NAV %s), kontroll suletud"
+                  .formatted(model(window), points(window.tolerance()), date(closure.on()));
+          case REBALANCING_TRADES ->
+              "✅ %s: tasakaalustamise tehingud tehtud %s, kontroll suletud"
+                  .formatted(model(window), date(closure.on()));
+        },
         INFO);
   }
 

@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class RebalanceWindowsTest {
@@ -28,12 +29,14 @@ class RebalanceWindowsTest {
 
   private final ModelPortfolioAllocationRepository allocationRepository =
       mock(ModelPortfolioAllocationRepository.class);
+  private final RebalanceTrades rebalanceTrades = mock(RebalanceTrades.class);
   private final NavWeightsReader navWeightsReader = mock(NavWeightsReader.class);
   private final InvestmentParameterRepository parameterRepository =
       mock(InvestmentParameterRepository.class);
   private final RebalanceWindows rebalanceWindows =
       new RebalanceWindows(
           allocationRepository,
+          rebalanceTrades,
           navWeightsReader,
           parameterRepository,
           new EstonianCalendar(new PublicHolidays()));
@@ -52,6 +55,8 @@ class RebalanceWindowsTest {
     given(parameterRepository.findLatestValue(MODEL_REBALANCE_WARNING_CALENDAR_DAYS, CHECK_DATE))
         .willReturn(new BigDecimal("15"));
     given(navWeightsReader.between(any(), any(), any())).willReturn(List.of());
+    given(rebalanceTrades.firstRebalancingTradeDate(any(), any(), any()))
+        .willReturn(Optional.empty());
 
     var windows = rebalanceWindows.of(TUV100, CHECK_DATE, modelEffectiveDate -> true);
 

@@ -27,7 +27,7 @@ class ModelChangeTest {
             allocation(CURRENT, "EUROPE", "0.10"),
             allocation(CURRENT, "USA", "0.60"));
 
-    var change = ModelChange.latestIn(history(previous, current)).orElseThrow();
+    var change = ModelChange.allIn(history(previous, current)).getFirst();
 
     assertThat(change.effectiveDate()).isEqualTo(CURRENT);
     assertThat(change.changedIsins())
@@ -50,7 +50,7 @@ class ModelChangeTest {
             allocation(CURRENT, "LIQUIDATED", "0"),
             allocation(CURRENT, "NEW_WORLD", "1.00"));
 
-    var change = ModelChange.latestIn(history(previous, current)).orElseThrow();
+    var change = ModelChange.allIn(history(previous, current)).getFirst();
 
     assertThat(change.changedIsins()).containsExactlyInAnyOrder("WORLD", "NEW_WORLD");
   }
@@ -60,7 +60,7 @@ class ModelChangeTest {
     var previous = List.of(allocation(PREVIOUS, "WORLD", "1.00"));
     var current = List.of(allocation(CURRENT, "WORLD", "1.00000000"));
 
-    assertThat(ModelChange.latestIn(history(previous, current))).isEmpty();
+    assertThat(ModelChange.allIn(history(previous, current))).isEmpty();
   }
 
   @Test
@@ -69,7 +69,7 @@ class ModelChangeTest {
         List.of(allocation(PREVIOUS, "WORLD", "0.99"), allocation(PREVIOUS, null, "0.01"));
     var current = List.of(allocation(CURRENT, "WORLD", "0.99"), allocation(CURRENT, null, "0.005"));
 
-    assertThat(ModelChange.latestIn(history(previous, current))).isEmpty();
+    assertThat(ModelChange.allIn(history(previous, current))).isEmpty();
   }
 
   @Test
@@ -82,7 +82,7 @@ class ModelChangeTest {
             allocation(CURRENT, "NEW_WORLD", "1.00"),
             allocation(later, "NEW_WORLD", "1.000"));
 
-    var change = ModelChange.latestIn(history).orElseThrow();
+    var change = ModelChange.allIn(history).getFirst();
 
     assertThat(change.effectiveDate()).isEqualTo(CURRENT);
     assertThat(change.changedIsins()).containsExactlyInAnyOrder("WORLD", "NEW_WORLD");
@@ -97,7 +97,7 @@ class ModelChangeTest {
             allocation(PREVIOUS, "WORLD", "1.00"),
             allocation(CURRENT, "NEW_WORLD", "1.00"));
 
-    var change = ModelChange.latestIn(history).orElseThrow();
+    var change = ModelChange.allIn(history).getFirst();
 
     assertThat(change.effectiveDate()).isEqualTo(later);
     assertThat(change.changedIsins()).containsExactlyInAnyOrder("NEW_WORLD", "EUROPE");
@@ -105,12 +105,12 @@ class ModelChangeTest {
 
   @Test
   void aHistoryOfOneVersionOrOfVersionsWithTheSameWeights_hasNoChange() {
-    assertThat(ModelChange.latestIn(List.of(allocation(CURRENT, "WORLD", "1.00")))).isEmpty();
+    assertThat(ModelChange.allIn(List.of(allocation(CURRENT, "WORLD", "1.00")))).isEmpty();
     assertThat(
-            ModelChange.latestIn(
+            ModelChange.allIn(
                 List.of(allocation(PREVIOUS, "WORLD", "1.00"), allocation(CURRENT, "WORLD", "1"))))
         .isEmpty();
-    assertThat(ModelChange.latestIn(List.of())).isEmpty();
+    assertThat(ModelChange.allIn(List.of())).isEmpty();
   }
 
   @Test

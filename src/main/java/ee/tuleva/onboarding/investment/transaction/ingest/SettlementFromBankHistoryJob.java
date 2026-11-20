@@ -29,8 +29,8 @@ class SettlementFromBankHistoryJob {
           + " (job_name) VALUES ('SettlementFromBankHistoryJob')";
 
   private static final String NO_USABLE_REPORT_MESSAGE =
-      "Registri tellimused ei saanud panga kuupäeva: viimane SEB ootel-tehingute raport on tühi"
-          + " või vigaste ridadega (vt logi).\n"
+      "Registri tellimused ei saanud panga kuupäeva: viimane SEB ootel-tehingute raport"
+          + " puudub, on vigaste ridadega või ilma As-of kuupäevata (vt logi).\n"
           + "Midagi ei muudetud.\n"
           + "Käivita uuesti pärast järgmist raportit: INSERT INTO public.investment_job_trigger"
           + " (job_name) VALUES ('SettlementFromBankHistoryJob')";

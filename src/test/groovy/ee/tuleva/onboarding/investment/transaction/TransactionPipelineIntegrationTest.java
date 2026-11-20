@@ -552,7 +552,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -573,7 +573,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -601,7 +601,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -625,7 +625,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -646,7 +646,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -659,7 +659,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -680,7 +680,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, Set.of("LU1291106356"), null),
+                TKF100, REBALANCE, TEST_DATE, null, null, Set.of("LU1291106356"), null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -696,7 +696,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(manual)),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(manual), null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -720,7 +720,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(manual)),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(manual), null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -757,7 +757,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(stranger)),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(stranger), null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -777,6 +777,98 @@ class TransactionPipelineIntegrationTest {
                                 "1",
                                 "comment",
                                 "Wrong instrument"))));
+  }
+
+  @Test
+  void anAcceptedHoldingDifferenceLetsTheFundMakeADraftAndIsRecordedWithBothQuantities() {
+    registryQuantity("IE00BMDBMY19", "10010.0000");
+    var accepted =
+        new AcceptedHoldingDifferences(
+            Set.of("IE00BMDBMY19", "LU1291099718"), "Fill booked in the registry a day early");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, accepted),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.acceptedHoldingDifferences()).isEqualTo(accepted);
+    assertThat(response.calculationSnapshot())
+        .containsEntry(
+            "acceptedHoldingDifferences",
+            Map.of(
+                "comment",
+                "Fill booked in the registry a day early",
+                "instruments",
+                List.of(
+                    Map.of(
+                        "isin", "IE00BMDBMY19",
+                        "neededByGate", true,
+                        "registryQuantity", "10010.0000",
+                        "reportQuantity", "10000.00000000"),
+                    Map.of("isin", "LU1291099718", "neededByGate", false))));
+  }
+
+  @Test
+  void aDifferenceInAnInstrumentTheOverrideDoesNotNameStillStopsTheFund() {
+    registryQuantity("IE00BMDBMY19", "10010.0000");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                null,
+                new AcceptedHoldingDifferences(Set.of("LU1291099718"), "Yesterday's difference")),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            IE00BMDBMY19: registris 10010, SEB raportis 10000 (2026-02-10): kontrolli registri tehinguid            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void anEmptyRegistryPassesOnlyWhenTheOverrideNamesEveryHoldingOfTheReport() {
+    jdbcClient
+        .sql("DELETE FROM investment_portfolio_cost_basis WHERE fund_isin = :fundIsin")
+        .param("fundIsin", TKF100.getIsin())
+        .update();
+    Set<String> reportHoldings =
+        Set.copyOf(
+            jdbcClient
+                .sql(
+                    """
+                    SELECT account_id FROM investment_fund_position
+                    WHERE fund_code = 'TKF100' AND nav_date = :navDate
+                      AND account_type = 'SECURITY' AND quantity <> 0
+                    """)
+                .param("navDate", TEST_DATE)
+                .query(String.class)
+                .list());
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                null,
+                new AcceptedHoldingDifferences(reportHoldings, "Baseline loads tonight")),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
   }
 
   private void registryRow(String isin, String quantity) {

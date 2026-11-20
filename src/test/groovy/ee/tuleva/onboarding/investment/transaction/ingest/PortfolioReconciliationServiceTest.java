@@ -388,7 +388,9 @@ class PortfolioReconciliationServiceTest {
         .willReturn(List.of(reportRow(ISIN_A, "990.000000")));
 
     assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of()))
-        .isEqualTo(new RegistryHasNoHoldings());
+        .isEqualTo(
+            new RegistryHasNoHoldings(
+                List.of(new HoldingDifference(ISIN_A, null, new BigDecimal("990.000000")))));
   }
 
   @Test
@@ -399,7 +401,9 @@ class PortfolioReconciliationServiceTest {
         .willReturn(List.of());
 
     assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of()))
-        .isEqualTo(new ReportHasNoSecurities());
+        .isEqualTo(
+            new ReportHasNoSecurities(
+                List.of(new HoldingDifference(ISIN_A, new BigDecimal("1000.0000"), null))));
   }
 
   @Test

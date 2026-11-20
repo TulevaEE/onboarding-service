@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -42,7 +43,7 @@ class TradePrepPositionGateTest {
                     new HoldingDifference("A", new BigDecimal("1000"), new BigDecimal("990")),
                     new HoldingDifference("B", ZERO, new BigDecimal("40")))));
 
-    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE, Set.of()))
+    assertThat(gates.check(TKF100, POSITION_DATE, TradePrepOverrides.none()).failures())
         .containsExactly(
             new HoldingMismatch("A", POSITION_DATE, new BigDecimal("1000"), new BigDecimal("990")),
             new HoldingMismatch("B", POSITION_DATE, ZERO, new BigDecimal("40")));
@@ -51,11 +52,13 @@ class TradePrepPositionGateTest {
   @Test
   void aRegistryOrReportWithoutHoldingsIsOneLineNotOnePerHolding() {
     given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE, Set.of()))
-        .willReturn(new RegistryHasNoHoldings(), new ReportHasNoSecurities());
+        .willReturn(
+            new RegistryHasNoHoldings(List.of(new HoldingDifference("A", null, ONE))),
+            new ReportHasNoSecurities(List.of(new HoldingDifference("A", ONE, null))));
 
-    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE, Set.of()))
+    assertThat(gates.check(TKF100, POSITION_DATE, TradePrepOverrides.none()).failures())
         .containsExactly(new NoRegistryHoldings(POSITION_DATE));
-    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE, Set.of()))
+    assertThat(gates.check(TKF100, POSITION_DATE, TradePrepOverrides.none()).failures())
         .containsExactly(new NoReportSecurities(POSITION_DATE));
   }
 
@@ -64,7 +67,7 @@ class TradePrepPositionGateTest {
     given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE, Set.of()))
         .willReturn(new ReportRowsWithoutQuantity(List.of("A", "B")));
 
-    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE, Set.of()))
+    assertThat(gates.check(TKF100, POSITION_DATE, TradePrepOverrides.none()).failures())
         .containsExactly(new UnquantifiedReportHoldings(POSITION_DATE, List.of("A", "B")));
   }
 
@@ -73,8 +76,89 @@ class TradePrepPositionGateTest {
     given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE, Set.of("X")))
         .willReturn(new Compared(List.of(new HoldingDifference("A", new BigDecimal("5"), null))));
 
-    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE, Set.of("X")))
+    assertThat(
+            gates
+                .check(TKF100, POSITION_DATE, new TradePrepOverrides(Set.of("X"), List.of(), null))
+                .failures())
         .containsExactly(new HoldingMismatch("A", POSITION_DATE, new BigDecimal("5"), null));
+  }
+
+  @Test
+  void anAcceptedDifferenceNoLongerStopsTheFundButAnotherOneStill() {
+    given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE, Set.of()))
+        .willReturn(
+            new Compared(
+                List.of(
+                    new HoldingDifference("A", new BigDecimal("1000"), new BigDecimal("990")),
+                    new HoldingDifference("B", new BigDecimal("5"), null))));
+
+    var check =
+        gates.check(
+            TKF100,
+            POSITION_DATE,
+            new TradePrepOverrides(
+                Set.of(),
+                List.of(),
+                new AcceptedHoldingDifferences(Set.of("A", "C"), "Booked late")));
+
+    assertThat(check)
+        .isEqualTo(
+            new PositionCheck(
+                List.of(new HoldingMismatch("B", POSITION_DATE, new BigDecimal("5"), null)),
+                List.of(
+                    new AcceptedHoldingDifference(
+                        "A",
+                        GateNeed.CLEARED_A_STOP,
+                        new BigDecimal("1000"),
+                        new BigDecimal("990")),
+                    new AcceptedHoldingDifference("C", GateNeed.NOT_NEEDED, null, null))));
+  }
+
+  @Test
+  void aRegistryWithoutHoldingsPassesOnlyWhenEveryDifferenceIsAccepted() {
+    given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE, Set.of()))
+        .willReturn(
+            new RegistryHasNoHoldings(
+                List.of(
+                    new HoldingDifference("A", null, ONE), new HoldingDifference("B", null, ONE))));
+
+    assertThat(
+            gates
+                .check(
+                    TKF100,
+                    POSITION_DATE,
+                    new TradePrepOverrides(
+                        Set.of(), List.of(), new AcceptedHoldingDifferences(Set.of("A"), "Late")))
+                .failures())
+        .containsExactly(new NoRegistryHoldings(POSITION_DATE));
+    assertThat(
+            gates
+                .check(
+                    TKF100,
+                    POSITION_DATE,
+                    new TradePrepOverrides(
+                        Set.of(),
+                        List.of(),
+                        new AcceptedHoldingDifferences(Set.of("A", "B"), "Baseline loads tonight")))
+                .failures())
+        .isEmpty();
+  }
+
+  @Test
+  void securitiesWithoutAQuantityStopTheFundWhateverIsAccepted() {
+    given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE, Set.of()))
+        .willReturn(new ReportRowsWithoutQuantity(List.of("A")));
+
+    assertThat(
+            gates.check(
+                TKF100,
+                POSITION_DATE,
+                new TradePrepOverrides(
+                    Set.of(), List.of(), new AcceptedHoldingDifferences(Set.of("A"), "Late"))))
+        .isEqualTo(
+            new PositionCheck(
+                List.of(new UnquantifiedReportHoldings(POSITION_DATE, List.of("A"))),
+                List.of(new AcceptedHoldingDifference("A", GateNeed.NOT_NEEDED, null, null))));
   }
 
   @Test
@@ -82,6 +166,6 @@ class TradePrepPositionGateTest {
     given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE, Set.of()))
         .willReturn(new Compared(List.of()));
 
-    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE, Set.of())).isEmpty();
+    assertThat(gates.check(TKF100, POSITION_DATE, TradePrepOverrides.none()).failures()).isEmpty();
   }
 }

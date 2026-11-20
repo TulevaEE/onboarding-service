@@ -72,7 +72,7 @@ class TransactionPreparationServiceTest {
             clock);
     lenient()
         .when(inputGates.verify(any()))
-        .thenReturn(new GateCheck(List.of(), TradePrepPricing.freshest(), List.of()));
+        .thenReturn(new GateCheck(List.of(), TradePrepPricing.freshest(), List.of(), List.of()));
   }
 
   private static BigDecimal netInvestable(FundTransactionInput input) {

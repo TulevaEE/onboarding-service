@@ -125,6 +125,8 @@ class TradePrepSnapshotIT {
   void aSameDayR45ReuploadDuringTradePrepDoesNotMixItsVersions() {
     given(priceGate.check(any(), any(), any()))
         .willReturn(new PriceCheck(Optional.empty(), TradePrepPricing.freshest(), List.of()));
+    given(positionGate.check(any(), any(), any()))
+        .willReturn(new PositionCheck(List.of(), List.of()));
     committed(
         () -> {
           positionId = position(TUV100, LocalDate.of(2026, 11, 17));

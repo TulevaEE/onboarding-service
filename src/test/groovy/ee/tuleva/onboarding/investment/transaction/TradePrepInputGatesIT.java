@@ -62,7 +62,6 @@ import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -127,6 +126,8 @@ class TradePrepInputGatesIT {
   void startFromNoStoredReportsOrPositions() {
     given(priceGate.check(any(), any(), any()))
         .willReturn(new PriceCheck(Optional.empty(), TradePrepPricing.freshest(), List.of()));
+    given(positionGate.check(any(), any(), any()))
+        .willReturn(new PositionCheck(List.of(), List.of()));
     summaryRepository.deleteAll();
     cycleRepository.deleteAll();
     summaryRepository.flush();
@@ -175,8 +176,8 @@ class TradePrepInputGatesIT {
     given(priceGate.check(TUK75, WEDNESDAY, TradePrepOverrides.none()))
         .willReturn(
             new PriceCheck(Optional.of(missingPrices), TradePrepPricing.freshest(), List.of()));
-    given(positionGate.differencesFromPositionReport(TUK75, TUESDAY, Set.of()))
-        .willReturn(List.of(mismatch));
+    given(positionGate.check(TUK75, TUESDAY, TradePrepOverrides.none()))
+        .willReturn(new PositionCheck(List.of(mismatch), List.of()));
 
     assertThat(gates.check(TUK75, WEDNESDAY, TradePrepOverrides.none()).failures())
         .containsExactly(missingPrices, mismatch);
@@ -190,7 +191,7 @@ class TradePrepInputGatesIT {
 
     gates.check(TUK75, WEDNESDAY, TradePrepOverrides.none()).failures();
 
-    then(positionGate).should().differencesFromPositionReport(TUK75, WEDNESDAY, Set.of());
+    then(positionGate).should().check(TUK75, WEDNESDAY, TradePrepOverrides.none());
   }
 
   @Test
@@ -201,7 +202,7 @@ class TradePrepInputGatesIT {
 
     assertThat(gates.check(TUK75, WEDNESDAY, TradePrepOverrides.none()).failures())
         .containsExactly(new StalePositionReport(LocalDate.of(2026, 11, 16), TUESDAY));
-    then(positionGate).should(never()).differencesFromPositionReport(any(), any(), any());
+    then(positionGate).should(never()).check(any(), any(), any());
   }
 
   @Test

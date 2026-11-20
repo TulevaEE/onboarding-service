@@ -81,7 +81,8 @@ class TradePrepPriceGateTest {
 
     assertThat(
             gates
-                .check(TKF100, TRADE_DATE, new TradePrepOverrides(Set.of("EXCLUDED"), List.of()))
+                .check(
+                    TKF100, TRADE_DATE, new TradePrepOverrides(Set.of("EXCLUDED"), List.of(), null))
                 .missingPrices())
         .isEmpty();
   }
@@ -106,7 +107,8 @@ class TradePrepPriceGateTest {
     given(positionPriceResolver.resolve("HELD_NO_PRICE", TRADE_DATE)).willReturn(Optional.empty());
     var manual = new PriceOverride("HELD_NO_PRICE", new BigDecimal("12.5"), "Issuer's NAV");
 
-    var check = gates.check(TKF100, TRADE_DATE, new TradePrepOverrides(Set.of(), List.of(manual)));
+    var check =
+        gates.check(TKF100, TRADE_DATE, new TradePrepOverrides(Set.of(), List.of(manual), null));
 
     assertThat(check)
         .isEqualTo(
@@ -123,7 +125,8 @@ class TradePrepPriceGateTest {
     givenPrice("HELD_PRICED", "100.00");
     var manual = new PriceOverride("HELD_PRICED", new BigDecimal("98"), "Index price is stale");
 
-    var check = gates.check(TKF100, TRADE_DATE, new TradePrepOverrides(Set.of(), List.of(manual)));
+    var check =
+        gates.check(TKF100, TRADE_DATE, new TradePrepOverrides(Set.of(), List.of(manual), null));
 
     assertThat(check.pricing())
         .isEqualTo(new TradePrepPricing(Map.of("HELD_PRICED", new BigDecimal("98"))));
@@ -145,7 +148,7 @@ class TradePrepPriceGateTest {
     assertThatThrownBy(
             () ->
                 gates.check(
-                    TKF100, TRADE_DATE, new TradePrepOverrides(Set.of(), List.of(stranger))))
+                    TKF100, TRADE_DATE, new TradePrepOverrides(Set.of(), List.of(stranger), null)))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -159,7 +162,9 @@ class TradePrepPriceGateTest {
     assertThatThrownBy(
             () ->
                 gates.check(
-                    TKF100, TRADE_DATE, new TradePrepOverrides(Set.of(), List.of(first, second))))
+                    TKF100,
+                    TRADE_DATE,
+                    new TradePrepOverrides(Set.of(), List.of(first, second), null)))
         .isInstanceOf(IllegalArgumentException.class);
   }
 

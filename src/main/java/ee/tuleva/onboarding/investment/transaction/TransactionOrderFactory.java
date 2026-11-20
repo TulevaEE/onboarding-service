@@ -29,7 +29,11 @@ public class TransactionOrderFactory {
   private final PositionPriceResolver positionPriceResolver;
 
   CalculatedOrders createOrders(
-      TransactionBatch batch, FundCalculationResult result, LocalDate asOfDate, Instant createdAt) {
+      TransactionBatch batch,
+      FundCalculationResult result,
+      LocalDate asOfDate,
+      Instant createdAt,
+      TradePrepPricing pricing) {
     var input = result.input();
     List<TransactionOrder> orders = new ArrayList<>();
     Map<String, @Nullable ResolvedPrice> priceResolutions = new LinkedHashMap<>();
@@ -46,7 +50,8 @@ public class TransactionOrderFactory {
           trade.tradeAmount().compareTo(ZERO) > 0 ? TransactionType.BUY : TransactionType.SELL;
       var orderAmount = trade.tradeAmount().abs();
       var orderQuantity =
-          resolveOrderQuantity(instrumentType, transactionType, isin, orderAmount, asOfDate);
+          resolveOrderQuantity(
+              instrumentType, transactionType, isin, orderAmount, asOfDate, pricing);
       if (!isAmountBasedOrder(instrumentType, transactionType)) {
         priceResolutions.put(isin, orderQuantity.resolvedPrice());
       }
@@ -91,11 +96,13 @@ public class TransactionOrderFactory {
       TransactionType transactionType,
       String isin,
       BigDecimal orderAmount,
-      LocalDate asOfDate) {
+      LocalDate asOfDate,
+      TradePrepPricing pricing) {
     if (isAmountBasedOrder(instrumentType, transactionType)) {
       return new OrderQuantity(null, null, null);
     }
-    ResolvedPrice resolvedPrice = positionPriceResolver.resolve(isin, asOfDate).orElse(null);
+    ResolvedPrice resolvedPrice =
+        pricing.resolve(positionPriceResolver, isin, asOfDate).orElse(null);
     if (resolvedPrice == null) {
       log.warn(
           "No price found for order quantity: isin={}, instrumentType={}, asOfDate={}",

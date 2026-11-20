@@ -49,7 +49,8 @@ class PendingOrderImpactService {
   private final TransactionExecutionRepository executionRepository;
   private final PositionPriceResolver positionPriceResolver;
 
-  PendingOrderImpact calculate(TulevaFund fund, LocalDate asOfDate, LocalDate positionDate) {
+  PendingOrderImpact calculate(
+      TulevaFund fund, LocalDate asOfDate, LocalDate positionDate, TradePrepPricing pricing) {
     List<TransactionOrder> unsettled = orderRepository.findUnsettledOrders(fund, asOfDate);
     if (unsettled.isEmpty()) {
       return PendingOrderImpact.none();
@@ -67,7 +68,7 @@ class PendingOrderImpactService {
           executionsByOrder.getOrDefault(order.getId(), List.of());
       ExecutedTotals executed = ExecutedTotals.of(executions);
       List<ClassifiedFill> fills = classifyAgainstPositionReport(order, executions, positionDate);
-      BigDecimal unfilledValue = unfilledValue(order, executed, asOfDate);
+      BigDecimal unfilledValue = unfilledValue(order, executed, asOfDate, pricing);
       addUnreportedPositions(
           order, fills, executed, unfilledValue, unreportedValues, unreportedQuantities);
       BigDecimal cash =
@@ -194,7 +195,10 @@ class PendingOrderImpactService {
   }
 
   private BigDecimal unfilledValue(
-      TransactionOrder order, ExecutedTotals executed, LocalDate asOfDate) {
+      TransactionOrder order,
+      ExecutedTotals executed,
+      LocalDate asOfDate,
+      TradePrepPricing pricing) {
     BigDecimal orderQuantity = order.getOrderQuantity();
     if (orderQuantity == null) {
       return unfilledAmount(order, executed);
@@ -203,7 +207,7 @@ class PendingOrderImpactService {
     if (unfilledQuantity.signum() == 0) {
       return ZERO;
     }
-    BigDecimal price = latestPrice(order.getInstrumentIsin(), asOfDate);
+    BigDecimal price = latestPrice(order.getInstrumentIsin(), asOfDate, pricing);
     return price == null ? unfilledAmount(order, executed) : unfilledQuantity.multiply(price);
   }
 
@@ -215,9 +219,9 @@ class PendingOrderImpactService {
   }
 
   @Nullable
-  private BigDecimal latestPrice(String isin, LocalDate date) {
-    return positionPriceResolver
-        .resolve(isin, date)
+  private BigDecimal latestPrice(String isin, LocalDate date, TradePrepPricing pricing) {
+    return pricing
+        .resolve(positionPriceResolver, isin, date)
         .map(resolved -> resolved.usedPrice())
         .filter(price -> price != null && price.signum() > 0)
         .orElse(null);

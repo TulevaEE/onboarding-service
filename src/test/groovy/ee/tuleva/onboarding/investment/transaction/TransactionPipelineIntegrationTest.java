@@ -180,7 +180,9 @@ class TransactionPipelineIntegrationTest {
     savingsFundLedger.recordUnattributedPayment(new BigDecimal("700.00"), randomUUID());
 
     var breakdown =
-        transactionInputService.gatherInput(TKF100, TEST_DATE, Map.of()).liabilityBreakdown();
+        transactionInputService
+            .gatherInput(TKF100, TEST_DATE, Map.of(), TradePrepPricing.freshest())
+            .liabilityBreakdown();
 
     assertThat(breakdown.incomingPaymentsClearing()).isEqualByComparingTo("4200.00");
     assertThat(breakdown.unreconciledBankReceipts()).isEqualByComparingTo("700.00");

@@ -60,16 +60,20 @@ public class TransactionInputService {
   private final UnitReceivableReader unitReceivableReader;
   private final TransactionParameterLoader transactionParameterLoader;
 
-  public FundTransactionInput gatherInput(
-      TulevaFund fund, LocalDate asOfDate, Map<String, Object> manualAdjustments) {
-    return gatherInput(fund, asOfDate, manualAdjustments, null);
-  }
-
-  public FundTransactionInput gatherInput(
+  FundTransactionInput gatherInput(
       TulevaFund fund,
       LocalDate asOfDate,
       Map<String, Object> manualAdjustments,
-      @Nullable BigDecimal cashOverride) {
+      TradePrepPricing pricing) {
+    return gatherInput(fund, asOfDate, manualAdjustments, null, pricing);
+  }
+
+  FundTransactionInput gatherInput(
+      TulevaFund fund,
+      LocalDate asOfDate,
+      Map<String, Object> manualAdjustments,
+      @Nullable BigDecimal cashOverride,
+      TradePrepPricing pricing) {
     LocalDate positionDate =
         fundPositionRepository
             .findLatestNavDateByFundAndAsOfDate(fund, asOfDate)
@@ -85,7 +89,7 @@ public class TransactionInputService {
         positionDate);
 
     PendingOrderImpact pendingOrders =
-        pendingOrderImpactService.calculate(fund, asOfDate, positionDate);
+        pendingOrderImpactService.calculate(fund, asOfDate, positionDate, pricing);
     List<PositionSnapshot> positions =
         positionAssembler.assemble(fund, positionDate, pendingOrders);
     BigDecimal reportCash = getCashBalance(fund, positionDate);

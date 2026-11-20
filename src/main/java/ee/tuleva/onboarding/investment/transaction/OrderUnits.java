@@ -8,6 +8,7 @@ import static java.math.RoundingMode.HALF_UP;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import org.jspecify.annotations.Nullable;
 
 final class OrderUnits {
 
@@ -24,6 +25,13 @@ final class OrderUnits {
       BigDecimal price) {
     return orderAmount.divide(
         price, scale(instrumentType), roundingMode(instrumentType, transactionType));
+  }
+
+  static boolean fitsAnOrder(InstrumentType instrumentType, @Nullable BigDecimal quantity) {
+    if (quantity == null || quantity.signum() <= 0) {
+      return false;
+    }
+    return instrumentType != ETF || quantity.remainder(BigDecimal.ONE).signum() == 0;
   }
 
   static BigDecimal etfSaleWithin(

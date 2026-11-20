@@ -85,14 +85,14 @@ public class TransactionOrderFactory {
       if (isAmountBasedOrder(order.getInstrumentType(), order.getTransactionType())) {
         continue;
       }
-      BigDecimal quantity = order.getOrderQuantity();
-      if (quantity == null || quantity.signum() <= 0) {
+      if (!OrderUnits.fitsAnOrder(order.getInstrumentType(), order.getOrderQuantity())) {
         missingQuantity.add(order.getInstrumentIsin());
       }
     }
     if (!missingQuantity.isEmpty()) {
       throw new IllegalStateException(
-          "Cannot finalize batch: orders require a quantity but have none: batchId="
+          "Cannot finalize batch: orders need a positive quantity, in whole units for an ETF:"
+              + " batchId="
               + batch.getId()
               + ", isins="
               + missingQuantity);

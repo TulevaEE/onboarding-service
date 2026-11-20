@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class PriorityPriceProvider {
 
-  private static final int MAX_LOOKBACK_DAYS = 14;
+  public static final int MAX_LOOKBACK_DAYS = 14;
 
   public record PriceFeed(
       PriceSource source, Function<InstrumentReference, Optional<String>> storageKey) {}

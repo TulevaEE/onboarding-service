@@ -83,6 +83,15 @@ sealed interface InputGateFailure {
     }
   }
 
+  record NoCommonPriceDate(LocalDate from, LocalDate to) implements InputGateFailure {
+
+    @Override
+    public String slackLine() {
+      return "Ühist hinnapäeva pole (%s–%s): kontrolli hinnaallikaid või kasuta igaühe värskeimat hinda"
+          .formatted(from, to);
+    }
+  }
+
   record HoldingMismatch(
       String isin,
       LocalDate positionDate,

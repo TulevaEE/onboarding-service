@@ -92,6 +92,7 @@ class TransactionCommandControllerTest {
         List.of(),
         List.of(),
         null,
+        PriceDateRule.FRESHEST_PER_INSTRUMENT,
         List.of(orderResponse()),
         null);
   }
@@ -119,6 +120,7 @@ class TransactionCommandControllerTest {
                     REBALANCE,
                     AS_OF_DATE,
                     Map.of("IE00BFG1TM61", "1000.00"),
+                    null,
                     null,
                     null,
                     null,
@@ -155,7 +157,7 @@ class TransactionCommandControllerTest {
     given(
             commandRunner.createAndProcess(
                 new CreateTransactionCommandRequest(
-                    TUK75, REBALANCE, AS_OF_DATE, null, null, null, null, null),
+                    TUK75, REBALANCE, AS_OF_DATE, null, null, null, null, null, null),
                 "operator-7"))
         .willReturn(commandResponse());
 
@@ -175,7 +177,7 @@ class TransactionCommandControllerTest {
         .should()
         .createAndProcess(
             new CreateTransactionCommandRequest(
-                TUK75, REBALANCE, AS_OF_DATE, null, null, null, null, null),
+                TUK75, REBALANCE, AS_OF_DATE, null, null, null, null, null, null),
             "operator-7");
   }
 
@@ -185,7 +187,7 @@ class TransactionCommandControllerTest {
     given(
             commandRunner.createAndProcess(
                 new CreateTransactionCommandRequest(
-                    TUK75, REBALANCE, AS_OF_DATE, null, cash, null, null, null),
+                    TUK75, REBALANCE, AS_OF_DATE, null, cash, null, null, null, null),
                 "shared-admin-token"))
         .willReturn(commandResponse());
 
@@ -206,7 +208,7 @@ class TransactionCommandControllerTest {
         .should()
         .createAndProcess(
             new CreateTransactionCommandRequest(
-                TUK75, REBALANCE, AS_OF_DATE, null, cash, null, null, null),
+                TUK75, REBALANCE, AS_OF_DATE, null, cash, null, null, null, null),
             "shared-admin-token");
   }
 
@@ -220,6 +222,7 @@ class TransactionCommandControllerTest {
             null,
             null,
             Set.of("IE00BFG1TM61", "IE00BMDBMY19"),
+            null,
             null,
             null);
     given(commandRunner.createAndProcess(request, "shared-admin-token"))
@@ -531,6 +534,7 @@ class TransactionCommandControllerTest {
                     List.of(),
                     List.of(),
                     null,
+                    PriceDateRule.FRESHEST_PER_INSTRUMENT,
                     List.of(),
                     null)));
 

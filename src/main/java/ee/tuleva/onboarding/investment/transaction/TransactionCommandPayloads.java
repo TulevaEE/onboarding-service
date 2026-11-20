@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,9 @@ final class TransactionCommandPayloads {
       payload.put(
           "acceptedHoldingDifferences",
           Map.of("isins", accepted.sortedIsins(), "comment", accepted.comment()));
+    }
+    if (command.getPriceDateRule() != PriceDateRule.FRESHEST_PER_INSTRUMENT) {
+      payload.put("priceDateRule", command.getPriceDateRule().name());
     }
     if (input != null) {
       payload.put(
@@ -66,6 +70,10 @@ final class TransactionCommandPayloads {
       payload.put(
           "acceptedHoldingDifferences",
           acceptedDifferences(accepted.comment(), gates.acceptedDifferences()));
+    }
+    LocalDate commonPriceDate = gates.pricing().priceDate();
+    if (commonPriceDate != null) {
+      payload.put("commonPriceDate", commonPriceDate.toString());
     }
     payload.put(
         "output",

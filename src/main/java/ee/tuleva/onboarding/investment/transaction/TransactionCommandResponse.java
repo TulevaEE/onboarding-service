@@ -22,6 +22,7 @@ public record TransactionCommandResponse(
     List<String> excludeIsins,
     List<PriceOverride> prices,
     @Nullable AcceptedHoldingDifferences acceptedHoldingDifferences,
+    PriceDateRule priceDateRule,
     List<TransactionOrderResponse> orders,
     @Nullable Map<String, Object> calculationSnapshot) {
 
@@ -42,6 +43,7 @@ public record TransactionCommandResponse(
         command.sortedExcludeIsins(),
         command.getPrices(),
         command.getAcceptedHoldingDifferences(),
+        command.getPriceDateRule(),
         orders.stream().map(TransactionOrderResponse::from).toList(),
         calculationSnapshot);
   }

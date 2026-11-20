@@ -20,4 +20,5 @@ public record CreateTransactionCommandRequest(
     @Nullable @Valid CashOverride cash,
     @Nullable Set<@NotNull @Pattern(regexp = "[A-Z]{2}[A-Z0-9]{9}[0-9]") String> excludeIsins,
     @Nullable List<@NotNull @Valid PriceOverride> prices,
-    @Nullable @Valid AcceptedHoldingDifferences acceptedHoldingDifferences) {}
+    @Nullable @Valid AcceptedHoldingDifferences acceptedHoldingDifferences,
+    @Nullable PriceDateRule priceDateRule) {}

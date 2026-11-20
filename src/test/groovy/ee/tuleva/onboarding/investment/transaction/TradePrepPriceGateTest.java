@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPrices;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoCommonPriceDate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -82,7 +83,10 @@ class TradePrepPriceGateTest {
     assertThat(
             gates
                 .check(
-                    TKF100, TRADE_DATE, new TradePrepOverrides(Set.of("EXCLUDED"), List.of(), null))
+                    TKF100,
+                    TRADE_DATE,
+                    new TradePrepOverrides(
+                        Set.of("EXCLUDED"), List.of(), null, PriceDateRule.FRESHEST_PER_INSTRUMENT))
                 .missingPrices())
         .isEmpty();
   }
@@ -108,13 +112,17 @@ class TradePrepPriceGateTest {
     var manual = new PriceOverride("HELD_NO_PRICE", new BigDecimal("12.5"), "Issuer's NAV");
 
     var check =
-        gates.check(TKF100, TRADE_DATE, new TradePrepOverrides(Set.of(), List.of(manual), null));
+        gates.check(
+            TKF100,
+            TRADE_DATE,
+            new TradePrepOverrides(
+                Set.of(), List.of(manual), null, PriceDateRule.FRESHEST_PER_INSTRUMENT));
 
     assertThat(check)
         .isEqualTo(
             new PriceCheck(
                 Optional.empty(),
-                new TradePrepPricing(Map.of("HELD_NO_PRICE", new BigDecimal("12.5"))),
+                new TradePrepPricing(Map.of("HELD_NO_PRICE", new BigDecimal("12.5")), null),
                 List.of(new UsedPriceOverride(manual, GateNeed.CLEARED_A_STOP, null))));
   }
 
@@ -126,10 +134,14 @@ class TradePrepPriceGateTest {
     var manual = new PriceOverride("HELD_PRICED", new BigDecimal("98"), "Index price is stale");
 
     var check =
-        gates.check(TKF100, TRADE_DATE, new TradePrepOverrides(Set.of(), List.of(manual), null));
+        gates.check(
+            TKF100,
+            TRADE_DATE,
+            new TradePrepOverrides(
+                Set.of(), List.of(manual), null, PriceDateRule.FRESHEST_PER_INSTRUMENT));
 
     assertThat(check.pricing())
-        .isEqualTo(new TradePrepPricing(Map.of("HELD_PRICED", new BigDecimal("98"))));
+        .isEqualTo(new TradePrepPricing(Map.of("HELD_PRICED", new BigDecimal("98")), null));
     assertThat(check.priceOverrides())
         .singleElement()
         .satisfies(
@@ -148,7 +160,10 @@ class TradePrepPriceGateTest {
     assertThatThrownBy(
             () ->
                 gates.check(
-                    TKF100, TRADE_DATE, new TradePrepOverrides(Set.of(), List.of(stranger), null)))
+                    TKF100,
+                    TRADE_DATE,
+                    new TradePrepOverrides(
+                        Set.of(), List.of(stranger), null, PriceDateRule.FRESHEST_PER_INSTRUMENT)))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -164,8 +179,80 @@ class TradePrepPriceGateTest {
                 gates.check(
                     TKF100,
                     TRADE_DATE,
-                    new TradePrepOverrides(Set.of(), List.of(first, second), null)))
+                    new TradePrepOverrides(
+                        Set.of(),
+                        List.of(first, second),
+                        null,
+                        PriceDateRule.FRESHEST_PER_INSTRUMENT)))
         .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void theCommonDateRuleStepsBackToTheLatestDayEveryInstrumentHasAPriceOn() {
+    givenHeld("A", "B");
+    givenModel();
+    LocalDate dayBefore = TRADE_DATE.minusDays(1);
+    givenPriceOn("A", TRADE_DATE, TRADE_DATE, "10");
+    givenPriceOn("B", TRADE_DATE, dayBefore, "20");
+    givenPriceOn("A", dayBefore, dayBefore, "9");
+    givenPriceOn("B", dayBefore, dayBefore, "20");
+
+    var check = gates.check(TKF100, TRADE_DATE, commonDate());
+
+    assertThat(check)
+        .isEqualTo(
+            new PriceCheck(Optional.empty(), new TradePrepPricing(Map.of(), dayBefore), List.of()));
+  }
+
+  @Test
+  void theCommonDateRuleStopsTheFundWhenNoDayInTheLookbackHasEveryPrice() {
+    givenHeld("A", "B");
+    givenModel();
+    LocalDate dayBefore = TRADE_DATE.minusDays(1);
+    givenPriceOn("A", TRADE_DATE, TRADE_DATE, "10");
+    givenPriceOn("B", TRADE_DATE, dayBefore, "20");
+    given(positionPriceResolver.resolve("A", dayBefore)).willReturn(Optional.empty());
+    given(positionPriceResolver.resolve("B", dayBefore))
+        .willReturn(Optional.of(priceOn(dayBefore, "20")));
+
+    assertThat(gates.check(TKF100, TRADE_DATE, commonDate()).missingPrices())
+        .contains(new NoCommonPriceDate(TRADE_DATE.minusDays(14), TRADE_DATE));
+  }
+
+  @Test
+  void aManualPriceIsLeftOutOfTheCommonDateSearch() {
+    givenHeld("A", "B");
+    givenModel();
+    givenPriceOn("A", TRADE_DATE, TRADE_DATE, "10");
+    givenPriceOn("B", TRADE_DATE, TRADE_DATE.minusDays(3), "20");
+    var manual = new PriceOverride("B", new BigDecimal("21"), "Issuer's NAV");
+
+    var check =
+        gates.check(
+            TKF100,
+            TRADE_DATE,
+            new TradePrepOverrides(
+                Set.of(), List.of(manual), null, PriceDateRule.LATEST_COMMON_DATE));
+
+    assertThat(check.pricing())
+        .isEqualTo(new TradePrepPricing(Map.of("B", new BigDecimal("21")), TRADE_DATE));
+  }
+
+  private static TradePrepOverrides commonDate() {
+    return new TradePrepOverrides(Set.of(), List.of(), null, PriceDateRule.LATEST_COMMON_DATE);
+  }
+
+  private void givenPriceOn(String isin, LocalDate asked, LocalDate priced, String price) {
+    given(positionPriceResolver.resolve(isin, asked))
+        .willReturn(Optional.of(priceOn(priced, price)));
+  }
+
+  private static ResolvedPrice priceOn(LocalDate date, String price) {
+    return ResolvedPrice.builder()
+        .usedPrice(new BigDecimal(price))
+        .validationStatus(OK)
+        .priceDate(date)
+        .build();
   }
 
   @Test

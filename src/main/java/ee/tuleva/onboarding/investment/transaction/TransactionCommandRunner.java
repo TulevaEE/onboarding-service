@@ -54,7 +54,15 @@ class TransactionCommandRunner {
             .map(
                 fund ->
                     new CreateTransactionCommandRequest(
-                        fund, mode, asOfDate, null, cashOverrides.get(fund), null, null, null))
+                        fund,
+                        mode,
+                        asOfDate,
+                        null,
+                        cashOverrides.get(fund),
+                        null,
+                        null,
+                        null,
+                        null))
             .toList(),
         actor);
   }

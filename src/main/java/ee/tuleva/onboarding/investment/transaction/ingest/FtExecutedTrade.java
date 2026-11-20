@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.CONFIRMED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PRICE_MISSING;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -28,6 +30,24 @@ record FtExecutedTrade(
   private static final int DEVIATION_DECIMALS = 2;
   private static final String ASK_FT_FOR_THE_MISSING_CONFIRMATION =
       "ask FT for the missing confirmation";
+  private static final FtConfirmationResult CONFIRMED_BY_FT =
+      new FtConfirmationResult(CONFIRMED, CONFIRMED, Map.of());
+
+  static FtExecutedTrade confirmedByFt(TransactionOrder order, SebExecutedTotal executed) {
+    return of(order, executed, CONFIRMED_BY_FT);
+  }
+
+  static FtExecutedTrade of(
+      TransactionOrder order, SebExecutedTotal executed, FtConfirmationResult result) {
+    return new FtExecutedTrade(
+        order.getFund(),
+        order.getInstrumentIsin(),
+        FtOrderSelection.tradeDate(order),
+        order.getOrderUuid(),
+        executed.quantity(),
+        executed.averagePrice(),
+        result);
+  }
 
   @Override
   public String auditKey() {

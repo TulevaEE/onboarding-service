@@ -35,7 +35,7 @@ class FtCancellationCheck {
   private final FtConfirmationAuditRecorder auditRecorder;
   private final Clock clock;
 
-  FtVerification voided(FtConfirmation confirmation, List<TransactionOrder> candidates) {
+  static FtVerification voided(FtConfirmation confirmation, List<TransactionOrder> candidates) {
     Map<String, String> details = cancellationDetails(confirmation);
     @Nullable TransactionOrder order =
         candidates.isEmpty()

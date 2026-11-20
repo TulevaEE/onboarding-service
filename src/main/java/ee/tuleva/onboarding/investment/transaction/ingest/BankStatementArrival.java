@@ -10,7 +10,8 @@ import ee.tuleva.onboarding.banking.BankStatementBalances;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
-import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,6 +24,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class BankStatementArrival {
 
+  private record FundDay(TulevaFund fund, LocalDate day) {}
+
   private enum StatementState {
     IN,
     NOT_YET,
@@ -34,27 +37,45 @@ class BankStatementArrival {
   private final PublicHolidays publicHolidays;
 
   DroppedTrades keepThoseWhoseStatementIsIn(List<DroppedTrade> candidates, LocalDate asOfDate) {
-    LocalDate statementDay = bankDayOnOrAfter(asOfDate);
-    Map<TulevaFund, StatementState> stateByFund =
+    LocalDate lastBankDay = bankDayOnOrAfter(asOfDate);
+    Map<FundDay, StatementState> stateByFundDay = new HashMap<>();
+    Map<DroppedTrade, StatementState> coverageByTrade =
         candidates.stream()
-            .map(candidate -> candidate.order().getFund())
-            .distinct()
             .collect(
                 toMap(
-                    fund -> fund,
-                    fund -> stateOf(fund, statementDay),
+                    trade -> trade,
+                    trade -> coverage(trade, lastBankDay, stateByFundDay),
                     (first, second) -> first,
-                    () -> new EnumMap<>(TulevaFund.class)));
-    List<DroppedTrade> dropped =
-        candidates.stream()
-            .filter(candidate -> stateByFund.get(candidate.order().getFund()) == StatementState.IN)
+                    LinkedHashMap::new));
+    List<DroppedTrade> covered =
+        coverageByTrade.entrySet().stream()
+            .filter(entry -> entry.getValue() == StatementState.IN)
+            .map(Map.Entry::getKey)
             .toList();
     Set<TulevaFund> fundsNotChecked =
-        stateByFund.entrySet().stream()
+        coverageByTrade.entrySet().stream()
             .filter(entry -> entry.getValue() == StatementState.UNREADABLE)
-            .map(Map.Entry::getKey)
+            .map(entry -> entry.getKey().order().getFund())
             .collect(toUnmodifiableSet());
-    return new DroppedTrades(dropped, fundsNotChecked);
+    return new DroppedTrades(covered, fundsNotChecked);
+  }
+
+  private StatementState coverage(
+      DroppedTrade trade, LocalDate lastBankDay, Map<FundDay, StatementState> stateByFundDay) {
+    TulevaFund fund = trade.order().getFund();
+    List<StatementState> states =
+        bankDayOnOrAfter(trade.settlementDate())
+            .datesUntil(lastBankDay.plusDays(1))
+            .filter(publicHolidays::isWorkingDay)
+            .map(
+                day ->
+                    stateByFundDay.computeIfAbsent(
+                        new FundDay(fund, day), key -> stateOf(key.fund(), key.day())))
+            .toList();
+    if (states.contains(StatementState.UNREADABLE)) {
+      return StatementState.UNREADABLE;
+    }
+    return states.contains(StatementState.NOT_YET) ? StatementState.NOT_YET : StatementState.IN;
   }
 
   private StatementState stateOf(TulevaFund fund, LocalDate statementDay) {

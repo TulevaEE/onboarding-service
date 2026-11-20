@@ -274,6 +274,35 @@ class SebTradeListingCheckIT {
   }
 
   @Test
+  void aSettlementDayWhoseStatementIsMissing_waitsEvenWhenALaterStatementIsIn() {
+    TransactionOrder order = order(EXECUTED);
+    piece(order, REFERENCE, SETTLEMENT_DAY);
+    pendingReport(SETTLEMENT_DAY.plusDays(1), List.of(anotherOrdersRow()));
+
+    checkWithStatementsFor(SETTLEMENT_DAY.plusDays(1)).run(LOCK_HELD);
+
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void aTradeWithEveryStatementFromItsSettlementDayIn_andNoPayment_isAlerted() {
+    TransactionOrder order = order(EXECUTED);
+    piece(order, REFERENCE, SETTLEMENT_DAY);
+    pendingReport(SETTLEMENT_DAY.plusDays(1), List.of(anotherOrdersRow()));
+
+    check(ALERTS_FROM_FEBRUARY, Set.of(SETTLEMENT_DAY, SETTLEMENT_DAY.plusDays(1))).run(LOCK_HELD);
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "⚠️ SEB tehing kadus ootel-tehingutest, pangas pole selle viitega makset: 1\n"
+                + "TKF100 · DLA0553690 · ost LU1291102447 · SEB arvelduspäev 12.02.2026\n"
+                + "Küsi SEB-lt, miks tehing nimekirjast kadus ja kas see arveldub.",
+            INVESTMENT,
+            WARNING);
+  }
+
+  @Test
   void aTradeSebListsUntilItsSettlementDay_waitsForAListAsOfThatDay() {
     TransactionOrder order = order(EXECUTED);
     piece(order, REFERENCE, SETTLEMENT_DAY);

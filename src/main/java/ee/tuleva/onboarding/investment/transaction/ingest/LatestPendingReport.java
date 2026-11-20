@@ -47,12 +47,6 @@ class LatestPendingReport {
       return Optional.empty();
     }
     List<SebPendingTransactionRow> rows = extraction.rows();
-    if (rows.isEmpty()) {
-      log.warn(
-          "Latest SEB pending report is empty, no settlement from the bank: reportDate={}",
-          report.getReportDate());
-      return Optional.empty();
-    }
     return Optional.of(
         new PendingListing(
             asOfDate,

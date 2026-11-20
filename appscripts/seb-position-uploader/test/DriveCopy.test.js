@@ -99,6 +99,7 @@ function fakeDrive() {
 function fakeAttachment(name, content) {
   return {
     getName: () => name,
+    getContentType: () => "text/csv",
     getDataAsString: () => content,
     copyBlob: () => {
       let blobName = name;
@@ -2224,5 +2225,79 @@ describe("unmatched-attachment alerts", () => {
 
     expect(alertsIn(fakes)).toEqual([]);
     expect(alertRecordsIn(fakes)).toEqual([]);
+  });
+});
+
+describe("SEB sends some files as inline parts", () => {
+  const PDF_BYTES = [37, 80, 68, 70];
+  const inlinePdf = (name) => ({ getName: () => name, getContentType: () => "application/pdf", getBytes: () => PDF_BYTES });
+  const inlinePicture = (name) => ({ getName: () => name, getContentType: () => "image/png", getBytes: () => [137, 80, 78, 71] });
+  const gmailAttachments = (regular, inline) => (options = {}) => [
+    ...(options.includeAttachments === false ? [] : regular),
+    ...(options.includeInlineImages === false ? [] : inline),
+  ];
+  const confirmationWithInline = (inline) => ({
+    ...noRecipients,
+    getId: () => "18f0a00000000011",
+    getDate: () => MORNING,
+    getFrom: () => "SEB <" + SOURCES.SEB_CONFIRMATION.senders[0] + ">",
+    getAttachments: gmailAttachments([], inline),
+  });
+  const withSlack = (threads) =>
+    installAppsScriptFakes({
+      properties: { AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret", SLACK_WEBHOOK_URL: "https://hooks.example/x" },
+      threads,
+    });
+  const unmatchedAlerts = (fakes) => fakes.slack.filter((text) => text.includes("Unmatched files:"));
+
+  test("a trade confirmation PDF sent inline is uploaded by the regular run and its thread labelled", () => {
+    const thread = fakeThread([confirmationWithInline([inlinePdf("DLA1234567-001.pdf")])], []);
+    const fakes = withSlack([thread]);
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["seb-confirmations/DLA1234567-001.pdf"]);
+    expect(thread.labels).toEqual(["S3-Uploaded-1x"]);
+    expect(unmatchedAlerts(fakes)).toEqual([]);
+  });
+
+  test("an inline picture beside a matched report, like a signature logo, raises no alert", () => {
+    const message = {
+      ...sebMessage("18f0a00000000012", []),
+      getAttachments: gmailAttachments([fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], [inlinePicture("image001.png")]),
+    };
+    const fakes = withSlack([fakeThread([message], [])]);
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["seb/2026-10-20_positions.csv"]);
+    expect(unmatchedAlerts(fakes)).toEqual([]);
+  });
+
+  test("an inline file that is no picture and matches no pattern is alerted, so a renamed confirmation is not skipped in silence", () => {
+    const thread = fakeThread([confirmationWithInline([inlinePdf("DLA1234567.pdf"), inlinePicture("image001.png")])], []);
+    const fakes = withSlack([thread]);
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(unmatchedAlerts(fakes)).toEqual([expect.stringContaining("Unmatched files: `DLA1234567.pdf`")]);
+  });
+
+  test("the scan of earlier uploads reads an inline report as the run uploaded it, so a catch-up keeps the newer e-mail's report", () => {
+    const newerInline = fakeThread(
+      [{ ...sebMessage("18f0a00000000002", [], new Date("2026-11-02T10:15:00Z")), getAttachments: gmailAttachments([], [inlinePdf("TULEVA_pos_raport_20261020_korrigeeritud.csv")]) }],
+      ["S3-Uploaded-1x"],
+    );
+    const olderRegular = fakeThread(
+      [sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], new Date("2026-10-31T08:45:00Z"))],
+      [],
+    );
+    const fakes = withSlack([newerInline, olderRegular]);
+
+    processHistoricalEmails();
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(olderRegular.labels).toEqual(["S3-Uploaded-1x"]);
   });
 });

@@ -353,18 +353,28 @@ function messageHasMatchingAttachments(message) {
     var source = sourceOf(message);
     if (!source) return false;
 
-    var filenames = message.getAttachments({ includeInlineImages: false })
-        .map(function (a) { return a.getName(); });
-    var partition = partitionFilenamesByMatch(source, filenames);
+    var attachments = message.getAttachments();
+    var partition = partitionFilenamesByMatch(source, attachments.map(function (a) { return a.getName(); }));
+    var unmatchedFiles = withoutPictures(attachments, partition.unmatched);
 
     Logger.log("Attachments from known sender: sender=" + sender +
         ", matched=[" + partition.matched.join(",") +
         "], unmatched=[" + partition.unmatched.join(",") + "]");
 
-    if (shouldAlertOnUnmatched(sender, partition.matched.length, partition.unmatched) && isWithinTheLongestCatchUp(message.getDate(), new Date())) {
-        notifyOnceForUnmatchedAttachments(message.getId(), sender, partition.unmatched, partition.matched.length);
+    if (shouldAlertOnUnmatched(sender, partition.matched.length, unmatchedFiles) && isWithinTheLongestCatchUp(message.getDate(), new Date())) {
+        notifyOnceForUnmatchedAttachments(message.getId(), sender, unmatchedFiles, partition.matched.length);
     }
     return partition.matched.length > 0;
+}
+
+function withoutPictures(attachments, filenames) {
+    return attachments
+        .filter(function (a) { return filenames.indexOf(a.getName()) >= 0 && !isPicture(a); })
+        .map(function (a) { return a.getName(); });
+}
+
+function isPicture(attachment) {
+    return /^image\//i.test(attachment.getContentType());
 }
 
 function isWithinTheLongestCatchUp(messageDate, now) {
@@ -584,7 +594,7 @@ function isNewerThanEveryUnreadUpload(emailSource, scan) {
 function datedReportKeysOf(message) {
     var source = sourceOf(message);
     if (!source) return null;
-    var attachments = message.getAttachments({ includeInlineImages: false });
+    var attachments = message.getAttachments();
     var matched = false;
     var keys = [];
     for (var i = 0; i < attachments.length; i++) {

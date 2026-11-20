@@ -66,6 +66,10 @@ public class TransactionCommand {
   @JdbcTypeCode(JSON)
   private List<PriceOverride> prices = List.of();
 
+  @Nullable
+  @JdbcTypeCode(JSON)
+  private AcceptedHoldingDifferences acceptedHoldingDifferences;
+
   @NotNull
   @Enumerated(STRING)
   @Builder.Default
@@ -95,6 +99,7 @@ public class TransactionCommand {
         .cashComment(cash == null ? null : cash.comment())
         .excludeIsins(excludeIsins == null ? Set.of() : Set.copyOf(excludeIsins))
         .prices(prices == null ? List.of() : List.copyOf(prices))
+        .acceptedHoldingDifferences(request.acceptedHoldingDifferences())
         .actor(actor)
         .status(CommandStatus.PROCESSING)
         .build();

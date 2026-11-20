@@ -8,9 +8,11 @@ public sealed interface PositionReconciliationResult {
 
   record Compared(List<HoldingDifference> differences) implements PositionReconciliationResult {}
 
-  record RegistryHasNoHoldings() implements PositionReconciliationResult {}
+  record RegistryHasNoHoldings(List<HoldingDifference> differences)
+      implements PositionReconciliationResult {}
 
-  record ReportHasNoSecurities() implements PositionReconciliationResult {}
+  record ReportHasNoSecurities(List<HoldingDifference> differences)
+      implements PositionReconciliationResult {}
 
   record ReportRowsWithoutQuantity(List<String> isins) implements PositionReconciliationResult {}
 

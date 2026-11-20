@@ -25,6 +25,12 @@ final class TransactionCommandPayloads {
     if (!command.getPrices().isEmpty()) {
       payload.put("prices", requestedPrices(command.getPrices()));
     }
+    AcceptedHoldingDifferences accepted = command.getAcceptedHoldingDifferences();
+    if (accepted != null) {
+      payload.put(
+          "acceptedHoldingDifferences",
+          Map.of("isins", accepted.sortedIsins(), "comment", accepted.comment()));
+    }
     if (input != null) {
       payload.put(
           "input", TransactionInputPayloads.serializeInput(input, command.getManualAdjustments()));
@@ -54,6 +60,12 @@ final class TransactionCommandPayloads {
     putExcludeIsins(payload, command);
     if (!gates.priceOverrides().isEmpty()) {
       payload.put("priceOverrides", priceOverrides(gates.priceOverrides()));
+    }
+    AcceptedHoldingDifferences accepted = command.getAcceptedHoldingDifferences();
+    if (accepted != null) {
+      payload.put(
+          "acceptedHoldingDifferences",
+          acceptedDifferences(accepted.comment(), gates.acceptedDifferences()));
     }
     payload.put(
         "output",
@@ -127,6 +139,25 @@ final class TransactionCommandPayloads {
     map.put("isin", price.isin());
     map.put("price", price.price().toPlainString());
     map.put("comment", price.comment());
+    return map;
+  }
+
+  private static Map<String, Object> acceptedDifferences(
+      String comment, List<AcceptedHoldingDifference> differences) {
+    Map<String, Object> map = new LinkedHashMap<>();
+    map.put("comment", comment);
+    map.put(
+        "instruments",
+        differences.stream().map(TransactionCommandPayloads::acceptedDifference).toList());
+    return map;
+  }
+
+  private static Map<String, Object> acceptedDifference(AcceptedHoldingDifference difference) {
+    Map<String, Object> map = new LinkedHashMap<>();
+    map.put("isin", difference.isin());
+    map.put("neededByGate", difference.need().neededByGate());
+    putIfPresent(map, "registryQuantity", plain(difference.registryQuantity()));
+    putIfPresent(map, "reportQuantity", plain(difference.reportQuantity()));
     return map;
   }
 }

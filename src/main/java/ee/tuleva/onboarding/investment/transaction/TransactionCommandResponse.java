@@ -21,6 +21,7 @@ public record TransactionCommandResponse(
     @Nullable String cashComment,
     List<String> excludeIsins,
     List<PriceOverride> prices,
+    @Nullable AcceptedHoldingDifferences acceptedHoldingDifferences,
     List<TransactionOrderResponse> orders,
     @Nullable Map<String, Object> calculationSnapshot) {
 
@@ -40,6 +41,7 @@ public record TransactionCommandResponse(
         command.getCashComment(),
         command.sortedExcludeIsins(),
         command.getPrices(),
+        command.getAcceptedHoldingDifferences(),
         orders.stream().map(TransactionOrderResponse::from).toList(),
         calculationSnapshot);
   }

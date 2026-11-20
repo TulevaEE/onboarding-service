@@ -102,10 +102,10 @@ public class PortfolioReconciliationService implements PositionReconciliation {
       return new Compared(differences);
     }
     if (holdsNothing(registry)) {
-      return new RegistryHasNoHoldings();
+      return new RegistryHasNoHoldings(differences);
     }
     if (holdsNothing(report)) {
-      return new ReportHasNoSecurities();
+      return new ReportHasNoSecurities(differences);
     }
     return new Compared(differences);
   }

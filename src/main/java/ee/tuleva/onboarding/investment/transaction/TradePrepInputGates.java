@@ -62,13 +62,8 @@ class TradePrepInputGates {
                     .<InputGateFailure>map(
                         date -> new StalePositionReport(date, requiredReportDate))
                     .orElseGet(() -> new MissingPositionReport(requiredReportDate)));
-    Stream<InputGateFailure> holdingDifferences =
-        currentReportDate.stream()
-            .flatMap(
-                date ->
-                    positionGate
-                        .differencesFromPositionReport(fund, date, overrides.excludedIsins())
-                        .stream());
+    Optional<PositionCheck> holdings =
+        currentReportDate.map(date -> positionGate.check(fund, date, overrides));
     PriceCheck prices = priceGate.check(fund, asOfDate, overrides);
     List<InputGateFailure> failures =
         Stream.concat(
@@ -79,9 +74,13 @@ class TradePrepInputGates {
                         r16OutflowReader.missingR16(fund, asOfDate),
                         prices.missingPrices())
                     .flatMap(Optional::stream),
-                holdingDifferences)
+                holdings.stream().flatMap(check -> check.failures().stream()))
             .toList();
-    return new GateCheck(failures, prices.pricing(), prices.priceOverrides());
+    return new GateCheck(
+        failures,
+        prices.pricing(),
+        prices.priceOverrides(),
+        holdings.map(PositionCheck::acceptedDifferences).orElse(List.of()));
   }
 
   private Optional<InputGateFailure> r45(TulevaFund fund, LocalDate asOfDate) {

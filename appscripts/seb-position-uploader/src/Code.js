@@ -353,18 +353,25 @@ function messageHasMatchingAttachments(message) {
     var source = sourceOf(message);
     if (!source) return false;
 
-    var filenames = message.getAttachments({ includeInlineImages: false })
-        .map(function (a) { return a.getName(); });
-    var partition = partitionFilenamesByMatch(source, filenames);
+    var matched = partitionFilenamesByMatch(source, namesOf(message.getAttachments())).matched;
+    var unmatched = partitionFilenamesByMatch(source, namesOf(regularAttachmentsOf(message))).unmatched;
 
     Logger.log("Attachments from known sender: sender=" + sender +
-        ", matched=[" + partition.matched.join(",") +
-        "], unmatched=[" + partition.unmatched.join(",") + "]");
+        ", matched=[" + matched.join(",") +
+        "], unmatched=[" + unmatched.join(",") + "]");
 
-    if (shouldAlertOnUnmatched(sender, partition.matched.length, partition.unmatched) && isWithinTheLongestCatchUp(message.getDate(), new Date())) {
-        notifyOnceForUnmatchedAttachments(message.getId(), sender, partition.unmatched, partition.matched.length);
+    if (shouldAlertOnUnmatched(sender, matched.length, unmatched) && isWithinTheLongestCatchUp(message.getDate(), new Date())) {
+        notifyOnceForUnmatchedAttachments(message.getId(), sender, unmatched, matched.length);
     }
-    return partition.matched.length > 0;
+    return matched.length > 0;
+}
+
+function regularAttachmentsOf(message) {
+    return message.getAttachments({ includeInlineImages: false });
+}
+
+function namesOf(attachments) {
+    return attachments.map(function (a) { return a.getName(); });
 }
 
 function isWithinTheLongestCatchUp(messageDate, now) {
@@ -584,7 +591,7 @@ function isNewerThanEveryUnreadUpload(emailSource, scan) {
 function datedReportKeysOf(message) {
     var source = sourceOf(message);
     if (!source) return null;
-    var attachments = message.getAttachments({ includeInlineImages: false });
+    var attachments = message.getAttachments();
     var matched = false;
     var keys = [];
     for (var i = 0; i < attachments.length; i++) {

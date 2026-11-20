@@ -92,6 +92,25 @@ class FtConfirmationDigestTest {
   }
 
   @Test
+  void confirmationPdfThatCouldNotBeRead_isSentWithItsKeyAndWhyNot() {
+    digest(true)
+        .publish(
+            List.of(
+                new FtUnreadableConfirmation(
+                    "ft-confirmations/MIDTEST0001-00_18f0c0ffee.pdf",
+                    "FT confirmation PDF missing required field: field=Gross Price")));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "FT confirmation PDF could not be read:"
+                + " key=ft-confirmations/MIDTEST0001-00_18f0c0ffee.pdf, error=FT confirmation PDF"
+                + " missing required field: field=Gross Price — check the trade in this PDF"
+                + " against its order by hand",
+            INVESTMENT);
+  }
+
+  @Test
   void priceThatCouldNotBeChecked_isSentWithTheDayTheClosingPriceWasDue() {
     digest(true).publish(List.of(priceMissing(OK)));
 

@@ -35,6 +35,7 @@ class FtConfirmationImportJobTest {
   @Mock private FtConfirmationPdfParser parser;
   @Mock private FtConfirmationVerificationService verificationService;
   @Mock private FtUnconfirmedTradeCheck unconfirmedTradeCheck;
+  @Mock private FtUnreadableConfirmationWarning unreadableWarning;
 
   private FtConfirmationImportJob job;
 
@@ -42,7 +43,12 @@ class FtConfirmationImportJobTest {
   void setUp() {
     job =
         new FtConfirmationImportJob(
-            s3Source, parser, verificationService, unconfirmedTradeCheck, FIXED_CLOCK);
+            s3Source,
+            parser,
+            verificationService,
+            unconfirmedTradeCheck,
+            unreadableWarning,
+            FIXED_CLOCK);
   }
 
   @Test
@@ -107,6 +113,7 @@ class FtConfirmationImportJobTest {
     verify(verificationService)
         .verifyAll(List.of(confirmation2), FtConfirmationImportJob.JOB_ACTOR);
     verify(unconfirmedTradeCheck).check(List.of(confirmation2), FtConfirmationImportJob.JOB_ACTOR);
+    verify(unreadableWarning).publish(List.of());
   }
 
   @Test
@@ -125,6 +132,24 @@ class FtConfirmationImportJobTest {
 
     verify(verificationService)
         .verifyAll(List.of(confirmation2), FtConfirmationImportJob.JOB_ACTOR);
+  }
+
+  @Test
+  void run_pdfThatCannotBeParsed_isHandedOnToBeWarnedAboutWithWhyNot() {
+    givenOnePdfThatCannotBeParsed();
+
+    job.run();
+
+    verify(unreadableWarning).publish(List.of(new FtUnreadableConfirmation(KEY_1, "malformed")));
+  }
+
+  @Test
+  void run_warningAboutAnUnreadablePdfFails_doesNotStopTheCheckForTradesFtNeverConfirmed() {
+    givenOnePdfThatCannotBeParsed();
+    willThrow(new RuntimeException("db down")).given(unreadableWarning).publish(any());
+
+    assertThatCode(job::run).doesNotThrowAnyException();
+    verify(unconfirmedTradeCheck).check(List.of(), FtConfirmationImportJob.JOB_ACTOR);
   }
 
   @Test
@@ -159,6 +184,13 @@ class FtConfirmationImportJobTest {
     willThrow(new RuntimeException("db down")).given(unconfirmedTradeCheck).check(any(), any());
 
     assertThatCode(job::run).doesNotThrowAnyException();
+  }
+
+  private void givenOnePdfThatCannotBeParsed() {
+    byte[] bytes1 = "bad-pdf".getBytes();
+    given(s3Source.list()).willReturn(List.of(KEY_1));
+    given(s3Source.get(KEY_1)).willReturn(Optional.of(bytes1));
+    given(parser.parse(bytes1)).willThrow(new FtConfirmationPdfParseException("malformed"));
   }
 
   private static FtConfirmation confirmation(String isin) {

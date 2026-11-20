@@ -1025,99 +1025,6 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
-  void reconcile_reportRowCountDroppedSharplyFromPriorReport_skipsSettlementByAbsence() {
-    service = newService();
-    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
-    TransactionOrder matchedOrder = sampleOrder(clientRef);
-    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
-    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
-
-    // Prior report had ~50 well-formed rows; today's report has just 1 — a >50% row-count cliff
-    // that looks like a truncated upload rather than genuine settlement activity.
-    InvestmentReport priorReport = reportWithRows(LocalDate.of(2026, 5, 12), 50);
-    given(reportService.getPriorReport(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13)))
-        .willReturn(Optional.of(priorReport));
-
-    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
-
-    // Truncation guard trips before candidate orders are even looked up.
-    verify(orderRepository, never())
-        .findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
-    verify(settlementRepository, never()).save(any());
-    verify(eventPublisher)
-        .publishEvent(
-            argThat(
-                (Object e) ->
-                    e instanceof PossibleReportTruncationEvent event
-                        && event.reportDate().equals(LocalDate.of(2026, 5, 13))
-                        && event.rowCount() == 1
-                        && event.priorReportDate().equals(LocalDate.of(2026, 5, 12))
-                        && event.priorRowCount() == 50));
-    verify(auditEventRepository)
-        .save(
-            argThat(
-                (TransactionAuditEvent event) ->
-                    "POSSIBLE_REPORT_TRUNCATION".equals(event.getEventType())
-                        && event.getOrderId() == null
-                        && "2026-05-13".equals(event.getPayload().get("reportDate"))
-                        && Integer.valueOf(1).equals(event.getPayload().get("rowCount"))
-                        && "2026-05-12".equals(event.getPayload().get("priorReportDate"))
-                        && Integer.valueOf(50).equals(event.getPayload().get("priorRowCount"))));
-  }
-
-  @Test
-  void reconcile_reportRowCountShrinksNormallyFromPriorReport_stillSettlesByAbsence() {
-    service = newService();
-    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
-    TransactionOrder matchedOrder = sampleOrder(clientRef);
-    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
-    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
-    given(orderRepository.findByInstrumentIsin(any())).willReturn(List.of());
-
-    TransactionOrder absentOrder = executedOrder(456L);
-    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
-        .willReturn(List.of(absentOrder));
-    given(executionRepository.findAllByOrderId(456L))
-        .willReturn(List.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
-    given(settlementRepository.save(any()))
-        .willAnswer(invocation -> invocation.getArgument(0, TransactionSettlement.class));
-
-    // Prior report had 10 rows; today's report has 6 — a 40% drop, below the truncation threshold.
-    InvestmentReport priorReport = reportWithRows(LocalDate.of(2026, 5, 12), 10);
-    given(reportService.getPriorReport(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13)))
-        .willReturn(Optional.of(priorReport));
-
-    service.reconcile(reportWithRowsAndMatch(LocalDate.of(2026, 5, 13), clientRef, 6), LOCK_HELD);
-
-    verify(settlementRepository)
-        .save(argThat((TransactionSettlement settlement) -> settlement.getOrderId().equals(456L)));
-    assertThat(absentOrder.getOrderStatus()).isEqualTo(SETTLED);
-  }
-
-  @Test
-  void reconcile_absentExecutedOrderNoPriorReportAvailable_stillSettlesByAbsence() {
-    service = newService();
-    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
-    TransactionOrder matchedOrder = sampleOrder(clientRef);
-    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
-    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
-
-    TransactionOrder absentOrder = executedOrder(456L);
-    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
-        .willReturn(List.of(absentOrder));
-    given(executionRepository.findAllByOrderId(456L))
-        .willReturn(List.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
-    given(settlementRepository.save(any()))
-        .willAnswer(invocation -> invocation.getArgument(0, TransactionSettlement.class));
-
-    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
-
-    verify(settlementRepository)
-        .save(argThat((TransactionSettlement settlement) -> settlement.getOrderId().equals(456L)));
-    assertThat(absentOrder.getOrderStatus()).isEqualTo(SETTLED);
-  }
-
-  @Test
   void reconcile_nonLatestReplayedReport_skipsSettlementByAbsence() {
     service = newService();
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
@@ -1314,29 +1221,6 @@ class SebPendingTransactionReconciliationServiceTest {
               assertThat(event.kind())
                   .isEqualTo(QuantityAmountMismatchEvent.MismatchKind.ETF_QUANTITY);
             });
-    verify(eventPublisher, never()).publishEvent(any());
-  }
-
-  @Test
-  void replay_reportRowCountDroppedSharply_holdsTheTruncationAlertBackAndDoesNotSettle() {
-    service = newService();
-    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
-    TransactionOrder matchedOrder = sampleOrder(clientRef);
-    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
-    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
-    given(reportService.getPriorReport(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13)))
-        .willReturn(Optional.of(reportWithRows(LocalDate.of(2026, 5, 12), 50)));
-    List<ReconciliationAlert> heldBack = new ArrayList<>();
-
-    service.replay(
-        reportWithSingleRow(clientRef), heldBack::add, new SebReplayListings(), LOCK_HELD);
-
-    assertThat(heldBack)
-        .singleElement()
-        .isEqualTo(
-            new PossibleReportTruncationEvent(
-                LocalDate.of(2026, 5, 13), 1, LocalDate.of(2026, 5, 12), 50));
-    verify(settlementRepository, never()).save(any());
     verify(eventPublisher, never()).publishEvent(any());
   }
 
@@ -1685,27 +1569,6 @@ class SebPendingTransactionReconciliationServiceTest {
 
     assertThat(mismatchOrder.getOrderStatus()).isEqualTo(SENT);
     verify(orderRepository).findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
-  }
-
-  @Test
-  void reconcile_rowCountExactlyAtTruncationBoundary_stillSettlesByAbsence() {
-    service = newService();
-    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
-    TransactionOrder matchedOrder = sampleOrder(clientRef);
-    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
-    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
-    given(orderRepository.findByInstrumentIsin(any())).willReturn(List.of());
-
-    // Prior report had 10 rows; today has exactly 5 (a 50% drop == the boundary, not beyond it).
-    InvestmentReport priorReport = reportWithRows(LocalDate.of(2026, 5, 12), 10);
-    given(reportService.getPriorReport(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13)))
-        .willReturn(Optional.of(priorReport));
-
-    service.reconcile(reportWithRowsAndMatch(LocalDate.of(2026, 5, 13), clientRef, 5), LOCK_HELD);
-
-    verify(orderRepository).findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
-    verify(auditEventRepository, never())
-        .save(argThat(event -> "POSSIBLE_REPORT_TRUNCATION".equals(event.getEventType())));
   }
 
   @Test
@@ -2113,32 +1976,6 @@ class SebPendingTransactionReconciliationServiceTest {
 
   private static InvestmentReport reportWithSingleRow(UUID clientRef) {
     return reportOf(validRawRow(clientRef));
-  }
-
-  private static InvestmentReport reportWithRows(LocalDate reportDate, int rowCount) {
-    return reportWithRowsAndMatch(reportDate, null, rowCount);
-  }
-
-  // Builds a report with one row matching clientRef (if given) plus enough noise rows —
-  // referencing no known order — to reach rowCount, so only row count is exercised.
-  private static InvestmentReport reportWithRowsAndMatch(
-      LocalDate reportDate, UUID clientRef, int rowCount) {
-    List<Map<String, Object>> rows = new ArrayList<>();
-    if (clientRef != null) {
-      rows.add(validRawRow(clientRef));
-    }
-    while (rows.size() < rowCount) {
-      Map<String, Object> raw = validRawRow(UUID.randomUUID());
-      raw.put("Our ref", "DLA9" + (100000 + rows.size()));
-      rows.add(raw);
-    }
-    return InvestmentReport.builder()
-        .provider(SEB)
-        .reportType(PENDING_TRANSACTIONS)
-        .reportDate(reportDate)
-        .metadata(Map.of("asOfDate", reportDate.minusDays(1).toString()))
-        .rawData(rows)
-        .build();
   }
 
   private static InvestmentReport reportOf(Map<String, Object> raw) {

@@ -72,7 +72,7 @@ final class SebPendingReplayMessages {
         + reportsAndRange(summary.replayed())
         + ".\n"
         + outcome(summary)
-        + "Lahknevused ja kärbitud raportid on auditis (investment_transaction_audit_event). "
+        + "Lahknevused on auditis (investment_transaction_audit_event). "
         + RERUN_ADDS_NOTHING_TWICE;
   }
 
@@ -109,8 +109,6 @@ final class SebPendingReplayMessages {
         + alerts.size()
         + " (koguse või summa lahknevusi: "
         + count(alerts, QuantityAmountMismatchEvent.class)
-        + ", kärbitud raporteid: "
-        + count(alerts, PossibleReportTruncationEvent.class)
         + ", tükkide hinnaerinevusi: "
         + count(alerts, ExecutionPriceConsistencyEvent.class)
         + ").\n"

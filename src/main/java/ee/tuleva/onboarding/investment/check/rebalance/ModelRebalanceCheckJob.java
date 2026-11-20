@@ -9,7 +9,6 @@ import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,29 +54,27 @@ class ModelRebalanceCheckJob {
   }
 
   private void closeSuperseded(SupersededWindow superseded) {
-    postThenRecordSoACloseIsNeverLost(
-        superseded.window(), RebalanceMessage.ofSuperseded(superseded), clock.instant());
+    var window = superseded.window();
+    if (post(window.fund(), RebalanceMessage.ofSuperseded(superseded))) {
+      announcements.recordClose(window, clock.instant());
+    }
   }
 
   private void announce(RebalanceWindow window) {
-    RebalanceMessage.of(window).ifPresent(message -> recordAndPost(window, message));
+    RebalanceMessage.of(window)
+        .ifPresent(message -> postThenRecordSoNoAnnouncementIsLost(window, message));
   }
 
-  private void recordAndPost(RebalanceWindow window, RebalanceMessage message) {
-    var announcedAt = clock.instant();
-    if (window.inLine()) {
-      postThenRecordSoACloseIsNeverLost(window, message, announcedAt);
+  private void postThenRecordSoNoAnnouncementIsLost(
+      RebalanceWindow window, RebalanceMessage message) {
+    if (!post(window.fund(), message)) {
       return;
     }
-    announcements.recordOpen(window, announcedAt);
-    post(window.fund(), message);
-  }
-
-  private void postThenRecordSoACloseIsNeverLost(
-      RebalanceWindow window, RebalanceMessage message, Instant announcedAt) {
-    if (post(window.fund(), message)) {
-      announcements.recordClose(window, announcedAt);
+    if (window.inLine()) {
+      announcements.recordClose(window, clock.instant());
+      return;
     }
+    announcements.recordOpen(window, clock.instant());
   }
 
   private boolean post(TulevaFund fund, RebalanceMessage message) {

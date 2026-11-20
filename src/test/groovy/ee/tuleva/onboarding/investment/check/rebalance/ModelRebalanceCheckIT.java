@@ -79,7 +79,7 @@ class ModelRebalanceCheckIT {
   private static final String NEW_WORLD = "IE000I9HGDZ3";
   private static final String EMERGING = "IE00BMDBMY19";
   private static final String NOT_IN_ANY_MODEL = "LU0476289540";
-  private static final String CANADA = "LU0476289540";
+  private static final String CANADA = "IE00B4L5Y983";
   private static final String TRADE_REGISTRY_SQL_EXPORT_SOURCE = "GAS_REGISTRY";
   private static final TransactionMode BUY_MODE = TransactionMode.BUY;
   private static final LocalDate PREVIOUS_MODEL = LocalDate.of(2026, 6, 1);

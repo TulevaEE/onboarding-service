@@ -50,6 +50,29 @@ class RebalanceWindowTest {
   }
 
   @Test
+  void aRebalancingTradeClosesTheWindowEvenPastTheDeadlineAndWithoutAnInLineNav() {
+    var tradeDate = LocalDate.of(2026, 12, 3);
+
+    assertThat(window(LocalDate.of(2026, 12, 4), null, tradeDate).state()).isEqualTo(OK);
+    assertThat(window(LocalDate.of(2026, 12, 4), null, tradeDate).closure())
+        .contains(RebalanceClosure.byRebalancingTrades(tradeDate));
+  }
+
+  @Test
+  void whicheverOfAnInLineNavAndARebalancingTradeComesFirstClosesTheWindowAndANavWinsATie() {
+    var earlier = LocalDate.of(2026, 10, 5);
+    var later = LocalDate.of(2026, 10, 9);
+    var checkDate = LocalDate.of(2026, 10, 12);
+
+    assertThat(window(checkDate, later, earlier).closure())
+        .contains(RebalanceClosure.byRebalancingTrades(earlier));
+    assertThat(window(checkDate, earlier, later).closure())
+        .contains(RebalanceClosure.byAnInLineNav(earlier));
+    assertThat(window(checkDate, earlier, earlier).closure())
+        .contains(RebalanceClosure.byAnInLineNav(earlier));
+  }
+
+  @Test
   void countsDaysFromTheEffectiveDateAndUntilTheDeadline() {
     var window = window(LocalDate.of(2026, 10, 1), null);
 
@@ -58,6 +81,11 @@ class RebalanceWindowTest {
   }
 
   private static RebalanceWindow window(LocalDate checkDate, @Nullable LocalDate inLineSince) {
+    return window(checkDate, inLineSince, null);
+  }
+
+  private static RebalanceWindow window(
+      LocalDate checkDate, @Nullable LocalDate inLineSince, @Nullable LocalDate rebalancedOn) {
     return new RebalanceWindow(
         TUV100,
         EFFECTIVE,
@@ -67,6 +95,7 @@ class RebalanceWindowTest {
         null,
         List.of(),
         inLineSince,
+        rebalancedOn,
         DEADLINE,
         WARNING_FROM);
   }

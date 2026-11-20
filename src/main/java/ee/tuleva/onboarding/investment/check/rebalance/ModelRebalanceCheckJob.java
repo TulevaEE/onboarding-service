@@ -70,7 +70,7 @@ class ModelRebalanceCheckJob {
     if (!post(window.fund(), message)) {
       return;
     }
-    if (window.inLine()) {
+    if (window.closed()) {
       announcements.recordClose(window, clock.instant());
       return;
     }

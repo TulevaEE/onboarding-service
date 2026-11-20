@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.banking.CurrentDayReport.Booked;
 import ee.tuleva.onboarding.banking.CurrentDayReport.Missing;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.CurrentDayBalance;
+import ee.tuleva.onboarding.investment.transaction.GatewayCash.NoBookedBalance;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.NoCurrentDayReportToday;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.NotTodaysRun;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.Unreadable;
@@ -66,6 +67,7 @@ class SameDayCashReader {
                 switch (bankStatementBalances.currentDayReport(account, today)) {
                   case Booked booked -> new CurrentDayBalance(booked.balance(), booked.fetchedAt());
                   case Missing _ -> new NoCurrentDayReportToday();
+                  case CurrentDayReport.NoBookedBalance _ -> new NoBookedBalance();
                   case CurrentDayReport.Unreadable _ -> new Unreadable();
                 })
         .orElseGet(NoCurrentDayReportToday::new);

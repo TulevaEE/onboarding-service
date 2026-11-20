@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.banking.BankStatementBalances;
 import ee.tuleva.onboarding.banking.CurrentDayReport;
 import ee.tuleva.onboarding.banking.CurrentDayReport.Booked;
 import ee.tuleva.onboarding.banking.CurrentDayReport.Missing;
+import ee.tuleva.onboarding.banking.CurrentDayReport.NoBookedBalance;
 import ee.tuleva.onboarding.banking.CurrentDayReport.Unreadable;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
@@ -75,7 +76,7 @@ public class BookedBalanceReader implements BankStatementBalances {
       return statementOf(message)
           .bookedBalance()
           .<CurrentDayReport>map(balance -> new Booked(balance, message.getReceivedAt()))
-          .orElseGet(Unreadable::new);
+          .orElseGet(NoBookedBalance::new);
     } catch (BankStatementParseException e) {
       log.error("Stored current-day report cannot be read: messageId={}", message.getId(), e);
       return new Unreadable();

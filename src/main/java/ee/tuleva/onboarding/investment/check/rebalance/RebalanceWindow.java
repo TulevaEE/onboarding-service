@@ -25,14 +25,14 @@ public record RebalanceWindow(
     @Nullable LocalDate rebalanceOrdersSentOn,
     LocalDate deadline,
     LocalDate warningFrom,
-    LocalDate awaitingExecutionUntil) {
+    @Nullable LocalDate awaitingExecutionUntil) {
 
   public RebalanceState state() {
     if (closed()) {
       return OK;
     }
     if (deadlinePassed()) {
-      return rebalanceOrdersSentByTheDeadlineStillAwaitExecution() ? AWAITING_EXECUTION : FAIL;
+      return ordersSentByTheDeadlineStillAwaitExecution() ? AWAITING_EXECUTION : FAIL;
     }
     if (!checkDate.isBefore(warningFrom)) {
       return WARNING;
@@ -52,10 +52,8 @@ public record RebalanceWindow(
     return checkDate.isAfter(deadline);
   }
 
-  private boolean rebalanceOrdersSentByTheDeadlineStillAwaitExecution() {
-    return rebalanceOrdersSentOn != null
-        && !rebalanceOrdersSentOn.isAfter(deadline)
-        && !checkDate.isAfter(awaitingExecutionUntil);
+  private boolean ordersSentByTheDeadlineStillAwaitExecution() {
+    return awaitingExecutionUntil != null && !checkDate.isAfter(awaitingExecutionUntil);
   }
 
   public long daysUntilDeadline() {

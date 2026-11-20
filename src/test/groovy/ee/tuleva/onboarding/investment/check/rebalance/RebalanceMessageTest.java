@@ -262,7 +262,7 @@ class RebalanceMessageTest {
             null,
             DEADLINE,
             WARNING_FROM,
-            AWAITING_EXECUTION_UNTIL);
+            null);
 
     assertThat(RebalanceMessage.of(window).text()).contains("kõik osakaalud 2,5 pp piires");
   }
@@ -292,6 +292,13 @@ class RebalanceMessageTest {
         rebalanceOrdersSentOn,
         DEADLINE,
         WARNING_FROM,
-        AWAITING_EXECUTION_UNTIL);
+        awaitedThroughWhenSentByTheDeadline(rebalanceOrdersSentOn));
+  }
+
+  private static @Nullable LocalDate awaitedThroughWhenSentByTheDeadline(
+      @Nullable LocalDate rebalanceOrdersSentOn) {
+    return rebalanceOrdersSentOn != null && !rebalanceOrdersSentOn.isAfter(DEADLINE)
+        ? AWAITING_EXECUTION_UNTIL
+        : null;
   }
 }

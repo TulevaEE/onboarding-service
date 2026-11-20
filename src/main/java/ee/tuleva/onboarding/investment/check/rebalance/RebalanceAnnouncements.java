@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.investment.check.rebalance;
 
-import static ee.tuleva.onboarding.investment.check.rebalance.RebalanceState.OK;
-
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Instant;
@@ -35,9 +33,12 @@ class RebalanceAnnouncements {
         .isPresent();
   }
 
-  void recordAnnouncement(RebalanceWindow window, Instant announcedAt) {
-    record(
-        window, window.state() == OK ? WINDOW_CLOSE_ANNOUNCED : WINDOW_OPEN_ANNOUNCED, announcedAt);
+  void recordOpen(RebalanceWindow window, Instant announcedAt) {
+    record(window, WINDOW_OPEN_ANNOUNCED, announcedAt);
+  }
+
+  void recordClose(RebalanceWindow window, Instant announcedAt) {
+    record(window, WINDOW_CLOSE_ANNOUNCED, announcedAt);
   }
 
   private void record(RebalanceWindow window, String type, Instant at) {

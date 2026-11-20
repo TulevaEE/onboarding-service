@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Se
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.mockito.ArgumentMatchers.any;
@@ -22,19 +21,23 @@ import static org.mockito.Mockito.times;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class ModelRebalanceCheckJobTest {
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final LocalDate MONDAY = LocalDate.of(2026, 11, 2);
+  private static final Instant MONDAY_RUN = MONDAY.atTime(9, 15).atZone(TALLINN).toInstant();
   private static final LocalDate CHRISTMAS_EVE = LocalDate.of(2026, 12, 24);
 
   private final RebalanceWindows rebalanceWindows = mock(RebalanceWindows.class);
@@ -43,13 +46,16 @@ class ModelRebalanceCheckJobTest {
       mock(OperationsNotificationService.class);
   private final EstonianCalendar estonianCalendar = new EstonianCalendar(new PublicHolidays());
 
+  @BeforeEach
+  void noFundHasAWindowUnlessATestSaysSo() {
+    given(rebalanceWindows.of(any(), eq(MONDAY), any())).willReturn(FundRebalanceWindows.NONE);
+  }
+
   @Test
-  void aFundWhoseCheckCannotRun_isReportedAndTheOtherFundsAreStillChecked() {
-    given(rebalanceWindows.current(TUK75, MONDAY))
+  void aFundWhoseWindowsCannotBeLoaded_getsOneNoticeAndTheOtherFundsAreStillChecked() {
+    given(rebalanceWindows.of(eq(TUK75), eq(MONDAY), any()))
         .willThrow(new IllegalStateException("No investment parameter found"));
-    given(rebalanceWindows.current(TUK00, MONDAY)).willReturn(Optional.empty());
-    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
-    given(rebalanceWindows.current(TKF100, MONDAY)).willReturn(Optional.empty());
+    givenWindows(TUV100, warningWindow());
     given(announcements.isOwed(warningWindow())).willReturn(true);
 
     jobOn(MONDAY).checkRebalanceWindows();
@@ -69,7 +75,8 @@ class ModelRebalanceCheckJobTest {
 
   @Test
   void anOpenWindowsPostThatFails_staysRecordedAndDoesNotStopTheOtherFunds() {
-    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.of(warningWindow()));
+    given(rebalanceWindows.of(any(), eq(MONDAY), any()))
+        .willReturn(new FundRebalanceWindows(Optional.of(warningWindow()), List.of()));
     given(announcements.isOwed(warningWindow())).willReturn(true);
     willThrow(new IllegalStateException("No webhook for slack channel INVESTMENT"))
         .given(notificationService)
@@ -77,35 +84,31 @@ class ModelRebalanceCheckJobTest {
 
     jobOn(MONDAY).checkRebalanceWindows();
 
-    then(rebalanceWindows).should().current(TKF100, MONDAY);
-    then(announcements).should(times(4)).recordAnnouncement(eq(warningWindow()), any());
+    then(rebalanceWindows).should().of(eq(TKF100), eq(MONDAY), any());
+    then(announcements).should(times(4)).recordOpen(warningWindow(), MONDAY_RUN);
   }
 
   @Test
   void anOpenWindowsAnnouncementIsRecordedBeforeItIsPosted() {
-    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
-    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
+    givenWindows(TUV100, warningWindow());
     given(announcements.isOwed(warningWindow())).willReturn(true);
 
     jobOn(MONDAY).checkRebalanceWindows();
 
     var inOrder = inOrder(announcements, notificationService);
-    then(announcements)
-        .should(inOrder)
-        .recordAnnouncement(warningWindow(), MONDAY.atTime(9, 15).atZone(TALLINN).toInstant());
+    then(announcements).should(inOrder).recordOpen(warningWindow(), MONDAY_RUN);
     then(notificationService)
         .should(inOrder)
         .sendMessage(startsWith("⚠️ TUV100"), eq(INVESTMENT), eq(WARNING));
   }
 
   @Test
-  void anAnnouncementThatCannotBeRecorded_isNotPostedAndTheCheckSaysItCouldNotRun() {
-    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
-    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
+  void anOpenAnnouncementThatCannotBeRecorded_isNotPostedAndTheFundGetsOneNotice() {
+    givenWindows(TUV100, warningWindow());
     given(announcements.isOwed(warningWindow())).willReturn(true);
     willThrow(new IllegalStateException("event_log unavailable"))
         .given(announcements)
-        .recordAnnouncement(eq(warningWindow()), any());
+        .recordOpen(warningWindow(), MONDAY_RUN);
 
     jobOn(MONDAY).checkRebalanceWindows();
 
@@ -117,8 +120,7 @@ class ModelRebalanceCheckJobTest {
 
   @Test
   void aCloseIsRecordedOnlyOnceSlackHasAcceptedIt() {
-    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
-    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(closedWindow()));
+    givenWindows(TUV100, closedWindow());
     given(announcements.isOwed(closedWindow())).willReturn(true);
 
     jobOn(MONDAY).checkRebalanceWindows();
@@ -127,15 +129,12 @@ class ModelRebalanceCheckJobTest {
     then(notificationService)
         .should(inOrder)
         .sendMessage(startsWith("✅ TUV100"), eq(INVESTMENT), eq(INFO));
-    then(announcements)
-        .should(inOrder)
-        .recordAnnouncement(closedWindow(), MONDAY.atTime(9, 15).atZone(TALLINN).toInstant());
+    then(announcements).should(inOrder).recordClose(closedWindow(), MONDAY_RUN);
   }
 
   @Test
   void aCloseThatCouldNotBePosted_isNotRecordedSoTheNextRunPostsIt() {
-    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
-    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(closedWindow()));
+    givenWindows(TUV100, closedWindow());
     given(announcements.isOwed(closedWindow())).willReturn(true);
     willThrow(new IllegalStateException("No webhook for slack channel INVESTMENT"))
         .given(notificationService)
@@ -143,27 +142,27 @@ class ModelRebalanceCheckJobTest {
 
     jobOn(MONDAY).checkRebalanceWindows();
 
-    then(announcements).should(never()).recordAnnouncement(any(), any());
+    then(announcements).should(never()).recordClose(any(), any());
   }
 
   @Test
   void aWindowWithNothingOwed_sendsAndRecordsNothing() {
-    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
-    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
+    givenWindows(TUV100, warningWindow());
     given(announcements.isOwed(warningWindow())).willReturn(false);
 
     jobOn(MONDAY).checkRebalanceWindows();
 
     then(notificationService).shouldHaveNoInteractions();
-    then(announcements).should(never()).recordAnnouncement(any(), any());
+    then(announcements).should(never()).recordOpen(any(), any());
   }
 
   @Test
   void anOwedCloseOfASupersededWindow_isAnnouncedAndRecordedBeforeTheCurrentWindow() {
-    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
-    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
-    given(rebalanceWindows.supersededWindows(eq(TUV100), eq(MONDAY), any()))
-        .willReturn(List.of(closedWindow()));
+    given(rebalanceWindows.of(eq(TUV100), eq(MONDAY), any()))
+        .willReturn(
+            new FundRebalanceWindows(
+                Optional.of(warningWindow()),
+                List.of(new SupersededWindow(closedWindow(), LocalDate.of(2026, 10, 1)))));
     given(announcements.isOwed(warningWindow())).willReturn(true);
 
     jobOn(MONDAY).checkRebalanceWindows();
@@ -177,44 +176,7 @@ class ModelRebalanceCheckJobTest {
         .should(inOrder)
         .sendMessage(
             startsWith("⚠️ TUV100 mudelportfell alates 01.10.2026"), eq(INVESTMENT), eq(WARNING));
-    then(announcements).should().recordAnnouncement(eq(closedWindow()), any());
-  }
-
-  @Test
-  void aSupersededWindowThatNeverClosed_sendsNothingForItself() {
-    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
-    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
-    given(rebalanceWindows.supersededWindows(eq(TUV100), eq(MONDAY), any()))
-        .willReturn(List.of(warningWindowOf(LocalDate.of(2026, 6, 1))));
-    given(announcements.isOwed(warningWindow())).willReturn(true);
-
-    jobOn(MONDAY).checkRebalanceWindows();
-
-    then(notificationService)
-        .should()
-        .sendMessage(
-            startsWith("⚠️ TUV100 mudelportfell alates 01.10.2026"), eq(INVESTMENT), eq(WARNING));
-    then(notificationService).shouldHaveNoMoreInteractions();
-  }
-
-  @Test
-  void aSupersededWindowThatCannotBeMeasured_isReportedAndTheCurrentWindowIsStillAnnounced() {
-    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
-    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
-    given(rebalanceWindows.supersededWindows(eq(TUV100), eq(MONDAY), any()))
-        .willThrow(new IllegalStateException("No investment parameter found"));
-    given(announcements.isOwed(warningWindow())).willReturn(true);
-
-    jobOn(MONDAY).checkRebalanceWindows();
-
-    then(notificationService)
-        .should()
-        .sendMessage(startsWith("⏸ TUV100"), eq(INVESTMENT), eq(ERROR));
-    then(notificationService)
-        .should()
-        .sendMessage(
-            startsWith("⚠️ TUV100 mudelportfell alates 01.10.2026"), eq(INVESTMENT), eq(WARNING));
-    then(notificationService).shouldHaveNoMoreInteractions();
+    then(announcements).should().recordClose(closedWindow(), MONDAY_RUN);
   }
 
   @Test
@@ -223,6 +185,11 @@ class ModelRebalanceCheckJobTest {
 
     then(rebalanceWindows).shouldHaveNoInteractions();
     then(notificationService).shouldHaveNoInteractions();
+  }
+
+  private void givenWindows(TulevaFund fund, RebalanceWindow current) {
+    given(rebalanceWindows.of(eq(fund), eq(MONDAY), any()))
+        .willReturn(new FundRebalanceWindows(Optional.of(current), List.of()));
   }
 
   private ModelRebalanceCheckJob jobOn(LocalDate date) {
@@ -247,13 +214,9 @@ class ModelRebalanceCheckJobTest {
   }
 
   private static RebalanceWindow warningWindow() {
-    return warningWindowOf(LocalDate.of(2026, 10, 1));
-  }
-
-  private static RebalanceWindow warningWindowOf(LocalDate modelEffectiveDate) {
     return new RebalanceWindow(
         TUV100,
-        modelEffectiveDate,
+        LocalDate.of(2026, 10, 1),
         MONDAY,
         new BigDecimal("0.05"),
         Set.of("IE00BFG1TM61"),

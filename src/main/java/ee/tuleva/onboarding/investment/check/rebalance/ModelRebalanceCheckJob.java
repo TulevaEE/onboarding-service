@@ -41,33 +41,16 @@ class ModelRebalanceCheckJob {
   }
 
   private void check(TulevaFund fund, LocalDate today) {
-    announceOwedClosesOfSupersededWindows(fund, today);
-    announceCurrentWindow(fund, today);
-  }
-
-  private void announceOwedClosesOfSupersededWindows(TulevaFund fund, LocalDate today) {
     try {
-      rebalanceWindows
-          .supersededWindows(
-              fund, today, modelEffectiveDate -> announcements.closeOwed(fund, modelEffectiveDate))
-          .stream()
+      var windows =
+          rebalanceWindows.of(
+              fund, today, modelEffectiveDate -> announcements.closeOwed(fund, modelEffectiveDate));
+      windows.current().ifPresent(ModelRebalanceCheckJob::logWindow);
+      windows.superseded().stream()
+          .map(SupersededWindow::window)
           .filter(RebalanceWindow::inLine)
           .forEach(this::announce);
-    } catch (RuntimeException e) {
-      log.error(
-          "Model rebalance check could not measure superseded windows: fund={}, checkDate={}",
-          fund,
-          today,
-          e);
-      post(fund, RebalanceMessage.couldNotRun(fund));
-    }
-  }
-
-  private void announceCurrentWindow(TulevaFund fund, LocalDate today) {
-    try {
-      var window = rebalanceWindows.current(fund, today);
-      window.ifPresent(ModelRebalanceCheckJob::logWindow);
-      window.filter(announcements::isOwed).ifPresent(this::announce);
+      windows.current().filter(announcements::isOwed).ifPresent(this::announce);
     } catch (RuntimeException e) {
       log.error("Model rebalance check could not run: fund={}, checkDate={}", fund, today, e);
       post(fund, RebalanceMessage.couldNotRun(fund));
@@ -84,14 +67,14 @@ class ModelRebalanceCheckJob {
       postThenRecordSoACloseIsNeverLost(window, message, announcedAt);
       return;
     }
-    announcements.recordAnnouncement(window, announcedAt);
+    announcements.recordOpen(window, announcedAt);
     post(window.fund(), message);
   }
 
   private void postThenRecordSoACloseIsNeverLost(
       RebalanceWindow window, RebalanceMessage message, Instant announcedAt) {
     if (post(window.fund(), message)) {
-      announcements.recordAnnouncement(window, announcedAt);
+      announcements.recordClose(window, announcedAt);
     }
   }
 

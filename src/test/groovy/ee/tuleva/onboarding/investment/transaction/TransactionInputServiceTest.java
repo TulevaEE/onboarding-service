@@ -721,7 +721,9 @@ class TransactionInputServiceTest {
                 new BigDecimal("30000"),
                 new BigDecimal("10000"),
                 Map.of("IE00A", new BigDecimal("30000"), "IE00B", new BigDecimal("-10000")),
-                Map.of()));
+                Map.of(),
+                ZERO,
+                ZERO));
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
@@ -765,7 +767,8 @@ class TransactionInputServiceTest {
             .expectedSettlementDate(AS_OF_DATE.plusDays(1))
             .build();
     given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any(), any()))
-        .willReturn(new PendingOrderImpact(new BigDecimal("25000"), ZERO, Map.of(), Map.of()));
+        .willReturn(
+            new PendingOrderImpact(new BigDecimal("25000"), ZERO, Map.of(), Map.of(), ZERO, ZERO));
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
@@ -1288,7 +1291,9 @@ class TransactionInputServiceTest {
                 new BigDecimal("40000"),
                 ZERO,
                 Map.of("IE00A", new BigDecimal("40000")),
-                Map.of("IE00A", new BigDecimal("80"))));
+                Map.of("IE00A", new BigDecimal("80")),
+                ZERO,
+                ZERO));
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
@@ -1381,7 +1386,12 @@ class TransactionInputServiceTest {
     given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any(), any()))
         .willReturn(
             new PendingOrderImpact(
-                new BigDecimal("40000"), ZERO, Map.of("IE00A", new BigDecimal("40000")), Map.of()));
+                new BigDecimal("40000"),
+                ZERO,
+                Map.of("IE00A", new BigDecimal("40000")),
+                Map.of(),
+                ZERO,
+                ZERO));
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 

@@ -12,6 +12,7 @@ import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.context.annotation.FilterType.REGEX;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
 import ee.tuleva.onboarding.time.ClockConfig;
@@ -27,9 +28,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @DataJpaTest
-@Import({GatewayNettingIT.LedgerWriting.class, GatewayNetting.class, ClockConfig.class})
+@Import({
+  GatewayNettingIT.LedgerWriting.class,
+  GatewayNetting.class,
+  PendingOrderImpactService.class,
+  ClockConfig.class
+})
 class GatewayNettingIT {
 
   @ComponentScan(
@@ -51,6 +58,8 @@ class GatewayNettingIT {
       new NettingWindow(TUK75, REPORT_DATE, TODAY, Set.of());
 
   @Autowired GatewayNetting netting;
+  @Autowired PendingOrderImpactService pendingOrderImpactService;
+  @MockitoBean PositionPriceResolver positionPriceResolver;
   @Autowired FundBankLedger fundBankLedger;
   @Autowired TransactionBatchRepository batchRepository;
   @Autowired TransactionOrderRepository orderRepository;
@@ -109,6 +118,33 @@ class GatewayNettingIT {
             new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("0.00")));
 
     assertThat(netted.after().payables()).isEqualByComparingTo("300000.00");
+  }
+
+  @Test
+  void anOrderExecutedTodayWhoseSettlementTheBankBookedBeforeTheRegisterMarkedItIsCountedOnce() {
+    filled(BUY, "B-TODAY", TODAY);
+    bankBooks(TUK75, "B-TODAY", "-50000.00", TODAY);
+    var settlements = netting.tradeSettlements(WINDOW);
+
+    var pendingOrders =
+        pendingOrderImpactService.calculate(
+            TUK75,
+            TODAY,
+            REPORT_DATE,
+            TradePrepPricingFixture.noResolvedPrices(),
+            settlements.carriedByPendingOrders());
+
+    assertThat(pendingOrders.pendingBuys()).isEqualByComparingTo("0");
+    assertThat(pendingOrders.buysInTheBalance()).isEqualByComparingTo("50000");
+    assertThat(
+            netting
+                .unsettledTrades(
+                    WINDOW,
+                    settlements,
+                    new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("0.00")))
+                .after()
+                .payables())
+        .isEqualByComparingTo("300000.00");
   }
 
   @Test

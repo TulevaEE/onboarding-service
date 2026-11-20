@@ -353,28 +353,25 @@ function messageHasMatchingAttachments(message) {
     var source = sourceOf(message);
     if (!source) return false;
 
-    var attachments = message.getAttachments();
-    var partition = partitionFilenamesByMatch(source, attachments.map(function (a) { return a.getName(); }));
-    var unmatchedFiles = withoutPictures(attachments, partition.unmatched);
+    var matched = partitionFilenamesByMatch(source, namesOf(message.getAttachments())).matched;
+    var unmatched = partitionFilenamesByMatch(source, namesOf(regularAttachmentsOf(message))).unmatched;
 
     Logger.log("Attachments from known sender: sender=" + sender +
-        ", matched=[" + partition.matched.join(",") +
-        "], unmatched=[" + partition.unmatched.join(",") + "]");
+        ", matched=[" + matched.join(",") +
+        "], unmatched=[" + unmatched.join(",") + "]");
 
-    if (shouldAlertOnUnmatched(sender, partition.matched.length, unmatchedFiles) && isWithinTheLongestCatchUp(message.getDate(), new Date())) {
-        notifyOnceForUnmatchedAttachments(message.getId(), sender, unmatchedFiles, partition.matched.length);
+    if (shouldAlertOnUnmatched(sender, matched.length, unmatched) && isWithinTheLongestCatchUp(message.getDate(), new Date())) {
+        notifyOnceForUnmatchedAttachments(message.getId(), sender, unmatched, matched.length);
     }
-    return partition.matched.length > 0;
+    return matched.length > 0;
 }
 
-function withoutPictures(attachments, filenames) {
-    return attachments
-        .filter(function (a) { return filenames.indexOf(a.getName()) >= 0 && !isPicture(a); })
-        .map(function (a) { return a.getName(); });
+function regularAttachmentsOf(message) {
+    return message.getAttachments({ includeInlineImages: false });
 }
 
-function isPicture(attachment) {
-    return /^image\//i.test(attachment.getContentType());
+function namesOf(attachments) {
+    return attachments.map(function (a) { return a.getName(); });
 }
 
 function isWithinTheLongestCatchUp(messageDate, now) {

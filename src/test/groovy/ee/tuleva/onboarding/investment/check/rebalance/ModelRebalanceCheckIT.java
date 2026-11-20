@@ -40,6 +40,8 @@ import ee.tuleva.onboarding.investment.transaction.TransactionBatch;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatchRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionCommand;
 import ee.tuleva.onboarding.investment.transaction.TransactionCommandRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
+import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionMode;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
@@ -91,6 +93,7 @@ class ModelRebalanceCheckIT {
   @Autowired private TransactionBatchRepository batchRepository;
   @Autowired private TransactionOrderRepository orderRepository;
   @Autowired private TransactionCommandRepository commandRepository;
+  @Autowired private TransactionExecutionRepository executionRepository;
   @Autowired private JdbcClient jdbcClient;
 
   @MockitoBean private OperationsNotificationService notificationService;
@@ -392,15 +395,17 @@ class ModelRebalanceCheckIT {
   }
 
   @Test
-  void anOrderFromARebalanceRun_closesTheWindowOnTheDayItsFirstPlacedOrderWentOut() {
+  void anExecutedOrderFromARebalanceRun_closesTheWindowOnItsTradeDate() {
     givenTuv100ModelSwitchesFromWorldToNewWorld();
     givenNav(LocalDate.of(2026, 10, 2), Map.of(WORLD, "790000", EMERGING, "200000"));
     runCheckOn(LocalDate.of(2026, 10, 5));
-    givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 9, 30));
+    givenExecutedOrderFromATradePrepRun(
+        REBALANCE, NEW_WORLD, BUY, LocalDate.of(2026, 9, 29), LocalDate.of(2026, 9, 30));
     givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, CANCELLED, LocalDate.of(2026, 10, 20));
     givenOrderFromATradePrepRun(REBALANCE, WORLD, SELL, DRAFT, LocalDate.of(2026, 10, 21));
-    givenOrderFromATradePrepRun(REBALANCE, WORLD, SELL, SENT, LocalDate.of(2026, 10, 28));
-    givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, EXECUTED, LocalDate.of(2026, 10, 29));
+    givenOrderFromATradePrepRun(REBALANCE, WORLD, SELL, SENT, LocalDate.of(2026, 10, 26));
+    givenExecutedOrderFromATradePrepRun(
+        REBALANCE, NEW_WORLD, BUY, LocalDate.of(2026, 10, 27), LocalDate.of(2026, 10, 28));
 
     runCheckOn(LocalDate.of(2026, 10, 30));
     runCheckOn(LocalDate.of(2026, 11, 2));
@@ -415,6 +420,34 @@ class ModelRebalanceCheckIT {
     then(notificationService)
         .should()
         .sendMessage(startsWith("ℹ️ TUV100"), eq(INVESTMENT), eq(INFO));
+    then(notificationService).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void aSentOrderFromARebalanceRun_doesNotCloseTheWindowAndItsExecutionDoes() {
+    givenTuv100ModelSwitchesFromWorldToNewWorld();
+    givenNav(LocalDate.of(2026, 10, 2), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 5));
+    var order =
+        givenOrderFromATradePrepRun(REBALANCE, WORLD, SELL, SENT, LocalDate.of(2026, 10, 28));
+
+    runCheckOn(LocalDate.of(2026, 10, 29));
+
+    then(notificationService)
+        .should()
+        .sendMessage(startsWith("ℹ️ TUV100"), eq(INVESTMENT), eq(INFO));
+    then(notificationService).shouldHaveNoMoreInteractions();
+
+    givenExecuted(order, LocalDate.of(2026, 10, 29));
+    runCheckOn(LocalDate.of(2026, 10, 30));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "✅ TUV100 mudelportfell alates 01.10.2026: tasakaalustamise tehingud tehtud"
+                + " 29.10.2026, kontroll suletud",
+            INVESTMENT,
+            INFO);
     then(notificationService).shouldHaveNoMoreInteractions();
   }
 
@@ -638,7 +671,7 @@ class ModelRebalanceCheckIT {
             "source", TRADE_REGISTRY_SQL_EXPORT_SOURCE, "importKey", "GAS:" + UUID.randomUUID()));
   }
 
-  private void givenOrderFromATradePrepRun(
+  private TransactionOrder givenOrderFromATradePrepRun(
       TransactionMode mode,
       String isin,
       TransactionType side,
@@ -652,6 +685,28 @@ class ModelRebalanceCheckIT {
             .asOfDate(orderDate)
             .status(CommandStatus.CALCULATED)
             .batchId(order.getBatch().getId())
+            .build());
+    return order;
+  }
+
+  private void givenExecutedOrderFromATradePrepRun(
+      TransactionMode mode,
+      String isin,
+      TransactionType side,
+      LocalDate orderDate,
+      LocalDate tradeDate) {
+    givenExecuted(givenOrderFromATradePrepRun(mode, isin, side, SENT, orderDate), tradeDate);
+  }
+
+  private void givenExecuted(TransactionOrder order, LocalDate tradeDate) {
+    order.setOrderStatus(EXECUTED);
+    orderRepository.save(order);
+    executionRepository.save(
+        TransactionExecution.builder()
+            .orderId(order.getId())
+            .executionTimestamp(tradeDate.atTime(17, 30).atZone(TALLINN).toInstant())
+            .executedQuantity(new BigDecimal("100"))
+            .source("SEB_OOTEL")
             .build());
   }
 

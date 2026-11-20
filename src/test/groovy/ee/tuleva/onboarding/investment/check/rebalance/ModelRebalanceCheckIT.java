@@ -74,6 +74,7 @@ class ModelRebalanceCheckIT {
   private static final String WORLD = "IE00BFG1TM61";
   private static final String NEW_WORLD = "IE000I9HGDZ3";
   private static final String EMERGING = "IE00BMDBMY19";
+  private static final String NOT_IN_ANY_MODEL = "LU0476289540";
   private static final LocalDate PREVIOUS_MODEL = LocalDate.of(2026, 6, 1);
   private static final LocalDate NEW_MODEL = LocalDate.of(2026, 10, 1);
   private static final BigDecimal NAV = new BigDecimal("1000000");
@@ -460,6 +461,26 @@ class ModelRebalanceCheckIT {
             INVESTMENT,
             INFO);
     then(notificationService).should(times(1)).sendMessage(any(), any(), eq(ERROR));
+  }
+
+  @Test
+  void aHeldInstrumentWithNoModelRow_doesNotKeepTheWindowOpen() {
+    givenTuv100ModelSwitchesFromWorldToNewWorld();
+    givenNav(LocalDate.of(2026, 10, 29), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 30));
+    givenNav(
+        LocalDate.of(2026, 10, 30),
+        Map.of(NEW_WORLD, "760000", EMERGING, "180000", NOT_IN_ANY_MODEL, "60000"));
+
+    runCheckOn(LocalDate.of(2026, 11, 2));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "✅ TUV100 mudelportfell alates 01.10.2026: fond on mudeliga vastavuses (kõik"
+                + " osakaalud 5 pp piires, NAV 30.10.2026), kontroll suletud",
+            INVESTMENT,
+            INFO);
   }
 
   @Test

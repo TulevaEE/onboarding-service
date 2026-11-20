@@ -32,4 +32,28 @@ class UnitReceivableTest {
 
     assertThat(unitReceivable.dueOnTopOfReportCash()).isEqualByComparingTo("8000");
   }
+
+  @Test
+  void onTodaysBankBalanceAFundThatMayInvestOnlyCashOnItsAccountAddsNothing() {
+    var unitReceivable =
+        new UnitReceivable(new BigDecimal("8000"), new BigDecimal("5000"), ONCE_IT_ARRIVES);
+
+    assertThat(unitReceivable.dueOnTopOfGatewayBalance()).isEqualByComparingTo("0");
+  }
+
+  @Test
+  void onTodaysBankBalanceAFundThatMayInvestCashKnownToArriveAddsOnlyWhatHasNotArrivedYet() {
+    var unitReceivable =
+        new UnitReceivable(new BigDecimal("8000"), new BigDecimal("5000"), BEFORE_IT_ARRIVES);
+
+    assertThat(unitReceivable.dueOnTopOfGatewayBalance()).isEqualByComparingTo("3000");
+  }
+
+  @Test
+  void onTodaysBankBalanceReceiptsBeyondTheReportedReceivableAddNothing() {
+    var unitReceivable =
+        new UnitReceivable(new BigDecimal("8000"), new BigDecimal("9000"), BEFORE_IT_ARRIVES);
+
+    assertThat(unitReceivable.dueOnTopOfGatewayBalance()).isEqualByComparingTo("0");
+  }
 }

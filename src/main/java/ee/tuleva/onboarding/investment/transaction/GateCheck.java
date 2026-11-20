@@ -8,4 +8,5 @@ record GateCheck(
     List<InputGateFailure> failures,
     TradePrepPricing pricing,
     List<UsedPriceOverride> priceOverrides,
-    List<AcceptedHoldingDifference> acceptedDifferences) {}
+    List<AcceptedHoldingDifference> acceptedDifferences,
+    List<PriceDeviation> confirmedPriceDeviations) {}

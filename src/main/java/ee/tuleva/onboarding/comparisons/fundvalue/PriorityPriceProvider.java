@@ -48,13 +48,23 @@ public class PriorityPriceProvider {
   public Optional<FundValue> resolve(String isin, LocalDate date, @Nullable Instant updatedBefore) {
     return instrumentReferenceService
         .findByIsin(isin)
-        .flatMap(instrument -> resolveForInstrument(instrument, date, updatedBefore));
+        .flatMap(
+            instrument ->
+                resolveForInstrument(
+                    instrument, date, updatedBefore, date.minusDays(MAX_LOOKBACK_DAYS)));
+  }
+
+  public Optional<FundValue> resolveAnyAge(String isin, LocalDate date) {
+    return instrumentReferenceService
+        .findByIsin(isin)
+        .flatMap(instrument -> resolveForInstrument(instrument, date, null, LocalDate.MIN));
   }
 
   private Optional<FundValue> resolveForInstrument(
-      InstrumentReference instrument, LocalDate date, @Nullable Instant updatedBefore) {
-    LocalDate earliestAllowed = date.minusDays(MAX_LOOKBACK_DAYS);
-
+      InstrumentReference instrument,
+      LocalDate date,
+      @Nullable Instant updatedBefore,
+      LocalDate earliestAllowed) {
     return PRICE_FEEDS.stream()
         .map(feed -> feed.storageKey().apply(instrument))
         .filter(Optional::isPresent)

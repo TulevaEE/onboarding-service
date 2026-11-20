@@ -75,6 +75,10 @@ public class TransactionCommand {
   @Builder.Default
   private PriceDateRule priceDateRule = PriceDateRule.FRESHEST_PER_INSTRUMENT;
 
+  @Builder.Default
+  @JdbcTypeCode(JSON)
+  private Set<String> confirmedPriceDeviations = Set.of();
+
   @NotNull
   @Enumerated(STRING)
   @Builder.Default
@@ -96,6 +100,7 @@ public class TransactionCommand {
     Set<String> excludeIsins = request.excludeIsins();
     List<PriceOverride> prices = request.prices();
     PriceDateRule priceDateRule = request.priceDateRule();
+    Set<String> confirmedPriceDeviations = request.confirmedPriceDeviations();
     return TransactionCommand.builder()
         .fund(request.fund())
         .mode(request.mode())
@@ -108,9 +113,15 @@ public class TransactionCommand {
         .acceptedHoldingDifferences(request.acceptedHoldingDifferences())
         .priceDateRule(
             priceDateRule == null ? PriceDateRule.FRESHEST_PER_INSTRUMENT : priceDateRule)
+        .confirmedPriceDeviations(
+            confirmedPriceDeviations == null ? Set.of() : Set.copyOf(confirmedPriceDeviations))
         .actor(actor)
         .status(CommandStatus.PROCESSING)
         .build();
+  }
+
+  List<String> sortedConfirmedPriceDeviations() {
+    return confirmedPriceDeviations.stream().sorted().toList();
   }
 
   List<String> sortedExcludeIsins() {

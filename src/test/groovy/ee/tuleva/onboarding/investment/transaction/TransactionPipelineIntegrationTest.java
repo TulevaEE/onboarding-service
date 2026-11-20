@@ -509,7 +509,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -530,7 +530,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -558,7 +558,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -582,7 +582,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -603,7 +603,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -616,7 +616,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -637,7 +637,16 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, Set.of("LU1291106356"), null, null, null),
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                Set.of("LU1291106356"),
+                null,
+                null,
+                null,
+                null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -653,7 +662,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(manual), null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(manual), null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -677,7 +686,16 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(manual), null, null),
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(manual),
+                null,
+                null,
+                Set.of("IE000O58J820")),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -688,6 +706,17 @@ class TransactionPipelineIntegrationTest {
             .orElseThrow();
     assertThat(order.orderQuantity())
         .isEqualByComparingTo(order.orderAmount().divide(new BigDecimal("5.00"), 6, HALF_UP));
+    assertThat(response.confirmedPriceDeviations()).containsExactly("IE000O58J820");
+    assertThat(response.calculationSnapshot())
+        .containsEntry(
+            "confirmedPriceDeviations",
+            List.of(
+                Map.of(
+                    "isin", "IE000O58J820",
+                    "manualPrice", "5.00",
+                    "lastIndexPrice", "50.00000",
+                    "lastIndexPriceDate", "2026-02-10",
+                    "gapPercent", "-90.0")));
     assertThat(response.calculationSnapshot())
         .containsEntry(
             "priceOverrides",
@@ -714,7 +743,16 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(manual), null, null),
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(manual),
+                null,
+                null,
+                Set.of("IE000O58J820")),
             "operator");
 
     assertThat(response.calculationSnapshot().get("priceResolutions"))
@@ -741,7 +779,16 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(stranger), null, null),
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(stranger),
+                null,
+                null,
+                null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -773,7 +820,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null, accepted, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, accepted, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -811,6 +858,7 @@ class TransactionPipelineIntegrationTest {
                 null,
                 null,
                 new AcceptedHoldingDifferences(Set.of("LU1291099718"), "Yesterday's difference"),
+                null,
                 null),
             "operator");
 
@@ -853,6 +901,7 @@ class TransactionPipelineIntegrationTest {
                 null,
                 null,
                 new AcceptedHoldingDifferences(reportHoldings, "Baseline loads tonight"),
+                null,
                 null),
             "operator");
 
@@ -884,7 +933,8 @@ class TransactionPipelineIntegrationTest {
                 null,
                 null,
                 null,
-                PriceDateRule.LATEST_COMMON_DATE),
+                PriceDateRule.LATEST_COMMON_DATE,
+                null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -917,7 +967,8 @@ class TransactionPipelineIntegrationTest {
                 null,
                 null,
                 null,
-                PriceDateRule.LATEST_COMMON_DATE),
+                PriceDateRule.LATEST_COMMON_DATE,
+                null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -949,7 +1000,8 @@ class TransactionPipelineIntegrationTest {
                 null,
                 List.of(new PriceOverride("IE00BMDBMY19", new BigDecimal("44"), "Issuer's NAV")),
                 null,
-                PriceDateRule.LATEST_COMMON_DATE),
+                PriceDateRule.LATEST_COMMON_DATE,
+                null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -971,7 +1023,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -997,6 +1049,7 @@ class TransactionPipelineIntegrationTest {
                 null,
                 new CashOverride(
                     new BigDecimal("500000.00"), "Balance read from SEB's internet bank"),
+                null,
                 null,
                 null,
                 null,
@@ -1081,6 +1134,7 @@ class TransactionPipelineIntegrationTest {
                 null,
                 null,
                 new AcceptedHoldingDifferences(registryHoldings, "Report is late"),
+                null,
                 null),
             "operator");
 
@@ -1128,10 +1182,71 @@ class TransactionPipelineIntegrationTest {
                 Set.of(onlyListed),
                 null,
                 new AcceptedHoldingDifferences(unlisted, "Report sent one row"),
+                null,
                 null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
+  }
+
+  @Test
+  void aManualPriceFarFromTheLastIndexPriceStopsTheFundAndSaysByHowMuch() {
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(
+                    new PriceOverride(
+                        "IE000O58J820", new BigDecimal("5.00"), "Index price is stale")),
+                null,
+                null,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            ⚠️ IE000O58J820: käsitsi hind 5, viimane indeksihind 50 (2026-02-10), erinevus -90.0%: kontrolli hinda või kinnita see (confirmedPriceDeviations)\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void aManualPriceIsComparedWithTheLastIndexPriceHoweverOldItIs() {
+    jdbcClient
+        .sql("UPDATE index_values SET date = DATE '2025-12-01' WHERE key = 'PAC.DE'")
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(new PriceOverride("LU1291106356", new BigDecimal("60.12"), "Issuer's NAV")),
+                null,
+                null,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            ⚠️ LU1291106356: käsitsi hind 60.12, viimane indeksihind 10 (2025-12-01), erinevus 501.2%: kontrolli hinda või kinnita see (confirmedPriceDeviations)\
+            """,
+            INVESTMENT);
   }
 
   private void registryRow(String isin, String quantity) {

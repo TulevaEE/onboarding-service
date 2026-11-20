@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -19,7 +20,7 @@ class SebTradeListingCheck {
   private final NeverListedOrderFinder neverListedOrderFinder;
   private final SebTradeListingAlerts alerts;
 
-  void run() {
+  void run(BooleanSupplier stillHoldsTheLock) {
     Optional<PendingListing> listing;
     try {
       listing = latestPendingReport.listing();
@@ -39,6 +40,12 @@ class SebTradeListingCheck {
     dropped.fundsNotChecked().stream()
         .map(SkippedListingCheck::unreadableStatementOf)
         .forEach(skipped::add);
+    if (!stillHoldsTheLock.getAsBoolean()) {
+      log.warn(
+          "SEB trade listing check lost the reconciliation lock, nothing published: asOfDate={}",
+          listing.get().asOfDate());
+      return;
+    }
     alerts.publish(dropped.trades(), neverListed, skipped);
     log.info(
         "SEB trade listing check completed: asOfDate={}, droppedCount={}, neverListedCount={},"

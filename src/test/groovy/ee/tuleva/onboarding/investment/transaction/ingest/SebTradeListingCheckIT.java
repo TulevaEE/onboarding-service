@@ -58,6 +58,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -68,6 +69,7 @@ class SebTradeListingCheckIT {
   private static final String REFERENCE = "DLA0553690";
   private static final LocalDate SETTLEMENT_DAY = LocalDate.of(2026, 2, 12);
   private static final Instant ORDERED = Instant.parse("2026-02-10T10:00:00Z");
+  private static final BooleanSupplier LOCK_HELD = () -> true;
   private static final SebTradeListingCheckProperties ALERTS_FROM_FEBRUARY =
       new SebTradeListingCheckProperties(LocalDate.of(2026, 2, 1));
 
@@ -97,8 +99,8 @@ class SebTradeListingCheckIT {
     pendingReport(SETTLEMENT_DAY, List.of(anotherOrdersRow()));
     SebTradeListingCheck check = checkWithStatementsFor(SETTLEMENT_DAY);
 
-    check.run();
-    check.run();
+    check.run(LOCK_HELD);
+    check.run(LOCK_HELD);
 
     then(notificationService)
         .should(times(1))
@@ -146,7 +148,7 @@ class SebTradeListingCheckIT {
     settled(order, PENDING_REPORT_ABSENCE);
     pendingReport(SETTLEMENT_DAY, List.of(anotherOrdersRow()));
 
-    checkWithStatementsFor(SETTLEMENT_DAY).run();
+    checkWithStatementsFor(SETTLEMENT_DAY).run(LOCK_HELD);
 
     then(notificationService)
         .should()
@@ -167,7 +169,7 @@ class SebTradeListingCheckIT {
         SETTLEMENT_DAY,
         List.of(Map.of("Client ref", order.getOrderUuid().toString(), "Our ref", "DLA0553691")));
 
-    checkWithStatementsFor(SETTLEMENT_DAY).run();
+    checkWithStatementsFor(SETTLEMENT_DAY).run(LOCK_HELD);
 
     then(notificationService)
         .should()
@@ -185,7 +187,42 @@ class SebTradeListingCheckIT {
     piece(order, REFERENCE, SETTLEMENT_DAY);
     pendingReport(SETTLEMENT_DAY, List.of(Map.of("Client ref", order.getOrderUuid().toString())));
 
-    checkWithStatementsFor(SETTLEMENT_DAY).run();
+    checkWithStatementsFor(SETTLEMENT_DAY).run(LOCK_HELD);
+
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void aClientRefRowWithoutAReference_holdsAPieceBackEvenBesideAListedSibling() {
+    TransactionOrder order = order(EXECUTED);
+    piece(order, REFERENCE, SETTLEMENT_DAY);
+    piece(order, "DLA0553691", SETTLEMENT_DAY.plusDays(4));
+    pendingReport(
+        SETTLEMENT_DAY,
+        List.of(
+            Map.of("Client ref", order.getOrderUuid().toString(), "Our ref", "DLA0553691"),
+            Map.of("Client ref", order.getOrderUuid().toString())));
+
+    checkWithStatementsFor(SETTLEMENT_DAY).run(LOCK_HELD);
+
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void aPaymentBookedWhileTheStatementIsChecked_isNotCalledMissing() {
+    TransactionOrder order = order(EXECUTED);
+    piece(order, REFERENCE, SETTLEMENT_DAY);
+    pendingReport(SETTLEMENT_DAY, List.of(anotherOrdersRow()));
+    BankStatementBalances statementLandingWithThePayment =
+        new StatementsIn(Set.of(SETTLEMENT_DAY)) {
+          @Override
+          public Optional<BigDecimal> closingBalance(BankAccount account, LocalDate day) {
+            bankBooks(REFERENCE, SETTLEMENT_DAY);
+            return super.closingBalance(account, day);
+          }
+        };
+
+    check(ALERTS_FROM_FEBRUARY, bankAccounts, statementLandingWithThePayment).run(LOCK_HELD);
 
     then(notificationService).shouldHaveNoInteractions();
   }
@@ -196,7 +233,7 @@ class SebTradeListingCheckIT {
     piece(order, REFERENCE, SETTLEMENT_DAY);
     pendingReport(SETTLEMENT_DAY, List.of(Map.of("Our ref", REFERENCE)));
 
-    checkWithStatementsFor(SETTLEMENT_DAY).run();
+    checkWithStatementsFor(SETTLEMENT_DAY).run(LOCK_HELD);
 
     then(notificationService).shouldHaveNoInteractions();
   }
@@ -208,7 +245,7 @@ class SebTradeListingCheckIT {
     bankBooks(REFERENCE, SETTLEMENT_DAY);
     pendingReport(SETTLEMENT_DAY, List.of(anotherOrdersRow()));
 
-    checkWithStatementsFor(SETTLEMENT_DAY).run();
+    checkWithStatementsFor(SETTLEMENT_DAY).run(LOCK_HELD);
 
     then(notificationService).shouldHaveNoInteractions();
   }
@@ -220,7 +257,7 @@ class SebTradeListingCheckIT {
     settled(order, BANK_STATEMENT);
     pendingReport(SETTLEMENT_DAY, List.of(anotherOrdersRow()));
 
-    checkWithStatementsFor(SETTLEMENT_DAY).run();
+    checkWithStatementsFor(SETTLEMENT_DAY).run(LOCK_HELD);
 
     then(notificationService).shouldHaveNoInteractions();
   }
@@ -231,7 +268,7 @@ class SebTradeListingCheckIT {
     piece(order, REFERENCE, SETTLEMENT_DAY);
     pendingReport(SETTLEMENT_DAY, List.of(anotherOrdersRow()));
 
-    checkWithStatementsFor(SETTLEMENT_DAY.minusDays(1)).run();
+    checkWithStatementsFor(SETTLEMENT_DAY.minusDays(1)).run(LOCK_HELD);
 
     then(notificationService).shouldHaveNoInteractions();
   }
@@ -242,7 +279,7 @@ class SebTradeListingCheckIT {
     piece(order, REFERENCE, SETTLEMENT_DAY);
     pendingReport(SETTLEMENT_DAY.minusDays(1), List.of(anotherOrdersRow()));
 
-    checkWithStatementsFor(SETTLEMENT_DAY.minusDays(1)).run();
+    checkWithStatementsFor(SETTLEMENT_DAY.minusDays(1)).run(LOCK_HELD);
 
     then(notificationService).shouldHaveNoInteractions();
   }
@@ -254,7 +291,7 @@ class SebTradeListingCheckIT {
     piece(order, REFERENCE, independenceDay);
     pendingReport(independenceDay, List.of(anotherOrdersRow()));
 
-    checkWithStatementsFor(independenceDay).run();
+    checkWithStatementsFor(independenceDay).run(LOCK_HELD);
 
     then(notificationService).shouldHaveNoInteractions();
   }
@@ -266,7 +303,7 @@ class SebTradeListingCheckIT {
     pendingReport(SETTLEMENT_DAY, List.of(anotherOrdersRow()));
 
     check(new SebTradeListingCheckProperties(SETTLEMENT_DAY.plusDays(1)), Set.of(SETTLEMENT_DAY))
-        .run();
+        .run(LOCK_HELD);
 
     then(notificationService).shouldHaveNoInteractions();
   }
@@ -278,8 +315,8 @@ class SebTradeListingCheckIT {
     pendingReport(deadline, List.of(anotherOrdersRow()));
     SebTradeListingCheck check = checkWithStatementsFor(deadline);
 
-    check.run();
-    check.run();
+    check.run(LOCK_HELD);
+    check.run(LOCK_HELD);
 
     then(notificationService)
         .should(times(1))
@@ -299,7 +336,7 @@ class SebTradeListingCheckIT {
     order(SENT);
     pendingReport(LocalDate.of(2026, 2, 12), List.of(anotherOrdersRow()));
 
-    checkWithStatementsFor(LocalDate.of(2026, 2, 12)).run();
+    checkWithStatementsFor(LocalDate.of(2026, 2, 12)).run(LOCK_HELD);
 
     then(notificationService).shouldHaveNoInteractions();
   }
@@ -310,7 +347,7 @@ class SebTradeListingCheckIT {
     LocalDate deadline = LocalDate.of(2026, 2, 13);
     pendingReport(deadline, List.of(Map.of("Client ref", order.getOrderUuid().toString())));
 
-    checkWithStatementsFor(deadline).run();
+    checkWithStatementsFor(deadline).run(LOCK_HELD);
 
     then(notificationService).shouldHaveNoInteractions();
   }
@@ -330,8 +367,8 @@ class SebTradeListingCheckIT {
     entityManager.flush();
     SebTradeListingCheck check = checkWithStatementsFor(SETTLEMENT_DAY);
 
-    check.run();
-    check.run();
+    check.run(LOCK_HELD);
+    check.run(LOCK_HELD);
 
     then(notificationService)
         .should(times(1))
@@ -360,7 +397,7 @@ class SebTradeListingCheckIT {
     given(statements.closingBalance(investmentAccount(TUK75), SETTLEMENT_DAY))
         .willReturn(Optional.of(BigDecimal.ZERO));
 
-    check(ALERTS_FROM_FEBRUARY, twoFunds, statements).run();
+    check(ALERTS_FROM_FEBRUARY, twoFunds, statements).run(LOCK_HELD);
 
     then(notificationService)
         .should()
@@ -500,7 +537,13 @@ class SebTradeListingCheckIT {
         ZoneId.of("Europe/Tallinn"));
   }
 
-  private record StatementsIn(Set<LocalDate> days) implements BankStatementBalances {
+  private static class StatementsIn implements BankStatementBalances {
+
+    private final Set<LocalDate> days;
+
+    StatementsIn(Set<LocalDate> days) {
+      this.days = days;
+    }
 
     @Override
     public Optional<BigDecimal> closingBalance(BankAccount account, LocalDate day) {

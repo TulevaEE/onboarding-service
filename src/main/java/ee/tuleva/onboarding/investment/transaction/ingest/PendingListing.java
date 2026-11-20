@@ -11,25 +11,18 @@ record PendingListing(
     LocalDate asOfDate,
     Set<UUID> clientRefs,
     Set<String> ourRefs,
-    Set<String> isinsOfRowsWithoutReferences) {
+    Set<String> isinsOfRowsWithoutReferences,
+    Set<UUID> clientRefsOfRowsWithoutOurRef) {
 
   boolean settlesOn(
       LocalDate bookingDate, TransactionOrder order, List<TransactionExecution> executions) {
     return !asOfDate.isBefore(bookingDate) && !mayStillList(order, executions);
   }
 
-  boolean mayStillListPiece(
-      TransactionOrder order, List<TransactionExecution> executions, String reference) {
-    if (isinsOfRowsWithoutReferences.contains(order.getInstrumentIsin())
-        || ourRefs.contains(reference)) {
-      return true;
-    }
-    boolean aRowCarriesTheOrdersClientRef = clientRefs.contains(order.getOrderUuid());
-    boolean aSiblingPieceExplainsThatRow =
-        executions.stream()
-            .map(TransactionExecution::getBrokerTransactionId)
-            .anyMatch(ourRefs::contains);
-    return aRowCarriesTheOrdersClientRef && !aSiblingPieceExplainsThatRow;
+  boolean mayStillListPiece(TransactionOrder order, String reference) {
+    return isinsOfRowsWithoutReferences.contains(order.getInstrumentIsin())
+        || ourRefs.contains(reference)
+        || clientRefsOfRowsWithoutOurRef.contains(order.getOrderUuid());
   }
 
   boolean mayStillList(TransactionOrder order, List<TransactionExecution> executions) {

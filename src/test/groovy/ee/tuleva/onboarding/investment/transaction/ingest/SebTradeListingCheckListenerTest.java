@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
@@ -30,7 +31,7 @@ class SebTradeListingCheckListenerTest {
   void runsAfterTheSebPendingImport() {
     listener(RecordingLockProvider.free()).onReportImportCompleted(PENDING_IMPORT);
 
-    then(check).should().run();
+    then(check).should().run(any());
   }
 
   @Test
@@ -59,14 +60,14 @@ class SebTradeListingCheckListenerTest {
     clock.advance(Duration.ofMinutes(1));
     listener.onBankMessagesProcessed();
 
-    then(check).should(times(2)).run();
+    then(check).should(times(2)).run(any());
   }
 
   @Test
   void aManualTriggerRunsTheCheck() {
     listener(RecordingLockProvider.free()).onSebTradeListingCheckRequested();
 
-    then(check).should().run();
+    then(check).should().run(any());
   }
 
   @Test
@@ -79,11 +80,11 @@ class SebTradeListingCheckListenerTest {
 
   @Test
   void aCheckThatThrows_doesNotFailTheImport() {
-    willThrow(new IllegalStateException("database down")).given(check).run();
+    willThrow(new IllegalStateException("database down")).given(check).run(any());
 
     listener(RecordingLockProvider.free()).onReportImportCompleted(PENDING_IMPORT);
 
-    then(check).should().run();
+    then(check).should().run(any());
   }
 
   private SebTradeListingCheckListener listener(RecordingLockProvider lockProvider) {

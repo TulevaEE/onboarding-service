@@ -1,15 +1,18 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_SOURCES_DIFFERENCE_SHARE_OF_NAV;
 import static ee.tuleva.onboarding.investment.transaction.CalculationWarningType.CASH_SOURCES_DIFFER;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.BankStatementBalances;
+import ee.tuleva.onboarding.banking.CurrentDayReport;
+import ee.tuleva.onboarding.banking.CurrentDayReport.Booked;
+import ee.tuleva.onboarding.banking.CurrentDayReport.Missing;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.CurrentDayBalance;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.NoCurrentDayReportToday;
+import ee.tuleva.onboarding.investment.transaction.GatewayCash.NotTodaysRun;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.Unreadable;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -18,15 +21,12 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
 @NullMarked
@@ -45,23 +45,35 @@ class SameDayCashReader {
       LocalDate asOfDate,
       @Nullable BigDecimal operatorAmount,
       @Nullable BigDecimal reportCash) {
-    CashSource source =
-        operatorAmount == null ? CashSource.POSITION_REPORT : CashSource.OPERATOR_AMOUNT;
-    CashSourceReport report =
-        new CashSourceReport(source, gatewayCash(fund), reportCash, List.of());
-    BigDecimal difference = report.gatewayMinusReportCash();
-    if (difference == null) {
-      return report;
-    }
+    GatewayCash gateway = isToday(asOfDate) ? gatewayCash(fund, asOfDate) : new NotTodaysRun();
     return new CashSourceReport(
-        source,
-        report.gateway(),
+        operatorAmount == null ? CashSource.POSITION_REPORT : CashSource.OPERATOR_AMOUNT,
+        gateway,
         reportCash,
-        differenceWarning(fund, asOfDate, report, difference).stream().toList());
+        gateway instanceof CurrentDayBalance current && reportCash != null
+            ? differenceWarning(fund, asOfDate, current, reportCash).stream().toList()
+            : List.of());
+  }
+
+  private boolean isToday(LocalDate asOfDate) {
+    return clock.instant().atZone(BANK_DAY_ZONE).toLocalDate().equals(asOfDate);
+  }
+
+  private GatewayCash gatewayCash(TulevaFund fund, LocalDate today) {
+    return BankAccounts.investmentAccountAmong(bankAccounts.findAll(fund), fund)
+        .map(
+            account ->
+                switch (bankStatementBalances.currentDayReport(account, today)) {
+                  case Booked booked -> new CurrentDayBalance(booked.balance(), booked.fetchedAt());
+                  case Missing _ -> new NoCurrentDayReportToday();
+                  case CurrentDayReport.Unreadable _ -> new Unreadable();
+                })
+        .orElseGet(NoCurrentDayReportToday::new);
   }
 
   private Optional<CalculationWarning> differenceWarning(
-      TulevaFund fund, LocalDate asOfDate, CashSourceReport report, BigDecimal difference) {
+      TulevaFund fund, LocalDate asOfDate, CurrentDayBalance current, BigDecimal reportCash) {
+    BigDecimal difference = current.balance().subtract(reportCash);
     BigDecimal shareOfNav =
         investmentParameterRepository.findLatestValue(
             CASH_SOURCES_DIFFERENCE_SHARE_OF_NAV, asOfDate);
@@ -79,24 +91,9 @@ class SameDayCashReader {
                         .formatted(
                             shareOfNav.movePointRight(2).stripTrailingZeros().toPlainString(),
                             fund.name(),
-                            ((CurrentDayBalance) report.gateway()).balance().toPlainString(),
-                            Objects.requireNonNull(report.reportCash()).toPlainString(),
+                            current.balance().toPlainString(),
+                            reportCash.toPlainString(),
                             difference.toPlainString(),
                             nav.setScale(2, HALF_UP).toPlainString())));
-  }
-
-  private GatewayCash gatewayCash(TulevaFund fund) {
-    LocalDate today = clock.instant().atZone(BANK_DAY_ZONE).toLocalDate();
-    try {
-      return bankAccounts.findAll(fund).stream()
-          .filter(account -> account.matches(fund, FUND_INVESTMENT_EUR))
-          .findFirst()
-          .flatMap(account -> bankStatementBalances.currentDayBalance(account, today))
-          .<GatewayCash>map(balance -> new CurrentDayBalance(balance.amount(), balance.fetchedAt()))
-          .orElseGet(NoCurrentDayReportToday::new);
-    } catch (RuntimeException e) {
-      log.error("SEB current-day report could not be read: fund={}", fund, e);
-      return new Unreadable();
-    }
   }
 }

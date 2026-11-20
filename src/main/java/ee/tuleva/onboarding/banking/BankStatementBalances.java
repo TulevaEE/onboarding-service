@@ -10,5 +10,5 @@ public interface BankStatementBalances {
 
   boolean isInsideAStatementClosingLater(BankAccount account, LocalDate day);
 
-  Optional<FetchedBalance> currentDayBalance(BankAccount account, LocalDate day);
+  CurrentDayReport currentDayReport(BankAccount account, LocalDate day);
 }

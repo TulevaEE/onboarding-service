@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.check.health;
 
-import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.BANK_BALANCE;
@@ -14,7 +13,6 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -29,17 +27,11 @@ class BankBalanceChecker {
 
   List<HealthCheckFinding> check(
       TulevaFund fund, LocalDate navDate, List<FundPosition> cashPositions) {
-    return investmentAccount(fund)
+    return BankAccounts.investmentAccountAmong(bankAccounts.findAll(fund), fund)
         .map(
             account ->
                 check(fund, navDate, PositionTotals.total(cashPositions, row -> true), account))
         .orElse(List.of());
-  }
-
-  private Optional<BankAccount> investmentAccount(TulevaFund fund) {
-    return bankAccounts.findAll(fund).stream()
-        .filter(account -> account.matches(fund, FUND_INVESTMENT_EUR))
-        .findFirst();
   }
 
   private List<HealthCheckFinding> check(

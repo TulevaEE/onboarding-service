@@ -25,6 +25,7 @@ import static org.mockito.Mockito.times;
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.BankStatementBalances;
+import ee.tuleva.onboarding.banking.CurrentDayReport;
 import ee.tuleva.onboarding.banking.seb.SebIntegrationTest;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
@@ -655,6 +656,11 @@ class SebTradeListingCheckIT {
     @Override
     public boolean isInsideAStatementClosingLater(BankAccount account, LocalDate day) {
       return false;
+    }
+
+    @Override
+    public CurrentDayReport currentDayReport(BankAccount account, LocalDate day) {
+      return new CurrentDayReport.Missing();
     }
   }
 }

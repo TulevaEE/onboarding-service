@@ -31,6 +31,14 @@ sealed interface GatewayCash {
     }
   }
 
+  record NotTodaysRun() implements GatewayCash {
+
+    @Override
+    public Map<String, Object> payload() {
+      return Map.of("status", "NOT_TODAYS_RUN");
+    }
+  }
+
   record Unreadable() implements GatewayCash {
 
     @Override

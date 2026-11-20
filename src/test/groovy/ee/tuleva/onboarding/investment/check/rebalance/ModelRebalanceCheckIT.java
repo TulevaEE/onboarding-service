@@ -26,6 +26,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -339,7 +340,7 @@ class ModelRebalanceCheckIT {
     givenModel(TUV100, LocalDate.of(2026, 11, 1), Map.of(NEW_WORLD, "0.8", EMERGING, "0.2"));
     givenNav(LocalDate.of(2026, 11, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
 
-    runCheckOn(LocalDate.of(2026, 12, 1));
+    runCheckOn(LocalDate.of(2026, 12, 2));
 
     then(notificationService)
         .should()
@@ -352,12 +353,15 @@ class ModelRebalanceCheckIT {
   }
 
   @Test
-  void twoMonthsWithoutTheFundInLine_failsUntilANavWithinFivePointsClosesIt() {
+  void onTheInLineDueDateNothingFails_fromTheDayAfterItFailsUntilANavWithinFivePointsClosesIt() {
     givenTuv100ModelSwitchesFromWorldToNewWorld();
     givenOrder(TUV100, WORLD, SELL, EXECUTED, LocalDate.of(2026, 10, 5));
     givenNav(LocalDate.of(2026, 11, 30), Map.of(WORLD, "300000", NEW_WORLD, "490000"));
 
     runCheckOn(LocalDate.of(2026, 12, 1));
+    then(notificationService).should(never()).sendMessage(any(), any(), eq(ERROR));
+
+    runCheckOn(LocalDate.of(2026, 12, 2));
 
     then(notificationService)
         .should()
@@ -370,20 +374,19 @@ class ModelRebalanceCheckIT {
             Vii fond 5 pp piiresse; seaduslik tähtaeg 04.01.2027 (sisekord 4 p 2.6.1)""",
             INVESTMENT,
             ERROR);
-    then(notificationService).shouldHaveNoMoreInteractions();
 
     givenNav(
-        LocalDate.of(2026, 12, 1), Map.of(NEW_WORLD, "780000", EMERGING, "210000", WORLD, "0"));
-    runCheckOn(LocalDate.of(2026, 12, 2));
+        LocalDate.of(2026, 12, 2), Map.of(NEW_WORLD, "780000", EMERGING, "210000", WORLD, "0"));
+    runCheckOn(LocalDate.of(2026, 12, 3));
 
     then(notificationService)
         .should()
         .sendMessage(
             "✅ TUV100 mudelportfell alates 01.10.2026: fond on mudeliga vastavuses (kõik"
-                + " osakaalud 5 pp piires, NAV 01.12.2026), kontroll suletud",
+                + " osakaalud 5 pp piires, NAV 02.12.2026), kontroll suletud",
             INVESTMENT,
             INFO);
-    then(notificationService).shouldHaveNoMoreInteractions();
+    then(notificationService).should(times(1)).sendMessage(any(), any(), eq(ERROR));
   }
 
   @Test

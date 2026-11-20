@@ -81,12 +81,10 @@ public class PortfolioReconciliationService implements PositionReconciliation {
   @Override
   public PositionReconciliationResult againstPositionReport(
       TulevaFund fund, LocalDate positionDate, Set<String> excludedIsins) {
+    List<FundPosition> wholeReport =
+        fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, fund, SECURITY);
     List<FundPosition> reportRows =
-        fundPositionRepository
-            .findByNavDateAndFundAndAccountType(positionDate, fund, SECURITY)
-            .stream()
-            .filter(position -> isNotExcluded(position, excludedIsins))
-            .toList();
+        wholeReport.stream().filter(position -> isNotExcluded(position, excludedIsins)).toList();
     List<String> unquantified = securitiesWithoutQuantity(reportRows);
     if (!unquantified.isEmpty()) {
       return new ReportRowsWithoutQuantity(unquantified);
@@ -105,7 +103,7 @@ public class PortfolioReconciliationService implements PositionReconciliation {
     if (holdsNothing(registry)) {
       return new RegistryHasNoHoldings(differences);
     }
-    if (holdsNothing(report)) {
+    if (holdsNothing(SecurityQuantities.byIsin(wholeReport))) {
       return new ReportHasNoSecurities();
     }
     return new Compared(differences);

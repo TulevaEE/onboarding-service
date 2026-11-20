@@ -15,9 +15,11 @@ import ee.tuleva.onboarding.banking.message.BankMessageType;
 import ee.tuleva.onboarding.banking.message.BookedBalanceReader;
 import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
 import ee.tuleva.onboarding.banking.xml.Iso20022Marshaller;
+import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.CurrentDayBalance;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.NoCurrentDayReportToday;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.Unreadable;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -42,6 +44,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
   BookedBalanceReader.class,
   BankStatementExtractor.class,
   Iso20022Marshaller.class,
+  FundNavQueryService.class,
+  InvestmentParameterRepository.class,
   SameDayCashReaderIT.FixedClock.class
 })
 class SameDayCashReaderIT {
@@ -83,11 +87,13 @@ class SameDayCashReaderIT {
         LATER_THIS_MORNING,
         currentDayReport(TUK75_INVESTMENT_IBAN, TODAY, "1000.00"));
 
-    assertThat(reader.read(TUK75, null))
+    assertThat(reader.read(TUK75, TODAY, null, null))
         .isEqualTo(
             new CashSourceReport(
                 CashSource.POSITION_REPORT,
-                new CurrentDayBalance(new BigDecimal("1000.00"), LATER_THIS_MORNING)));
+                new CurrentDayBalance(new BigDecimal("1000.00"), LATER_THIS_MORNING),
+                null,
+                List.of()));
   }
 
   @Test
@@ -98,7 +104,8 @@ class SameDayCashReaderIT {
         THIS_MORNING,
         endOfDayStatement(TUK75_INVESTMENT_IBAN, TODAY.minusDays(1), "900.00"));
 
-    assertThat(reader.read(TUK75, null).gateway()).isEqualTo(new NoCurrentDayReportToday());
+    assertThat(reader.read(TUK75, TODAY, null, null).gateway())
+        .isEqualTo(new NoCurrentDayReportToday());
   }
 
   @Test
@@ -109,14 +116,15 @@ class SameDayCashReaderIT {
         Instant.parse("2026-11-19T14:50:00Z"),
         currentDayReport(TUK75_INVESTMENT_IBAN, TODAY.minusDays(1), "900.00"));
 
-    assertThat(reader.read(TUK75, null).gateway()).isEqualTo(new NoCurrentDayReportToday());
+    assertThat(reader.read(TUK75, TODAY, null, null).gateway())
+        .isEqualTo(new NoCurrentDayReportToday());
   }
 
   @Test
   void aCurrentDayReportThatCannotBeReadIsSaidToBeUnreadable() {
     store(INTRA_DAY_REPORT, TODAY, THIS_MORNING, "<not-a-report/>");
 
-    assertThat(reader.read(TUK75, null).gateway()).isEqualTo(new Unreadable());
+    assertThat(reader.read(TUK75, TODAY, null, null).gateway()).isEqualTo(new Unreadable());
   }
 
   @Test
@@ -127,11 +135,74 @@ class SameDayCashReaderIT {
         THIS_MORNING,
         currentDayReport(TUK75_INVESTMENT_IBAN, TODAY, "1000.00"));
 
-    assertThat(reader.read(TUK75, new BigDecimal("999.00")))
+    assertThat(reader.read(TUK75, TODAY, new BigDecimal("999.00"), null))
         .isEqualTo(
             new CashSourceReport(
                 CashSource.OPERATOR_AMOUNT,
-                new CurrentDayBalance(new BigDecimal("1000.00"), THIS_MORNING)));
+                new CurrentDayBalance(new BigDecimal("1000.00"), THIS_MORNING),
+                null,
+                List.of()));
+  }
+
+  @Test
+  void aDifferenceWithinOnePercentOfNavIsShownWithoutAWarning() {
+    store(
+        INTRA_DAY_REPORT,
+        TODAY,
+        THIS_MORNING,
+        currentDayReport(TUK75_INVESTMENT_IBAN, TODAY, "1050.00"));
+    publishedNav("100000.00");
+
+    var report = reader.read(TUK75, TODAY, null, new BigDecimal("1000.00"));
+
+    assertThat(report.gatewayMinusReportCash()).isEqualByComparingTo("50.00");
+    assertThat(report.warnings()).isEmpty();
+  }
+
+  @Test
+  void aDifferenceBeyondOnePercentOfNavComesWithAWarning() {
+    store(
+        INTRA_DAY_REPORT,
+        TODAY,
+        THIS_MORNING,
+        currentDayReport(TUK75_INVESTMENT_IBAN, TODAY, "2500.00"));
+    publishedNav("100000.00");
+
+    var report = reader.read(TUK75, TODAY, null, new BigDecimal("1000.00"));
+
+    assertThat(report.warnings())
+        .extracting(CalculationWarning::type)
+        .containsExactly(CalculationWarningType.CASH_SOURCES_DIFFER);
+  }
+
+  @Test
+  void withoutAPublishedNavTheDifferenceIsShownWithoutAWarning() {
+    store(
+        INTRA_DAY_REPORT,
+        TODAY,
+        THIS_MORNING,
+        currentDayReport(TUK75_INVESTMENT_IBAN, TODAY, "2500.00"));
+
+    var report = reader.read(TUK75, TODAY, null, new BigDecimal("1000.00"));
+
+    assertThat(report.gatewayMinusReportCash()).isEqualByComparingTo("1500.00");
+    assertThat(report.warnings()).isEmpty();
+  }
+
+  private void publishedNav(String nav) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO nav_report
+              (nav_date, fund_code, account_type, account_name, account_id, quantity,
+               market_value, currency, calculation_id, published_at)
+            VALUES (:navDate, 'TUK75', 'UNITS', 'Fund units', 'TUK75', 1, :nav, 'EUR',
+               :calculationId, CURRENT_TIMESTAMP)
+            """)
+        .param("navDate", TODAY.minusDays(1))
+        .param("nav", new BigDecimal(nav))
+        .param("calculationId", UUID.randomUUID())
+        .update();
   }
 
   private void store(

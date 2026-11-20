@@ -75,7 +75,11 @@ public class TransactionPreparationService {
                   TransactionCommandPayloads.completed(
                       command,
                       gates,
-                      sameDayCashReader.read(command.getFund(), command.getCash()),
+                      sameDayCashReader.read(
+                          command.getFund(),
+                          command.getAsOfDate(),
+                          command.getCash(),
+                          input.reportCash()),
                       input,
                       result,
                       calculated,

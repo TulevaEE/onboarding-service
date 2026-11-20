@@ -1036,11 +1036,58 @@ class TransactionPipelineIntegrationTest {
             Map.of(
                 "source",
                 "POSITION_REPORT",
+                "reportCash",
+                "500000.00",
                 "gateway",
                 Map.of(
                     "status", "CURRENT_DAY_BALANCE",
                     "balance", "500000.00",
-                    "fetchedAt", "2026-02-09T23:00:00Z")));
+                    "fetchedAt", "2026-02-09T23:00:00Z"),
+                "gatewayMinusReportCash",
+                "0.00"));
+  }
+
+  @Test
+  void aGatewayBalanceFarFromTheReportCashIsShownWithItsDifferenceAndAWarning() {
+    jdbcClient.sql("DELETE FROM banking_message").update();
+    storeInvestmentAccountMessage(
+        "INTRA_DAY_REPORT",
+        TEST_DATE,
+        FIXED_INSTANT,
+        currentDayReport(investmentIban(), TEST_DATE, "600000.00"));
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO nav_report
+              (nav_date, fund_code, account_type, account_name, account_id, quantity,
+               market_value, currency, calculation_id, published_at)
+            VALUES (DATE '2026-02-09', 'TKF100', 'UNITS', 'Fund units', 'TKF100', 1,
+               5000000.00, 'EUR', :calculationId, CURRENT_TIMESTAMP)
+            """)
+        .param("calculationId", randomUUID())
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.calculationSnapshot().get("cash"))
+        .asInstanceOf(MAP)
+        .containsEntry("reportCash", "500000.00")
+        .containsEntry("gatewayMinusReportCash", "100000.00");
+    assertThat(response.calculationSnapshot().get("calculationWarnings"))
+        .asInstanceOf(LIST)
+        .contains(
+            Map.of(
+                "type",
+                "CASH_SOURCES_DIFFER",
+                "message",
+                "⚠️ SEB current-day balance differs from the position report's cash by more than"
+                    + " 1% of NAV: fund=TKF100, gatewayBalance=600000.00, reportCash=500000.00,"
+                    + " difference=100000.00, nav=5000000.00"));
   }
 
   @Test
@@ -1065,6 +1112,8 @@ class TransactionPipelineIntegrationTest {
             Map.of(
                 "source",
                 "POSITION_REPORT",
+                "reportCash",
+                "500000.00",
                 "gateway",
                 Map.of("status", "NO_CURRENT_DAY_REPORT_TODAY")));
   }
@@ -1087,6 +1136,8 @@ class TransactionPipelineIntegrationTest {
             Map.of(
                 "source",
                 "POSITION_REPORT",
+                "reportCash",
+                "500000.00",
                 "gateway",
                 Map.of("status", "CURRENT_DAY_REPORT_UNREADABLE")));
   }

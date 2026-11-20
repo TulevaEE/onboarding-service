@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.*;
@@ -74,10 +75,13 @@ class TransactionPreparationServiceTest {
             sameDayCashReader,
             clock);
     lenient()
-        .when(sameDayCashReader.read(any(), any()))
+        .when(sameDayCashReader.read(any(), any(), any(), any()))
         .thenReturn(
             new CashSourceReport(
-                CashSource.POSITION_REPORT, new GatewayCash.NoCurrentDayReportToday()));
+                CashSource.POSITION_REPORT,
+                new GatewayCash.NoCurrentDayReportToday(),
+                null,
+                List.of()));
     lenient()
         .when(inputGates.verify(any()))
         .thenReturn(new GateCheck(List.of(), noResolvedPrices(), List.of(), List.of(), List.of()));
@@ -201,10 +205,13 @@ class TransactionPreparationServiceTest {
               return batch;
             });
 
-    given(sameDayCashReader.read(TUV100, new BigDecimal("40000")))
+    given(sameDayCashReader.read(eq(TUV100), any(), eq(new BigDecimal("40000")), any()))
         .willReturn(
             new CashSourceReport(
-                CashSource.OPERATOR_AMOUNT, new GatewayCash.NoCurrentDayReportToday()));
+                CashSource.OPERATOR_AMOUNT,
+                new GatewayCash.NoCurrentDayReportToday(),
+                null,
+                List.of()));
 
     service.processCommand(command);
 

@@ -20,16 +20,25 @@ class NavWeightsTest {
           .build();
 
   @Test
-  void aHeldInstrumentOutsideTheModel_countsAgainstAModelWeightOfZero() {
+  void aHeldInstrumentWithNoModelRow_isNotMeasured() {
+    var weights = navWeights(Map.of("WORLD", "940000", "NOT_IN_THE_MODEL", "60000"));
+
+    var deviations = weights.outsideTolerance(Map.of("WORLD", new BigDecimal("0.95")), FIVE_POINTS);
+
+    assertThat(deviations).isEmpty();
+  }
+
+  @Test
+  void aHeldInstrumentWithAZeroPercentModelRow_isMeasuredAgainstZero() {
     var weights = navWeights(Map.of("WORLD", "940000", "REMOVED", "60000"));
 
-    var deviations = weights.outsideTolerance(Map.of("WORLD", new BigDecimal("1.00")), FIVE_POINTS);
+    var deviations =
+        weights.outsideTolerance(
+            Map.of("WORLD", new BigDecimal("0.95"), "REMOVED", ZERO), FIVE_POINTS);
 
     assertThat(deviations)
         .usingRecursiveFieldByFieldElementComparator(BIG_DECIMALS_BY_VALUE)
-        .containsExactly(
-            new Deviation("REMOVED", ZERO, new BigDecimal("0.06")),
-            new Deviation("WORLD", new BigDecimal("1.00"), new BigDecimal("0.94")));
+        .containsExactly(new Deviation("REMOVED", ZERO, new BigDecimal("0.06")));
   }
 
   @Test

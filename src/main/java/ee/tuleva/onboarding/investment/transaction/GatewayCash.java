@@ -39,6 +39,14 @@ sealed interface GatewayCash {
     }
   }
 
+  record NoInvestmentAccount() implements GatewayCash {
+
+    @Override
+    public Map<String, Object> payload() {
+      return Map.of("status", "NO_INVESTMENT_ACCOUNT");
+    }
+  }
+
   record NoBookedBalance() implements GatewayCash {
 
     @Override

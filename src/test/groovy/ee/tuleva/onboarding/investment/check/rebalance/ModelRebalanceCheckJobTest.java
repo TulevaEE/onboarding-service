@@ -231,6 +231,7 @@ class ModelRebalanceCheckJobTest {
         LocalDate.of(2026, 9, 29),
         List.of(),
         LocalDate.of(2026, 9, 29),
+        null,
         LocalDate.of(2026, 9, 1),
         LocalDate.of(2026, 8, 17));
   }
@@ -244,6 +245,7 @@ class ModelRebalanceCheckJobTest {
         Set.of("IE00BFG1TM61"),
         null,
         List.of(),
+        null,
         null,
         LocalDate.of(2026, 11, 3),
         LocalDate.of(2026, 10, 19));

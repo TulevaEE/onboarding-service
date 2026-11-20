@@ -105,6 +105,43 @@ class RebalanceMessageTest {
   }
 
   @Test
+  void aWindowClosedByRebalancingTrades_saysWhenTheTradesWereMade() {
+    var window =
+        window(
+            LocalDate.of(2026, 10, 29),
+            LocalDate.of(2026, 10, 28),
+            OUT_OF_LINE,
+            null,
+            LocalDate.of(2026, 10, 28));
+
+    assertThat(RebalanceMessage.of(window))
+        .contains(
+            new RebalanceMessage(
+                "✅ TUV100 mudelportfell alates 01.09.2026: tasakaalustamise tehingud tehtud"
+                    + " 28.10.2026, kontroll suletud",
+                INFO));
+  }
+
+  @Test
+  void aSupersededWindowClosedByRebalancingTrades_isClosedAsRebalanced() {
+    var window =
+        window(
+            LocalDate.of(2026, 11, 3),
+            LocalDate.of(2026, 11, 2),
+            OUT_OF_LINE,
+            null,
+            LocalDate.of(2026, 10, 28));
+
+    assertThat(
+            RebalanceMessage.ofSuperseded(new SupersededWindow(window, LocalDate.of(2026, 11, 3))))
+        .isEqualTo(
+            new RebalanceMessage(
+                "✅ TUV100 mudelportfell alates 01.09.2026: tasakaalustamise tehingud tehtud"
+                    + " 28.10.2026, kontroll suletud",
+                INFO));
+  }
+
+  @Test
   void aSupersededWindowThatNeverCameIntoLine_isClosedWithTheModelThatReplacedIt() {
     var window = window(LocalDate.of(2026, 11, 3), LocalDate.of(2026, 11, 2), OUT_OF_LINE, null);
 
@@ -143,6 +180,7 @@ class RebalanceMessageTest {
             LocalDate.of(2026, 10, 30),
             List.of(),
             LocalDate.of(2026, 10, 30),
+            null,
             DEADLINE,
             WARNING_FROM);
 
@@ -155,6 +193,15 @@ class RebalanceMessageTest {
       @Nullable LocalDate latestNavDate,
       List<Deviation> outsideTolerance,
       @Nullable LocalDate inLineSince) {
+    return window(checkDate, latestNavDate, outsideTolerance, inLineSince, null);
+  }
+
+  private static RebalanceWindow window(
+      LocalDate checkDate,
+      @Nullable LocalDate latestNavDate,
+      List<Deviation> outsideTolerance,
+      @Nullable LocalDate inLineSince,
+      @Nullable LocalDate rebalancedOn) {
     return new RebalanceWindow(
         TUV100,
         EFFECTIVE,
@@ -164,6 +211,7 @@ class RebalanceMessageTest {
         latestNavDate,
         outsideTolerance,
         inLineSince,
+        rebalancedOn,
         DEADLINE,
         WARNING_FROM);
   }

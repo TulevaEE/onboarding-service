@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.check.rebalance.RebalanceState.INF
 import static ee.tuleva.onboarding.investment.check.rebalance.RebalanceState.OK;
 import static ee.tuleva.onboarding.investment.check.rebalance.RebalanceState.WARNING;
 import static java.time.temporal.ChronoUnit.DAYS;
+import static java.util.Comparator.comparing;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 public record RebalanceWindow(
@@ -23,11 +25,12 @@ public record RebalanceWindow(
     @Nullable LocalDate latestNavDate,
     List<Deviation> outsideToleranceAtLatestNav,
     @Nullable LocalDate inLineSince,
+    @Nullable LocalDate rebalancedOn,
     LocalDate deadline,
     LocalDate warningFrom) {
 
   public RebalanceState state() {
-    if (inLine()) {
+    if (closed()) {
       return OK;
     }
     if (checkDate.isAfter(deadline)) {
@@ -39,12 +42,19 @@ public record RebalanceWindow(
     return INFO;
   }
 
-  public boolean inLine() {
-    return inLineSince != null;
+  public boolean closed() {
+    return closure().isPresent();
+  }
+
+  public Optional<RebalanceClosure> closure() {
+    return Stream.concat(
+            Optional.ofNullable(inLineSince).map(RebalanceClosure::byAnInLineNav).stream(),
+            Optional.ofNullable(rebalancedOn).map(RebalanceClosure::byRebalancingTrades).stream())
+        .min(comparing(RebalanceClosure::on));
   }
 
   public Optional<LocalDate> closedOn() {
-    return Optional.ofNullable(inLineSince);
+    return closure().map(RebalanceClosure::on);
   }
 
   public long daysSinceModelEffectiveDate() {

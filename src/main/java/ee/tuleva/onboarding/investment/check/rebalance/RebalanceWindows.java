@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 public class RebalanceWindows {
 
   private final ModelPortfolioAllocationRepository allocationRepository;
+  private final RebalanceTrades rebalanceTrades;
   private final NavWeightsReader navWeightsReader;
   private final InvestmentParameterRepository parameterRepository;
   private final EstonianCalendar estonianCalendar;
@@ -84,6 +85,9 @@ public class RebalanceWindows {
         latest.map(NavWeights::navDate).orElse(null),
         latest.map(nav -> nav.outsideTolerance(change.modelWeights(), tolerance)).orElse(List.of()),
         firstNavInLine(navs, change, tolerance).orElse(null),
+        rebalanceTrades
+            .firstRebalancingTradeDate(fund, change.effectiveDate(), measuredUntil)
+            .orElse(null),
         deadline,
         rules.warningFrom(deadline));
   }

@@ -68,6 +68,23 @@ public interface TransactionOrderRepository extends JpaRepository<TransactionOrd
   List<TransactionOrder> findByOrderStatusInAndOrderTimestampSince(
       Collection<OrderStatus> statuses, Instant since);
 
+  @Query(
+      """
+      SELECT MIN(o.orderTimestamp) FROM TransactionOrder o, TransactionCommand c
+      WHERE c.batchId = o.batch.id
+        AND c.mode = :mode
+        AND o.fund = :fund
+        AND o.orderStatus IN (:statuses)
+        AND o.orderTimestamp >= :from
+        AND o.orderTimestamp < :until
+      """)
+  Optional<Instant> findFirstOrderTimestampOfATradePrepRun(
+      TulevaFund fund,
+      TransactionMode mode,
+      Collection<OrderStatus> statuses,
+      Instant from,
+      Instant until);
+
   default List<TransactionOrder> findOverdueOrders(OrderStatus... statuses) {
     return findByOrderStatusIn(Arrays.asList(statuses));
   }

@@ -46,7 +46,7 @@ public class TransactionPreparationService {
       GateCheck gates = inputGates.verify(command);
       input = gatherInput(command, gates.pricing());
       input = input.excluding(command.getExcludeIsins());
-      CashSourceReport cash =
+      var cash =
           sameDayCashReader.read(
               command.getFund(), command.getAsOfDate(), command.getCash(), input.reportCash());
 

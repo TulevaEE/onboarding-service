@@ -124,7 +124,7 @@ class OverdueSettlementDetector {
     return Optional.of(new OverdueLine(order, EXECUTED, deadline));
   }
 
-  private @Nullable LocalDate sentDeadline(TransactionOrder order) {
+  @Nullable LocalDate sentDeadline(TransactionOrder order) {
     Instant orderTimestamp = order.getOrderTimestamp();
     if (orderTimestamp == null || order.getInstrumentType() == null) {
       return null;

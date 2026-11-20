@@ -2,14 +2,12 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
-import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static java.math.RoundingMode.CEILING;
 import static java.math.RoundingMode.FLOOR;
 import static java.math.RoundingMode.HALF_UP;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import org.jspecify.annotations.Nullable;
 
 final class OrderUnits {
 
@@ -23,19 +21,15 @@ final class OrderUnits {
       InstrumentType instrumentType,
       TransactionType transactionType,
       BigDecimal orderAmount,
-      BigDecimal price,
-      @Nullable PositionSnapshot holding) {
-    BigDecimal units =
-        orderAmount.divide(
-            price, scale(instrumentType), roundingMode(instrumentType, transactionType));
-    if (transactionType != SELL || holding == null) {
-      return units;
-    }
-    BigDecimal heldUnits = holding.quantity();
-    if (heldUnits == null) {
-      return units;
-    }
-    return sellsWholeHolding(orderAmount, holding) ? heldUnits : units.min(heldUnits);
+      BigDecimal price) {
+    return orderAmount.divide(
+        price, scale(instrumentType), roundingMode(instrumentType, transactionType));
+  }
+
+  static BigDecimal etfSaleWithin(
+      PositionSnapshot holding, BigDecimal heldUnits, BigDecimal units, BigDecimal orderAmount) {
+    BigDecimal wholeHeldUnits = heldUnits.setScale(ETF_UNIT_SCALE, FLOOR);
+    return sellsWholeHolding(orderAmount, holding) ? wholeHeldUnits : units.min(wholeHeldUnits);
   }
 
   private static int scale(InstrumentType instrumentType) {

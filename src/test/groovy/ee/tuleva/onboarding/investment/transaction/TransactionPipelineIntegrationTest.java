@@ -338,10 +338,18 @@ class TransactionPipelineIntegrationTest {
 
     assertThat(quantitiesIn(decodeExport(batch.getMetadata(), "ftEtfXlsx"), 6, 2, 8, 9, 10))
         .isNotEmpty()
-        .allSatisfy(quantity -> assertThat(quantity.remainder(BigDecimal.ONE)).isZero());
+        .allSatisfy(
+            quantity -> {
+              assertThat(quantity).isNotNegative();
+              assertThat(quantity.remainder(BigDecimal.ONE)).isZero();
+            });
     assertThat(quantitiesIn(decodeExport(batch.getMetadata(), "sebEtfXlsx"), 2, 6))
         .isNotEmpty()
-        .allSatisfy(quantity -> assertThat(quantity.remainder(BigDecimal.ONE)).isZero());
+        .allSatisfy(
+            quantity -> {
+              assertThat(quantity).isNotNegative();
+              assertThat(quantity.remainder(BigDecimal.ONE)).isZero();
+            });
   }
 
   private static List<BigDecimal> quantitiesIn(byte[] xlsx, int isinColumn, int... quantityColumns)

@@ -15,7 +15,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -56,7 +55,7 @@ public class PortfolioReconciliationService {
       BigDecimal theirEffective = theirQty == null ? BigDecimal.ZERO : theirQty;
       BigDecimal delta = ourEffective.subtract(theirEffective);
 
-      if (isMismatch(ourQty, theirQty, delta)) {
+      if (exceedsTheTolerance(delta)) {
         mismatches.add(new MismatchEntry(isin, ourQty, theirQty, delta));
       }
     }
@@ -103,11 +102,7 @@ public class PortfolioReconciliationService {
             fund, asOfDate, ourQuantities, theirQuantities, costBasisRefresh));
   }
 
-  private boolean isMismatch(
-      @Nullable BigDecimal ourQty, @Nullable BigDecimal theirQty, BigDecimal delta) {
-    if (ourQty == null || theirQty == null) {
-      return true;
-    }
+  private boolean exceedsTheTolerance(BigDecimal delta) {
     return delta.abs().compareTo(tolerance) > 0;
   }
 

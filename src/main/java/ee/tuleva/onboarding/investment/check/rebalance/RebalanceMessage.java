@@ -16,14 +16,14 @@ import java.util.Locale;
 record RebalanceMessage(String text, Severity severity) {
 
   private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+  private static final String NO_REBALANCE_RUN_TRADES = "Rebalance-jooksu tehinguid pole";
+  private static final String CHECK_THE_EXECUTION_WITH_SEB = "Kontrolli SEB-st tehingute täitmist";
 
   static RebalanceMessage of(RebalanceWindow window) {
     return switch (window.state()) {
       case INFO -> opened(window);
-      case WARNING ->
-          window.deadlinePassed()
-              ? awaitingExecutionPastTheDeadline(window)
-              : deadlineApproaching(window);
+      case WARNING -> deadlineApproaching(window);
+      case AWAITING_EXECUTION -> awaitingExecutionPastTheDeadline(window);
       case FAIL -> deadlineMissed(window);
       case OK -> closed(window, requireNonNull(window.closure()));
     };
@@ -63,28 +63,29 @@ record RebalanceMessage(String text, Severity severity) {
         """
         ⚠️ %s: tähtaeg %s, jäänud %d päeva; %s
         %s
-        Tee tasakaalustamise tehingud või vii fond tähtajaks %s pp piiresse"""
+        %s"""
             .formatted(
                 model(window),
                 date(window.deadline()),
                 window.daysUntilDeadline(),
-                rebalanceRunTrades(window),
+                rebalanceRunTradesAwaitingConfirmation(window),
                 measurement(window),
-                points(window.tolerance())),
+                actionBeforeTheDeadline(window)),
         WARNING);
   }
 
   private static RebalanceMessage awaitingExecutionPastTheDeadline(RebalanceWindow window) {
     return new RebalanceMessage(
         """
-        ⚠️ %s: tähtaeg oli %s; %s
+        ⚠️ %s: tähtaeg oli %s, fond pole mudeliga vastavuses; %s
         %s
-        Kontrolli SEB-st tehingute täitmist"""
+        %s (sisekord 4 p 2.6.1)"""
             .formatted(
                 model(window),
                 date(window.deadline()),
-                rebalanceRunTrades(window),
-                measurement(window)),
+                rebalanceRunTradesAwaitingConfirmation(window),
+                measurement(window),
+                CHECK_THE_EXECUTION_WITH_SEB),
         WARNING);
   }
 
@@ -97,7 +98,7 @@ record RebalanceMessage(String text, Severity severity) {
             .formatted(
                 model(window),
                 date(window.deadline()),
-                rebalanceRunTrades(window),
+                rebalanceRunTradesUnconfirmed(window),
                 measurement(window),
                 points(window.tolerance())),
         ERROR);
@@ -145,12 +146,27 @@ record RebalanceMessage(String text, Severity severity) {
                 .collect(joining(", ")));
   }
 
-  private static String rebalanceRunTrades(RebalanceWindow window) {
+  private static String rebalanceRunTradesAwaitingConfirmation(RebalanceWindow window) {
     var sentOn = window.rebalanceOrdersSentOn();
     return sentOn == null
-        ? "Rebalance-jooksu tehinguid pole"
+        ? NO_REBALANCE_RUN_TRADES
         : "Rebalance-jooksu tehingud saadetud %s, ootavad SEB täitmise kinnitust"
             .formatted(date(sentOn));
+  }
+
+  private static String rebalanceRunTradesUnconfirmed(RebalanceWindow window) {
+    var sentOn = window.rebalanceOrdersSentOn();
+    return sentOn == null
+        ? NO_REBALANCE_RUN_TRADES
+        : "Rebalance-jooksu tehingud saadetud %s, SEB pole täitmist kinnitanud"
+            .formatted(date(sentOn));
+  }
+
+  private static String actionBeforeTheDeadline(RebalanceWindow window) {
+    return window.rebalanceOrdersSentOn() == null
+        ? "Tee tasakaalustamise tehingud või vii fond tähtajaks %s pp piiresse"
+            .formatted(points(window.tolerance()))
+        : CHECK_THE_EXECUTION_WITH_SEB;
   }
 
   private static String points(BigDecimal weight) {

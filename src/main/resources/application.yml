@@ -287,13 +287,16 @@ transaction-registry:
     # the same quantity after the next business day (CANCELLED, or AMBIGUOUS when several
     # orders match) and of trades SEB executed that still have no readable FT confirmation
     # after the next business day, with SEB's price checked against the close instead
-    # (UNCONFIRMED), once per trade and result. When false (shadow mode), outcomes are only
+    # (UNCONFIRMED), once per trade and result, and of FT PDFs that could not be read, once per
+    # PDF. When false (shadow mode), outcomes are only
     # recorded to the audit trail. Off here: the production profile turns it on, staging stays
     # in shadow mode.
     registry-authoritative: ${TRANSACTION_REGISTRY_FT_CONFIRMATION_REGISTRY_AUTHORITATIVE:false}
     # Trades from this date on turn PRICE_MISSING once their closing price is overdue and
     # UNCONFIRMED once their FT confirmation is. Earlier trades stay PENDING_NAV and are not
-    # looked for, so the checks do not alert on the backlog they were switched on over.
+    # looked for, so the checks do not alert on the backlog they were switched on over. An FT
+    # PDF that cannot be read is not warned about when S3 shows it was uploaded before this
+    # date (Tallinn time).
     alerts-from: 2026-11-18
     # How far back each run looks for SEB-executed FT trades without an FT confirmation. A trade
     # is due a confirmation by the end of the next business day, so this leaves room for the

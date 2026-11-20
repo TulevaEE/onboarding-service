@@ -1,6 +1,10 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+
+import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.ledger.TradeSettlementBooking;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +37,22 @@ final class BookingsByReference {
                 booked.size());
           }
         });
+  }
+
+  boolean paysFor(TransactionOrder order, String reference) {
+    return booking(reference).filter(booking -> fits(order, booking)).isPresent();
+  }
+
+  static boolean fits(TransactionOrder order, TradeSettlementBooking booking) {
+    BigDecimal cash = booking.cashAmount();
+    return cash != null
+        && order.getFund() == booking.fund()
+        && order.getInstrumentIsin().equals(booking.isin())
+        && cashLeftTheFund(cash) == (order.getTransactionType() == BUY);
+  }
+
+  private static boolean cashLeftTheFund(BigDecimal cash) {
+    return cash.signum() < 0;
   }
 
   Optional<TradeSettlementBooking> booking(@Nullable String reference) {

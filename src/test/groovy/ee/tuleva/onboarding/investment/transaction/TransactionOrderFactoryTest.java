@@ -222,6 +222,7 @@ class TransactionOrderFactoryTest {
         factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
 
     assertThat(calculated.orders()).isEmpty();
+    assertThat(calculated.priceResolutions()).isEmpty();
   }
 
   @Test
@@ -467,7 +468,7 @@ class TransactionOrderFactoryTest {
             .build();
 
     assertThatThrownBy(() -> factory.requireQuantitiesForNonAmountOrders(batch, List.of(order)))
-        .isInstanceOf(IllegalStateException.class)
+        .isInstanceOf(TransactionBatchRefusedException.class)
         .hasMessageContaining("IE00ETF");
   }
 
@@ -487,7 +488,7 @@ class TransactionOrderFactoryTest {
             .build();
 
     assertThatThrownBy(() -> factory.requireQuantitiesForNonAmountOrders(batch, List.of(order)))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(TransactionBatchRefusedException.class);
   }
 
   @Test
@@ -507,7 +508,7 @@ class TransactionOrderFactoryTest {
             .build();
 
     assertThatThrownBy(() -> factory.requireQuantitiesForNonAmountOrders(batch, List.of(order)))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(TransactionBatchRefusedException.class);
   }
 
   @Test

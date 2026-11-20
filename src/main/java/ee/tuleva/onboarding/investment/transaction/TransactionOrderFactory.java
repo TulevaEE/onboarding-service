@@ -48,9 +48,6 @@ public class TransactionOrderFactory {
       var orderAmount = trade.tradeAmount().abs();
       var orderQuantity =
           resolveOrderQuantity(instrumentType, transactionType, isin, orderAmount, asOfDate);
-      if (!isAmountBasedOrder(instrumentType, transactionType)) {
-        priceResolutions.put(isin, orderQuantity.resolvedPrice());
-      }
       BigDecimal quantity =
           withinTheSoldHolding(input, index, trade, instrumentType, orderQuantity.quantity());
       if (quantity != null && quantity.signum() == 0) {
@@ -61,6 +58,9 @@ public class TransactionOrderFactory {
             transactionType,
             orderAmount.toPlainString());
         continue;
+      }
+      if (!isAmountBasedOrder(instrumentType, transactionType)) {
+        priceResolutions.put(isin, orderQuantity.resolvedPrice());
       }
       orders.add(
           TransactionOrder.builder()
@@ -90,7 +90,7 @@ public class TransactionOrderFactory {
       }
     }
     if (!missingQuantity.isEmpty()) {
-      throw new IllegalStateException(
+      throw new TransactionBatchRefusedException(
           "Cannot finalize batch: orders need a positive quantity, in whole units for an ETF:"
               + " batchId="
               + batch.getId()

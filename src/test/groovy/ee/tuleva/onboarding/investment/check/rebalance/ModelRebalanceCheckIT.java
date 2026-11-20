@@ -26,6 +26,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -168,6 +169,100 @@ class ModelRebalanceCheckIT {
     then(notificationService)
         .should(times(2))
         .sendMessage(startsWith("🛑 TUV100"), eq(INVESTMENT), eq(ERROR));
+  }
+
+  @Test
+  void rebalanceOrdersSentOnTheDeadline_warnTheDayAfterInsteadOfFailingAndCloseOnTheirTradeDate() {
+    givenTuv100ModelSwitchesFromWorldToNewWorldOn(SEPTEMBER_MODEL);
+    givenNav(LocalDate.of(2026, 9, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 1));
+    givenNav(LocalDate.of(2026, 11, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    var order =
+        givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 12, 1));
+
+    runCheckOn(LocalDate.of(2026, 12, 2));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026; Rebalance-jooksu \
+            tehingud saadetud 01.12.2026, ootavad SEB täitmise kinnitust
+            Üle 5 pp (NAV 30.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
+            Kontrolli SEB-st tehingute täitmist""",
+            INVESTMENT,
+            WARNING);
+
+    givenExecuted(order, LocalDate.of(2026, 12, 1));
+    runCheckOn(LocalDate.of(2026, 12, 3));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "✅ TUV100 mudelportfell alates 01.09.2026: tasakaalustamise tehingud tehtud"
+                + " 01.12.2026, kontroll suletud",
+            INVESTMENT,
+            INFO);
+    then(notificationService).should(never()).sendMessage(any(), any(), eq(ERROR));
+  }
+
+  @Test
+  void aRebalanceOrderSentOnlyAfterTheDeadline_stillFailsAndSaysWhenItWasSent() {
+    givenTuv100ModelSwitchesFromWorldToNewWorldOn(SEPTEMBER_MODEL);
+    givenNav(LocalDate.of(2026, 9, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 1));
+    givenNav(LocalDate.of(2026, 11, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 12, 2));
+
+    runCheckOn(LocalDate.of(2026, 12, 3));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🛑 TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole mudeliga \
+            vastavuses ja Rebalance-jooksu tehingud saadetud 02.12.2026, ootavad SEB täitmise \
+            kinnitust
+            Üle 5 pp (NAV 30.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
+            Vii fond 5 pp piiresse (sisekord 4 p 2.6.1)""",
+            INVESTMENT,
+            ERROR);
+  }
+
+  @Test
+  void aSentRebalanceOrderIsReportedAsAwaitingExecutionUntilItIsCancelled() {
+    givenTuv100ModelSwitchesFromWorldToNewWorldOn(SEPTEMBER_MODEL);
+    givenNav(LocalDate.of(2026, 9, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 1));
+    givenNav(LocalDate.of(2026, 11, 13), Map.of(WORLD, "790000", EMERGING, "200000"));
+    var order =
+        givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 11, 13));
+
+    runCheckOn(LocalDate.of(2026, 11, 16));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026, jäänud 15 päeva; \
+            Rebalance-jooksu tehingud saadetud 13.11.2026, ootavad SEB täitmise kinnitust
+            Üle 5 pp (NAV 13.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
+            Tee tasakaalustamise tehingud või vii fond tähtajaks 5 pp piiresse""",
+            INVESTMENT,
+            WARNING);
+
+    order.setOrderStatus(CANCELLED);
+    orderRepository.save(order);
+    runCheckOn(LocalDate.of(2026, 11, 17));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            startsWith(
+                "⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026, jäänud 14 päeva;"
+                    + " Rebalance-jooksu tehinguid pole"),
+            eq(INVESTMENT),
+            eq(WARNING));
   }
 
   @Test

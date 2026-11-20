@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.check.rebalance;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 
@@ -35,5 +36,17 @@ class RebalanceTrades {
             modelEffectiveDate.atStartOfDay(TALLINN).toInstant(),
             measuredUntil.plusDays(1).atStartOfDay(TALLINN).toInstant())
         .map(tradeTimestamp -> tradeTimestamp.atZone(TALLINN).toLocalDate());
+  }
+
+  Optional<LocalDate> firstRebalanceOrderAwaitingExecution(
+      TulevaFund fund, LocalDate modelEffectiveDate, LocalDate measuredUntil) {
+    return orderRepository
+        .findFirstOrderTimestampOfATradePrepRun(
+            fund,
+            REBALANCE,
+            SENT,
+            modelEffectiveDate.atStartOfDay(TALLINN).toInstant(),
+            measuredUntil.plusDays(1).atStartOfDay(TALLINN).toInstant())
+        .map(orderTimestamp -> orderTimestamp.atZone(TALLINN).toLocalDate());
   }
 }

@@ -91,6 +91,9 @@ public class RebalanceWindows {
                 rebalanceTrades.firstRebalancingTradeDate(
                     fund, change.effectiveDate(), measuredUntil))
             .orElse(null),
+        rebalanceTrades
+            .firstRebalanceOrderAwaitingExecution(fund, change.effectiveDate(), measuredUntil)
+            .orElse(null),
         deadline,
         rules.warningFrom(deadline));
   }

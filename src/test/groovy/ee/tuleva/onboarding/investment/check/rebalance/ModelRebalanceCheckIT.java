@@ -49,6 +49,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -88,7 +89,7 @@ class ModelRebalanceCheckIT {
   @MockitoBean private OperationsNotificationService notificationService;
 
   @Test
-  void firstMonthWithTheFundOutOfLine_reportsProgressAndDaysLeft() {
+  void aWindowThatOpens_postsItsProgressOnceAndStaysQuietUntilAWarningFailOrClose() {
     givenTuv100ModelSwitchesFromWorldToNewWorld();
     givenNav(LocalDate.of(2026, 10, 2), Map.of(WORLD, "790000", EMERGING, "200000"));
 
@@ -104,6 +105,29 @@ class ModelRebalanceCheckIT {
             tehingud: pole""",
             INVESTMENT,
             INFO);
+    then(notificationService).shouldHaveNoMoreInteractions();
+
+    givenNav(LocalDate.of(2026, 10, 5), Map.of(WORLD, "780000", EMERGING, "210000"));
+    runCheckOn(LocalDate.of(2026, 10, 6));
+    runCheckOn(LocalDate.of(2026, 10, 7));
+
+    then(notificationService).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void aWarningRepeatsEveryWorkingDayUntilATradeGoesOutAndThenTheWindowStaysQuiet() {
+    givenTuv100ModelSwitchesFromWorldToNewWorld();
+    givenNav(LocalDate.of(2026, 10, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+
+    runCheckOn(LocalDate.of(2026, 11, 2));
+    runCheckOn(LocalDate.of(2026, 11, 3));
+    givenOrder(TUV100, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 11, 3));
+    runCheckOn(LocalDate.of(2026, 11, 4));
+    runCheckOn(LocalDate.of(2026, 11, 5));
+
+    then(notificationService)
+        .should(times(2))
+        .sendMessage(startsWith("⚠️ TUV100"), eq(INVESTMENT), eq(WARNING));
     then(notificationService).shouldHaveNoMoreInteractions();
   }
 
@@ -148,10 +172,10 @@ class ModelRebalanceCheckIT {
     givenOrderFromABatchFinalisedInThisService(WORLD, SELL, EXECUTED, LocalDate.of(2026, 10, 30));
     runCheckOn(LocalDate.of(2026, 11, 3));
 
-    then(notificationService)
-        .should()
-        .sendMessage(endsWith("tehingud: IE00BFG1TM61"), eq(INVESTMENT), eq(INFO));
     then(notificationService).shouldHaveNoMoreInteractions();
+    assertThat(rebalanceWindows.current(TUV100, LocalDate.of(2026, 11, 3)).orElseThrow())
+        .extracting(RebalanceWindow::state, RebalanceWindow::tradedIsins)
+        .containsExactly(RebalanceState.INFO, Set.of(WORLD));
   }
 
   @Test
@@ -255,7 +279,7 @@ class ModelRebalanceCheckIT {
             INVESTMENT,
             INFO);
     then(notificationService)
-        .should(times(2))
+        .should()
         .sendMessage(
             startsWith("ℹ️ TUV100 mudelportfell alates 03.11.2026"), eq(INVESTMENT), eq(INFO));
   }

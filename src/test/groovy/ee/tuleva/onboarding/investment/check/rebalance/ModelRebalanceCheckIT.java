@@ -213,19 +213,21 @@ class ModelRebalanceCheckIT {
   }
 
   @Test
-  void anEtfRebalanceOrderSentOnTheDeadlineAndNeverConfirmed_warnsUntilItsT2SettlementThenFails() {
+  void
+      anEtfRebalanceOrderSentOnTheDeadlineAndNeverConfirmed_warnsTheDayAfterItsT2SettlementThenFails() {
     givenAWindowPastItsDeadlineWithARebalanceOrderSentOnIt(ETF, LocalDate.of(2026, 12, 3));
 
     runCheckOn(LocalDate.of(2026, 12, 2));
     runCheckOn(LocalDate.of(2026, 12, 3));
+    runCheckOn(LocalDate.of(2026, 12, 4));
 
     then(notificationService)
-        .should(times(2))
+        .should(times(3))
         .sendMessage(
             startsWith(AWAITING_THE_ORDERS_SENT_ON_THE_DEADLINE), eq(INVESTMENT), eq(WARNING));
     then(notificationService).should(never()).sendMessage(any(), any(), eq(ERROR));
 
-    runCheckOn(LocalDate.of(2026, 12, 4));
+    runCheckOn(LocalDate.of(2026, 12, 7));
 
     then(notificationService)
         .should()
@@ -241,21 +243,23 @@ class ModelRebalanceCheckIT {
   }
 
   @Test
-  void aFundRebalanceOrderSentOnTheDeadlineAndNeverConfirmed_warnsUntilItsT4SettlementThenFails() {
+  void
+      aFundRebalanceOrderSentOnTheDeadlineAndNeverConfirmed_warnsTheDayAfterItsT4SettlementThenFails() {
     givenAWindowPastItsDeadlineWithARebalanceOrderSentOnIt(FUND, LocalDate.of(2026, 12, 7));
 
     runCheckOn(LocalDate.of(2026, 12, 2));
     runCheckOn(LocalDate.of(2026, 12, 3));
     runCheckOn(LocalDate.of(2026, 12, 4));
     runCheckOn(LocalDate.of(2026, 12, 7));
+    runCheckOn(LocalDate.of(2026, 12, 8));
 
     then(notificationService)
-        .should(times(4))
+        .should(times(5))
         .sendMessage(
             startsWith(AWAITING_THE_ORDERS_SENT_ON_THE_DEADLINE), eq(INVESTMENT), eq(WARNING));
     then(notificationService).should(never()).sendMessage(any(), any(), eq(ERROR));
 
-    runCheckOn(LocalDate.of(2026, 12, 8));
+    runCheckOn(LocalDate.of(2026, 12, 9));
 
     then(notificationService)
         .should()
@@ -266,6 +270,31 @@ class ModelRebalanceCheckIT {
                     + " pole täitmist kinnitanud"),
             eq(INVESTMENT),
             eq(ERROR));
+  }
+
+  @Test
+  void anEtfRebalanceOrderSebListsOnItsSettlementDay_closesWithoutAnEscalationInBetween() {
+    var order =
+        givenAWindowPastItsDeadlineWithARebalanceOrderSentOnIt(ETF, LocalDate.of(2026, 12, 3));
+
+    runCheckOn(LocalDate.of(2026, 12, 2));
+    runCheckOn(LocalDate.of(2026, 12, 3));
+    runCheckOn(LocalDate.of(2026, 12, 4));
+    givenExecuted(order, LocalDate.of(2026, 12, 1), LocalDate.of(2026, 12, 3));
+    runCheckOn(LocalDate.of(2026, 12, 7));
+
+    then(notificationService)
+        .should(times(3))
+        .sendMessage(
+            startsWith(AWAITING_THE_ORDERS_SENT_ON_THE_DEADLINE), eq(INVESTMENT), eq(WARNING));
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "✅ TUV100 mudelportfell alates 01.09.2026: tasakaalustamise tehingud tehtud"
+                + " 01.12.2026, kontroll suletud",
+            INVESTMENT,
+            INFO);
+    then(notificationService).should(never()).sendMessage(any(), any(), eq(ERROR));
   }
 
   @Test
@@ -856,7 +885,7 @@ class ModelRebalanceCheckIT {
             "source", TRADE_REGISTRY_SQL_EXPORT_SOURCE, "importKey", "GAS:" + UUID.randomUUID()));
   }
 
-  private void givenAWindowPastItsDeadlineWithARebalanceOrderSentOnIt(
+  private TransactionOrder givenAWindowPastItsDeadlineWithARebalanceOrderSentOnIt(
       InstrumentType instrumentType, LocalDate expectedSettlementDate) {
     givenTuv100ModelSwitchesFromWorldToNewWorldOn(SEPTEMBER_MODEL);
     givenNav(LocalDate.of(2026, 9, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
@@ -866,7 +895,7 @@ class ModelRebalanceCheckIT {
         givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 12, 1));
     order.setInstrumentType(instrumentType);
     order.setExpectedSettlementDate(expectedSettlementDate);
-    orderRepository.save(order);
+    return orderRepository.save(order);
   }
 
   private TransactionOrder givenOrderFromATradePrepRun(
@@ -897,12 +926,17 @@ class ModelRebalanceCheckIT {
   }
 
   private void givenExecuted(TransactionOrder order, LocalDate tradeDate) {
+    givenExecuted(order, tradeDate, tradeDate);
+  }
+
+  private void givenExecuted(TransactionOrder order, LocalDate tradeDate, LocalDate reportedDate) {
     order.setOrderStatus(EXECUTED);
     orderRepository.save(order);
     executionRepository.save(
         TransactionExecution.builder()
             .orderId(order.getId())
             .executionTimestamp(tradeDate.atTime(17, 30).atZone(TALLINN).toInstant())
+            .reportedDate(reportedDate)
             .executedQuantity(new BigDecimal("100"))
             .source("SEB_OOTEL")
             .build());

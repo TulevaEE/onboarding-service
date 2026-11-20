@@ -15,26 +15,25 @@ class RebalanceOrdersAwaitingExecutionTest {
   private static final EstonianCalendar CALENDAR = new EstonianCalendar(new PublicHolidays());
 
   @Test
-  void ordersSentByTheDeadlineAreAwaitedThroughTheLatestOfTheirExpectedSettlementDates() {
+  void ordersSentByTheDeadlineAreAwaitedThroughTheWorkingDayAfterTheLatestSettlementDate() {
     var orders =
         new RebalanceOrdersAwaitingExecution(
             List.of(
                 new SentOrder(DEADLINE, LocalDate.of(2026, 12, 3)),
                 new SentOrder(LocalDate.of(2026, 11, 30), LocalDate.of(2026, 12, 4))));
 
-    assertThat(orders.awaitedThrough(DEADLINE, CALENDAR)).contains(LocalDate.of(2026, 12, 4));
+    assertThat(orders.awaitedThrough(DEADLINE, CALENDAR)).contains(LocalDate.of(2026, 12, 7));
     assertThat(orders.firstSentOn()).contains(LocalDate.of(2026, 11, 30));
   }
 
   @Test
-  void
-      anOrderWithoutAnExpectedSettlementDate_isAwaitedThroughTheSecondWorkingDayAfterTheDeadline() {
+  void anOrderWithoutAnExpectedSettlementDate_isTakenToSettleTwoWorkingDaysAfterTheDeadline() {
     var orders =
         new RebalanceOrdersAwaitingExecution(
             List.of(
                 new SentOrder(DEADLINE, null), new SentOrder(DEADLINE, LocalDate.of(2026, 12, 2))));
 
-    assertThat(orders.awaitedThrough(DEADLINE, CALENDAR)).contains(LocalDate.of(2026, 12, 3));
+    assertThat(orders.awaitedThrough(DEADLINE, CALENDAR)).contains(LocalDate.of(2026, 12, 4));
   }
 
   @Test

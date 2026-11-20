@@ -120,7 +120,7 @@ class FtConfirmationImportJobIT {
   void ftTradeSebListsWithoutOurRef_staysPendingUntilSebsNextDayReportIsReconciled_thenErrors() {
     UUID orderUuid = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-000000001117");
     seedFtOrder(orderUuid);
-    reconcileSebReport(LocalDate.of(2026, 11, 17), pendingRow(orderUuid, null));
+    reconcileSebReport(LocalDate.of(2026, 11, 17), List.of(pendingRow(orderUuid, null)));
 
     FtConfirmationResult beforeNextDayReport =
         verifyAt("2026-11-19T06:00:00Z", tuesdayConfirmation());
@@ -128,7 +128,7 @@ class FtConfirmationImportJobIT {
     assertThat(beforeNextDayReport.quantityStatus()).isEqualTo(PENDING_EXECUTION);
     assertThat(beforeNextDayReport.details()).containsEntry("awaitingSebReportAsOf", "2026-11-18");
 
-    reconcileSebReport(LocalDate.of(2026, 11, 18), pendingRow(orderUuid, null));
+    reconcileSebReport(LocalDate.of(2026, 11, 18), List.of(pendingRow(orderUuid, null)));
 
     FtConfirmationResult afterNextDayReport =
         verifyAt("2026-11-19T09:00:00Z", tuesdayConfirmation());
@@ -141,12 +141,25 @@ class FtConfirmationImportJobIT {
   void ftTradeWhoseOurRefArrivesInSebsNextDayReport_getsItsExecution_andPasses() {
     UUID orderUuid = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-000000002117");
     seedFtOrder(orderUuid);
-    reconcileSebReport(LocalDate.of(2026, 11, 17), pendingRow(orderUuid, null));
-    reconcileSebReport(LocalDate.of(2026, 11, 18), pendingRow(orderUuid, "DLA0000001"));
+    reconcileSebReport(LocalDate.of(2026, 11, 17), List.of(pendingRow(orderUuid, null)));
+    reconcileSebReport(LocalDate.of(2026, 11, 18), List.of(pendingRow(orderUuid, "DLA0000001")));
 
     FtConfirmationResult result = verifyAt("2026-11-19T09:00:00Z", tuesdayConfirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(OK);
+  }
+
+  @Test
+  void ftTradeWhoseNextDaySebReportListsNothingPending_isMissingOnceThatReportIsReconciled() {
+    UUID orderUuid = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-000000004117");
+    seedFtOrder(orderUuid);
+    reconcileSebReport(LocalDate.of(2026, 11, 17), List.of(pendingRow(orderUuid, null)));
+    reconcileSebReport(LocalDate.of(2026, 11, 18), List.of());
+
+    FtConfirmationResult result = verifyAt("2026-11-19T09:00:00Z", tuesdayConfirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(ERROR);
+    assertThat(result.details()).containsEntry("sebReportAsOf", "2026-11-18");
   }
 
   @Test
@@ -177,14 +190,14 @@ class FtConfirmationImportJobIT {
             .build());
   }
 
-  private void reconcileSebReport(LocalDate asOfDate, Map<String, Object> row) {
+  private void reconcileSebReport(LocalDate asOfDate, List<Map<String, Object>> rows) {
     InvestmentReport report =
         reportRepository.save(
             InvestmentReport.builder()
                 .provider(SEB)
                 .reportType(PENDING_TRANSACTIONS)
                 .reportDate(asOfDate)
-                .rawData(List.of(row))
+                .rawData(rows)
                 .metadata(Map.of("asOfDate", asOfDate.toString()))
                 .createdAt(Instant.now())
                 .build());

@@ -129,7 +129,7 @@ public class SebPendingTransactionReconciliationService {
     if (!stillHoldsTheLock.getAsBoolean()) {
       throw new SebReconciliationLockLostException(reportDate);
     }
-    check
+    extraction
         .trustedAsOfDate(report)
         .ifPresent(trusted -> auditRecorder.recordReportReconciled(reportDate, trusted));
     run.listings().addListedBy(rows, asOfDate);

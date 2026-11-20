@@ -1,9 +1,12 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
+import ee.tuleva.onboarding.investment.report.SebReportHeaders;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -23,6 +26,12 @@ class SebPendingTransactionExtractor {
 
     boolean isComplete() {
       return malformedRows.isEmpty();
+    }
+
+    Optional<LocalDate> trustedAsOfDate(InvestmentReport report) {
+      return isComplete()
+          ? Optional.ofNullable(SebReportHeaders.asOfDate(report))
+          : Optional.empty();
     }
   }
 

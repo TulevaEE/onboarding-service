@@ -134,6 +134,44 @@ class SebPendingTransactionExtractorTest {
   }
 
   @Test
+  void trustedAsOfDate_ofAReportWhoseRowsWereAllRead_isItsAsOfDate() {
+    InvestmentReport report = reportAsOf(Map.of("asOfDate", "2026-11-18"), List.of(validRow()));
+
+    assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report))
+        .contains(LocalDate.of(2026, 11, 18));
+  }
+
+  @Test
+  void trustedAsOfDate_ofAReportListingNothingPending_isItsAsOfDate() {
+    InvestmentReport report = reportAsOf(Map.of("asOfDate", "2026-11-18"), List.of());
+
+    assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report))
+        .contains(LocalDate.of(2026, 11, 18));
+  }
+
+  @Test
+  void trustedAsOfDate_ofAReportWithARowThatCouldNotBeRead_isEmpty() {
+    InvestmentReport report =
+        reportAsOf(Map.of("asOfDate", "2026-11-18"), List.of(validRow(), malformedRow()));
+
+    assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report)).isEmpty();
+  }
+
+  @Test
+  void trustedAsOfDate_ofAReportWhoseOnlyRowCouldNotBeRead_isEmpty() {
+    InvestmentReport report = reportAsOf(Map.of("asOfDate", "2026-11-18"), List.of(malformedRow()));
+
+    assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report)).isEmpty();
+  }
+
+  @Test
+  void trustedAsOfDate_ofAReportWhoseAsOfDateCannotBeRead_isEmpty() {
+    InvestmentReport report = reportAsOf(Map.of(), List.of(validRow()));
+
+    assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report)).isEmpty();
+  }
+
+  @Test
   void extract_emptyRawData_returnsEmptyList() {
     InvestmentReport report =
         InvestmentReport.builder()
@@ -144,5 +182,33 @@ class SebPendingTransactionExtractorTest {
             .build();
 
     assertThat(extractor.extract(report)).isEmpty();
+  }
+
+  private static InvestmentReport reportAsOf(
+      Map<String, Object> metadata, List<Map<String, Object>> rawData) {
+    return InvestmentReport.builder()
+        .provider(SEB)
+        .reportType(PENDING_TRANSACTIONS)
+        .reportDate(LocalDate.of(2026, 11, 19))
+        .metadata(metadata)
+        .rawData(rawData)
+        .build();
+  }
+
+  private static Map<String, Object> validRow() {
+    return Map.of(
+        "ISIN", "IE000F60HVH9",
+        "Our ref", "DLA0799512",
+        "Buy/Sell", "Buy",
+        "Quantity", new BigDecimal("15007"),
+        "Client ref", "bd83f551-8c79-4193-b92b-18e1dfd0bd29",
+        "Trade date", "2026-05-11T10:26:04Z");
+  }
+
+  private static Map<String, Object> malformedRow() {
+    return Map.of(
+        "ISIN", "IE000F60HVH9",
+        "Client ref", "not-a-uuid",
+        "Our ref", "DLA9999999");
   }
 }

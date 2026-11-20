@@ -159,7 +159,8 @@ class TransactionOrderFactoryTest {
   }
 
   @Test
-  void createOrders_fundSaleOfTheWholeHolding_sellsExactlyTheHeldUnits() {
+  void
+      createOrders_fundSaleOfTheWholeHolding_isSizedFromItsAmountSincePendingFundSalesAreNotInTheHeldUnits() {
     var input =
         inputWith(
             Map.of("IE00FUND", InstrumentType.FUND),
@@ -172,7 +173,71 @@ class TransactionOrderFactoryTest {
         factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
 
     assertThat(calculated.orders().getFirst().getOrderQuantity())
-        .isEqualTo(new BigDecimal("1234.567"));
+        .isEqualTo(new BigDecimal("1229.508197"));
+  }
+
+  @Test
+  void createOrders_etfSaleOfTheWholeHoldingWithAFractionalHeldQuantity_sellsTheWholeUnitsOnly() {
+    var input =
+        inputWith(
+            Map.of("IE00ETF", InstrumentType.ETF),
+            Map.of("IE00ETF", OrderVenue.FT),
+            List.of(holding("IE00ETF", "29228.92", "300.4", "97.30")));
+    var trades = List.of(trade("IE00ETF", "-29228.92"));
+    givenPrice("IE00ETF", "97.30");
+
+    var calculated =
+        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+
+    assertThat(calculated.orders().getFirst().getOrderQuantity()).isEqualTo(new BigDecimal("300"));
+  }
+
+  @Test
+  void createOrders_twoHoldingRowsOfOneEtfSoldWhole_eachSellsItsOwnUnits() {
+    var input =
+        inputWith(
+            Map.of("IE00ETF", InstrumentType.ETF),
+            Map.of("IE00ETF", OrderVenue.FT),
+            List.of(
+                holding("IE00ETF", "10000", "100", "100"),
+                holding("IE00ETF", "30000", "300", "100")));
+    var trades = List.of(trade("IE00ETF", "-10000"), trade("IE00ETF", "-30000"));
+    givenPrice("IE00ETF", "101");
+
+    var calculated =
+        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+
+    assertThat(calculated.orders())
+        .extracting(TransactionOrder::getOrderQuantity)
+        .containsExactly(new BigDecimal("100"), new BigDecimal("300"));
+  }
+
+  @Test
+  void createOrders_etfBuyForLessThanOneUnit_makesNoOrder() {
+    var input = inputWith(Map.of("IE00ETF", InstrumentType.ETF), Map.of("IE00ETF", OrderVenue.FT));
+    var trades = List.of(trade("IE00ETF", "60"));
+    givenPrice("IE00ETF", "97.30");
+
+    var calculated =
+        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+
+    assertThat(calculated.orders()).isEmpty();
+  }
+
+  @Test
+  void createOrders_etfSaleOfAHoldingWhoseUnitsArePendingSaleAlready_makesNoOrder() {
+    var input =
+        inputWith(
+            Map.of("IE00ETF", InstrumentType.ETF),
+            Map.of("IE00ETF", OrderVenue.FT),
+            List.of(holding("IE00ETF", "690", "0", "97.30")));
+    var trades = List.of(trade("IE00ETF", "-690"));
+    givenPrice("IE00ETF", "95");
+
+    var calculated =
+        factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
+
+    assertThat(calculated.orders()).isEmpty();
   }
 
   @Test
@@ -403,6 +468,25 @@ class TransactionOrderFactoryTest {
     assertThatThrownBy(() -> factory.requireQuantitiesForNonAmountOrders(batch, List.of(order)))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("IE00ETF");
+  }
+
+  @Test
+  void requireQuantitiesForNonAmountOrders_throwsWhenNonAmountOrderHasZeroUnits() {
+    var batch = batch();
+    var order =
+        TransactionOrder.builder()
+            .batch(batch)
+            .fund(TUV100)
+            .instrumentIsin("IE00ETF")
+            .transactionType(TransactionType.BUY)
+            .instrumentType(InstrumentType.ETF)
+            .orderAmount(new BigDecimal("50"))
+            .orderQuantity(BigDecimal.ZERO)
+            .orderVenue(OrderVenue.SEB)
+            .build();
+
+    assertThatThrownBy(() -> factory.requireQuantitiesForNonAmountOrders(batch, List.of(order)))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test

@@ -33,7 +33,9 @@ public class TransactionOrderFactory {
     List<TransactionOrder> orders = new ArrayList<>();
     Map<String, @Nullable ResolvedPrice> priceResolutions = new LinkedHashMap<>();
 
-    for (TradeCalculation trade : result.trades()) {
+    List<TradeCalculation> trades = result.trades();
+    for (int index = 0; index < trades.size(); index++) {
+      TradeCalculation trade = trades.get(index);
       if (trade.tradeAmount().compareTo(ZERO) == 0) {
         continue;
       }
@@ -45,10 +47,20 @@ public class TransactionOrderFactory {
           trade.tradeAmount().compareTo(ZERO) > 0 ? TransactionType.BUY : TransactionType.SELL;
       var orderAmount = trade.tradeAmount().abs();
       var orderQuantity =
-          resolveOrderQuantity(
-              instrumentType, transactionType, isin, orderAmount, asOfDate, holdingOf(input, isin));
+          resolveOrderQuantity(instrumentType, transactionType, isin, orderAmount, asOfDate);
       if (!isAmountBasedOrder(instrumentType, transactionType)) {
         priceResolutions.put(isin, orderQuantity.resolvedPrice());
+      }
+      BigDecimal quantity =
+          withinTheSoldHolding(input, index, trade, instrumentType, orderQuantity.quantity());
+      if (quantity != null && quantity.signum() == 0) {
+        log.warn(
+            "Skipping an order that rounds to zero units: fund={}, isin={}, side={}, amount={}",
+            result.fund(),
+            isin,
+            transactionType,
+            orderAmount.toPlainString());
+        continue;
       }
       orders.add(
           TransactionOrder.builder()
@@ -58,7 +70,7 @@ public class TransactionOrderFactory {
               .transactionType(transactionType)
               .instrumentType(instrumentType)
               .orderAmount(orderAmount)
-              .orderQuantity(orderQuantity.quantity())
+              .orderQuantity(quantity)
               .comment(orderQuantity.stalePriceComment())
               .orderVenue(input.orderVenues().getOrDefault(isin, OrderVenue.SEB))
               .createdAt(createdAt)
@@ -73,7 +85,8 @@ public class TransactionOrderFactory {
       if (isAmountBasedOrder(order.getInstrumentType(), order.getTransactionType())) {
         continue;
       }
-      if (order.getOrderQuantity() == null) {
+      BigDecimal quantity = order.getOrderQuantity();
+      if (quantity == null || quantity.signum() <= 0) {
         missingQuantity.add(order.getInstrumentIsin());
       }
     }
@@ -91,8 +104,7 @@ public class TransactionOrderFactory {
       TransactionType transactionType,
       String isin,
       BigDecimal orderAmount,
-      LocalDate asOfDate,
-      @Nullable PositionSnapshot holding) {
+      LocalDate asOfDate) {
     if (isAmountBasedOrder(instrumentType, transactionType)) {
       return new OrderQuantity(null, null, null);
     }
@@ -124,18 +136,30 @@ public class TransactionOrderFactory {
           asOfDate);
       return new OrderQuantity(null, null, resolvedPrice);
     }
-    BigDecimal quantity =
-        OrderUnits.of(instrumentType, transactionType, orderAmount, price, holding);
+    BigDecimal quantity = OrderUnits.of(instrumentType, transactionType, orderAmount, price);
     String stalePriceComment = describeIfStale(isin, resolvedPrice, asOfDate);
     return new OrderQuantity(quantity, stalePriceComment, resolvedPrice);
   }
 
   @Nullable
-  private static PositionSnapshot holdingOf(FundTransactionInput input, String isin) {
-    return input.positions().stream()
-        .filter(position -> isin.equals(position.isin()))
-        .findFirst()
-        .orElse(null);
+  private static BigDecimal withinTheSoldHolding(
+      FundTransactionInput input,
+      int index,
+      TradeCalculation trade,
+      InstrumentType instrumentType,
+      @Nullable BigDecimal units) {
+    if (units == null || instrumentType != InstrumentType.ETF || trade.tradeAmount().signum() > 0) {
+      return units;
+    }
+    List<PositionSnapshot> positions = input.positions();
+    if (index >= positions.size() || !Objects.equals(positions.get(index).isin(), trade.isin())) {
+      return units;
+    }
+    PositionSnapshot holding = positions.get(index);
+    BigDecimal heldUnits = holding.quantity();
+    return heldUnits == null
+        ? units
+        : OrderUnits.etfSaleWithin(holding, heldUnits, units, trade.tradeAmount().abs());
   }
 
   @Nullable

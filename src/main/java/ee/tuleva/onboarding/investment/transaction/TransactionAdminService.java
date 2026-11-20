@@ -93,14 +93,7 @@ class TransactionAdminService {
   }
 
   Optional<TransactionBatchResponse> getBatch(Long id) {
-    return batchRepository
-        .findById(id)
-        .map(
-            batch ->
-                TransactionBatchResponse.from(
-                    batch,
-                    orderRepository.findByBatchId(batch.getId()),
-                    calculationSnapshot(batch.getId())));
+    return batchRepository.findById(id).map(this::responseOf);
   }
 
   @Nullable
@@ -114,6 +107,21 @@ class TransactionAdminService {
 
   @Transactional
   TransactionBatchResponse confirmAndFinalize(Long id, String actor) {
+    TransactionBatch batch = draftBatch(id);
+    log.info("Admin confirmed transaction batch: id={}, actor={}", id, actor);
+    batch.setStatus(BatchStatus.CONFIRMED);
+    batch.setConfirmedBy(actor);
+    batch.setConfirmedAt(Instant.now(clock));
+    try {
+      batchRepository.saveAndFlush(batch);
+    } catch (ObjectOptimisticLockingFailureException e) {
+      throw new ResponseStatusException(CONFLICT, "Batch was modified concurrently: id=" + id);
+    }
+    batchFinalizer.finalizeConfirmedBatch(batch);
+    return responseOf(batch);
+  }
+
+  private TransactionBatch draftBatch(Long id) {
     TransactionBatch batch =
         batchRepository
             .findById(id)
@@ -125,16 +133,10 @@ class TransactionAdminService {
       throw new ResponseStatusException(
           CONFLICT, "Batch not in DRAFT status: id=" + id + ", status=" + batch.getStatus());
     }
-    log.info("Admin confirmed transaction batch: id={}, actor={}", id, actor);
-    batch.setStatus(BatchStatus.CONFIRMED);
-    batch.setConfirmedBy(actor);
-    batch.setConfirmedAt(Instant.now(clock));
-    try {
-      batchRepository.saveAndFlush(batch);
-    } catch (ObjectOptimisticLockingFailureException e) {
-      throw new ResponseStatusException(CONFLICT, "Batch was modified concurrently: id=" + id);
-    }
-    batchFinalizer.finalizeConfirmedBatch(batch);
+    return batch;
+  }
+
+  private TransactionBatchResponse responseOf(TransactionBatch batch) {
     return TransactionBatchResponse.from(
         batch, orderRepository.findByBatchId(batch.getId()), calculationSnapshot(batch.getId()));
   }
@@ -189,17 +191,7 @@ class TransactionAdminService {
 
   @Transactional
   TransactionBatchResponse discardBatch(Long id, String actor) {
-    TransactionBatch batch =
-        batchRepository
-            .findById(id)
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        NOT_FOUND, "Transaction batch not found: id=" + id));
-    if (batch.getStatus() != BatchStatus.DRAFT) {
-      throw new ResponseStatusException(
-          CONFLICT, "Batch not in DRAFT status: id=" + id + ", status=" + batch.getStatus());
-    }
+    TransactionBatch batch = draftBatch(id);
     Instant now = Instant.now(clock);
     log.info("Admin discarded transaction batch: id={}, actor={}", id, actor);
     batch.setStatus(BatchStatus.DISCARDED);

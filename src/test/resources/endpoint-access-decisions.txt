@@ -99,6 +99,7 @@ LOGGED_IN_CALLER PATCH /v1/capital-transfer-contracts/{id}
 LOGGED_IN_CALLER PATCH /v1/me
 ADMIN_TOKEN_HOLDER POST /admin/adjustments
 ADMIN_TOKEN_HOLDER POST /admin/aml-service/minor-guardian-lookups
+ADMIN_TOKEN_HOLDER POST /admin/aml-service/minor-guardian-lookups/backfill
 ADMIN_TOKEN_HOLDER POST /admin/aml-service/minor-guardian-lookups/child
 ADMIN_TOKEN_HOLDER POST /admin/backfill-fees
 ADMIN_TOKEN_HOLDER POST /admin/backfill-positions

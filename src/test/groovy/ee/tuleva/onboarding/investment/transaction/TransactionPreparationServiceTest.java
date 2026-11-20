@@ -1215,7 +1215,11 @@ class TransactionPreparationServiceTest {
             .positions(
                 List.of(
                     new PositionSnapshot("IE00ETF", new BigDecimal("300000")),
-                    new PositionSnapshot("IE00ETF2", new BigDecimal("100000")),
+                    new PositionSnapshot(
+                        "IE00ETF2",
+                        new BigDecimal("100000"),
+                        new BigDecimal("12500"),
+                        new BigDecimal("8")),
                     new PositionSnapshot("LU00FUND", new BigDecimal("200000"))))
             .modelWeights(
                 List.of(

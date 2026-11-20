@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
+import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisRefresh;
 import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasis;
 import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasisRepository;
 import java.math.BigDecimal;
@@ -56,7 +57,7 @@ class PortfolioReconciliationIT {
     seedCostBasis(ISIN_A, "10000.0000");
     seedNavReport(ISIN_A, new BigDecimal("10000.0000"));
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.refreshed());
 
     assertThat(recorder.events).isEmpty();
   }
@@ -66,7 +67,7 @@ class PortfolioReconciliationIT {
     seedCostBasis(ISIN_A, "10005.0000");
     seedNavReport(ISIN_A, new BigDecimal("10000.0000"));
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.refreshed());
 
     assertThat(recorder.events).hasSize(1);
     PortfolioReconciliationMismatchEvent event = recorder.events.get(0);
@@ -86,7 +87,7 @@ class PortfolioReconciliationIT {
     seedCostBasis(ISIN_B, "250.0000");
     seedNavReport(ISIN_B, new BigDecimal("250.0000"));
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.refreshed());
 
     assertThat(recorder.events).hasSize(1);
     assertThat(recorder.events.get(0).mismatches()).hasSize(1);
@@ -103,7 +104,7 @@ class PortfolioReconciliationIT {
     seedNavReport(ISIN_A, new BigDecimal("10000.0000"), calculationId);
     seedNavReport(ISIN_B, new BigDecimal("250.0000"), calculationId);
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.refreshed());
 
     assertThat(recorder.events).hasSize(1);
     assertThat(recorder.events.get(0).mismatches()).hasSize(1);
@@ -119,7 +120,7 @@ class PortfolioReconciliationIT {
     seedNavReport(ISIN_A, new BigDecimal("10000.0000"), calculationId);
     seedNavReport(ISIN_B, new BigDecimal("250.0000"), calculationId);
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.refreshed());
 
     assertThat(recorder.events).isEmpty();
     assertThat(recorder.skippedEvents).hasSize(1);
@@ -137,7 +138,7 @@ class PortfolioReconciliationIT {
     seedCostBasis(ISIN_A, "10000.0000");
     seedCostBasis(ISIN_B, "250.0000");
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.refreshed());
 
     assertThat(recorder.events).isEmpty();
     assertThat(recorder.skippedEvents).hasSize(1);

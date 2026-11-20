@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
+import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisRefresh;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import java.math.BigDecimal;
 import java.util.Map;
@@ -87,7 +88,7 @@ class PortfolioReconciliationAlertListener {
         %s näitab neid koguseid:
 
         %s
-        %s Portfelli võrdlus jookseb ainult eelmise tööpäeva kohta, seega tuleb see kuupäev \
+        %s%s Portfelli võrdlus jookseb ainult eelmise tööpäeva kohta, seega tuleb see kuupäev \
         pärast paranduse tegemist käsitsi uuesti võrrelda.
         """
         .formatted(
@@ -97,7 +98,12 @@ class PortfolioReconciliationAlertListener {
             event.fund().getDisplayName(),
             availableSource,
             formatTable(event.availableQuantities()),
+            paragraph(event.costBasisRefresh()),
             whatToCheck);
+  }
+
+  private static String paragraph(CostBasisRefresh costBasisRefresh) {
+    return costBasisRefresh.staleLedgerNote().map(note -> note + "\n\n").orElse("");
   }
 
   private static String formatTable(Map<String, BigDecimal> quantities) {
@@ -130,8 +136,10 @@ class PortfolioReconciliationAlertListener {
         .append(event.fund().getDisplayName())
         .append(")\n")
         .append('\n')
-        .append(formatTable(event));
-    body.append('\n').append("Vajab käsitsi uurimist.\n");
+        .append(formatTable(event))
+        .append('\n')
+        .append(paragraph(event.costBasisRefresh()))
+        .append("Vajab käsitsi uurimist.\n");
     return body.toString();
   }
 

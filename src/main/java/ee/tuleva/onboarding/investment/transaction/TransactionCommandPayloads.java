@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.transaction.TransactionAuditPayloads.plain;
+import static ee.tuleva.onboarding.investment.transaction.TransactionAuditPayloads.putIfPresent;
+
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -107,17 +109,6 @@ final class TransactionCommandPayloads {
     if (!command.getExcludeIsins().isEmpty()) {
       payload.put("excludeIsins", command.sortedExcludeIsins());
     }
-  }
-
-  private static void putIfPresent(Map<String, Object> map, String key, @Nullable Object value) {
-    if (value != null) {
-      map.put(key, value);
-    }
-  }
-
-  @Nullable
-  private static String plain(@Nullable BigDecimal value) {
-    return value == null ? null : value.toPlainString();
   }
 
   private static List<Map<String, Object>> priceOverrides(List<UsedPriceOverride> overrides) {

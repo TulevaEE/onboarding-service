@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.transaction.TradePrepOverridesFixture.noOverrides;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
@@ -43,7 +44,7 @@ class TradePrepPositionGateTest {
                     new HoldingDifference("A", new BigDecimal("1000"), new BigDecimal("990")),
                     new HoldingDifference("B", ZERO, new BigDecimal("40")))));
 
-    assertThat(gates.check(TKF100, POSITION_DATE, TradePrepOverrides.none()).failures())
+    assertThat(gates.check(TKF100, POSITION_DATE, noOverrides()).failures())
         .containsExactly(
             new HoldingMismatch("A", POSITION_DATE, new BigDecimal("1000"), new BigDecimal("990")),
             new HoldingMismatch("B", POSITION_DATE, ZERO, new BigDecimal("40")));
@@ -56,9 +57,9 @@ class TradePrepPositionGateTest {
             new RegistryHasNoHoldings(List.of(new HoldingDifference("A", null, ONE))),
             new ReportHasNoSecurities());
 
-    assertThat(gates.check(TKF100, POSITION_DATE, TradePrepOverrides.none()).failures())
+    assertThat(gates.check(TKF100, POSITION_DATE, noOverrides()).failures())
         .containsExactly(new NoRegistryHoldings(POSITION_DATE));
-    assertThat(gates.check(TKF100, POSITION_DATE, TradePrepOverrides.none()).failures())
+    assertThat(gates.check(TKF100, POSITION_DATE, noOverrides()).failures())
         .containsExactly(new NoReportSecurities(POSITION_DATE));
   }
 
@@ -67,7 +68,7 @@ class TradePrepPositionGateTest {
     given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE, Set.of()))
         .willReturn(new ReportRowsWithoutQuantity(List.of("A", "B")));
 
-    assertThat(gates.check(TKF100, POSITION_DATE, TradePrepOverrides.none()).failures())
+    assertThat(gates.check(TKF100, POSITION_DATE, noOverrides()).failures())
         .containsExactly(new UnquantifiedReportHoldings(POSITION_DATE, List.of("A", "B")));
   }
 
@@ -203,6 +204,6 @@ class TradePrepPositionGateTest {
     given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE, Set.of()))
         .willReturn(new Compared(List.of()));
 
-    assertThat(gates.check(TKF100, POSITION_DATE, TradePrepOverrides.none()).failures()).isEmpty();
+    assertThat(gates.check(TKF100, POSITION_DATE, noOverrides()).failures()).isEmpty();
   }
 }

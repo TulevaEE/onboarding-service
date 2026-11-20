@@ -53,16 +53,8 @@ class TransactionCommandRunner {
         targetFunds.stream()
             .map(
                 fund ->
-                    new CreateTransactionCommandRequest(
-                        fund,
-                        mode,
-                        asOfDate,
-                        null,
-                        cashOverrides.get(fund),
-                        null,
-                        null,
-                        null,
-                        null))
+                    CreateTransactionCommandRequest.withOnlyCash(
+                        fund, mode, asOfDate, cashOverrides.get(fund)))
             .toList(),
         actor);
   }

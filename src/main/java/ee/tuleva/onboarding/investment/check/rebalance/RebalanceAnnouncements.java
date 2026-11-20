@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.check.rebalance;
 
 import ee.tuleva.onboarding.event.EventLog;
+import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -17,7 +18,7 @@ class RebalanceAnnouncements {
   private static final String WINDOW_OPEN_ANNOUNCED = "MODEL_REBALANCE_WINDOW_OPEN_ANNOUNCED";
   private static final String WINDOW_CLOSE_ANNOUNCED = "MODEL_REBALANCE_WINDOW_CLOSE_ANNOUNCED";
 
-  private final RebalanceAnnouncementLog announcementLog;
+  private final EventLogRepository eventLogRepository;
 
   boolean isOwed(RebalanceWindow window) {
     return switch (window.state()) {
@@ -42,7 +43,7 @@ class RebalanceAnnouncements {
   }
 
   private void record(RebalanceWindow window, String type, Instant at) {
-    announcementLog.save(
+    eventLogRepository.save(
         EventLog.builder()
             .type(type)
             .principal(windowKey(window.fund(), window.modelEffectiveDate()))
@@ -55,7 +56,7 @@ class RebalanceAnnouncements {
   }
 
   private Optional<String> latestAnnouncement(String windowKey) {
-    return announcementLog
+    return eventLogRepository
         .findFirstByPrincipalAndTypeInOrderByTimestampDescIdDesc(
             windowKey, List.of(WINDOW_OPEN_ANNOUNCED, WINDOW_CLOSE_ANNOUNCED))
         .map(EventLog::getType);

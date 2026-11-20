@@ -44,11 +44,8 @@ record ModelChange(
         .toList();
   }
 
-  static Optional<ModelChange> between(
+  private static Optional<ModelChange> between(
       List<ModelPortfolioAllocation> previous, List<ModelPortfolioAllocation> current) {
-    if (previous.isEmpty() || current.isEmpty()) {
-      return Optional.empty();
-    }
     var previousWeights = weightsByIsin(previous);
     var currentWeights = weightsByIsin(current);
     var changedIsins =

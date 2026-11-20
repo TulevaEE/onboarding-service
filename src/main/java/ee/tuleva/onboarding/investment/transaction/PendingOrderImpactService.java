@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +41,11 @@ class PendingOrderImpactService {
       return inPositionReport.cashToCount(order, absOrZero(execution.getTotalConsideration()));
     }
 
+    boolean bookedIn(Set<String> brokerReferencesInTheBalance) {
+      String reference = execution.getBrokerTransactionId();
+      return reference != null && brokerReferencesInTheBalance.contains(reference);
+    }
+
     private boolean notYetShown() {
       return inPositionReport == InPositionReport.NOT_YET_SHOWN_SO_THE_ORDER_CARRIES_ITS_CASH;
     }
@@ -51,6 +57,15 @@ class PendingOrderImpactService {
 
   PendingOrderImpact calculate(
       TulevaFund fund, LocalDate asOfDate, LocalDate positionDate, TradePrepPricing pricing) {
+    return calculate(fund, asOfDate, positionDate, pricing, Set.of());
+  }
+
+  PendingOrderImpact calculate(
+      TulevaFund fund,
+      LocalDate asOfDate,
+      LocalDate positionDate,
+      TradePrepPricing pricing,
+      Set<String> brokerReferencesInTheBalance) {
     List<TransactionOrder> unsettled = orderRepository.findUnsettledOrders(fund, asOfDate);
     if (unsettled.isEmpty()) {
       return PendingOrderImpact.none();
@@ -60,6 +75,8 @@ class PendingOrderImpactService {
 
     BigDecimal pendingBuys = ZERO;
     BigDecimal pendingSells = ZERO;
+    BigDecimal buysInTheBalance = ZERO;
+    BigDecimal sellsInTheBalance = ZERO;
     Map<String, BigDecimal> unreportedValues = new HashMap<>();
     Map<String, BigDecimal> unreportedQuantities = new HashMap<>();
 
@@ -71,16 +88,23 @@ class PendingOrderImpactService {
       BigDecimal unfilledValue = unfilledValue(order, executed, asOfDate, pricing);
       addUnreportedPositions(
           order, fills, executed, unfilledValue, unreportedValues, unreportedQuantities);
+      List<ClassifiedFill> booked =
+          fills.stream().filter(fill -> fill.bookedIn(brokerReferencesInTheBalance)).toList();
+      List<ClassifiedFill> notYetBooked =
+          fills.stream().filter(fill -> !fill.bookedIn(brokerReferencesInTheBalance)).toList();
       BigDecimal cash =
           cashTheOrderStillCarries(
               order,
-              fills,
+              notYetBooked,
               unfilledValue,
               InPositionReport.ofUnfilledRemainder(order, positionDate));
+      BigDecimal inTheBalance = cashOfFills(order, booked);
       if (order.getTransactionType() == BUY) {
         pendingBuys = pendingBuys.add(cash);
+        buysInTheBalance = buysInTheBalance.add(inTheBalance);
       } else {
         pendingSells = pendingSells.add(cash);
+        sellsInTheBalance = sellsInTheBalance.add(inTheBalance);
       }
     }
 
@@ -95,7 +119,12 @@ class PendingOrderImpactService {
         unreportedValues.keySet());
 
     return new PendingOrderImpact(
-        pendingBuys, pendingSells, Map.copyOf(unreportedValues), Map.copyOf(unreportedQuantities));
+        pendingBuys,
+        pendingSells,
+        Map.copyOf(unreportedValues),
+        Map.copyOf(unreportedQuantities),
+        buysInTheBalance,
+        sellsInTheBalance);
   }
 
   private static List<ClassifiedFill> classifyAgainstPositionReport(
@@ -141,9 +170,14 @@ class PendingOrderImpactService {
       List<ClassifiedFill> fills,
       BigDecimal unfilledValue,
       InPositionReport unfilledRemainderInPositionReport) {
-    BigDecimal fillsCash =
-        fills.stream().map(fill -> fill.cashTheOrderCarries(order)).reduce(ZERO, BigDecimal::add);
-    return fillsCash.add(unfilledRemainderInPositionReport.cashToCount(order, unfilledValue));
+    return cashOfFills(order, fills)
+        .add(unfilledRemainderInPositionReport.cashToCount(order, unfilledValue));
+  }
+
+  private static BigDecimal cashOfFills(TransactionOrder order, List<ClassifiedFill> fills) {
+    return fills.stream()
+        .map(fill -> fill.cashTheOrderCarries(order))
+        .reduce(ZERO, BigDecimal::add);
   }
 
   private static void addUnfilledQuantity(

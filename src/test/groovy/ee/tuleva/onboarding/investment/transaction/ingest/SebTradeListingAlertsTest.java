@@ -39,7 +39,7 @@ class SebTradeListingAlertsTest {
       new SebTradeListingAlerts(notificationService, auditEventRepository, CLOCK);
 
   @Test
-  void aSaleAnOrderWithoutASendTimeAndASkippedCheck_goOutInOneMessageAndAreEachRecorded() {
+  void aSaleANeverListedOrderAndASkippedCheck_goOutInOneMessageAndAreEachRecorded() {
     TransactionOrder sale = sale();
 
     alerts.publish(
@@ -50,12 +50,13 @@ class SebTradeListingAlertsTest {
     then(notificationService)
         .should()
         .sendMessage(
-            "⚠️ SEB tehing kadus ootel-tehingutest, pangas makset pole: 1\n"
+            "⚠️ SEB tehing kadus ootel-tehingutest, pangas pole selle viitega makset: 1\n"
                 + "TUK00 · DLA0000001 · müük IE0000000001 · SEB arvelduspäev 12.02.2026\n"
                 + "Küsi SEB-lt, miks tehing nimekirjast kadus ja kas see arveldub.\n\n"
-                + "⚠️ SEB pole tehingut ootel-tehingutesse pannud: 1\n"
-                + "TUK00 · tehingukorraldus 7 · müük IE0000000001 · saadetud ?\n"
-                + "Kontrolli SEB-lt, kas tehingukorraldus jõudis kohale.\n\n"
+                + "⚠️ SEB ootel-tehingutes pole tehingukorraldust: 1\n"
+                + "TUK00 · tehingukorraldus 7 · müük IE0000000001 · saadetud 10.02.2026\n"
+                + "Kontrolli SEB-lt, kas tehingukorraldus jõudis kohale (või jäi SEB rida os-is"
+                + " sidumata).\n\n"
                 + "⚠️ SEB ootel-tehingute kontroll jäi tegemata: SEB-sse jõudmata"
                 + " tehingukorraldusi ei saanud kontrollida.\n"
                 + "Teata IT-le, viga on logis. Kontroll kordub järgmisel tööpäeval.",
@@ -108,6 +109,7 @@ class SebTradeListingAlertsTest {
         .fund(TUK00)
         .instrumentIsin("IE0000000001")
         .transactionType(SELL)
+        .orderTimestamp(Instant.parse("2026-02-10T10:00:00Z"))
         .orderUuid(UUID.fromString("00000000-0000-0000-0000-000000000007"))
         .build();
   }

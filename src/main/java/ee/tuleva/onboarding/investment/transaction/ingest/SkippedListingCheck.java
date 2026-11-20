@@ -11,6 +11,9 @@ record SkippedListingCheck(String cause, String action) {
           "viimast ootel-tehingute raportit ei saanud lugeda (raport puudub, read on vigased või"
               + " As-of kuupäev puudub)",
           "Kontrolli, kas SEB ootel-tehingute raport tuli kohale ja on loetav.");
+  static final SkippedListingCheck REPORT_LOOKUP_FAILED =
+      new SkippedListingCheck(
+          "SEB ootel-tehingute raportit ei saanud andmebaasist lugeda", TELL_IT);
   static final SkippedListingCheck DROPPED_TRADES =
       new SkippedListingCheck("nimekirjast kadunud tehinguid ei saanud kontrollida", TELL_IT);
   static final SkippedListingCheck NEVER_LISTED_ORDERS =

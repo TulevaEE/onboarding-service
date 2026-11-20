@@ -82,7 +82,7 @@ class TradePrepPositionGateTest {
                     TKF100,
                     POSITION_DATE,
                     new TradePrepOverrides(
-                        Set.of("X"), List.of(), null, PriceDateRule.FRESHEST_PER_INSTRUMENT))
+                        Set.of("X"), List.of(), null, PriceDateRule.FRESHEST_PER_INSTRUMENT, null))
                 .failures())
         .containsExactly(new HoldingMismatch("A", POSITION_DATE, new BigDecimal("5"), null));
   }
@@ -104,7 +104,8 @@ class TradePrepPositionGateTest {
                 Set.of(),
                 List.of(),
                 new AcceptedHoldingDifferences(Set.of("A", "C"), "Booked late"),
-                PriceDateRule.FRESHEST_PER_INSTRUMENT));
+                PriceDateRule.FRESHEST_PER_INSTRUMENT,
+                null));
 
     assertThat(check)
         .isEqualTo(
@@ -136,7 +137,8 @@ class TradePrepPositionGateTest {
                         Set.of(),
                         List.of(),
                         new AcceptedHoldingDifferences(Set.of("A"), "Late"),
-                        PriceDateRule.FRESHEST_PER_INSTRUMENT))
+                        PriceDateRule.FRESHEST_PER_INSTRUMENT,
+                        null))
                 .failures())
         .containsExactly(new NoRegistryHoldings(POSITION_DATE));
     assertThat(
@@ -148,7 +150,8 @@ class TradePrepPositionGateTest {
                         Set.of(),
                         List.of(),
                         new AcceptedHoldingDifferences(Set.of("A", "B"), "Baseline loads tonight"),
-                        PriceDateRule.FRESHEST_PER_INSTRUMENT))
+                        PriceDateRule.FRESHEST_PER_INSTRUMENT,
+                        null))
                 .failures())
         .isEmpty();
   }
@@ -166,7 +169,8 @@ class TradePrepPositionGateTest {
                     Set.of(),
                     List.of(),
                     new AcceptedHoldingDifferences(Set.of("A"), "Late"),
-                    PriceDateRule.FRESHEST_PER_INSTRUMENT)))
+                    PriceDateRule.FRESHEST_PER_INSTRUMENT,
+                    null)))
         .isEqualTo(
             new PositionCheck(
                 List.of(new UnquantifiedReportHoldings(POSITION_DATE, List.of("A"))),

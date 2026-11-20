@@ -62,6 +62,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Import({
   TradePrepSnapshotIT.EpisNavProvider.class,
   TradePrepInputGates.class,
+  TradePrepPevaRavaGate.class,
   TradePrepInputGateNotifier.class,
   R16OutflowReader.class,
   R16FlowCalculationService.class,
@@ -93,6 +94,7 @@ class TradePrepSnapshotIT {
   @MockitoBean OperationsNotificationService notificationService;
   @MockitoBean TradePrepPriceGate priceGate;
   @MockitoBean TradePrepPositionGate positionGate;
+  @MockitoBean TradePrepCashGate cashGate;
 
   @Autowired TradePrepInputGates gates;
   @Autowired R45ReportService r45ReportService;

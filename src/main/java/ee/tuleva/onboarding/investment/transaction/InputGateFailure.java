@@ -6,8 +6,11 @@ import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.investment.report.ReportType;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 
@@ -80,6 +83,28 @@ sealed interface InputGateFailure {
     public String slackLine() {
       return "Hind puudub: %s: kontrolli hinnaallikaid ja instrument_reference'it"
           .formatted(String.join(", ", isins));
+    }
+  }
+
+  record NoSameDayCash(@Nullable Instant lastFetchedAt) implements InputGateFailure {
+
+    private static final DateTimeFormatter FETCH_TIME =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.of("Europe/Tallinn"));
+
+    @Override
+    public String slackLine() {
+      String last =
+          lastFetchedAt == null ? "" : " (viimane %s)".formatted(FETCH_TIME.format(lastFetchedAt));
+      return "SEB-st pole tänast saldot%s: kontrolli SEB päringuid või anna raha käsitsi (cash ja kommentaar)"
+          .formatted(last);
+    }
+  }
+
+  record UnreadableSameDayCash() implements InputGateFailure {
+
+    @Override
+    public String slackLine() {
+      return "SEB saldot ei saanud lugeda: kontrolli SEB sõnumeid või anna raha käsitsi (cash ja kommentaar)";
     }
   }
 

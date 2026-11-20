@@ -7,6 +7,7 @@ import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankStatementBalances;
+import ee.tuleva.onboarding.banking.FetchedBalance;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
@@ -53,6 +54,12 @@ public class BookedBalanceReader implements BankStatementBalances {
                         message ->
                             DayClosingBalance.on(
                                 statementOf(message), day, message.getTimezoneId())));
+  }
+
+  @Override
+  public Optional<FetchedBalance> latestFetched(BankAccount account) {
+    return latest(account.iban())
+        .map(balance -> new FetchedBalance(balance.amount(), balance.asOf()));
   }
 
   @Override

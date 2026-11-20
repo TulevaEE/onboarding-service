@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.CALCULATED;
@@ -28,6 +29,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -36,6 +38,7 @@ import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.persistence.EntityManager;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -111,11 +114,13 @@ class TransactionPipelineIntegrationTest {
   @Autowired private SavingsFundLedger savingsFundLedger;
   @Autowired private TransactionCommandRunner commandRunner;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private BankAccounts bankAccounts;
   @MockitoBean private OperationsNotificationService notificationService;
 
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(FIXED_CLOCK);
+    storeTheInvestmentAccountsBalanceFetchedAt(FIXED_INSTANT);
   }
 
   @AfterEach
@@ -975,6 +980,95 @@ class TransactionPipelineIntegrationTest {
             .orElseThrow();
     assertThat(order.orderQuantity())
         .isEqualByComparingTo(order.orderAmount().divide(new BigDecimal("44"), 6, HALF_UP));
+  }
+
+  @Test
+  void withoutABalanceFetchedTodayTheFundStopsAndSaysWhenItWasLastFetched() {
+    jdbcClient.sql("DELETE FROM banking_message").update();
+    storeTheInvestmentAccountsBalanceFetchedAt(Instant.parse("2026-02-09T14:50:00Z"));
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            SEB-st pole tänast saldot (viimane 2026-02-09 16:50): kontrolli SEB päringuid või anna raha käsitsi (cash ja kommentaar)\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void aCashAmountWithItsCommentLetsTheFundThroughWithoutABalanceFetchedToday() {
+    jdbcClient.sql("DELETE FROM banking_message").update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                new CashOverride(
+                    new BigDecimal("500000.00"), "Balance read from SEB's internet bank"),
+                null,
+                null,
+                null,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+  }
+
+  private void storeTheInvestmentAccountsBalanceFetchedAt(Instant fetchedAt) {
+    String iban = bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR);
+    jdbcClient
+        .sql(
+            """
+            insert into banking_message (id, bank_type, request_id, tracking_id, raw_response,
+              timezone, message_type, account_iban, statement_from, statement_to, processed_at,
+              received_at)
+            values (:id, 'SEB', 'request', 'tracking', :rawResponse, 'Europe/Tallinn',
+              'HISTORIC_STATEMENT', :iban, :day, :day, :fetchedAt, :fetchedAt)
+            """)
+        .param("id", randomUUID())
+        .param("rawResponse", statementWithBalance(iban))
+        .param("iban", iban)
+        .param("day", fetchedAt.atZone(TALLINN).toLocalDate())
+        .param("fetchedAt", Timestamp.from(fetchedAt))
+        .update();
+  }
+
+  private static String statementWithBalance(String iban) {
+    return """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+          <BkToCstmrStmt>
+            <GrpHdr><MsgId>statement</MsgId><CreDtTm>2026-02-10T01:00:00+02:00</CreDtTm></GrpHdr>
+            <Stmt>
+              <Id>statement</Id>
+              <CreDtTm>2026-02-10T01:00:00+02:00</CreDtTm>
+              <FrToDt><FrDtTm>2026-02-09T00:00:00+02:00</FrDtTm><ToDtTm>2026-02-09T23:59:59+02:00</ToDtTm></FrToDt>
+              <Acct>
+                <Id><IBAN>%s</IBAN></Id>
+                <Ownr><Nm>BGW TESTCLIENT1</Nm><Id><OrgId><Othr><Id>22255887</Id></Othr></OrgId></Id></Ownr>
+              </Acct>
+              <Bal>
+                <Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp>
+                <Amt Ccy="EUR">500000.00</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Dt><Dt>2026-02-09</Dt></Dt>
+              </Bal>
+            </Stmt>
+          </BkToCstmrStmt>
+        </Document>
+        """
+        .formatted(iban);
   }
 
   private void registryRow(String isin, String quantity) {

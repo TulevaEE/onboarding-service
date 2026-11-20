@@ -16,6 +16,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import ee.tuleva.onboarding.party.GuardianLinkRegistration.Created;
+import ee.tuleva.onboarding.party.GuardianLinkRegistration.EndDateChanged;
+import ee.tuleva.onboarding.party.GuardianLinkRegistration.Unchanged;
 import ee.tuleva.onboarding.populationregister.Guardian;
 import ee.tuleva.onboarding.user.NameChangeBasis;
 import ee.tuleva.onboarding.user.User;
@@ -271,7 +274,7 @@ class ParentChildLinkRegistrationServiceTest {
         .willReturn(Optional.empty());
     given(parentChildLinkRepository.save(any())).willAnswer(returnsFirstArg());
 
-    ParentChildLink result =
+    GuardianLinkRegistration registration =
         service.registerGuardian(
             GUARDIAN_CODE,
             ADULT_WARD,
@@ -280,6 +283,8 @@ class ParentChildLinkRegistrationServiceTest {
             GUARDIANSHIP_VALID_UNTIL,
             FROM_COURT_RULING);
 
+    assertThat(registration).isInstanceOf(Created.class);
+    ParentChildLink result = registration.link();
     assertThat(result.getParentPersonalCode()).isEqualTo(GUARDIAN_CODE);
     assertThat(result.getChildPersonalCode()).isEqualTo(ADULT_WARD);
     assertThat(result.getRelationshipType()).isEqualTo(GUARDIAN);
@@ -329,5 +334,99 @@ class ParentChildLinkRegistrationServiceTest {
 
     verify(userService).changeName(ADULT_WARD, "Ants", "Haldja", FROM_COURT_RULING);
     verify(userService, never()).createNewUser(any(), any());
+  }
+
+  @Test
+  void registerGuardian_extendsTheEndDateOfAnExistingLinkEvenOnceItHasLapsed() {
+    ParentChildLink existing = givenExisting(guardianLink(LocalDate.of(2026, 1, 31)).build());
+    given(parentChildLinkRepository.save(existing)).willReturn(existing);
+
+    GuardianLinkRegistration registration =
+        service.registerGuardian(
+            GUARDIAN_CODE,
+            ADULT_WARD,
+            "ants",
+            "haldja",
+            GUARDIANSHIP_VALID_UNTIL,
+            FROM_COURT_RULING);
+
+    assertThat(registration).isEqualTo(new EndDateChanged(existing, LocalDate.of(2026, 1, 31)));
+    assertThat(existing.getValidUntil()).isEqualTo(GUARDIANSHIP_VALID_UNTIL);
+    verify(parentChildLinkRepository).save(existing);
+  }
+
+  @Test
+  void registerGuardian_shortensTheEndDateOfAnExistingLink() {
+    ParentChildLink existing = givenExisting(guardianLink(GUARDIANSHIP_VALID_UNTIL).build());
+    given(parentChildLinkRepository.save(existing)).willReturn(existing);
+
+    GuardianLinkRegistration registration =
+        service.registerGuardian(
+            GUARDIAN_CODE,
+            ADULT_WARD,
+            "ants",
+            "haldja",
+            LocalDate.of(2027, 1, 31),
+            FROM_COURT_RULING);
+
+    assertThat(registration).isEqualTo(new EndDateChanged(existing, GUARDIANSHIP_VALID_UNTIL));
+    assertThat(existing.getValidUntil()).isEqualTo(LocalDate.of(2027, 1, 31));
+    verify(parentChildLinkRepository).save(existing);
+  }
+
+  @Test
+  void registerGuardian_leavesALinkAlreadyEndingOnTheDateUnchanged() {
+    ParentChildLink existing = givenExisting(guardianLink(GUARDIANSHIP_VALID_UNTIL).build());
+
+    GuardianLinkRegistration registration =
+        service.registerGuardian(
+            GUARDIAN_CODE,
+            ADULT_WARD,
+            "ants",
+            "haldja",
+            GUARDIANSHIP_VALID_UNTIL,
+            FROM_COURT_RULING);
+
+    assertThat(registration).isEqualTo(new Unchanged(existing));
+    verify(parentChildLinkRepository, never()).save(any());
+  }
+
+  @Test
+  void registerGuardian_keepsASuspendedLinkSuspendedWhenItsEndDateChanges() {
+    Instant suspendedAt = Instant.parse("2026-03-01T10:00:00Z");
+    ParentChildLink existing =
+        givenExisting(guardianLink(LocalDate.of(2027, 1, 31)).suspendedAt(suspendedAt).build());
+    given(parentChildLinkRepository.save(existing)).willReturn(existing);
+
+    GuardianLinkRegistration registration =
+        service.registerGuardian(
+            GUARDIAN_CODE,
+            ADULT_WARD,
+            "ants",
+            "haldja",
+            GUARDIANSHIP_VALID_UNTIL,
+            FROM_COURT_RULING);
+
+    assertThat(registration).isEqualTo(new EndDateChanged(existing, LocalDate.of(2027, 1, 31)));
+    assertThat(existing.getSuspendedAt()).isEqualTo(suspendedAt);
+    assertThat(existing.getValidUntil()).isEqualTo(GUARDIANSHIP_VALID_UNTIL);
+  }
+
+  private ParentChildLink.ParentChildLinkBuilder guardianLink(LocalDate validUntil) {
+    return ParentChildLink.builder()
+        .parentPersonalCode(GUARDIAN_CODE)
+        .childPersonalCode(ADULT_WARD)
+        .relationshipType(GUARDIAN)
+        .validUntil(validUntil);
+  }
+
+  private ParentChildLink givenExisting(ParentChildLink existing) {
+    given(userService.findByPersonalCode(ADULT_WARD)).willReturn(Optional.empty());
+    given(
+            parentChildLinkRepository
+                .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
+                    GUARDIAN_CODE, ADULT_WARD, GUARDIAN))
+        .willReturn(Optional.of(existing));
+    return existing;
   }
 }

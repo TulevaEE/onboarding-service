@@ -6,6 +6,9 @@ import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
+import ee.tuleva.onboarding.party.GuardianLinkRegistration.Created;
+import ee.tuleva.onboarding.party.GuardianLinkRegistration.EndDateChanged;
+import ee.tuleva.onboarding.party.GuardianLinkRegistration.Unchanged;
 import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.populationregister.Guardian;
 import ee.tuleva.onboarding.user.NameChangeBasis;
@@ -91,7 +94,7 @@ public class ParentChildLinkRegistrationService {
   }
 
   @Transactional
-  public ParentChildLink registerGuardian(
+  public GuardianLinkRegistration registerGuardian(
       String guardianPersonalCode,
       String wardPersonalCode,
       String wardFirstName,
@@ -100,7 +103,30 @@ public class ParentChildLinkRegistrationService {
       NameChangeBasis nameBasis) {
 
     upsertPerson(wardPersonalCode, wardFirstName, wardLastName, nameBasis);
-    return findOrCreateLink(guardianPersonalCode, wardPersonalCode, GUARDIAN, validUntil);
+    return parentChildLinkRepository
+        .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
+            guardianPersonalCode, wardPersonalCode, GUARDIAN)
+        .map(existing -> renew(existing, validUntil))
+        .orElseGet(
+            () ->
+                new Created(
+                    createLink(guardianPersonalCode, wardPersonalCode, GUARDIAN, validUntil)));
+  }
+
+  private GuardianLinkRegistration renew(ParentChildLink existing, LocalDate validUntil) {
+    LocalDate previousValidUntil = existing.getValidUntil();
+    if (previousValidUntil.equals(validUntil)) {
+      return new Unchanged(existing);
+    }
+    log.info(
+        "Changing guardian link end date: linkId={}, previousValidUntil={}, validUntil={},"
+            + " suspended={}",
+        existing.getId(),
+        previousValidUntil,
+        validUntil,
+        existing.isSuspended());
+    existing.changeValidUntil(validUntil);
+    return new EndDateChanged(parentChildLinkRepository.save(existing), previousValidUntil);
   }
 
   private ParentChildLink findOrCreateLink(

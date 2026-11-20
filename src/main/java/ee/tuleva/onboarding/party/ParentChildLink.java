@@ -89,4 +89,8 @@ public class ParentChildLink {
   void activate() {
     status = ACTIVE;
   }
+
+  void changeValidUntil(LocalDate newValidUntil) {
+    validUntil = newValidUntil;
+  }
 }

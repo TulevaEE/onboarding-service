@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 
+import ee.tuleva.onboarding.investment.check.rebalance.RebalanceOrdersAwaitingExecution.SentOrder;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -38,15 +39,26 @@ class RebalanceTrades {
         .map(tradeTimestamp -> tradeTimestamp.atZone(TALLINN).toLocalDate());
   }
 
-  Optional<LocalDate> firstRebalanceOrderAwaitingExecution(
+  RebalanceOrdersAwaitingExecution rebalanceOrdersAwaitingExecution(
       TulevaFund fund, LocalDate modelEffectiveDate, LocalDate measuredUntil) {
-    return orderRepository
-        .findFirstOrderTimestampOfATradePrepRun(
-            fund,
-            REBALANCE,
-            SENT,
-            modelEffectiveDate.atStartOfDay(TALLINN).toInstant(),
-            measuredUntil.plusDays(1).atStartOfDay(TALLINN).toInstant())
-        .map(orderTimestamp -> orderTimestamp.atZone(TALLINN).toLocalDate());
+    return new RebalanceOrdersAwaitingExecution(
+        orderRepository
+            .findOrdersOfATradePrepRun(
+                fund,
+                REBALANCE,
+                SENT,
+                modelEffectiveDate.atStartOfDay(TALLINN).toInstant(),
+                measuredUntil.plusDays(1).atStartOfDay(TALLINN).toInstant())
+            .stream()
+            .flatMap(
+                order ->
+                    Optional.ofNullable(order.getOrderTimestamp())
+                        .map(
+                            sentAt ->
+                                new SentOrder(
+                                    sentAt.atZone(TALLINN).toLocalDate(),
+                                    order.getExpectedSettlementDate()))
+                        .stream())
+            .toList());
   }
 }

@@ -49,6 +49,25 @@ class RebalanceWindowTest {
   }
 
   @Test
+  void pastTheDeadlineWithNoOrderSentByIt_failsAtOnce() {
+    var window =
+        new RebalanceWindow(
+            TUV100,
+            EFFECTIVE,
+            DEADLINE.plusDays(1),
+            new BigDecimal("0.05"),
+            null,
+            List.of(),
+            null,
+            DEADLINE.plusDays(1),
+            DEADLINE,
+            WARNING_FROM,
+            null);
+
+    assertThat(window.state()).isEqualTo(FAIL);
+  }
+
+  @Test
   void pastTheDeadlineRebalanceOrdersSentOnlyAfterIt_leaveItAFail() {
     assertThat(window(DEADLINE.plusDays(2), null, DEADLINE.plusDays(1)).state()).isEqualTo(FAIL);
   }
@@ -97,6 +116,13 @@ class RebalanceWindowTest {
         rebalanceOrdersSentOn,
         DEADLINE,
         WARNING_FROM,
-        AWAITING_EXECUTION_UNTIL);
+        awaitedThroughWhenSentByTheDeadline(rebalanceOrdersSentOn));
+  }
+
+  private static @Nullable LocalDate awaitedThroughWhenSentByTheDeadline(
+      @Nullable LocalDate rebalanceOrdersSentOn) {
+    return rebalanceOrdersSentOn != null && !rebalanceOrdersSentOn.isAfter(DEADLINE)
+        ? AWAITING_EXECUTION_UNTIL
+        : null;
   }
 }

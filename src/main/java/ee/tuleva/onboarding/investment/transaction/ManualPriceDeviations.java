@@ -27,11 +27,11 @@ class ManualPriceDeviations {
       LocalDate asOfDate,
       TradePrepOverrides overrides,
       Map<String, ResolvedPrice> resolvedForTheCommandsDate) {
-    requireAManualPriceForEveryConfirmation(overrides);
     List<PriceOverride> considered =
         overrides.prices().stream()
             .filter(override -> !overrides.excludedIsins().contains(override.isin()))
             .toList();
+    requireAConsideredManualPriceForEveryConfirmation(overrides, considered);
     if (considered.isEmpty()) {
       return new PriceDeviations(List.of(), List.of(), List.of());
     }
@@ -66,18 +66,19 @@ class ManualPriceDeviations {
         .anyMatch(confirmation -> confirmation.confirms(deviation));
   }
 
-  private static void requireAManualPriceForEveryConfirmation(TradePrepOverrides overrides) {
-    List<String> withoutManualPrice =
+  private static void requireAConsideredManualPriceForEveryConfirmation(
+      TradePrepOverrides overrides, List<PriceOverride> considered) {
+    List<String> withoutConsideredManualPrice =
         overrides.confirmedPriceDeviations().stream()
             .map(PriceDeviationConfirmation::isin)
-            .filter(
-                isin -> overrides.prices().stream().noneMatch(price -> price.isin().equals(isin)))
+            .filter(isin -> considered.stream().noneMatch(price -> price.isin().equals(isin)))
             .sorted()
             .toList();
-    if (!withoutManualPrice.isEmpty()) {
+    if (!withoutConsideredManualPrice.isEmpty()) {
       throw new IllegalArgumentException(
-          "Price deviation confirmed for an instrument without a manual price: isins=%s"
-              .formatted(withoutManualPrice));
+          ("Price deviation confirmed for an instrument without a manual price or excluded from"
+                  + " the run: isins=%s")
+              .formatted(withoutConsideredManualPrice));
     }
   }
 

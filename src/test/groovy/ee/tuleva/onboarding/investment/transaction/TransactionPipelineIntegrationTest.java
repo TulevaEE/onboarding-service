@@ -1438,6 +1438,28 @@ class TransactionPipelineIntegrationTest {
         .containsExactly(new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("5.00")));
   }
 
+  @Test
+  void aConfirmationForAnExcludedInstrumentFailsTheCommandLikeOneWithoutAManualPrice() {
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                Set.of("IE000O58J820"),
+                List.of(
+                    new PriceOverride(
+                        "IE000O58J820", new BigDecimal("5.00"), "Index price is stale")),
+                null,
+                null,
+                List.of(new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("5.00")))),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+  }
+
   private void registryRow(String isin, String quantity) {
     jdbcClient
         .sql(

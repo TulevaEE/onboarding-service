@@ -64,6 +64,7 @@ pitest {
         listOf(
             "ee.tuleva.onboarding.ariregister.generated.*",
             "ee.tuleva.onboarding.banking.iso20022.*",
+            "ee.tuleva.onboarding.taxwin.income.generated.*",
         )
     jvmArgs = listOf("-XX:+UseParallelGC")
 }
@@ -468,13 +469,19 @@ tasks {
                 ) to "ee.tuleva.onboarding.ariregister.generated.kasusaajad",
             )
 
+        val taxWinDir = file("$projectDir/src/main/resources/taxwin")
+        val taxWinOutputDir = file("${layout.buildDirectory.get()}/generated-sources/taxwin")
+        val taxCertificateSchema = file("$taxWinDir/taxcertificate_v2.xsd")
+
         val bindingsFile = file("$projectDir/src/main/resources/jaxb-bindings.xjb")
 
         inputs.dir(iso20022Dir)
         inputs.dir(ariregisterDir)
+        inputs.dir(taxWinDir)
         inputs.file(bindingsFile)
         outputs.dir(iso20022OutputDir)
         outputs.dir(ariregisterOutputDir)
+        outputs.dir(taxWinOutputDir)
 
         doLast {
             iso20022OutputDir.mkdirs()
@@ -518,6 +525,23 @@ tasks {
                     )
                 }
             }
+
+            taxWinOutputDir.mkdirs()
+            execOps.exec {
+                executable = "java"
+                args(
+                    "-cp",
+                    xjcClasspath,
+                    "com.sun.tools.xjc.XJCFacade",
+                    "-nv",
+                    "-extension",
+                    "-d",
+                    taxWinOutputDir.absolutePath,
+                    "-p",
+                    "ee.tuleva.onboarding.taxwin.income.generated",
+                    taxCertificateSchema.absolutePath,
+                )
+            }
         }
     }
 
@@ -536,6 +560,7 @@ sourceSets {
         java {
             srcDir("${layout.buildDirectory.get()}/generated-sources/iso20022")
             srcDir("${layout.buildDirectory.get()}/generated-sources/ariregister")
+            srcDir("${layout.buildDirectory.get()}/generated-sources/taxwin")
         }
     }
 }

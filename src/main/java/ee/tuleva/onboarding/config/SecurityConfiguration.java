@@ -42,6 +42,8 @@ public class SecurityConfiguration {
     "/v1/mandates/*/signature/*/status",
     "/v1/mandate-batches/*/signature/*/status",
     "/v1/insurance-transfer-forms/*/signature/*/status",
+    "/v1/tax-data-consents/*/signature/*/status",
+    "/v1/third-pillar/tax-headroom",
     "/v1/payments/link",
     "/v1/kyb/surveys/initial-validation"
   };

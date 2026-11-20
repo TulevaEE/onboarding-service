@@ -16,6 +16,8 @@ import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.BDDMockito.willThrow;
+import static org.springframework.http.HttpStatus.CONFLICT;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -52,6 +54,8 @@ class TransactionAdminServiceTest {
   @Mock private TransactionAuditEventRepository auditEventRepository;
   @Mock private TransactionBatchFinalizer batchFinalizer;
 
+  @Mock private BatchConfirmations batchConfirmations;
+
   @InjectMocks private TransactionAdminService service;
 
   private static TransactionBatch batch(Long id, BatchStatus status) {
@@ -59,10 +63,19 @@ class TransactionAdminServiceTest {
         .id(id)
         .fund(TUK75)
         .status(status)
+        .version(3L)
         .createdBy("system")
         .createdAt(Instant.parse("2026-06-10T09:00:00Z"))
         .metadata(Map.of())
         .build();
+  }
+
+  private void assertStillAnUnconfirmedDraft(TransactionBatch batch) {
+    assertThat(batch.getStatus()).isEqualTo(DRAFT);
+    assertThat(batch.getConfirmedBy()).isNull();
+    assertThat(batch.getConfirmedAt()).isNull();
+    then(batchRepository).should(never()).saveAndFlush(any());
+    then(batchFinalizer).shouldHaveNoInteractions();
   }
 
   private static TransactionOrder order(Long id, TransactionBatch batch) {
@@ -211,8 +224,9 @@ class TransactionAdminServiceTest {
         .finalizeConfirmedBatch(batch);
     given(orderRepository.findByBatchId(10L)).willReturn(List.of());
 
-    TransactionBatchResponse response = service.confirmAndFinalize(10L, "operator-7");
+    TransactionBatchResponse response = service.confirmAndFinalize(10L, 3L, "operator-7");
 
+    then(batchConfirmations).should().requireAllowedToSend(batch, 3L, "operator-7");
     then(batchFinalizer).should().finalizeConfirmedBatch(batch);
     assertThat(response.status()).isEqualTo(BatchStatus.SENT);
     assertThat(batch.getConfirmedBy()).isEqualTo("operator-7");
@@ -233,7 +247,7 @@ class TransactionAdminServiceTest {
         .finalizeConfirmedBatch(batch);
     given(orderRepository.findByBatchId(10L)).willReturn(List.of());
 
-    service.confirmAndFinalize(10L, "admin");
+    service.confirmAndFinalize(10L, 3L, "operator-7");
 
     then(batchFinalizer).should().finalizeConfirmedBatch(batch);
   }
@@ -242,7 +256,7 @@ class TransactionAdminServiceTest {
   void confirmAndFinalize_unknownBatch_throwsNotFound() {
     given(batchRepository.findById(999L)).willReturn(Optional.empty());
 
-    assertThatThrownBy(() -> service.confirmAndFinalize(999L, "admin"))
+    assertThatThrownBy(() -> service.confirmAndFinalize(999L, 3L, "admin"))
         .isInstanceOf(ResponseStatusException.class)
         .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
         .isEqualTo(404);
@@ -256,7 +270,7 @@ class TransactionAdminServiceTest {
         .given(batchRepository)
         .saveAndFlush(batch);
 
-    assertThatThrownBy(() -> service.confirmAndFinalize(10L, "admin"))
+    assertThatThrownBy(() -> service.confirmAndFinalize(10L, 3L, "operator-7"))
         .isInstanceOf(ResponseStatusException.class)
         .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
         .isEqualTo(409);
@@ -264,10 +278,57 @@ class TransactionAdminServiceTest {
   }
 
   @Test
+  void confirmAndFinalize_refusedByTheConfirmations_isForbiddenAndLeavesItADraft() {
+    TransactionBatch batch = batch(10L, DRAFT);
+    given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
+    willThrow(new ResponseStatusException(FORBIDDEN, "no first confirmation"))
+        .given(batchConfirmations)
+        .requireAllowedToSend(batch, 3L, "operator-1");
+
+    assertThatThrownBy(() -> service.confirmAndFinalize(10L, 3L, "operator-1"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(403);
+    assertStillAnUnconfirmedDraft(batch);
+  }
+
+  @Test
+  void giveFirstConfirmation_recordsItThroughTheConfirmationsAndReturnsTheDraft() {
+    TransactionBatch batch = batch(10L, DRAFT);
+    given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
+
+    TransactionBatchResponse response = service.giveFirstConfirmation(10L, 3L, "operator-1");
+
+    then(batchConfirmations).should().giveFirst(batch, 3L, "operator-1");
+    assertThat(response.status()).isEqualTo(DRAFT);
+  }
+
+  @Test
+  void giveFirstConfirmation_sentBatch_throwsConflict() {
+    given(batchRepository.findById(10L)).willReturn(Optional.of(batch(10L, BatchStatus.SENT)));
+
+    assertThatThrownBy(() -> service.giveFirstConfirmation(10L, 3L, "operator-1"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(409);
+    then(batchConfirmations).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void giveFirstConfirmation_unknownBatch_throwsNotFound() {
+    given(batchRepository.findById(999L)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.giveFirstConfirmation(999L, 3L, "operator-1"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(404);
+  }
+
+  @Test
   void confirmAndFinalize_alreadySentBatch_throwsConflict() {
     given(batchRepository.findById(10L)).willReturn(Optional.of(batch(10L, BatchStatus.SENT)));
 
-    assertThatThrownBy(() -> service.confirmAndFinalize(10L, "admin"))
+    assertThatThrownBy(() -> service.confirmAndFinalize(10L, 3L, "admin"))
         .isInstanceOf(ResponseStatusException.class)
         .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
         .isEqualTo(409);
@@ -515,6 +576,35 @@ class TransactionAdminServiceTest {
                 .createdAt(Instant.parse("2026-06-11T09:00:00Z"))
                 .payload(Map.of("from", "MOC", "to", "NAV", "actor", "operator-7"))
                 .build());
+  }
+
+  @Test
+  void setOrderType_firstLocksTheBatchSoAConcurrentConfirmationConflicts() {
+    TransactionOrder order = order(100L, batch(10L, DRAFT));
+    order.setOrderStatus(OrderStatus.DRAFT);
+    given(orderRepository.findById(100L)).willReturn(Optional.of(order));
+
+    service.setOrderType(100L, OrderType.NAV, "operator-7");
+
+    then(batchConfirmations).should().lockForOrderTypeChange(order.getBatch());
+  }
+
+  @Test
+  void setOrderType_batchChangedSinceTheOrderWasRead_throwsConflictAndMutatesNothing() {
+    TransactionOrder order = order(100L, batch(10L, DRAFT));
+    order.setOrderStatus(OrderStatus.DRAFT);
+    given(orderRepository.findById(100L)).willReturn(Optional.of(order));
+    willThrow(new ResponseStatusException(CONFLICT, "Batch was modified concurrently"))
+        .given(batchConfirmations)
+        .lockForOrderTypeChange(order.getBatch());
+
+    assertThatThrownBy(() -> service.setOrderType(100L, OrderType.NAV, "operator-7"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(409);
+    assertThat(order.getOrderType()).isEqualTo(OrderType.MOC);
+    then(orderRepository).should(never()).save(any());
+    then(auditEventRepository).should(never()).save(any());
   }
 
   @Test

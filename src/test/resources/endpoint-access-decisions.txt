@@ -143,6 +143,7 @@ ADMIN_TOKEN_HOLDER POST /admin/tracking-difference-backfill
 ADMIN_TOKEN_HOLDER POST /admin/transaction-batches/{id}/cancel
 ADMIN_TOKEN_HOLDER POST /admin/transaction-batches/{id}/confirm
 ADMIN_TOKEN_HOLDER POST /admin/transaction-batches/{id}/discard
+ADMIN_TOKEN_HOLDER POST /admin/transaction-batches/{id}/first-confirmation
 ADMIN_TOKEN_HOLDER POST /admin/transaction-commands
 ADMIN_TOKEN_HOLDER POST /admin/transaction-commands/batch
 ADMIN_TOKEN_HOLDER POST /admin/transaction-orders/{id}/cancel

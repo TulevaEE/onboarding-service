@@ -18,6 +18,10 @@ record CashSourceReport(
     @Nullable BigDecimal reportCash,
     List<CalculationWarning> warnings) {
 
+  CashSourceReport withWarnings(List<CalculationWarning> differenceWarnings) {
+    return new CashSourceReport(source, gateway, reportCash, differenceWarnings);
+  }
+
   @Nullable BigDecimal gatewayMinusReportCash() {
     return gateway instanceof CurrentDayBalance current && reportCash != null
         ? current.balance().subtract(reportCash)

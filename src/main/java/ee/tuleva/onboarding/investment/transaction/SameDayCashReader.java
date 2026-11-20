@@ -48,13 +48,13 @@ class SameDayCashReader {
       @Nullable BigDecimal operatorAmount,
       @Nullable BigDecimal reportCash) {
     GatewayCash gateway = isToday(asOfDate) ? gatewayCash(fund, asOfDate) : new NotTodaysRun();
-    return new CashSourceReport(
-        operatorAmount == null ? CashSource.POSITION_REPORT : CashSource.OPERATOR_AMOUNT,
-        gateway,
-        reportCash,
-        gateway instanceof CurrentDayBalance current && reportCash != null
-            ? differenceWarning(fund, asOfDate, current, reportCash).stream().toList()
-            : List.of());
+    CashSourceReport report =
+        new CashSourceReport(
+            operatorAmount == null ? CashSource.POSITION_REPORT : CashSource.OPERATOR_AMOUNT,
+            gateway,
+            reportCash,
+            List.of());
+    return report.withWarnings(differenceWarning(fund, asOfDate, report).stream().toList());
   }
 
   private boolean isToday(LocalDate asOfDate) {
@@ -75,8 +75,13 @@ class SameDayCashReader {
   }
 
   private Optional<CalculationWarning> differenceWarning(
-      TulevaFund fund, LocalDate asOfDate, CurrentDayBalance current, BigDecimal reportCash) {
-    BigDecimal difference = current.balance().subtract(reportCash);
+      TulevaFund fund, LocalDate asOfDate, CashSourceReport report) {
+    return Optional.ofNullable(report.gatewayMinusReportCash())
+        .flatMap(difference -> differenceWarning(fund, asOfDate, difference));
+  }
+
+  private Optional<CalculationWarning> differenceWarning(
+      TulevaFund fund, LocalDate asOfDate, BigDecimal difference) {
     BigDecimal shareOfNav =
         investmentParameterRepository.findLatestValue(
             CASH_SOURCES_DIFFERENCE_SHARE_OF_NAV, asOfDate);
@@ -89,13 +94,10 @@ class SameDayCashReader {
                 new CalculationWarning(
                     CASH_SOURCES_DIFFER,
                     ("⚠️ SEB current-day balance differs from the position report's cash by more"
-                            + " than %s%% of NAV: fund=%s, gatewayBalance=%s, reportCash=%s,"
-                            + " difference=%s, nav=%s")
+                            + " than %s%% of NAV: fund=%s, gatewayMinusReportCash=%s, nav=%s")
                         .formatted(
                             shareOfNav.movePointRight(2).stripTrailingZeros().toPlainString(),
                             fund.name(),
-                            current.balance().toPlainString(),
-                            reportCash.toPlainString(),
                             difference.toPlainString(),
                             nav.setScale(2, HALF_UP).toPlainString())));
   }

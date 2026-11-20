@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.banking.CurrentDayReport;
 import ee.tuleva.onboarding.banking.CurrentDayReport.Booked;
 import ee.tuleva.onboarding.banking.CurrentDayReport.Missing;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
+import ee.tuleva.onboarding.investment.transaction.CashSourceReport.SourcesDifference;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.CurrentDayBalance;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.NoBookedBalance;
 import ee.tuleva.onboarding.investment.transaction.GatewayCash.NoCurrentDayReportToday;
@@ -76,12 +77,14 @@ class SameDayCashReader {
 
   private Optional<CalculationWarning> differenceWarning(
       TulevaFund fund, LocalDate asOfDate, CashSourceReport report) {
-    return Optional.ofNullable(report.gatewayMinusReportCash())
+    return report
+        .sourcesDifference()
         .flatMap(difference -> differenceWarning(fund, asOfDate, difference));
   }
 
   private Optional<CalculationWarning> differenceWarning(
-      TulevaFund fund, LocalDate asOfDate, BigDecimal difference) {
+      TulevaFund fund, LocalDate asOfDate, SourcesDifference sources) {
+    BigDecimal difference = sources.gatewayMinusReportCash();
     BigDecimal shareOfNav =
         investmentParameterRepository.findLatestValue(
             CASH_SOURCES_DIFFERENCE_SHARE_OF_NAV, asOfDate);
@@ -94,10 +97,13 @@ class SameDayCashReader {
                 new CalculationWarning(
                     CASH_SOURCES_DIFFER,
                     ("⚠️ SEB current-day balance differs from the position report's cash by more"
-                            + " than %s%% of NAV: fund=%s, gatewayMinusReportCash=%s, nav=%s")
+                            + " than %s%% of NAV: fund=%s, gatewayBalance=%s, reportCash=%s,"
+                            + " difference=%s, nav=%s")
                         .formatted(
                             shareOfNav.movePointRight(2).stripTrailingZeros().toPlainString(),
                             fund.name(),
+                            sources.gatewayBalance().toPlainString(),
+                            sources.reportCash().toPlainString(),
                             difference.toPlainString(),
                             nav.setScale(2, HALF_UP).toPlainString())));
   }

@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -22,10 +23,21 @@ record CashSourceReport(
     return new CashSourceReport(source, gateway, reportCash, differenceWarnings);
   }
 
-  @Nullable BigDecimal gatewayMinusReportCash() {
+  Optional<SourcesDifference> sourcesDifference() {
     return gateway instanceof CurrentDayBalance current && reportCash != null
-        ? current.balance().subtract(reportCash)
-        : null;
+        ? Optional.of(new SourcesDifference(current.balance(), reportCash))
+        : Optional.empty();
+  }
+
+  @Nullable BigDecimal gatewayMinusReportCash() {
+    return sourcesDifference().map(SourcesDifference::gatewayMinusReportCash).orElse(null);
+  }
+
+  record SourcesDifference(BigDecimal gatewayBalance, BigDecimal reportCash) {
+
+    BigDecimal gatewayMinusReportCash() {
+      return gatewayBalance.subtract(reportCash);
+    }
   }
 
   Map<String, Object> payload() {

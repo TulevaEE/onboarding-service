@@ -78,7 +78,11 @@ class TradePrepPositionGateTest {
 
     assertThat(
             gates
-                .check(TKF100, POSITION_DATE, new TradePrepOverrides(Set.of("X"), List.of(), null))
+                .check(
+                    TKF100,
+                    POSITION_DATE,
+                    new TradePrepOverrides(
+                        Set.of("X"), List.of(), null, PriceDateRule.FRESHEST_PER_INSTRUMENT))
                 .failures())
         .containsExactly(new HoldingMismatch("A", POSITION_DATE, new BigDecimal("5"), null));
   }
@@ -99,7 +103,8 @@ class TradePrepPositionGateTest {
             new TradePrepOverrides(
                 Set.of(),
                 List.of(),
-                new AcceptedHoldingDifferences(Set.of("A", "C"), "Booked late")));
+                new AcceptedHoldingDifferences(Set.of("A", "C"), "Booked late"),
+                PriceDateRule.FRESHEST_PER_INSTRUMENT));
 
     assertThat(check)
         .isEqualTo(
@@ -128,7 +133,10 @@ class TradePrepPositionGateTest {
                     TKF100,
                     POSITION_DATE,
                     new TradePrepOverrides(
-                        Set.of(), List.of(), new AcceptedHoldingDifferences(Set.of("A"), "Late")))
+                        Set.of(),
+                        List.of(),
+                        new AcceptedHoldingDifferences(Set.of("A"), "Late"),
+                        PriceDateRule.FRESHEST_PER_INSTRUMENT))
                 .failures())
         .containsExactly(new NoRegistryHoldings(POSITION_DATE));
     assertThat(
@@ -139,7 +147,8 @@ class TradePrepPositionGateTest {
                     new TradePrepOverrides(
                         Set.of(),
                         List.of(),
-                        new AcceptedHoldingDifferences(Set.of("A", "B"), "Baseline loads tonight")))
+                        new AcceptedHoldingDifferences(Set.of("A", "B"), "Baseline loads tonight"),
+                        PriceDateRule.FRESHEST_PER_INSTRUMENT))
                 .failures())
         .isEmpty();
   }
@@ -154,7 +163,10 @@ class TradePrepPositionGateTest {
                 TKF100,
                 POSITION_DATE,
                 new TradePrepOverrides(
-                    Set.of(), List.of(), new AcceptedHoldingDifferences(Set.of("A"), "Late"))))
+                    Set.of(),
+                    List.of(),
+                    new AcceptedHoldingDifferences(Set.of("A"), "Late"),
+                    PriceDateRule.FRESHEST_PER_INSTRUMENT)))
         .isEqualTo(
             new PositionCheck(
                 List.of(new UnquantifiedReportHoldings(POSITION_DATE, List.of("A"))),

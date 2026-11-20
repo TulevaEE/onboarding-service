@@ -9,12 +9,13 @@ import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @NullMarked
-record TradePrepPricing(Map<String, BigDecimal> manualPrices) {
+record TradePrepPricing(Map<String, BigDecimal> manualPrices, @Nullable LocalDate priceDate) {
 
   static TradePrepPricing freshest() {
-    return new TradePrepPricing(Map.of());
+    return new TradePrepPricing(Map.of(), null);
   }
 
   Optional<ResolvedPrice> resolve(PositionPriceResolver resolver, String isin, LocalDate asOfDate) {
@@ -23,6 +24,6 @@ record TradePrepPricing(Map<String, BigDecimal> manualPrices) {
       return Optional.of(
           ResolvedPrice.builder().usedPrice(manualPrice).validationStatus(OK).build());
     }
-    return resolver.resolve(isin, asOfDate);
+    return resolver.resolve(isin, priceDate == null ? asOfDate : priceDate);
   }
 }

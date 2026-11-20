@@ -503,7 +503,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -524,7 +524,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -552,7 +552,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -576,7 +576,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -597,7 +597,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -610,7 +610,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -631,7 +631,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, Set.of("LU1291106356"), null, null),
+                TKF100, REBALANCE, TEST_DATE, null, null, Set.of("LU1291106356"), null, null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -647,7 +647,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(manual), null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(manual), null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -671,7 +671,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(manual), null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(manual), null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -708,7 +708,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(stranger), null),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(stranger), null, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -740,7 +740,7 @@ class TransactionPipelineIntegrationTest {
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
-                TKF100, REBALANCE, TEST_DATE, null, null, null, null, accepted),
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, accepted, null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -775,7 +775,8 @@ class TransactionPipelineIntegrationTest {
                 null,
                 null,
                 null,
-                new AcceptedHoldingDifferences(Set.of("LU1291099718"), "Yesterday's difference")),
+                new AcceptedHoldingDifferences(Set.of("LU1291099718"), "Yesterday's difference"),
+                null),
             "operator");
 
     assertThat(response.status()).isEqualTo(FAILED);
@@ -816,10 +817,115 @@ class TransactionPipelineIntegrationTest {
                 null,
                 null,
                 null,
-                new AcceptedHoldingDifferences(reportHoldings, "Baseline loads tonight")),
+                new AcceptedHoldingDifferences(reportHoldings, "Baseline loads tonight"),
+                null),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
+  }
+
+  @Test
+  void theCommonDateRuleValuesEveryInstrumentAtTheLatestDayTheyAllHaveAPriceOn() {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO index_values (key, date, value, provider, updated_at)
+            SELECT key, DATE '2026-02-09', value * 2, provider, updated_at
+            FROM index_values WHERE date = DATE '2026-02-10' AND provider = 'EODHD'
+            """)
+        .update();
+    jdbcClient
+        .sql("DELETE FROM index_values WHERE key = 'ESGM.DE' AND date = DATE '2026-02-10'")
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                null,
+                null,
+                PriceDateRule.LATEST_COMMON_DATE),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.priceDateRule()).isEqualTo(PriceDateRule.LATEST_COMMON_DATE);
+    assertThat(response.calculationSnapshot()).containsEntry("commonPriceDate", "2026-02-09");
+    assertThat(response.calculationSnapshot().get("priceResolutions"))
+        .asInstanceOf(LIST)
+        .isNotEmpty()
+        .allSatisfy(
+            resolution ->
+                assertThat(resolution).asInstanceOf(MAP).containsEntry("priceDate", "2026-02-09"));
+  }
+
+  @Test
+  void theCommonDateRuleStopsTheFundWhenNoDayHasEveryPrice() {
+    jdbcClient
+        .sql(
+            "UPDATE index_values SET date = DATE '2026-02-09'"
+                + " WHERE key = 'ESGM.DE' AND date = DATE '2026-02-10'")
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                null,
+                null,
+                PriceDateRule.LATEST_COMMON_DATE),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            Ühist hinnapäeva pole (2026-01-27–2026-02-10): kontrolli hinnaallikaid või kasuta igaühe värskeimat hinda\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void aManualPriceStillWinsUnderTheCommonDateRuleAndIsLeftOutOfTheSearch() {
+    jdbcClient
+        .sql(
+            "UPDATE index_values SET date = DATE '2026-02-09'"
+                + " WHERE key = 'ESGM.DE' AND date = DATE '2026-02-10'")
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(new PriceOverride("IE00BMDBMY19", new BigDecimal("44"), "Issuer's NAV")),
+                null,
+                PriceDateRule.LATEST_COMMON_DATE),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.calculationSnapshot()).containsEntry("commonPriceDate", "2026-02-10");
+    var order =
+        response.orders().stream()
+            .filter(candidate -> candidate.instrumentIsin().equals("IE00BMDBMY19"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(order.orderQuantity())
+        .isEqualByComparingTo(order.orderAmount().divide(new BigDecimal("44"), 6, HALF_UP));
   }
 
   private void registryRow(String isin, String quantity) {

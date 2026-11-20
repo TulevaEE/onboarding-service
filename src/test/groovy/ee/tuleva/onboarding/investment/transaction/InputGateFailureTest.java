@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPevaR
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPositionReport;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPrices;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR16;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoCommonPriceDate;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoR45Loaded;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoRegistryHoldings;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoReportSecurities;
@@ -116,6 +117,16 @@ class InputGateFailureTest {
         .isEqualTo(
             "IE00BFG1TM61: registris puudub, SEB raportis 40 (2026-11-17): kontrolli registri"
                 + " tehinguid");
+  }
+
+  @Test
+  void noCommonPriceDateSaysWhichDaysWereSearchedAndWhatToDo() {
+    assertThat(
+            new NoCommonPriceDate(LocalDate.of(2026, 11, 3), LocalDate.of(2026, 11, 17))
+                .slackLine())
+        .isEqualTo(
+            "Ühist hinnapäeva pole (2026-11-03–2026-11-17): kontrolli hinnaallikaid või kasuta"
+                + " igaühe värskeimat hinda");
   }
 
   @Test

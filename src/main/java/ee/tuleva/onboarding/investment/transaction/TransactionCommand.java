@@ -73,6 +73,11 @@ public class TransactionCommand {
   @NotNull
   @Enumerated(STRING)
   @Builder.Default
+  private PriceDateRule priceDateRule = PriceDateRule.FRESHEST_PER_INSTRUMENT;
+
+  @NotNull
+  @Enumerated(STRING)
+  @Builder.Default
   private CommandStatus status = CommandStatus.PENDING;
 
   @Nullable private String errorMessage;
@@ -90,6 +95,7 @@ public class TransactionCommand {
     CashOverride cash = request.cash();
     Set<String> excludeIsins = request.excludeIsins();
     List<PriceOverride> prices = request.prices();
+    PriceDateRule priceDateRule = request.priceDateRule();
     return TransactionCommand.builder()
         .fund(request.fund())
         .mode(request.mode())
@@ -100,6 +106,8 @@ public class TransactionCommand {
         .excludeIsins(excludeIsins == null ? Set.of() : Set.copyOf(excludeIsins))
         .prices(prices == null ? List.of() : List.copyOf(prices))
         .acceptedHoldingDifferences(request.acceptedHoldingDifferences())
+        .priceDateRule(
+            priceDateRule == null ? PriceDateRule.FRESHEST_PER_INSTRUMENT : priceDateRule)
         .actor(actor)
         .status(CommandStatus.PROCESSING)
         .build();

@@ -9,15 +9,19 @@ import org.jspecify.annotations.Nullable;
 record TradePrepOverrides(
     Set<String> excludedIsins,
     List<PriceOverride> prices,
-    @Nullable AcceptedHoldingDifferences acceptedHoldingDifferences) {
+    @Nullable AcceptedHoldingDifferences acceptedHoldingDifferences,
+    PriceDateRule priceDateRule) {
 
   static TradePrepOverrides none() {
-    return new TradePrepOverrides(Set.of(), List.of(), null);
+    return new TradePrepOverrides(Set.of(), List.of(), null, PriceDateRule.FRESHEST_PER_INSTRUMENT);
   }
 
   static TradePrepOverrides of(TransactionCommand command) {
     return new TradePrepOverrides(
-        command.getExcludeIsins(), command.getPrices(), command.getAcceptedHoldingDifferences());
+        command.getExcludeIsins(),
+        command.getPrices(),
+        command.getAcceptedHoldingDifferences(),
+        command.getPriceDateRule());
   }
 
   List<String> acceptedDifferenceIsins() {

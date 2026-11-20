@@ -10,8 +10,7 @@ record PriceCheck(
     List<InputGateFailure> failures,
     TradePrepPricing pricing,
     List<UsedPriceOverride> priceOverrides,
-    List<PriceDeviation> confirmedDeviations,
-    List<String> withoutIndexPriceHistory) {
+    List<PriceDeviation> confirmedDeviations) {
 
   PriceCheck withDeviations(PriceDeviations deviations) {
     Stream<InputGateFailure> unconfirmed =
@@ -23,8 +22,7 @@ record PriceCheck(
     return new PriceCheck(
         Stream.concat(failures.stream(), unconfirmed).toList(),
         pricing,
-        priceOverrides,
-        deviations.confirmed(),
-        deviations.withoutIndexPriceHistory());
+        priceOverrides.stream().map(used -> used.checkedAgainst(deviations)).toList(),
+        deviations.confirmed());
   }
 }

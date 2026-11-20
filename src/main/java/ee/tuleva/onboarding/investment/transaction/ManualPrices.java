@@ -54,10 +54,14 @@ record ManualPrices(List<PriceOverride> overrides) {
         .map(
             override -> {
               ResolvedPrice indexPrice = indexPrices.get(override.isin());
-              boolean clearedAStop = indexPrice == null && !excludedIsins.contains(override.isin());
+              boolean excluded = excludedIsins.contains(override.isin());
+              boolean clearedAStop = indexPrice == null && !excluded;
               return new UsedPriceOverride(
                   override,
                   clearedAStop ? GateNeed.CLEARED_A_STOP : GateNeed.NOT_NEEDED,
+                  excluded
+                      ? ManualPriceDeviationCheck.SKIPPED_EXCLUDED
+                      : ManualPriceDeviationCheck.MEASURED,
                   indexPrice);
             })
         .toList();

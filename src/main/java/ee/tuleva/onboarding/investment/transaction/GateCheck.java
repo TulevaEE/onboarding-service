@@ -9,5 +9,4 @@ record GateCheck(
     TradePrepPricing pricing,
     List<UsedPriceOverride> priceOverrides,
     List<AcceptedHoldingDifference> acceptedDifferences,
-    List<PriceDeviation> confirmedPriceDeviations,
-    List<String> manualPricesWithoutIndexPriceHistory) {}
+    List<PriceDeviation> confirmedPriceDeviations) {}

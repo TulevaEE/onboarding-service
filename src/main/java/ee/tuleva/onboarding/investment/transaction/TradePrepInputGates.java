@@ -73,8 +73,7 @@ class TradePrepInputGates {
         prices.pricing(),
         prices.priceOverrides(),
         holdings.map(PositionCheck::acceptedDifferences).orElse(List.of()),
-        prices.confirmedDeviations(),
-        prices.withoutIndexPriceHistory());
+        prices.confirmedDeviations());
   }
 
   private Optional<InputGateFailure> r45(TulevaFund fund, LocalDate asOfDate) {

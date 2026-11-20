@@ -34,6 +34,15 @@ public class TradeSettlementBookings {
         .toList();
   }
 
+  @Transactional(readOnly = true)
+  public List<TradeSettlementBooking> bookedFor(
+      TulevaFund fund, LocalDate fromInclusive, LocalDate toInclusive) {
+    return bookedSince(fromInclusive).stream()
+        .filter(booking -> booking.fund() == fund)
+        .filter(booking -> !booking.bookingDate().isAfter(toInclusive))
+        .toList();
+  }
+
   private static TradeSettlementBooking booking(LedgerTransaction transaction) {
     return new TradeSettlementBooking(
         fund(transaction),

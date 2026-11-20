@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction.INFLOW;
+import static ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction.OUTFLOW;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
@@ -8,12 +10,14 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.context.annotation.FilterType.REGEX;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.investment.epis.PevaRavaCycle;
+import ee.tuleva.onboarding.investment.epis.R45Row;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
 import ee.tuleva.onboarding.time.ClockConfig;
@@ -22,6 +26,7 @@ import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -246,6 +251,43 @@ class GatewayNettingIT {
 
     assertThat(onTheExecutionDay.after()).isEqualByComparingTo("500000.00");
     assertThat(theDayBefore.after()).isEqualByComparingTo("400000.00");
+  }
+
+  @Test
+  void r45RowsSettlingTodayDropTheThirdPillarPayoutsBookedTodayAndTheirInflowsAreNotCounted() {
+    var window = new NettingWindow(TUV100, REPORT_DATE, TODAY, Set.of());
+    payout(TUV100, "70000.00", TODAY, "38888888888, Osakute lunastamine");
+    payout(TUV100, "10000.00", TODAY, "38888888888, Osakute vahetamine");
+    payout(TUV100, "5000.00", REPORT_DATE, "38888888888, Osakute lunastamine");
+    payout(TUV100, "9000.00", TODAY, "38888888888, Fondipensioni maksete lunastamine");
+
+    var netted =
+        netting.r45(
+            window,
+            List.of(
+                new R45Row(OUTFLOW, new BigDecimal("100000.00"), TODAY),
+                new R45Row(INFLOW, new BigDecimal("40000.00"), TODAY),
+                new R45Row(OUTFLOW, new BigDecimal("30000.00"), TODAY.plusDays(3)),
+                new R45Row(INFLOW, new BigDecimal("25000.00"), TODAY.plusDays(3)),
+                new R45Row(OUTFLOW, new BigDecimal("8000.00"), null),
+                new R45Row(OUTFLOW, new BigDecimal("50000.00"), REPORT_DATE)));
+
+    assertThat(netted.before()).isEqualByComparingTo("73000.00");
+    assertThat(netted.after()).isEqualByComparingTo("33000.00");
+  }
+
+  @Test
+  void laterR45RowsReserveOnlyTheOutflowBeyondTheirInflow() {
+    var window = new NettingWindow(TUV100, REPORT_DATE, TODAY, Set.of());
+
+    var netted =
+        netting.r45(
+            window,
+            List.of(
+                new R45Row(OUTFLOW, new BigDecimal("30000.00"), TODAY.plusDays(1)),
+                new R45Row(INFLOW, new BigDecimal("45000.00"), TODAY.plusDays(2))));
+
+    assertThat(netted.after()).isEqualByComparingTo("0");
   }
 
   private void payout(TulevaFund fund, String amount, LocalDate day, String remittance) {

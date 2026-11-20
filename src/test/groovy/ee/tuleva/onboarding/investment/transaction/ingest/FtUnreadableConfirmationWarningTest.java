@@ -1,0 +1,75 @@
+package ee.tuleva.onboarding.investment.transaction.ingest;
+
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+class FtUnreadableConfirmationWarningTest {
+
+  private static final Clock FIXED_CLOCK =
+      Clock.fixed(Instant.parse("2026-06-09T08:00:00Z"), ZoneOffset.UTC);
+  private static final LocalDate ALERTS_FROM = LocalDate.of(2026, 6, 1);
+  private static final String KEY = "ft-confirmations/a.pdf";
+  private static final FtUnreadableConfirmation UNREADABLE =
+      new FtUnreadableConfirmation(KEY, "malformed");
+
+  @Mock private FtConfirmationS3Source s3Source;
+  @Mock private FtConfirmationDigest digest;
+
+  private FtUnreadableConfirmationWarning warning;
+
+  @BeforeEach
+  void setUp() {
+    warning = new FtUnreadableConfirmationWarning(s3Source, digest, FIXED_CLOCK, ALERTS_FROM);
+  }
+
+  @Test
+  void pdfUploadedOnTheDayAlertsStart_isWarnedAbout() {
+    given(s3Source.lastModified(KEY))
+        .willReturn(Optional.of(Instant.parse("2026-06-01T00:00:00Z")));
+
+    warning.publish(List.of(UNREADABLE));
+
+    then(digest).should().publish(List.of(UNREADABLE));
+  }
+
+  @Test
+  void pdfUploadedBeforeAlertsStart_isNotWarnedAbout() {
+    given(s3Source.lastModified(KEY))
+        .willReturn(Optional.of(Instant.parse("2026-05-31T23:59:59Z")));
+
+    warning.publish(List.of(UNREADABLE));
+
+    then(digest).should().publish(List.of());
+  }
+
+  @Test
+  void pdfGoneBeforeItsUploadTimeIsRead_isNotWarnedAbout() {
+    given(s3Source.lastModified(KEY)).willReturn(Optional.empty());
+
+    warning.publish(List.of(UNREADABLE));
+
+    then(digest).should().publish(List.of());
+  }
+
+  @Test
+  void pdfWhoseUploadTimeCannotBeRead_isStillWarnedAbout() {
+    given(s3Source.lastModified(KEY)).willThrow(new IllegalStateException("S3 head failed"));
+
+    warning.publish(List.of(UNREADABLE));
+
+    then(digest).should().publish(List.of(UNREADABLE));
+  }
+}

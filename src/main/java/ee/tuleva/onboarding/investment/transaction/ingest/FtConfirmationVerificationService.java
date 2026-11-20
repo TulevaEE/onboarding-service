@@ -134,7 +134,7 @@ public class FtConfirmationVerificationService {
       return cancellationCheck.cancellation(confirmation, candidates, corrections);
     }
     if (corrections.isVoided(confirmation)) {
-      return cancellationCheck.voided(confirmation, candidates);
+      return FtCancellationCheck.voided(confirmation, candidates);
     }
     List<TransactionOrder> liveOrders = liveOrders(candidates);
     if (liveOrders.isEmpty() || matchesOnlyAWithdrawnOrder(confirmation, candidates, liveOrders)) {

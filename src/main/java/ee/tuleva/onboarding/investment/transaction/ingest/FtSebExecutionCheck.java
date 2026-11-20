@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.CONFIRMED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCHECKED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCONFIRMED;
 import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.tradeDate;
@@ -26,8 +25,6 @@ import org.springframework.stereotype.Component;
 class FtSebExecutionCheck {
 
   private static final int CONFIRMATION_PENDING_BUSINESS_DAYS = 1;
-  private static final FtConfirmationResult CONFIRMED_BY_FT =
-      new FtConfirmationResult(CONFIRMED, CONFIRMED, Map.of());
 
   private final FtPriceCheck priceCheck;
   private final Target2Calendar target2Calendar;
@@ -37,15 +34,11 @@ class FtSebExecutionCheck {
     return LocalDate.now(clock).isAfter(confirmationDueBy(order));
   }
 
-  FtExecutedTrade confirmed(TransactionOrder order, SebExecutedTotal executed) {
-    return trade(order, executed, CONFIRMED_BY_FT);
-  }
-
   FtExecutedTrade unconfirmed(TransactionOrder order, SebExecutedTotal executed) {
     Map<String, String> details = new LinkedHashMap<>();
     details.put("confirmationDueBy", confirmationDueBy(order).toString());
     FtVerificationStatus priceStatus = checkPrice(order, executed, details);
-    return trade(
+    return FtExecutedTrade.of(
         order, executed, new FtConfirmationResult(UNCONFIRMED, priceStatus, Map.copyOf(details)));
   }
 
@@ -72,17 +65,5 @@ class FtSebExecutionCheck {
       details.put("verificationError", e.getMessage() == null ? e.toString() : e.getMessage());
       return UNCHECKED;
     }
-  }
-
-  private static FtExecutedTrade trade(
-      TransactionOrder order, SebExecutedTotal executed, FtConfirmationResult result) {
-    return new FtExecutedTrade(
-        order.getFund(),
-        order.getInstrumentIsin(),
-        tradeDate(order),
-        order.getOrderUuid(),
-        executed.quantity(),
-        executed.averagePrice(),
-        result);
   }
 }

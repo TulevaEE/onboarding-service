@@ -22,14 +22,13 @@ record RebalanceMessage(String text, Severity severity) {
       case INFO -> Optional.of(opened(window));
       case WARNING -> Optional.of(deadlineApproaching(window));
       case FAIL -> Optional.of(deadlineMissed(window));
-      case OK -> window.closure().map(closure -> closed(window, closure));
+      case OK -> Optional.ofNullable(window.closure()).map(closure -> closed(window, closure));
     };
   }
 
   static RebalanceMessage ofSuperseded(SupersededWindow superseded) {
     var window = superseded.window();
-    return window
-        .closure()
+    return Optional.ofNullable(window.closure())
         .map(closure -> closed(window, closure))
         .orElseGet(() -> replacedBeforeComingIntoLine(window, superseded.replacedOn()));
   }

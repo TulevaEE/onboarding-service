@@ -510,8 +510,7 @@ class ModelRebalanceCheckIT {
     var window = rebalanceWindows.current(TUV100, LocalDate.of(2026, 11, 2)).orElseThrow();
 
     assertThat(window.modelEffectiveDate()).isEqualTo(NEW_MODEL);
-    assertThat(window.daysSinceModelEffectiveDate()).isEqualTo(32);
-    assertThat(window.changedIsins()).containsExactlyInAnyOrder(WORLD, NEW_WORLD);
+    assertThat(window.daysUntilDeadline()).isEqualTo(63);
     assertThat(window.deadline()).isEqualTo(LocalDate.of(2027, 1, 4));
     assertThat(window.closedOn()).isEmpty();
     assertThat(window.closed()).isFalse();

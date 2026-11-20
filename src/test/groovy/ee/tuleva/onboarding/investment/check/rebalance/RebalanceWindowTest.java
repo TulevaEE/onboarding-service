@@ -10,7 +10,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
@@ -39,63 +38,32 @@ class RebalanceWindowTest {
   }
 
   @Test
-  void anInLineNavSinceTheEffectiveDate_closesTheWindowWhateverTheDate() {
-    var inLineSince = LocalDate.of(2026, 9, 2);
+  void aClosure_closesTheWindowWhateverTheDate() {
+    var closure = RebalanceClosure.byAnInLineNav(LocalDate.of(2026, 9, 2));
 
-    assertThat(window(LocalDate.of(2026, 9, 3), inLineSince).state()).isEqualTo(OK);
-    assertThat(window(WARNING_FROM, inLineSince).state()).isEqualTo(OK);
-    assertThat(window(LocalDate.of(2027, 3, 1), inLineSince).state()).isEqualTo(OK);
-    assertThat(window(LocalDate.of(2027, 3, 1), inLineSince).closedOn()).contains(inLineSince);
+    assertThat(window(LocalDate.of(2026, 9, 3), closure).state()).isEqualTo(OK);
+    assertThat(window(WARNING_FROM, closure).state()).isEqualTo(OK);
+    assertThat(window(LocalDate.of(2027, 3, 1), closure).state()).isEqualTo(OK);
+    assertThat(window(LocalDate.of(2027, 3, 1), closure).closedOn())
+        .contains(LocalDate.of(2026, 9, 2));
     assertThat(window(LocalDate.of(2027, 3, 1), null).closedOn()).isEmpty();
   }
 
   @Test
-  void aRebalancingTradeClosesTheWindowEvenPastTheDeadlineAndWithoutAnInLineNav() {
-    var tradeDate = LocalDate.of(2026, 12, 3);
-
-    assertThat(window(LocalDate.of(2026, 12, 4), null, tradeDate).state()).isEqualTo(OK);
-    assertThat(window(LocalDate.of(2026, 12, 4), null, tradeDate).closure())
-        .contains(RebalanceClosure.byRebalancingTrades(tradeDate));
+  void countsDaysUntilTheDeadline() {
+    assertThat(window(LocalDate.of(2026, 10, 1), null).daysUntilDeadline()).isEqualTo(61);
+    assertThat(window(DEADLINE, null).daysUntilDeadline()).isZero();
   }
 
-  @Test
-  void whicheverOfAnInLineNavAndARebalancingTradeComesFirstClosesTheWindowAndANavWinsATie() {
-    var earlier = LocalDate.of(2026, 10, 5);
-    var later = LocalDate.of(2026, 10, 9);
-    var checkDate = LocalDate.of(2026, 10, 12);
-
-    assertThat(window(checkDate, later, earlier).closure())
-        .contains(RebalanceClosure.byRebalancingTrades(earlier));
-    assertThat(window(checkDate, earlier, later).closure())
-        .contains(RebalanceClosure.byAnInLineNav(earlier));
-    assertThat(window(checkDate, earlier, earlier).closure())
-        .contains(RebalanceClosure.byAnInLineNav(earlier));
-  }
-
-  @Test
-  void countsDaysFromTheEffectiveDateAndUntilTheDeadline() {
-    var window = window(LocalDate.of(2026, 10, 1), null);
-
-    assertThat(window.daysSinceModelEffectiveDate()).isEqualTo(30);
-    assertThat(window.daysUntilDeadline()).isEqualTo(61);
-  }
-
-  private static RebalanceWindow window(LocalDate checkDate, @Nullable LocalDate inLineSince) {
-    return window(checkDate, inLineSince, null);
-  }
-
-  private static RebalanceWindow window(
-      LocalDate checkDate, @Nullable LocalDate inLineSince, @Nullable LocalDate rebalancedOn) {
+  private static RebalanceWindow window(LocalDate checkDate, @Nullable RebalanceClosure closure) {
     return new RebalanceWindow(
         TUV100,
         EFFECTIVE,
         checkDate,
         new BigDecimal("0.05"),
-        Set.of("WORLD", "NEW_WORLD"),
         null,
         List.of(),
-        inLineSince,
-        rebalancedOn,
+        closure,
         DEADLINE,
         WARNING_FROM);
   }

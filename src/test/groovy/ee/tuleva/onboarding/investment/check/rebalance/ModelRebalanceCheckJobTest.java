@@ -28,7 +28,6 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -227,11 +226,9 @@ class ModelRebalanceCheckJobTest {
         LocalDate.of(2026, 6, 1),
         LocalDate.of(2026, 9, 30),
         new BigDecimal("0.05"),
-        Set.of("IE00BFG1TM61"),
         LocalDate.of(2026, 9, 29),
         List.of(),
-        LocalDate.of(2026, 9, 29),
-        null,
+        RebalanceClosure.byAnInLineNav(LocalDate.of(2026, 9, 29)),
         LocalDate.of(2026, 9, 1),
         LocalDate.of(2026, 8, 17));
   }
@@ -242,10 +239,8 @@ class ModelRebalanceCheckJobTest {
         LocalDate.of(2026, 8, 3),
         MONDAY,
         new BigDecimal("0.05"),
-        Set.of("IE00BFG1TM61"),
         null,
         List.of(),
-        null,
         null,
         LocalDate.of(2026, 11, 3),
         LocalDate.of(2026, 10, 19));

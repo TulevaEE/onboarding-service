@@ -138,7 +138,7 @@ class ModelRebalanceCheckIT {
         .sendMessage(
             """
             ⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026, jäänud 15 päeva; \
-            tasakaalustamise tehinguid pole tehtud
+            Rebalance-jooksu tehinguid pole
             Üle 5 pp (NAV 13.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
             Tee tasakaalustamise tehingud või vii fond tähtajaks 5 pp piiresse""",
             INVESTMENT,
@@ -154,7 +154,7 @@ class ModelRebalanceCheckIT {
         .sendMessage(
             """
             🛑 TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole mudeliga \
-            vastavuses ja tasakaalustamise tehinguid pole tehtud
+            vastavuses ja Rebalance-jooksu tehinguid pole
             Üle 5 pp (NAV 30.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
             Vii fond 5 pp piiresse (sisekord 4 p 2.6.1)""",
             INVESTMENT,

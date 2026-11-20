@@ -18,35 +18,48 @@ class ModelVersionsTest {
   private static final LocalDate CURRENT = LocalDate.of(2026, 10, 1);
 
   @Test
-  void aWeightChangeAnAddedInstrumentAndARemovedOne_areAllChangedInstruments() {
-    var previous =
-        List.of(allocation(PREVIOUS, "WORLD", "0.60"), allocation(PREVIOUS, "EMERGING", "0.40"));
-    var current =
-        List.of(
-            allocation(CURRENT, "EMERGING", "0.30"),
-            allocation(CURRENT, "EUROPE", "0.10"),
-            allocation(CURRENT, "USA", "0.60"));
+  void aChangedWeight_anAddedInstrument_aRemovedOneAndOneSetToZero_eachMakeAChange() {
+    var weightChanged =
+        history(
+            List.of(
+                allocation(PREVIOUS, "WORLD", "0.60"), allocation(PREVIOUS, "EMERGING", "0.40")),
+            List.of(allocation(CURRENT, "WORLD", "0.50"), allocation(CURRENT, "EMERGING", "0.50")));
+    var added =
+        history(
+            List.of(allocation(PREVIOUS, "WORLD", "1.00")),
+            List.of(allocation(CURRENT, "WORLD", "1.00"), allocation(CURRENT, "NEW", "0.10")));
+    var removed =
+        history(
+            List.of(allocation(PREVIOUS, "WORLD", "1.00"), allocation(PREVIOUS, "OLD", "0.10")),
+            List.of(allocation(CURRENT, "WORLD", "1.00")));
+    var setToZero =
+        history(
+            List.of(allocation(PREVIOUS, "WORLD", "1.00"), allocation(PREVIOUS, "OLD", "0.10")),
+            List.of(allocation(CURRENT, "WORLD", "1.00"), allocation(CURRENT, "OLD", "0")));
 
-    var change = changesIn(history(previous, current)).getFirst();
-
-    assertThat(change.effectiveDate()).isEqualTo(CURRENT);
-    assertThat(change.changedIsins())
-        .containsExactlyInAnyOrder("WORLD", "EMERGING", "EUROPE", "USA");
+    assertThat(List.of(weightChanged, added, removed, setToZero))
+        .allSatisfy(
+            history ->
+                assertThat(changesIn(history))
+                    .extracting(ModelChange::effectiveDate)
+                    .containsExactly(CURRENT));
   }
 
   @Test
-  void anInstrumentKeptAtZeroInTheNewVersion_isRemovedAndOneAtZeroInBoth_isUnchanged() {
+  void anInstrumentAtZeroInBothVersions_orDroppedAfterBeingAtZero_isNoChange() {
     var previous =
         List.of(allocation(PREVIOUS, "WORLD", "1.00"), allocation(PREVIOUS, "LIQUIDATED", "0.00"));
-    var current =
-        List.of(
-            allocation(CURRENT, "WORLD", "0"),
-            allocation(CURRENT, "LIQUIDATED", "0"),
-            allocation(CURRENT, "NEW_WORLD", "1.00"));
 
-    var change = changesIn(history(previous, current)).getFirst();
-
-    assertThat(change.changedIsins()).containsExactlyInAnyOrder("WORLD", "NEW_WORLD");
+    assertThat(
+            changesIn(
+                history(
+                    previous,
+                    List.of(
+                        allocation(CURRENT, "WORLD", "1.00"),
+                        allocation(CURRENT, "LIQUIDATED", "0")))))
+        .isEmpty();
+    assertThat(changesIn(history(previous, List.of(allocation(CURRENT, "WORLD", "1.00")))))
+        .isEmpty();
   }
 
   @Test
@@ -76,10 +89,7 @@ class ModelVersionsTest {
             allocation(CURRENT, "NEW_WORLD", "1.00"),
             allocation(later, "NEW_WORLD", "1.000"));
 
-    var change = changesIn(history).getFirst();
-
-    assertThat(change.effectiveDate()).isEqualTo(CURRENT);
-    assertThat(change.changedIsins()).containsExactlyInAnyOrder("WORLD", "NEW_WORLD");
+    assertThat(changesIn(history)).extracting(ModelChange::effectiveDate).containsExactly(CURRENT);
   }
 
   @Test
@@ -91,10 +101,7 @@ class ModelVersionsTest {
             allocation(PREVIOUS, "WORLD", "1.00"),
             allocation(CURRENT, "NEW_WORLD", "1.00"));
 
-    var change = changesIn(history).getFirst();
-
-    assertThat(change.effectiveDate()).isEqualTo(later);
-    assertThat(change.changedIsins()).containsExactlyInAnyOrder("NEW_WORLD", "EUROPE");
+    assertThat(changesIn(history).getFirst().effectiveDate()).isEqualTo(later);
   }
 
   @Test
@@ -124,21 +131,23 @@ class ModelVersionsTest {
   }
 
   @Test
-  void theWeightsOnADate_areThoseOfTheNewestVersionOnOrBeforeItIncludingItsZeroPercentRows() {
+  void aChangesWeightsOnADate_areThoseOfTheNewestVersionOnOrBeforeItIncludingItsZeroPercentRows() {
     var later = LocalDate.of(2026, 10, 15);
-    var versions =
-        ModelVersions.of(
-            List.of(
-                allocation(PREVIOUS, "WORLD", "1.00"),
-                allocation(CURRENT, "NEW_WORLD", "1.00"),
-                allocation(later, "NEW_WORLD", "1.00"),
-                allocation(later, "HELD", "0"),
-                allocation(later, null, "0.01")));
+    var change =
+        changesIn(
+                List.of(
+                    allocation(PREVIOUS, "WORLD", "1.00"),
+                    allocation(CURRENT, "NEW_WORLD", "1.00"),
+                    allocation(later, "NEW_WORLD", "1.00"),
+                    allocation(later, "HELD", "0"),
+                    allocation(later, null, "0.01")))
+            .getFirst();
 
-    assertThat(versions.weightsOn(CURRENT)).isEqualTo(Map.of("NEW_WORLD", new BigDecimal("1.00")));
-    assertThat(versions.weightsOn(later.minusDays(1)))
+    assertThat(change.effectiveDate()).isEqualTo(CURRENT);
+    assertThat(change.weightsOn(CURRENT)).isEqualTo(Map.of("NEW_WORLD", new BigDecimal("1.00")));
+    assertThat(change.weightsOn(later.minusDays(1)))
         .isEqualTo(Map.of("NEW_WORLD", new BigDecimal("1.00")));
-    assertThat(versions.weightsOn(later.plusDays(5)))
+    assertThat(change.weightsOn(later.plusDays(5)))
         .isEqualTo(Map.of("NEW_WORLD", new BigDecimal("1.00"), "HELD", new BigDecimal("0")));
   }
 

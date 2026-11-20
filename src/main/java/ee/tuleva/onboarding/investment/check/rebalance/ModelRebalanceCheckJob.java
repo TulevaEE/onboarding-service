@@ -61,8 +61,7 @@ class ModelRebalanceCheckJob {
   }
 
   private void announce(RebalanceWindow window) {
-    RebalanceMessage.of(window)
-        .ifPresent(message -> postThenRecordSoNoAnnouncementIsLost(window, message));
+    postThenRecordSoNoAnnouncementIsLost(window, RebalanceMessage.of(window));
   }
 
   private void postThenRecordSoNoAnnouncementIsLost(

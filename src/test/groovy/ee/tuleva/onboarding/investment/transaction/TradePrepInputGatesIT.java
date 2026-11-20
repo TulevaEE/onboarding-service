@@ -53,6 +53,7 @@ import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR16;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR45;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoR45Loaded;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.StalePositionReport;
+import ee.tuleva.onboarding.ledger.RegistrarCashFlowRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -81,6 +82,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
   TradePrepPevaRavaGate.class,
   TradePrepInputGateNotifier.class,
   R16OutflowReader.class,
+  RegistrarCashFlowRepository.class,
   R16FlowCalculationService.class,
   R16PhaseCalculator.class,
   R45ReportService.class,
@@ -417,7 +419,7 @@ class TradePrepInputGatesIT {
     givenNav(TUV100, WEDNESDAY, "2.00000");
 
     assertThat(gates.check(TUV100, WEDNESDAY, noOverrides()).failures()).isEmpty();
-    assertThat(r16OutflowReader.read(TUV100, WEDNESDAY)).isZero();
+    assertThat(r16OutflowReader.read(TUV100, WEDNESDAY, TUESDAY).reserved()).isZero();
   }
 
   @Test
@@ -427,7 +429,8 @@ class TradePrepInputGatesIT {
     r16(YearMonth.of(2026, 12), TUK75, 7000);
     givenNav(TUK75, thursday, "2.00000");
 
-    assertThat(r16OutflowReader.read(TUK75, thursday)).isEqualByComparingTo("2000");
+    assertThat(r16OutflowReader.read(TUK75, thursday, thursday.minusDays(1)).reserved())
+        .isEqualByComparingTo("2000");
   }
 
   @Test

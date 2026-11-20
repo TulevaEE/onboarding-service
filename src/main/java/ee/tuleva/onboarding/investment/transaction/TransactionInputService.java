@@ -112,7 +112,7 @@ public class TransactionInputService {
 
     BigDecimal pevaRava = getPevaRavaLiquidity(fund, asOfDate);
     liabilities = liabilities.add(pevaRava);
-    BigDecimal r16 = r16OutflowReader.read(fund, asOfDate);
+    BigDecimal r16 = r16OutflowReader.read(fund, asOfDate, positionDate).reserved();
     liabilities = liabilities.add(r16);
 
     BigDecimal r45Net = getR45Net(fund, asOfDate);

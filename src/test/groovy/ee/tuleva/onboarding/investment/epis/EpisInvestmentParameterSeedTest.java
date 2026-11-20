@@ -4,8 +4,6 @@ import static ee.tuleva.onboarding.investment.config.InvestmentParameter.PEVA_RA
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.PEVA_RAVA_PAYMENT_LIMIT_ROUNDING_STEP;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.PEVA_RAVA_TRADE_BUFFER_PERCENT;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.PEVA_RAVA_TRADE_ROUNDING_STEP;
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_BUFFER_PERCENT;
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_ROUNDING_STEP;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,14 +23,6 @@ class EpisInvestmentParameterSeedTest {
   private static final LocalDate AS_OF = LocalDate.of(2026, 6, 12);
 
   @Autowired private InvestmentParameterRepository repository;
-
-  @Test
-  void r16ParametersAreSeeded() {
-    assertThat(repository.findLatestValue(R16_BUFFER_PERCENT, AS_OF))
-        .isEqualByComparingTo(new BigDecimal("0.02"));
-    assertThat(repository.findLatestValue(R16_ROUNDING_STEP, AS_OF))
-        .isEqualByComparingTo(new BigDecimal("1000"));
-  }
 
   @Test
   void pevaRavaPaymentLimitParametersAreSeeded() {

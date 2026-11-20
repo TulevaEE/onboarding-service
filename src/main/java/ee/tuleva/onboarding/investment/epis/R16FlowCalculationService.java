@@ -52,7 +52,9 @@ public class R16FlowCalculationService {
         totalOutflowEur,
         dates.paymentMonth(),
         dates.paymentDeadline(),
-        dates.sellByDate());
+        dates.sellByDate(),
+        fondimaksedUnits.multiply(nav),
+        uhekordsedUnits.multiply(nav));
   }
 
   public boolean isLoaded(YearMonth paymentMonth) {

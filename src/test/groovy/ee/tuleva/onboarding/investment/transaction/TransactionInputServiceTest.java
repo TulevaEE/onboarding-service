@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_BUFFER_PERCENT;
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_ROUNDING_STEP;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.position.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
@@ -25,7 +23,6 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
-import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.epis.FundCycleTimeline;
 import ee.tuleva.onboarding.investment.epis.PevaRavaCycle;
 import ee.tuleva.onboarding.investment.epis.PevaRavaFlowService;
@@ -33,10 +30,6 @@ import ee.tuleva.onboarding.investment.epis.PevaRavaFlows;
 import ee.tuleva.onboarding.investment.epis.PevaRavaPeriod;
 import ee.tuleva.onboarding.investment.epis.PevaRavaPeriodService;
 import ee.tuleva.onboarding.investment.epis.PevaRavaPhase;
-import ee.tuleva.onboarding.investment.epis.R16FlowCalculationService;
-import ee.tuleva.onboarding.investment.epis.R16FundFlow;
-import ee.tuleva.onboarding.investment.epis.R16Phase;
-import ee.tuleva.onboarding.investment.epis.R16PhaseCalculator;
 import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.epis.R45Result;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
@@ -82,9 +75,7 @@ class TransactionInputServiceTest {
   @Mock private PevaRavaPeriodService pevaRavaPeriodService;
   @Mock private PevaRavaFlowService pevaRavaFlowService;
   @Mock private R45ReportService r45ReportService;
-  @Mock private R16FlowCalculationService r16FlowCalculationService;
-  @Mock private R16PhaseCalculator r16PhaseCalculator;
-  @Mock private InvestmentParameterRepository investmentParameterRepository;
+  @Mock private R16OutflowReader r16OutflowReader;
   @Mock private PendingOrderImpactService pendingOrderImpactService;
   @Mock private RegistrarCashFlowRepository registrarCashFlowRepository;
 
@@ -96,6 +87,7 @@ class TransactionInputServiceTest {
     lenient()
         .when(pendingOrderImpactService.calculate(any(), any(), any(), any()))
         .thenReturn(PendingOrderImpact.none());
+    lenient().when(r16OutflowReader.read(any(), any(), any())).thenReturn(R16Reserve.NONE);
     lenient()
         .when(feeChargedToFundPolicy.resolverFor(any(), any()))
         .thenAnswer(
@@ -110,8 +102,7 @@ class TransactionInputServiceTest {
             pevaRavaPeriodService,
             pevaRavaFlowService,
             r45ReportService,
-            new R16OutflowReader(
-                r16FlowCalculationService, r16PhaseCalculator, investmentParameterRepository),
+            r16OutflowReader,
             pendingOrderImpactService,
             new PositionAssembler(fundPositionRepository),
             new UnsettledTradeReader(fundPositionRepository),
@@ -937,116 +928,21 @@ class TransactionInputServiceTest {
   }
 
   @Test
-  void gatherInput_r16ActivePhase_addsTotalOutflowToLiabilities() {
+  void gatherInput_reservesTheR16AmountForThePayoutTypesNotBookedByTheReportDate() {
     stubEmptyBaseline(TUV100);
-    var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
-        .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
-        .willReturn(R16Phase.ACTIVE);
+    given(r16OutflowReader.read(TUV100, AS_OF_DATE, AS_OF_DATE))
+        .willReturn(
+            new R16Reserve(
+                R16Reserve.Basis.FORECAST_NOT_YET_BOOKED,
+                List.of(),
+                new BigDecimal("1000000"),
+                new BigDecimal("500000"),
+                new BigDecimal("10500")));
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("10500"));
     assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("-10500"));
-  }
-
-  @Test
-  void gatherInput_r16BufferedPhase_addsBufferedRoundedOutflowToLiabilities() {
-    stubEmptyBaseline(TUV100);
-    var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
-        .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
-        .willReturn(R16Phase.BUFFERED);
-    given(investmentParameterRepository.findLatestValue(R16_BUFFER_PERCENT, AS_OF_DATE))
-        .willReturn(new BigDecimal("0.02"));
-    given(investmentParameterRepository.findLatestValue(R16_ROUNDING_STEP, AS_OF_DATE))
-        .willReturn(new BigDecimal("1000"));
-
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
-
-    // 10500 * 1.02 = 10710 -> rounded up to step 1000 -> 11000
-    assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("11000"));
-  }
-
-  @Test
-  void gatherInput_r16BufferedPhase_rejectsZeroRoundingStep() {
-    stubEmptyBaseline(TUV100);
-    var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
-        .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
-        .willReturn(R16Phase.BUFFERED);
-    given(investmentParameterRepository.findLatestValue(R16_BUFFER_PERCENT, AS_OF_DATE))
-        .willReturn(new BigDecimal("0.02"));
-    given(investmentParameterRepository.findLatestValue(R16_ROUNDING_STEP, AS_OF_DATE))
-        .willReturn(ZERO);
-
-    assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices()))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("R16_ROUNDING_STEP")
-        .hasMessageContaining("value=0");
-  }
-
-  @Test
-  void gatherInput_r16BufferedPhase_rejectsNegativeRoundingStep() {
-    stubEmptyBaseline(TUV100);
-    var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
-        .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
-        .willReturn(R16Phase.BUFFERED);
-    given(investmentParameterRepository.findLatestValue(R16_BUFFER_PERCENT, AS_OF_DATE))
-        .willReturn(new BigDecimal("0.02"));
-    given(investmentParameterRepository.findLatestValue(R16_ROUNDING_STEP, AS_OF_DATE))
-        .willReturn(new BigDecimal("-1000"));
-
-    assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices()))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("R16_ROUNDING_STEP")
-        .hasMessageContaining("value=-1000");
-  }
-
-  @Test
-  void gatherInput_r16VisiblePhase_addsNothing() {
-    stubEmptyBaseline(TUV100);
-    var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
-        .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
-        .willReturn(R16Phase.VISIBLE);
-
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
-
-    assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
-    org.mockito.Mockito.verifyNoInteractions(investmentParameterRepository);
-  }
-
-  @Test
-  void gatherInput_r16IgnorePhase_addsNothing() {
-    stubEmptyBaseline(TUV100);
-    var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
-        .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
-        .willReturn(R16Phase.IGNORE);
-
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
-
-    assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
-  }
-
-  @Test
-  void gatherInput_r16DataMissing_addsNothingAndSkipsPhaseCalculation() {
-    stubEmptyBaseline(TUV100);
-    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
-        .willReturn(Optional.empty());
-
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
-
-    assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
-    org.mockito.Mockito.verifyNoInteractions(r16PhaseCalculator);
   }
 
   @Test
@@ -1189,27 +1085,6 @@ class TransactionInputServiceTest {
         .accountName(accountName)
         .marketValue(new BigDecimal(marketValue))
         .build();
-  }
-
-  @Test
-  void gatherInput_forNonR16Fund_doesNotQueryR16Services() {
-    stubEmptyBaseline(TKF100);
-    given(navLedgerRepository.getFundUnitsBalance("FUND_UNITS_RESERVED")).willReturn(ZERO);
-
-    service.gatherInput(TKF100, AS_OF_DATE, Map.of(), noResolvedPrices());
-
-    org.mockito.Mockito.verifyNoInteractions(r16FlowCalculationService, r16PhaseCalculator);
-  }
-
-  private static R16FundFlow r16Flow(TulevaFund fund, BigDecimal totalOutflowEur) {
-    return new R16FundFlow(
-        fund,
-        new BigDecimal("10000"),
-        new BigDecimal("500"),
-        totalOutflowEur,
-        LocalDate.of(2026, 1, 1),
-        LocalDate.of(2026, 1, 15),
-        LocalDate.of(2026, 1, 8));
   }
 
   private void stubEmptyBaseline(TulevaFund fund) {

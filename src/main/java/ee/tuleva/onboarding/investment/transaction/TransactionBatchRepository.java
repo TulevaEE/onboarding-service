@@ -5,7 +5,8 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface TransactionBatchRepository extends JpaRepository<TransactionBatch, Long> {
+public interface TransactionBatchRepository
+    extends JpaRepository<TransactionBatch, Long>, TransactionBatchLocking {
 
   List<TransactionBatch> findByStatus(BatchStatus status);
 

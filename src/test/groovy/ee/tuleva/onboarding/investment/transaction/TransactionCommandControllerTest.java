@@ -98,6 +98,7 @@ class TransactionCommandControllerTest {
         10L,
         TUK75,
         SENT,
+        3L,
         "system",
         Instant.parse("2026-06-10T09:00:00Z"),
         List.of("sebEtfXlsx", "xlsxExport"),
@@ -593,36 +594,71 @@ class TransactionCommandControllerTest {
   }
 
   @Test
+  void giveFirstConfirmation_passesTheOperatorToTheServiceAndReturnsTheBatch() throws Exception {
+    given(adminService.giveFirstConfirmation(10L, 3L, "operator-7")).willReturn(batchResponse());
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-batches/10/first-confirmation")
+                .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content("{\"version\": 3}")
+                .header("X-Admin-Token", "operator-7-token"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(10));
+  }
+
+  @Test
   void confirmBatch_finalizesAndReturnsBatch() throws Exception {
-    given(adminService.confirmAndFinalize(10L, "shared-admin-token")).willReturn(batchResponse());
+    given(adminService.confirmAndFinalize(10L, 3L, "shared-admin-token"))
+        .willReturn(batchResponse());
 
     mockMvc
         .perform(
             post("/admin/transaction-batches/10/confirm")
                 .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content("{\"version\": 3}")
                 .header("X-Admin-Token", "valid-token"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(10))
-        .andExpect(jsonPath("$.status").value("SENT"));
+        .andExpect(jsonPath("$.status").value("SENT"))
+        .andExpect(jsonPath("$.version").value(3));
   }
 
   @Test
   void confirmBatch_passesAdminActorToService() throws Exception {
-    given(adminService.confirmAndFinalize(10L, "operator-7")).willReturn(batchResponse());
+    given(adminService.confirmAndFinalize(10L, 3L, "operator-7")).willReturn(batchResponse());
 
     mockMvc
         .perform(
             post("/admin/transaction-batches/10/confirm")
                 .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content("{\"version\": 3}")
                 .header("X-Admin-Token", "operator-7-token"))
         .andExpect(status().isOk());
 
-    then(adminService).should().confirmAndFinalize(10L, "operator-7");
+    then(adminService).should().confirmAndFinalize(10L, 3L, "operator-7");
+  }
+
+  @Test
+  void confirmBatch_withoutTheReviewedVersion_isRejectedBeforeTheService() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-batches/10/confirm")
+                .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content("{}")
+                .header("X-Admin-Token", "operator-7-token"))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
   }
 
   @Test
   void confirmBatch_notAwaitingConfirmation_returnsConflict() throws Exception {
-    given(adminService.confirmAndFinalize(10L, "shared-admin-token"))
+    given(adminService.confirmAndFinalize(10L, 3L, "shared-admin-token"))
         .willThrow(
             new ResponseStatusException(
                 CONFLICT, "Batch not awaiting confirmation: id=10, status=SENT"));
@@ -631,6 +667,8 @@ class TransactionCommandControllerTest {
         .perform(
             post("/admin/transaction-batches/10/confirm")
                 .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content("{\"version\": 3}")
                 .header("X-Admin-Token", "valid-token"))
         .andExpect(status().isConflict());
   }

@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -97,7 +98,8 @@ final class TransactionCommandPayloads {
     payload.put("settlementWarnings", settlementWarnings);
     payload.put(
         "calculationWarnings",
-        TransactionAuditPayloads.serializeCalculationWarnings(result.warnings()));
+        TransactionAuditPayloads.serializeCalculationWarnings(
+            Stream.concat(result.warnings().stream(), cash.warnings().stream()).toList()));
     payload.put("modelDrift", TransactionAuditPayloads.serializeModelDrift(input, result));
     Map<String, Object> summary = new LinkedHashMap<>();
     summary.put("fund", command.getFund().name());

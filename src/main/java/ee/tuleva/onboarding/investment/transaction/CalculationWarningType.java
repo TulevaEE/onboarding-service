@@ -3,5 +3,6 @@ package ee.tuleva.onboarding.investment.transaction;
 public enum CalculationWarningType {
   REBALANCE_NET_CASH_MISMATCH,
   REBALANCE_NET_NOT_ACHIEVED,
-  FEE_POLICY_UNRESOLVED
+  FEE_POLICY_UNRESOLVED,
+  CASH_SOURCES_DIFFER
 }

@@ -22,10 +22,6 @@ import java.util.stream.Stream;
 record ModelChange(
     LocalDate effectiveDate, Map<String, BigDecimal> modelWeights, Set<String> changedIsins) {
 
-  static Optional<ModelChange> latestIn(List<ModelPortfolioAllocation> history) {
-    return allIn(history).stream().findFirst();
-  }
-
   static List<ModelChange> allIn(List<ModelPortfolioAllocation> history) {
     var versionsNewestFirst =
         List.copyOf(

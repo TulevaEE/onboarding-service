@@ -114,7 +114,8 @@ class TradePrepCashGateIT {
             List.of(),
             null,
             PriceDateRule.FRESHEST_PER_INSTRUMENT,
-            new BigDecimal("1000"));
+            new BigDecimal("1000"),
+            Set.of());
 
     assertThat(gate.missingSameDayCash(TUK75, withCash)).isEmpty();
   }

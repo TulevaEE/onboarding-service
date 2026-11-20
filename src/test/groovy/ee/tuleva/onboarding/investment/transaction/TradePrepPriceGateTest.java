@@ -7,13 +7,16 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.ManualPriceDeviates;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPrices;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoCommonPriceDate;
 import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexPrice;
@@ -26,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -42,8 +46,16 @@ class TradePrepPriceGateTest {
   @Mock private PositionAssembler positionAssembler;
   @Mock private ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   @Mock private PositionPriceResolver positionPriceResolver;
+  @Mock private ManualPriceDeviations manualPriceDeviations;
 
   @InjectMocks private TradePrepPriceGate gates;
+
+  @BeforeEach
+  void noManualPriceDeviatesUnlessATestSaysSo() {
+    lenient()
+        .when(manualPriceDeviations.check(any(), any(), any()))
+        .thenReturn(new PriceDeviations(List.of(), List.of()));
+  }
 
   @Test
   void listsTheHeldAndModelInstrumentsTradePrepHasNoPriceFor() {
@@ -56,7 +68,7 @@ class TradePrepPriceGateTest {
         .willReturn(Optional.of(ResolvedPrice.builder().validationStatus(NO_PRICE_DATA).build()));
     givenPrice("IN_BOTH", "25.00");
 
-    assertThat(gates.check(TKF100, TRADE_DATE, noOverrides()).missingPrices())
+    assertThat(gates.check(TKF100, TRADE_DATE, noOverrides()).failures())
         .contains(new MissingPrices(List.of("HELD_UNKNOWN_INSTRUMENT", "MODEL_NO_PRICE_DATA")));
   }
 
@@ -66,7 +78,7 @@ class TradePrepPriceGateTest {
     givenModel();
     givenPrice("ZERO_PRICE", "0");
 
-    assertThat(gates.check(TKF100, TRADE_DATE, noOverrides()).missingPrices())
+    assertThat(gates.check(TKF100, TRADE_DATE, noOverrides()).failures())
         .contains(new MissingPrices(List.of("ZERO_PRICE")));
   }
 
@@ -76,7 +88,7 @@ class TradePrepPriceGateTest {
         .willReturn(Optional.empty());
     givenModel(model("SOLD_OUT_OF_THE_MODEL", "0"));
 
-    assertThat(gates.check(TKF100, TRADE_DATE, noOverrides()).missingPrices()).isEmpty();
+    assertThat(gates.check(TKF100, TRADE_DATE, noOverrides()).failures()).isEmpty();
   }
 
   @Test
@@ -94,8 +106,9 @@ class TradePrepPriceGateTest {
                         List.of(),
                         null,
                         PriceDateRule.FRESHEST_PER_INSTRUMENT,
-                        null))
-                .missingPrices())
+                        null,
+                        Set.of()))
+                .failures())
         .isEmpty();
   }
 
@@ -108,7 +121,7 @@ class TradePrepPriceGateTest {
             List.of(new PositionSnapshot("SOLD_OUT", ZERO, new BigDecimal("0.000000"), null)));
     givenModel();
 
-    assertThat(gates.check(TKF100, TRADE_DATE, noOverrides()).missingPrices()).isEmpty();
+    assertThat(gates.check(TKF100, TRADE_DATE, noOverrides()).failures()).isEmpty();
   }
 
   @Test
@@ -123,14 +136,20 @@ class TradePrepPriceGateTest {
             TKF100,
             TRADE_DATE,
             new TradePrepOverrides(
-                Set.of(), List.of(manual), null, PriceDateRule.FRESHEST_PER_INSTRUMENT, null));
+                Set.of(),
+                List.of(manual),
+                null,
+                PriceDateRule.FRESHEST_PER_INSTRUMENT,
+                null,
+                Set.of()));
 
     assertThat(check)
         .isEqualTo(
             new PriceCheck(
-                Optional.empty(),
+                List.of(),
                 new FreshestPerInstrument(Map.of("HELD_NO_PRICE", new ManualPrice(manual))),
-                List.of(new UsedPriceOverride(manual, GateNeed.CLEARED_A_STOP, null))));
+                List.of(new UsedPriceOverride(manual, GateNeed.CLEARED_A_STOP, null)),
+                List.of()));
   }
 
   @Test
@@ -145,7 +164,12 @@ class TradePrepPriceGateTest {
             TKF100,
             TRADE_DATE,
             new TradePrepOverrides(
-                Set.of(), List.of(manual), null, PriceDateRule.FRESHEST_PER_INSTRUMENT, null));
+                Set.of(),
+                List.of(manual),
+                null,
+                PriceDateRule.FRESHEST_PER_INSTRUMENT,
+                null,
+                Set.of()));
 
     assertThat(check.pricing())
         .isEqualTo(new FreshestPerInstrument(Map.of("HELD_PRICED", new ManualPrice(manual))));
@@ -174,7 +198,8 @@ class TradePrepPriceGateTest {
                         List.of(stranger),
                         null,
                         PriceDateRule.FRESHEST_PER_INSTRUMENT,
-                        null)))
+                        null,
+                        Set.of())))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -195,7 +220,8 @@ class TradePrepPriceGateTest {
                         List.of(first, second),
                         null,
                         PriceDateRule.FRESHEST_PER_INSTRUMENT,
-                        null)))
+                        null,
+                        Set.of())))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -214,12 +240,13 @@ class TradePrepPriceGateTest {
     assertThat(check)
         .isEqualTo(
             new PriceCheck(
-                Optional.empty(),
+                List.of(),
                 new OnCommonDate(
                     Map.of(
                         "A", new IndexPrice(priceOn(dayBefore, "9")),
                         "B", new IndexPrice(priceOn(dayBefore, "20"))),
                     dayBefore),
+                List.of(),
                 List.of()));
   }
 
@@ -234,7 +261,7 @@ class TradePrepPriceGateTest {
     given(positionPriceResolver.resolve("B", dayBefore))
         .willReturn(Optional.of(priceOn(dayBefore, "20")));
 
-    assertThat(gates.check(TKF100, TRADE_DATE, commonDate()).missingPrices())
+    assertThat(gates.check(TKF100, TRADE_DATE, commonDate()).failures())
         .contains(new NoCommonPriceDate(TRADE_DATE.minusDays(14), TRADE_DATE));
   }
 
@@ -251,7 +278,7 @@ class TradePrepPriceGateTest {
             TKF100,
             TRADE_DATE,
             new TradePrepOverrides(
-                Set.of(), List.of(manual), null, PriceDateRule.LATEST_COMMON_DATE, null));
+                Set.of(), List.of(manual), null, PriceDateRule.LATEST_COMMON_DATE, null, Set.of()));
 
     assertThat(check.pricing())
         .isEqualTo(
@@ -279,7 +306,12 @@ class TradePrepPriceGateTest {
             TKF100,
             TRADE_DATE,
             new TradePrepOverrides(
-                Set.of(), List.of(manualA, manualC), null, PriceDateRule.LATEST_COMMON_DATE, null));
+                Set.of(),
+                List.of(manualA, manualC),
+                null,
+                PriceDateRule.LATEST_COMMON_DATE,
+                null,
+                Set.of()));
 
     assertThat(check.priceOverrides())
         .containsExactly(
@@ -299,7 +331,7 @@ class TradePrepPriceGateTest {
             TKF100,
             TRADE_DATE,
             new TradePrepOverrides(
-                Set.of(), List.of(manual), null, PriceDateRule.LATEST_COMMON_DATE, null));
+                Set.of(), List.of(manual), null, PriceDateRule.LATEST_COMMON_DATE, null, Set.of()));
 
     assertThat(check.pricing())
         .isEqualTo(new FreshestPerInstrument(Map.of("A", new ManualPrice(manual))));
@@ -307,7 +339,7 @@ class TradePrepPriceGateTest {
 
   private static TradePrepOverrides commonDate() {
     return new TradePrepOverrides(
-        Set.of(), List.of(), null, PriceDateRule.LATEST_COMMON_DATE, null);
+        Set.of(), List.of(), null, PriceDateRule.LATEST_COMMON_DATE, null, Set.of());
   }
 
   private void givenPriceOn(String isin, LocalDate asked, LocalDate priced, String price) {
@@ -336,12 +368,30 @@ class TradePrepPriceGateTest {
   }
 
   @Test
+  void anUnconfirmedDeviationStopsTheFundAndAConfirmedOneIsKeptForTheAudit() {
+    givenHeld("A");
+    givenModel();
+    givenPrice("A", "100.00");
+    var unconfirmed =
+        new PriceDeviation("A", new BigDecimal("50"), new BigDecimal("100.00"), POSITION_DATE);
+    var confirmed =
+        new PriceDeviation("A", new BigDecimal("80"), new BigDecimal("100.00"), POSITION_DATE);
+    given(manualPriceDeviations.check(any(), any(), any()))
+        .willReturn(new PriceDeviations(List.of(unconfirmed), List.of(confirmed)));
+
+    var check = gates.check(TKF100, TRADE_DATE, noOverrides());
+
+    assertThat(check.failures()).containsExactly(new ManualPriceDeviates(List.of(unconfirmed)));
+    assertThat(check.confirmedDeviations()).containsExactly(confirmed);
+  }
+
+  @Test
   void everyInstrumentPricedPasses() {
     givenHeld("HELD_PRICED");
     givenModel(model("HELD_PRICED", "1"));
     givenPrice("HELD_PRICED", "100.00");
 
-    assertThat(gates.check(TKF100, TRADE_DATE, noOverrides()).missingPrices()).isEmpty();
+    assertThat(gates.check(TKF100, TRADE_DATE, noOverrides()).failures()).isEmpty();
   }
 
   private void givenHeld(String... isins) {

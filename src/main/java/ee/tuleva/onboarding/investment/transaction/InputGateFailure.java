@@ -86,6 +86,25 @@ sealed interface InputGateFailure {
     }
   }
 
+  record ManualPriceDeviates(List<PriceDeviation> deviations) implements InputGateFailure {
+
+    @Override
+    public String slackLine() {
+      return deviations.stream()
+          .map(
+              deviation ->
+                  ("⚠️ %s: käsitsi hind %s, viimane indeksihind %s (%s), erinevus %s%%: kontrolli"
+                          + " hinda või kinnita see (confirmedPriceDeviations)")
+                      .formatted(
+                          deviation.isin(),
+                          deviation.manualPrice().stripTrailingZeros().toPlainString(),
+                          deviation.lastIndexPrice().stripTrailingZeros().toPlainString(),
+                          deviation.lastIndexPriceDate(),
+                          deviation.gapPercent()))
+          .collect(joining("\n"));
+    }
+  }
+
   record NoSameDayCash(@Nullable Instant lastFetchedAt) implements InputGateFailure {
 
     private static final DateTimeFormatter FETCH_TIME =

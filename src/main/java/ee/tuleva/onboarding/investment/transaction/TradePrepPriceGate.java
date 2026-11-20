@@ -33,6 +33,7 @@ class TradePrepPriceGate {
   private final PositionAssembler positionAssembler;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   private final PositionPriceResolver positionPriceResolver;
+  private final ManualPriceDeviations manualPriceDeviations;
 
   PriceCheck check(TulevaFund fund, LocalDate asOfDate, TradePrepOverrides overrides) {
     List<String> instruments =
@@ -52,6 +53,16 @@ class TradePrepPriceGate {
             .filter(isin -> !overrides.excludedIsins().contains(isin))
             .filter(isin -> !indexPrices.containsKey(isin) && !manual.prices(isin))
             .toList();
+    return priced(asOfDate, overrides, unpriced, manual, indexPrices)
+        .withDeviations(manualPriceDeviations.check(asOfDate, overrides, indexPrices));
+  }
+
+  private PriceCheck priced(
+      LocalDate asOfDate,
+      TradePrepOverrides overrides,
+      List<String> unpriced,
+      ManualPrices manual,
+      Map<String, ResolvedPrice> indexPrices) {
     Map<String, ResolvedPrice> unmanuallyPriced = withoutManual(indexPrices, manual);
     if (!unpriced.isEmpty()) {
       return stoppedOnTheCommandsDate(
@@ -65,12 +76,13 @@ class TradePrepPriceGate {
         .map(
             common ->
                 new PriceCheck(
-                    Optional.empty(),
+                    List.of(),
                     new OnCommonDate(manual.withIndexPrices(common.prices()), common.date()),
                     manual.uses(
                         overrides.excludedIsins(),
                         manualInstrumentsIndexPricesOn(
-                            common.date(), indexPrices, manual, overrides.excludedIsins()))))
+                            common.date(), indexPrices, manual, overrides.excludedIsins())),
+                    List.of()))
         .orElseGet(
             () ->
                 stoppedOnTheCommandsDate(
@@ -88,9 +100,10 @@ class TradePrepPriceGate {
       Map<String, ResolvedPrice> indexPrices,
       Map<String, ResolvedPrice> unmanuallyPriced) {
     return new PriceCheck(
-        Optional.of(failure),
+        List.of(failure),
         new FreshestPerInstrument(manual.withIndexPrices(unmanuallyPriced)),
-        manual.uses(overrides.excludedIsins(), indexPrices));
+        manual.uses(overrides.excludedIsins(), indexPrices),
+        List.of());
   }
 
   private static PriceCheck passedOnTheCommandsDate(
@@ -99,9 +112,10 @@ class TradePrepPriceGate {
       Map<String, ResolvedPrice> indexPrices,
       Map<String, ResolvedPrice> unmanuallyPriced) {
     return new PriceCheck(
-        Optional.empty(),
+        List.of(),
         new FreshestPerInstrument(manual.withIndexPrices(unmanuallyPriced)),
-        manual.uses(overrides.excludedIsins(), indexPrices));
+        manual.uses(overrides.excludedIsins(), indexPrices),
+        List.of());
   }
 
   private Map<String, ResolvedPrice> manualInstrumentsIndexPricesOn(

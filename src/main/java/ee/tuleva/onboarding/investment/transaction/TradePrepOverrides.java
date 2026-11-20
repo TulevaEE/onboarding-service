@@ -12,7 +12,8 @@ record TradePrepOverrides(
     List<PriceOverride> prices,
     @Nullable AcceptedHoldingDifferences acceptedHoldingDifferences,
     PriceDateRule priceDateRule,
-    @Nullable BigDecimal cash) {
+    @Nullable BigDecimal cash,
+    Set<String> confirmedPriceDeviations) {
 
   static TradePrepOverrides of(TransactionCommand command) {
     return new TradePrepOverrides(
@@ -20,7 +21,8 @@ record TradePrepOverrides(
         command.getPrices(),
         command.getAcceptedHoldingDifferences(),
         command.getPriceDateRule(),
-        command.getCash());
+        command.getCash(),
+        command.getConfirmedPriceDeviations());
   }
 
   List<String> acceptedDifferenceIsins() {

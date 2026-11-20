@@ -33,6 +33,9 @@ final class TransactionCommandPayloads {
           "acceptedHoldingDifferences",
           Map.of("isins", accepted.sortedIsins(), "comment", accepted.comment()));
     }
+    if (!command.getConfirmedPriceDeviations().isEmpty()) {
+      payload.put("confirmedPriceDeviations", command.sortedConfirmedPriceDeviations());
+    }
     if (command.getPriceDateRule() != PriceDateRule.FRESHEST_PER_INSTRUMENT) {
       payload.put("priceDateRule", command.getPriceDateRule().name());
     }
@@ -71,6 +74,13 @@ final class TransactionCommandPayloads {
       payload.put(
           "acceptedHoldingDifferences",
           acceptedDifferences(accepted.comment(), gates.acceptedDifferences()));
+    }
+    if (!gates.confirmedPriceDeviations().isEmpty()) {
+      payload.put(
+          "confirmedPriceDeviations",
+          gates.confirmedPriceDeviations().stream()
+              .map(TransactionCommandPayloads::confirmedDeviation)
+              .toList());
     }
     if (gates.pricing() instanceof TradePrepPricing.OnCommonDate onCommonDate) {
       payload.put("commonPriceDate", onCommonDate.date().toString());
@@ -155,6 +165,16 @@ final class TransactionCommandPayloads {
     map.put("neededByGate", difference.need().neededByGate());
     putIfPresent(map, "registryQuantity", plain(difference.registryQuantity()));
     putIfPresent(map, "reportQuantity", plain(difference.reportQuantity()));
+    return map;
+  }
+
+  private static Map<String, Object> confirmedDeviation(PriceDeviation deviation) {
+    Map<String, Object> map = new LinkedHashMap<>();
+    map.put("isin", deviation.isin());
+    map.put("manualPrice", deviation.manualPrice().toPlainString());
+    map.put("lastIndexPrice", deviation.lastIndexPrice().toPlainString());
+    map.put("lastIndexPriceDate", deviation.lastIndexPriceDate().toString());
+    map.put("gapPercent", deviation.gapPercent());
     return map;
   }
 }

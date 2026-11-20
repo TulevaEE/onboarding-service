@@ -75,6 +75,26 @@ public record FtConfirmation(
     return type == CANCELLATION;
   }
 
+  public boolean isCancelledBy(FtConfirmation other) {
+    return type == NORMAL && other.isCancellation() && describesTheSameTradeAs(other);
+  }
+
+  public boolean isNewConfirmationAfter(FtConfirmation cancellation) {
+    return type == NORMAL
+        && cancellation.isCancellation()
+        && isForTheSameFundAndDayAs(cancellation);
+  }
+
+  private boolean describesTheSameTradeAs(FtConfirmation other) {
+    return isForTheSameFundAndDayAs(other)
+        && quantity.compareTo(other.quantity) == 0
+        && grossPrice.compareTo(other.grossPrice) == 0;
+  }
+
+  private boolean isForTheSameFundAndDayAs(FtConfirmation other) {
+    return fund == other.fund && isin.equals(other.isin) && tradeDate.equals(other.tradeDate);
+  }
+
   public String cancellationSignature() {
     return String.join(
         "|",

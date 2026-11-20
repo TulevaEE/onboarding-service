@@ -279,10 +279,28 @@ transaction-registry:
     alerts-from: 2026-10-01
   ft-confirmation:
     # Whether onboarding-service alerts on FT confirmations. When true, FtConfirmationDigest
-    # sends a Slack digest of ERROR/AMBIGUOUS/ORPHAN rows and broker cancellations, once per
-    # confirmation and result. When false (shadow mode), outcomes are only recorded to the
-    # audit trail. Off here: the production profile turns it on, staging stays in shadow mode.
+    # sends a Slack digest of ERROR/AMBIGUOUS/ORPHAN rows, of rows that could not be checked
+    # (UNCHECKED), of prices with no closing price of the trade date by the end of the next
+    # business day (PRICE_MISSING), of FT cancellations still without a new confirmation of
+    # the same quantity after the next business day (CANCELLED, or AMBIGUOUS when several
+    # orders match) and of trades SEB executed that still have no readable FT confirmation
+    # after the next business day, with SEB's price checked against the close instead
+    # (UNCONFIRMED), once per trade and result, and of FT PDFs that could not be read, once per
+    # PDF. When false (shadow mode), outcomes are only
+    # recorded to the audit trail. Off here: the production profile turns it on, staging stays
+    # in shadow mode.
     registry-authoritative: ${TRANSACTION_REGISTRY_FT_CONFIRMATION_REGISTRY_AUTHORITATIVE:false}
+    # Trades from this date on turn PRICE_MISSING once their closing price is overdue and
+    # UNCONFIRMED once their FT confirmation is. Earlier trades stay PENDING_NAV and are not
+    # looked for, so the checks do not alert on the backlog they were switched on over. An FT
+    # PDF that cannot be read is not warned about when S3 shows it was uploaded before this
+    # date (Tallinn time).
+    alerts-from: 2026-11-18
+    # How far back each run looks for SEB-executed FT trades without an FT confirmation. A trade
+    # is due a confirmation by the end of the next business day, so this leaves room for the
+    # longest TARGET2 closure and a few days without runs, while a PDF store that can no longer be
+    # read alerts at most this window of trades rather than every trade since alerts-from.
+    unconfirmed-lookback-days: 14
 
 payment-provider:
   url: https://sandbox-stargate.montonio.com/api

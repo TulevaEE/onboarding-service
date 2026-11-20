@@ -4,6 +4,9 @@ import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.A
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.CANCELLED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ERROR;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ORPHAN;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PRICE_MISSING;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCHECKED;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCONFIRMED;
 
 import java.util.Map;
 import org.jspecify.annotations.NullMarked;
@@ -18,11 +21,17 @@ public record FtConfirmationResult(
     return isActionable(quantityStatus) || isActionable(priceStatus);
   }
 
-  public boolean isCancellation() {
-    return quantityStatus == CANCELLED;
+  public boolean isOnlyThePriceMissing() {
+    return priceStatus == PRICE_MISSING && !isActionable(quantityStatus);
   }
 
   private static boolean isActionable(FtVerificationStatus status) {
-    return status == ERROR || status == AMBIGUOUS || status == ORPHAN || status == CANCELLED;
+    return status == ERROR
+        || status == AMBIGUOUS
+        || status == ORPHAN
+        || status == CANCELLED
+        || status == UNCHECKED
+        || status == UNCONFIRMED
+        || status == PRICE_MISSING;
   }
 }

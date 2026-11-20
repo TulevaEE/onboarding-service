@@ -93,6 +93,9 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
             amount);
       }
       case LUMINOR -> new RedirectLink("https://luminor.ee/auth/#/web/view/autopilot/newpayment");
+      case WISE -> new RedirectLink("https://wise.com/send#/?isScheduledTransfer=true");
+      case CITADELE -> new RedirectLink("https://online.citadele.lv/ibbf/et_ee");
+      case BIGBANK -> new RedirectLink("https://auth.bigbank.eu/");
       case COOP -> {
         requireAmount(paymentData, channel);
         yield coopPankPaymentLinkGenerator.getPaymentLink(paymentData, person);
@@ -101,7 +104,7 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
         validateAmountIfPresent(paymentData);
         yield coopPankPaymentLinkGenerator.getPaymentLink(paymentData, person);
       }
-      case TULUNDUSUHISTU ->
+      case REVOLUT, N26, TULUNDUSUHISTU ->
           throw new ErrorsResponseException(
               ErrorsResponse.ofSingleError(
                   "payment.channel.not.supported",

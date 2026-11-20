@@ -2,12 +2,14 @@ package ee.tuleva.onboarding.payment.savings.recurring;
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.BIGBANK;
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.CITADELE;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.COOP;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LHV;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LUMINOR;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.SEB;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.SWEDBANK;
-import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.TULUNDUSUHISTU;
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.WISE;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SAVINGS_RECURRING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -29,6 +31,8 @@ import java.util.Locale;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 
 class SavingsFundRecurringPaymentLinkGeneratorTest {
@@ -165,6 +169,30 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
   }
 
   @Test
+  void buildsWiseScheduledTransferUrl() {
+    var link = prefilledLink(WISE);
+
+    assertThat(link.url()).isEqualTo("https://wise.com/send#/?isScheduledTransfer=true");
+    assertCommonRecipientFields(link);
+  }
+
+  @Test
+  void buildsCitadeleLandingUrl() {
+    var link = prefilledLink(CITADELE);
+
+    assertThat(link.url()).isEqualTo("https://online.citadele.lv/ibbf/et_ee");
+    assertCommonRecipientFields(link);
+  }
+
+  @Test
+  void buildsBigbankLandingUrl() {
+    var link = prefilledLink(BIGBANK);
+
+    assertThat(link.url()).isEqualTo("https://auth.bigbank.eu/");
+    assertCommonRecipientFields(link);
+  }
+
+  @Test
   void returnsNullUrlWhenPaymentChannelIsMissing() {
     var link = prefilledLink(null);
 
@@ -172,9 +200,10 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
     assertCommonRecipientFields(link);
   }
 
-  @Test
-  void throwsForUnsupportedChannel() {
-    assertThatThrownBy(() -> generator.getPaymentLink(paymentData(TULUNDUSUHISTU), person()))
+  @ParameterizedTest
+  @EnumSource(names = {"REVOLUT", "N26", "TULUNDUSUHISTU"})
+  void rejectsChannelsWithNoStandingOrderFormOfTheirOwn(PaymentChannel channel) {
+    assertThatThrownBy(() -> generator.getPaymentLink(paymentData(channel), person()))
         .isInstanceOf(ErrorsResponseException.class)
         .extracting(ex -> ((ErrorsResponseException) ex).getErrorsResponse().getErrors().get(0))
         .extracting(ErrorResponse::getCode)

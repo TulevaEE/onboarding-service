@@ -22,7 +22,11 @@ class RebalanceAnnouncements {
   private final RebalanceAnnouncementLog announcementLog;
 
   boolean isOwed(RebalanceWindow window) {
-    return window.state() != OK || closeOwed(window.fund(), window.modelEffectiveDate());
+    return switch (window.state()) {
+      case WARNING, FAIL -> true;
+      case INFO -> !closeOwed(window.fund(), window.modelEffectiveDate());
+      case OK -> closeOwed(window.fund(), window.modelEffectiveDate());
+    };
   }
 
   boolean closeOwed(TulevaFund fund, LocalDate modelEffectiveDate) {

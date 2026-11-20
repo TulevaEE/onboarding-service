@@ -128,7 +128,7 @@ class TradePrepInputGatesIT {
   @BeforeEach
   void startFromNoStoredReportsOrPositions() {
     given(priceGate.check(any(), any(), any()))
-        .willReturn(new PriceCheck(List.of(), noResolvedPrices(), List.of(), List.of(), List.of()));
+        .willReturn(new PriceCheck(List.of(), noResolvedPrices(), List.of(), List.of()));
     given(positionGate.check(any(), any(), any()))
         .willReturn(new PositionCheck(List.of(), List.of()));
     summaryRepository.deleteAll();
@@ -178,8 +178,7 @@ class TradePrepInputGatesIT {
         new HoldingMismatch("IE0009FT4LX4", TUESDAY, new BigDecimal("1000"), new BigDecimal("990"));
     given(priceGate.check(TUK75, WEDNESDAY, noOverrides()))
         .willReturn(
-            new PriceCheck(
-                List.of(missingPrices), noResolvedPrices(), List.of(), List.of(), List.of()));
+            new PriceCheck(List.of(missingPrices), noResolvedPrices(), List.of(), List.of()));
     given(positionGate.check(TUK75, TUESDAY, noOverrides()))
         .willReturn(new PositionCheck(List.of(mismatch), List.of()));
 

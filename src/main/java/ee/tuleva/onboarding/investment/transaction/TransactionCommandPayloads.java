@@ -82,7 +82,7 @@ final class TransactionCommandPayloads {
     if (!gates.priceOverrides().isEmpty()) {
       payload.put(
           "priceOverrides",
-          priceOverrides(gates.priceOverrides(), gates.manualPricesWithoutIndexPriceHistory()));
+          gates.priceOverrides().stream().map(TransactionCommandPayloads::priceOverride).toList());
     }
     AcceptedHoldingDifferences accepted = command.getAcceptedHoldingDifferences();
     if (accepted != null) {
@@ -135,23 +135,15 @@ final class TransactionCommandPayloads {
     }
   }
 
-  private static List<Map<String, Object>> priceOverrides(
-      List<UsedPriceOverride> overrides, List<String> withoutIndexPriceHistory) {
-    return overrides.stream()
-        .map(override -> priceOverride(override, withoutIndexPriceHistory))
-        .toList();
-  }
-
   private static List<Map<String, Object>> requestedPrices(List<PriceOverride> prices) {
     return prices.stream().map(TransactionCommandPayloads::requestedPrice).toList();
   }
 
-  private static Map<String, Object> priceOverride(
-      UsedPriceOverride used, List<String> withoutIndexPriceHistory) {
+  private static Map<String, Object> priceOverride(UsedPriceOverride used) {
     Map<String, Object> map = requestedPrice(used.override());
     map.put("neededByGate", used.need().neededByGate());
-    if (withoutIndexPriceHistory.contains(used.override().isin())) {
-      map.put("deviationCheck", "NO_INDEX_PRICE_HISTORY");
+    if (used.deviationCheck() == ManualPriceDeviationCheck.NO_INDEX_PRICE_HISTORY) {
+      map.put("deviationCheck", used.deviationCheck().name());
     }
     ResolvedPrice indexPrice = used.indexPrice();
     if (indexPrice != null) {

@@ -82,7 +82,6 @@ class TradePrepPriceGate {
                         overrides.excludedIsins(),
                         manualInstrumentsIndexPricesOn(
                             common.date(), indexPrices, manual, overrides.excludedIsins())),
-                    List.of(),
                     List.of()))
         .orElseGet(
             () ->
@@ -104,7 +103,6 @@ class TradePrepPriceGate {
         List.of(failure),
         new FreshestPerInstrument(manual.withIndexPrices(unmanuallyPriced)),
         manual.uses(overrides.excludedIsins(), indexPrices),
-        List.of(),
         List.of());
   }
 
@@ -117,7 +115,6 @@ class TradePrepPriceGate {
         List.of(),
         new FreshestPerInstrument(manual.withIndexPrices(unmanuallyPriced)),
         manual.uses(overrides.excludedIsins(), indexPrices),
-        List.of(),
         List.of());
   }
 

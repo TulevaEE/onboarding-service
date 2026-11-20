@@ -126,7 +126,7 @@ class TradePrepSnapshotIT {
   @Test
   void aSameDayR45ReuploadDuringTradePrepDoesNotMixItsVersions() {
     given(priceGate.check(any(), any(), any()))
-        .willReturn(new PriceCheck(List.of(), noResolvedPrices(), List.of(), List.of(), List.of()));
+        .willReturn(new PriceCheck(List.of(), noResolvedPrices(), List.of(), List.of()));
     given(positionGate.check(any(), any(), any()))
         .willReturn(new PositionCheck(List.of(), List.of()));
     committed(

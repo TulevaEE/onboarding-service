@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
+import static ee.tuleva.onboarding.investment.transaction.ManualPriceDeviationCheck.MEASURED;
 import static ee.tuleva.onboarding.investment.transaction.TradePrepOverridesFixture.noOverrides;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
@@ -142,8 +143,7 @@ class TradePrepPriceGateTest {
             new PriceCheck(
                 List.of(),
                 new FreshestPerInstrument(Map.of("HELD_NO_PRICE", new ManualPrice(manual))),
-                List.of(new UsedPriceOverride(manual, GateNeed.CLEARED_A_STOP, null)),
-                List.of(),
+                List.of(new UsedPriceOverride(manual, GateNeed.CLEARED_A_STOP, MEASURED, null)),
                 List.of()));
   }
 
@@ -235,7 +235,6 @@ class TradePrepPriceGateTest {
                         "B", new IndexPrice(priceOn(dayBefore, "20"))),
                     dayBefore),
                 List.of(),
-                List.of(),
                 List.of()));
   }
 
@@ -303,8 +302,9 @@ class TradePrepPriceGateTest {
 
     assertThat(check.priceOverrides())
         .containsExactly(
-            new UsedPriceOverride(manualA, GateNeed.CLEARED_A_STOP, null),
-            new UsedPriceOverride(manualC, GateNeed.NOT_NEEDED, priceOn(dayBefore, "29")));
+            new UsedPriceOverride(manualA, GateNeed.CLEARED_A_STOP, MEASURED, null),
+            new UsedPriceOverride(
+                manualC, GateNeed.NOT_NEEDED, MEASURED, priceOn(dayBefore, "29")));
   }
 
   @Test

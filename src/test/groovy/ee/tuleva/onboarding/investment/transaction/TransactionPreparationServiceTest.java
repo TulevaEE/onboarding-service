@@ -1119,6 +1119,50 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
+  void processCommand_whenReadingTheGatewayCashFails_makesNoDraftNextToTheFailedCommand() {
+    var command =
+        TransactionCommand.builder()
+            .id(16L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("500000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(new BigDecimal("50000"))
+            .liabilities(ZERO)
+            .receivables(ZERO)
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+    given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
+        .willReturn(input);
+    lenient()
+        .when(calculationEngine.calculate(input, BUY))
+        .thenReturn(
+            new FundCalculationResult(
+                TUV100, BUY, input, List.of(), netInvestable(input), null, List.of()));
+    given(sameDayCashReader.read(any(), any(), any(), any()))
+        .willThrow(new IllegalStateException("connection lost"));
+
+    var result = service.processCommand(command);
+
+    assertThat(result).isEqualTo(new CommandOutcome.Failed());
+    assertThat(command.getStatus()).isEqualTo(FAILED);
+    assertThat(command.getBatchId()).isNull();
+    verifyNoInteractions(batchRepository, orderRepository);
+  }
+
+  @Test
   void processCommand_onFailureAfterBatchCreated_attachesBatchAndInput() {
     var command =
         TransactionCommand.builder()

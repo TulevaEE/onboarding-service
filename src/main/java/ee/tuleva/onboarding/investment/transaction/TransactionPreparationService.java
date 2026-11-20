@@ -46,6 +46,9 @@ public class TransactionPreparationService {
       GateCheck gates = inputGates.verify(command);
       input = gatherInput(command, gates.pricing());
       input = input.excluding(command.getExcludeIsins());
+      CashSourceReport cash =
+          sameDayCashReader.read(
+              command.getFund(), command.getAsOfDate(), command.getCash(), input.reportCash());
 
       var result = calculationEngine.calculate(input, command.getMode());
 
@@ -75,11 +78,7 @@ public class TransactionPreparationService {
                   TransactionCommandPayloads.completed(
                       command,
                       gates,
-                      sameDayCashReader.read(
-                          command.getFund(),
-                          command.getAsOfDate(),
-                          command.getCash(),
-                          input.reportCash()),
+                      cash,
                       input,
                       result,
                       calculated,

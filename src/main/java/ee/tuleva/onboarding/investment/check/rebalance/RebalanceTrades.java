@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.check.rebalance;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
-import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 
@@ -21,7 +20,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class RebalanceTrades {
 
-  private static final Set<OrderStatus> PLACED_ORDERS = EnumSet.of(SENT, EXECUTED, SETTLED);
+  private static final Set<OrderStatus> EXECUTED_BY_THE_BROKER = EnumSet.of(EXECUTED, SETTLED);
   private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
 
   private final TransactionOrderRepository orderRepository;
@@ -29,12 +28,12 @@ class RebalanceTrades {
   Optional<LocalDate> firstRebalancingTradeDate(
       TulevaFund fund, LocalDate modelEffectiveDate, LocalDate measuredUntil) {
     return orderRepository
-        .findFirstOrderTimestampOfATradePrepRun(
+        .findFirstTradeTimestampOfATradePrepRun(
             fund,
             REBALANCE,
-            PLACED_ORDERS,
+            EXECUTED_BY_THE_BROKER,
             modelEffectiveDate.atStartOfDay(TALLINN).toInstant(),
             measuredUntil.plusDays(1).atStartOfDay(TALLINN).toInstant())
-        .map(orderTimestamp -> orderTimestamp.atZone(TALLINN).toLocalDate());
+        .map(tradeTimestamp -> tradeTimestamp.atZone(TALLINN).toLocalDate());
   }
 }

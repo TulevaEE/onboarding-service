@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.epis;
 
+import static ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction.INFLOW;
+import static ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction.OUTFLOW;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.EPIS;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
@@ -28,6 +30,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.junit.jupiter.api.Test;
 
 class R45ReportServiceTest {
@@ -333,6 +336,46 @@ class R45ReportServiceTest {
 
     assertThat(service.getRedRowSettlementDatesOn(TUV100, TODAY))
         .containsExactly(LocalDate.of(2026, 8, 13), LocalDate.of(2026, 8, 18));
+  }
+
+  @Test
+  void rowsOnADayComeFromThatDaysR45WithTheirDirectionValueAndSettlementDay() {
+    given(reportRepository.findByProviderAndReportTypeAndReportDate(EPIS, R45, TODAY))
+        .willReturn(
+            Optional.of(
+                InvestmentReport.builder()
+                    .id(REPORT_ID)
+                    .provider(EPIS)
+                    .reportType(R45)
+                    .reportDate(TODAY)
+                    .rawData(
+                        List.of(
+                            Map.of(
+                                "csv",
+                                """
+                                Tehtud: 14.08.2026;;;;;
+                                ;;;;;
+                                Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
+                                RED;EE3600001707;0.90000;0;300.00;13.08.2026
+                                RED;EE3600001707;0.90000;0;100.00;14.08.2026
+                                SUB;EE3600001707;0.90000;10;0;18.08.2026
+                                RED;EE3600109435;0.80000;0;500.00;18.08.2026
+                                """)))
+                    .build()));
+
+    assertThat(service.getRowsOn(TUV100, TODAY))
+        .usingRecursiveFieldByFieldElementComparator(
+            RecursiveComparisonConfiguration.builder()
+                .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+                .build())
+        .containsExactly(
+            new R45Row(OUTFLOW, new BigDecimal("100.00"), LocalDate.of(2026, 8, 14)),
+            new R45Row(INFLOW, new BigDecimal("9.00"), LocalDate.of(2026, 8, 18)));
+  }
+
+  @Test
+  void noRowsOnADayWithoutAnR45() {
+    assertThat(service.getRowsOn(TUV100, TODAY)).isEmpty();
   }
 
   @Test

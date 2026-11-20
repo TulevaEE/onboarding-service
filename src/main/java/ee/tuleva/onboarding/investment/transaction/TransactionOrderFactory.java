@@ -133,7 +133,7 @@ public class TransactionOrderFactory {
     BigDecimal quantity = orderAmount.divide(value, 6, RoundingMode.HALF_UP);
     String stalePriceComment =
         price instanceof IndexPrice index
-            ? describeIfStale(isin, index.resolved(), asOfDate)
+            ? describeIfStale(isin, index.resolved(), pricing.stalenessReference(asOfDate))
             : null;
     return new OrderQuantity(quantity, stalePriceComment, price);
   }

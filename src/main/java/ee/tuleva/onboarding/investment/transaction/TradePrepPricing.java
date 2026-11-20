@@ -12,7 +12,7 @@ sealed interface TradePrepPricing {
 
   Map<String, TradePrepPrice> prices();
 
-  LocalDate lookupDate(LocalDate asOfDate);
+  LocalDate stalenessReference(LocalDate asOfDate);
 
   default Optional<TradePrepPrice> resolve(
       PositionPriceResolver resolver, String isin, LocalDate asOfDate) {
@@ -20,13 +20,13 @@ sealed interface TradePrepPricing {
     if (known != null) {
       return Optional.of(known);
     }
-    return resolver.resolve(isin, lookupDate(asOfDate)).map(IndexPrice::new);
+    return resolver.resolve(isin, asOfDate).map(IndexPrice::new);
   }
 
   record FreshestPerInstrument(Map<String, TradePrepPrice> prices) implements TradePrepPricing {
 
     @Override
-    public LocalDate lookupDate(LocalDate asOfDate) {
+    public LocalDate stalenessReference(LocalDate asOfDate) {
       return asOfDate;
     }
   }
@@ -35,7 +35,7 @@ sealed interface TradePrepPricing {
       implements TradePrepPricing {
 
     @Override
-    public LocalDate lookupDate(LocalDate asOfDate) {
+    public LocalDate stalenessReference(LocalDate asOfDate) {
       return date;
     }
   }

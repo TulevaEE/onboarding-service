@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.ManualPrice;
 import ee.tuleva.onboarding.investment.transaction.TradePrepPricing.FreshestPerInstrument;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPricing.OnCommonDate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -100,6 +101,33 @@ class PendingOrderImpactServiceTest {
         .containsExactly(Map.entry("IE00A", new BigDecimal("4200")));
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("4200"));
     verifyNoInteractions(positionPriceResolver);
+  }
+
+  @Test
+  void anInstrumentOnlyAPendingOrderHoldsIsPricedForTheCommandsDateUnderTheCommonDateRule() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.BUY,
+                    InstrumentType.ETF,
+                    OrderStatus.SENT,
+                    new BigDecimal("100"),
+                    new BigDecimal("4000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
+    given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
+        .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
+
+    var impact =
+        service.calculate(
+            TUV100,
+            AS_OF_DATE,
+            POSITION_DATE,
+            new OnCommonDate(Map.of(), AS_OF_DATE.minusDays(10)));
+
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
   }
 
   @Test

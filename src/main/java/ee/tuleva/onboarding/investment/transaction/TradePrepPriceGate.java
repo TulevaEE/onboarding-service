@@ -66,13 +66,20 @@ class TradePrepPriceGate {
           new FreshestPerInstrument(manual.withIndexPrices(unmanuallyPriced)),
           uses);
     }
+    if (unmanuallyPriced.isEmpty()) {
+      return new PriceCheck(
+          Optional.empty(), new FreshestPerInstrument(manual.withIndexPrices(Map.of())), uses);
+    }
     return latestCommonDate(unmanuallyPriced, asOfDate)
         .map(
             common ->
                 new PriceCheck(
                     Optional.empty(),
                     new OnCommonDate(manual.withIndexPrices(common.prices()), common.date()),
-                    uses))
+                    manual.uses(
+                        overrides.excludedIsins(),
+                        manualInstrumentsIndexPricesOn(
+                            common.date(), indexPrices, manual, overrides.excludedIsins()))))
         .orElseGet(
             () ->
                 new PriceCheck(
@@ -80,6 +87,26 @@ class TradePrepPriceGate {
                         new NoCommonPriceDate(asOfDate.minusDays(MAX_LOOKBACK_DAYS), asOfDate)),
                     new FreshestPerInstrument(manual.withIndexPrices(unmanuallyPriced)),
                     uses));
+  }
+
+  private Map<String, ResolvedPrice> manualInstrumentsIndexPricesOn(
+      LocalDate date,
+      Map<String, ResolvedPrice> resolvedForTheCommandsDate,
+      ManualPrices manual,
+      Set<String> excludedIsins) {
+    return manual.overrides().stream()
+        .map(PriceOverride::isin)
+        .filter(isin -> !excludedIsins.contains(isin))
+        .flatMap(
+            isin ->
+                Optional.ofNullable(resolvedForTheCommandsDate.get(isin))
+                    .filter(price -> date.equals(price.priceDate()))
+                    .or(
+                        () ->
+                            indexPrice(isin, date).filter(price -> date.equals(price.priceDate())))
+                    .map(price -> Map.entry(isin, price))
+                    .stream())
+        .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
   private record CommonDatePrices(LocalDate date, Map<String, ResolvedPrice> prices) {}

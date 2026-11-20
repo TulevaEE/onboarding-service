@@ -3,8 +3,11 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
 
 import ee.tuleva.onboarding.investment.event.RunTransactionCommandRequested;
+import ee.tuleva.onboarding.investment.transaction.CommandOutcome.StoppedByInputGates;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -24,6 +27,7 @@ public class TransactionCommandJob {
   private final TransactionBatchRepository batchRepository;
   private final TransactionPreparationService preparationService;
   private final TransactionBatchFinalizer batchFinalizer;
+  private final TradePrepInputGateNotifier inputGateNotifier;
   private final ApplicationEventPublisher eventPublisher;
   private final Clock clock;
 
@@ -47,18 +51,27 @@ public class TransactionCommandJob {
 
     log.info("Found pending commands: count={}", commands.size());
 
-    for (var command : commands) {
-      command.setStatus(CommandStatus.PROCESSING);
-      commandRepository.save(command);
-      try {
-        preparationService.processCommand(command);
-      } catch (Exception e) {
-        log.error("Unexpected error processing command: id={}", command.getId(), e);
-        command.setStatus(CommandStatus.FAILED);
-        command.setErrorMessage(e.getMessage());
-        command.setProcessedAt(Instant.now(clock));
-        commandRepository.save(command);
+    List<StoppedByInputGates> stops = new ArrayList<>();
+    try {
+      commands.forEach(command -> process(command, stops));
+    } finally {
+      inputGateNotifier.notifyStopped(stops);
+    }
+  }
+
+  private void process(TransactionCommand command, List<StoppedByInputGates> stops) {
+    command.setStatus(CommandStatus.PROCESSING);
+    commandRepository.save(command);
+    try {
+      if (preparationService.processCommand(command) instanceof StoppedByInputGates stop) {
+        stops.add(stop);
       }
+    } catch (Exception e) {
+      log.error("Unexpected error processing command: id={}", command.getId(), e);
+      command.setStatus(CommandStatus.FAILED);
+      command.setErrorMessage(e.getMessage());
+      command.setProcessedAt(Instant.now(clock));
+      commandRepository.save(command);
     }
   }
 

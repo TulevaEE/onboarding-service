@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static org.springframework.transaction.annotation.Isolation.REPEATABLE_READ;
+
 import ee.tuleva.onboarding.investment.epis.SettlementTimingWarningService;
 import ee.tuleva.onboarding.investment.transaction.calculation.TradeCalculationEngine;
 import java.math.BigDecimal;
@@ -27,10 +29,11 @@ public class TransactionPreparationService {
   private final TransactionCommandRepository commandRepository;
   private final TransactionOrderFactory orderFactory;
   private final SettlementTimingWarningService settlementTimingWarningService;
+  private final TradePrepInputGates inputGates;
   private final Clock clock;
 
-  @Transactional
-  public @Nullable ProcessCommandResult processCommand(TransactionCommand command) {
+  @Transactional(isolation = REPEATABLE_READ)
+  public CommandOutcome processCommand(TransactionCommand command) {
     @Nullable FundTransactionInput input = null;
     @Nullable TransactionBatch batch = null;
     try {
@@ -40,6 +43,7 @@ public class TransactionPreparationService {
           command.getFund(),
           command.getMode());
 
+      inputGates.verify(command);
       input = gatherInput(command);
       input = input.excluding(command.getExcludeIsins());
 
@@ -83,22 +87,39 @@ public class TransactionPreparationService {
       return new ProcessCommandResult(batch, orders);
 
     } catch (RuntimeException e) {
-      log.error("Command processing failed: id={}", command.getId(), e);
-      command.setStatus(CommandStatus.FAILED);
-      command.setErrorMessage(e.getMessage());
-      command.setProcessedAt(Instant.now(clock));
-      commandRepository.save(command);
-      auditEventRepository.save(
-          TransactionAuditEvent.builder()
-              .batch(batch)
-              .eventType("CALCULATION_FAILED")
-              .dedupKey(String.valueOf(command.getId()))
-              .actor(actorOf(command))
-              .createdAt(Instant.now(clock))
-              .payload(failedPayload(command, input, e))
-              .build());
-      return null;
+      CommandOutcome outcome = loggedOutcomeOf(command, e);
+      markFailed(command, input, batch, e);
+      return outcome;
     }
+  }
+
+  private static CommandOutcome loggedOutcomeOf(TransactionCommand command, RuntimeException e) {
+    if (e instanceof TradePrepInputGateException stopped) {
+      log.warn("Command stopped by input gates: id={}, reason={}", command.getId(), e.getMessage());
+      return stopped.stop();
+    }
+    log.error("Command processing failed: id={}", command.getId(), e);
+    return new CommandOutcome.Failed();
+  }
+
+  private void markFailed(
+      TransactionCommand command,
+      @Nullable FundTransactionInput input,
+      @Nullable TransactionBatch batch,
+      RuntimeException e) {
+    command.setStatus(CommandStatus.FAILED);
+    command.setErrorMessage(e.getMessage());
+    command.setProcessedAt(Instant.now(clock));
+    commandRepository.save(command);
+    auditEventRepository.save(
+        TransactionAuditEvent.builder()
+            .batch(batch)
+            .eventType("CALCULATION_FAILED")
+            .dedupKey(String.valueOf(command.getId()))
+            .actor(actorOf(command))
+            .createdAt(Instant.now(clock))
+            .payload(failedPayload(command, input, e))
+            .build());
   }
 
   private FundTransactionInput gatherInput(TransactionCommand command) {

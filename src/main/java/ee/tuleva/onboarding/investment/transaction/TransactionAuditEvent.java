@@ -14,6 +14,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -63,5 +64,13 @@ public class TransactionAuditEvent {
     if (createdAt == null) {
       createdAt = clock().instant();
     }
+  }
+
+  static @Nullable Map<String, Object> calculationSnapshotIn(List<TransactionAuditEvent> events) {
+    return events.stream()
+        .filter(event -> "CALCULATION_COMPLETED".equals(event.getEventType()))
+        .map(TransactionAuditEvent::getPayload)
+        .findFirst()
+        .orElse(null);
   }
 }

@@ -12,6 +12,7 @@ import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
@@ -35,6 +36,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 @ExtendWith(MockitoExtension.class)
 class TransactionPreparationServiceTest {
@@ -47,6 +50,7 @@ class TransactionPreparationServiceTest {
   @Mock private TransactionCommandRepository commandRepository;
   @Mock private PositionPriceResolver positionPriceResolver;
   @Mock private SettlementTimingWarningService settlementTimingWarningService;
+  @Mock private TradePrepInputGates inputGates;
   @Mock private Clock clock;
 
   private TransactionPreparationService service;
@@ -64,6 +68,7 @@ class TransactionPreparationServiceTest {
             commandRepository,
             orderFactory,
             settlementTimingWarningService,
+            inputGates,
             clock);
   }
 
@@ -120,7 +125,7 @@ class TransactionPreparationServiceTest {
               return batch;
             });
 
-    var result = service.processCommand(command);
+    var result = (ProcessCommandResult) service.processCommand(command);
 
     assertThat(result.batch().getFund()).isEqualTo(TUV100);
     assertThat(result.batch().getStatus()).isEqualTo(BatchStatus.DRAFT);
@@ -426,7 +431,7 @@ class TransactionPreparationServiceTest {
               return batch;
             });
 
-    var result = service.processCommand(command);
+    var result = (ProcessCommandResult) service.processCommand(command);
 
     assertThat(result.batch().getCreatedBy()).isEqualTo("operator-7");
     verify(auditEventRepository).save(argThat(event -> "operator-7".equals(event.getActor())));
@@ -469,7 +474,7 @@ class TransactionPreparationServiceTest {
               return batch;
             });
 
-    var result = service.processCommand(command);
+    var result = (ProcessCommandResult) service.processCommand(command);
 
     assertThat(result.batch().getCreatedBy()).isEqualTo("system");
     verify(auditEventRepository).save(argThat(event -> "system".equals(event.getActor())));
@@ -567,7 +572,7 @@ class TransactionPreparationServiceTest {
   void processCommand_leavesEtfOrderQuantityNullWhenResolvedPriceHasNoUsedPrice() {
     var command = givenSingleEtfBuyCommandPricedAt(null);
 
-    var result = service.processCommand(command);
+    var result = (ProcessCommandResult) service.processCommand(command);
 
     var order = orderByIsin(result, "IE00ETF");
     assertThat(order.getOrderQuantity()).isNull();
@@ -910,11 +915,69 @@ class TransactionPreparationServiceTest {
 
     var result = service.processCommand(command);
 
-    assertThat(result).isNull();
+    assertThat(result).isEqualTo(new CommandOutcome.Failed());
     assertThat(command.getStatus()).isEqualTo(FAILED);
     assertThat(command.getErrorMessage()).isNotNull();
     assertThat(command.getProcessedAt()).isNotNull();
     verify(commandRepository).save(command);
+  }
+
+  @Test
+  void processCommand_readsTheGatesAndEveryInputFromOneSnapshotSoAReuploadMidRunCannotMixVersions()
+      throws NoSuchMethodException {
+    Transactional transactional =
+        TransactionPreparationService.class
+            .getMethod("processCommand", TransactionCommand.class)
+            .getAnnotation(Transactional.class);
+
+    assertThat(transactional.isolation()).isEqualTo(Isolation.REPEATABLE_READ);
+  }
+
+  @Test
+  void processCommand_whenAnInputGateStopsTheFund_failsWithoutGatheringInputOrMakingADraft() {
+    var command =
+        TransactionCommand.builder()
+            .id(17L)
+            .fund(TUK75)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 11, 18))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+    given(clock.instant()).willReturn(Instant.parse("2026-11-18T08:00:00Z"));
+    var stop =
+        new CommandOutcome.StoppedByInputGates(
+            TUK75,
+            LocalDate.of(2026, 11, 18),
+            List.of(
+                new InputGateFailure.StalePositionReport(
+                    LocalDate.of(2026, 11, 13), LocalDate.of(2026, 11, 17)),
+                new InputGateFailure.MissingR45(
+                    LocalDate.of(2026, 11, 18), LocalDate.of(2026, 11, 17))));
+    willThrow(new TradePrepInputGateException(stop)).given(inputGates).verify(command);
+
+    var result = service.processCommand(command);
+
+    assertThat(result).isEqualTo(stop);
+    assertThat(command.getStatus()).isEqualTo(FAILED);
+    assertThat(command.getErrorMessage())
+        .isEqualTo(
+            "Trade prep inputs missing or stale, no DRAFT made: fund=TUK75, asOfDate=2026-11-18:"
+                + " SEB positsiooniraport on 2026-11-13, vaja 2026-11-17: küsi 2026-11-17 raport"
+                + " SEB-lt; R45 2026-11-18 puudub (viimane 2026-11-17): lae R45 EPIS-ist");
+    assertThat(command.getBatchId()).isNull();
+    assertThat(command.getProcessedAt()).isEqualTo(Instant.parse("2026-11-18T08:00:00Z"));
+    verifyNoInteractions(inputService, calculationEngine, batchRepository, orderRepository);
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                event ->
+                    "CALCULATION_FAILED".equals(event.getEventType())
+                        && event.getBatch() == null
+                        && TradePrepInputGateException.class
+                            .getName()
+                            .equals(event.getPayload().get("exceptionClass"))
+                        && !event.getPayload().containsKey("input")));
   }
 
   @Test
@@ -963,7 +1026,7 @@ class TransactionPreparationServiceTest {
 
     var result = service.processCommand(command);
 
-    assertThat(result).isNull();
+    assertThat(result).isEqualTo(new CommandOutcome.Failed());
     assertThat(command.getStatus()).isEqualTo(FAILED);
     verifyNoInteractions(inputService, calculationEngine);
     verify(auditEventRepository)
@@ -1176,7 +1239,7 @@ class TransactionPreparationServiceTest {
               return batch;
             });
 
-    var result = service.processCommand(command);
+    var result = (ProcessCommandResult) service.processCommand(command);
 
     assertThat(result.orders()).hasSize(2);
 
@@ -1264,7 +1327,7 @@ class TransactionPreparationServiceTest {
     when(positionPriceResolver.resolve("IE00ETF2", LocalDate.of(2026, 1, 15)))
         .thenReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("8")).build()));
 
-    var result = service.processCommand(command);
+    var result = (ProcessCommandResult) service.processCommand(command);
 
     var etfBuyOrder = orderByIsin(result, "IE00ETF");
     assertThat(etfBuyOrder.getOrderQuantity()).isEqualTo(new BigDecimal("16666.666667"));
@@ -1329,7 +1392,7 @@ class TransactionPreparationServiceTest {
     when(positionPriceResolver.resolve("IE00ETF", LocalDate.of(2026, 1, 15)))
         .thenReturn(Optional.empty());
 
-    var result = service.processCommand(command);
+    var result = (ProcessCommandResult) service.processCommand(command);
 
     var etfOrder = orderByIsin(result, "IE00ETF");
     assertThat(etfOrder.getOrderQuantity()).isNull();
@@ -1339,7 +1402,7 @@ class TransactionPreparationServiceTest {
   void processCommand_leavesEtfOrderQuantityNullWhenPriceIsZero() {
     var command = givenSingleEtfBuyCommandPricedAt(ZERO);
 
-    var result = service.processCommand(command);
+    var result = (ProcessCommandResult) service.processCommand(command);
 
     assertThat(orderByIsin(result, "IE00ETF").getOrderQuantity()).isNull();
   }
@@ -1348,7 +1411,7 @@ class TransactionPreparationServiceTest {
   void processCommand_leavesEtfOrderQuantityNullWhenPriceIsNegative() {
     var command = givenSingleEtfBuyCommandPricedAt(new BigDecimal("-3"));
 
-    var result = service.processCommand(command);
+    var result = (ProcessCommandResult) service.processCommand(command);
 
     assertThat(orderByIsin(result, "IE00ETF").getOrderQuantity()).isNull();
   }
@@ -1371,7 +1434,7 @@ class TransactionPreparationServiceTest {
 
     var result = service.processCommand(command);
 
-    assertThat(result).isNull();
+    assertThat(result).isEqualTo(new CommandOutcome.Failed());
     assertThat(command.getStatus()).isEqualTo(FAILED);
     assertThat(command.getErrorMessage()).isNotNull();
     assertThat(command.getProcessedAt()).isNotNull();
@@ -1440,7 +1503,7 @@ class TransactionPreparationServiceTest {
         givenSingleEtfBuyCommandPricedAt(
             new BigDecimal("3"), LocalDate.of(2026, 1, 10), PriceSource.EODHD);
 
-    var result = service.processCommand(command);
+    var result = (ProcessCommandResult) service.processCommand(command);
 
     var order = orderByIsin(result, "IE00ETF");
     assertThat(order.getComment()).contains("2026-01-10", "5", "EODHD");
@@ -1452,7 +1515,7 @@ class TransactionPreparationServiceTest {
         givenSingleEtfBuyCommandPricedAt(
             new BigDecimal("3"), LocalDate.of(2026, 1, 12), PriceSource.EODHD);
 
-    var result = service.processCommand(command);
+    var result = (ProcessCommandResult) service.processCommand(command);
 
     var order = orderByIsin(result, "IE00ETF");
     assertThat(order.getComment()).isNull();
@@ -1518,7 +1581,7 @@ class TransactionPreparationServiceTest {
     given(positionPriceResolver.resolve("LU00FUND", LocalDate.of(2026, 1, 15)))
         .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("12.5")).build()));
 
-    var result = service.processCommand(command);
+    var result = (ProcessCommandResult) service.processCommand(command);
 
     var fundSellOrder = orderByIsin(result, "LU00FUND");
     assertThat(fundSellOrder.getTransactionType()).isEqualTo(TransactionType.SELL);
@@ -1578,7 +1641,7 @@ class TransactionPreparationServiceTest {
     given(positionPriceResolver.resolve("LU00FUND", LocalDate.of(2026, 1, 15)))
         .willReturn(Optional.empty());
 
-    var result = service.processCommand(command);
+    var result = (ProcessCommandResult) service.processCommand(command);
 
     var fundSellOrder = orderByIsin(result, "LU00FUND");
     assertThat(fundSellOrder.getOrderQuantity()).isNull();
@@ -1636,7 +1699,7 @@ class TransactionPreparationServiceTest {
               return batch;
             });
 
-    var result = service.processCommand(command);
+    var result = (ProcessCommandResult) service.processCommand(command);
 
     assertThat(result.orders())
         .singleElement()

@@ -9,6 +9,8 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -80,6 +82,48 @@ class R16PhaseCalculatorTest {
 
     assertThat(calculator.isSuppressedByR45(flow(TUV100))).isTrue();
     assertThat(calculator.isSuppressedByR45(flow(TUK75))).isFalse();
+  }
+
+  @Test
+  void tradePrepPhaseOfAMonthFollowsTheSamePaymentDatesAsTheR16Flow() {
+    var june =
+        new R16PaymentDates(
+            LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 15), LocalDate.of(2026, 6, 8));
+
+    assertThat(calculator.tradePrepPhaseFor(TUK75, june, LocalDate.of(2026, 6, 5)))
+        .isEqualTo(VISIBLE);
+    assertThat(calculator.tradePrepPhaseFor(TUK75, june, LocalDate.of(2026, 6, 8)))
+        .isEqualTo(ACTIVE);
+    assertThat(calculator.tradePrepPhaseFor(TUK75, june, LocalDate.of(2026, 6, 15)))
+        .isEqualTo(BUFFERED);
+    assertThat(calculator.tradePrepPhaseFor(TUK75, june, LocalDate.of(2026, 6, 21)))
+        .isEqualTo(IGNORE);
+  }
+
+  @Test
+  void tradePrepSuppressesTuv100sR16OnlyByTheTradeDatesR45() {
+    var june =
+        new R16PaymentDates(
+            LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 15), LocalDate.of(2026, 6, 8));
+    given(r45ReportService.getRedRowSettlementDatesOn(TUV100, LocalDate.of(2026, 6, 10)))
+        .willReturn(List.of(LocalDate.of(2026, 6, 17)));
+    given(r45ReportService.getRedRowSettlementDatesOn(TUV100, LocalDate.of(2026, 6, 11)))
+        .willReturn(List.of());
+
+    assertThat(calculator.tradePrepPhaseFor(TUV100, june, LocalDate.of(2026, 6, 10)))
+        .isEqualTo(IGNORE);
+    assertThat(calculator.tradePrepPhaseFor(TUV100, june, LocalDate.of(2026, 6, 11)))
+        .isEqualTo(ACTIVE);
+    verify(r45ReportService, never()).getLatestRedRowSettlementDates(TUV100);
+  }
+
+  @Test
+  void tradePrepCannotTellTuv100sR16PhaseWithoutTheTradeDatesR45() {
+    given(r45ReportService.hasReportOn(LocalDate.of(2026, 6, 10))).willReturn(true);
+
+    assertThat(calculator.knowsTradePrepPhaseOf(TUV100, LocalDate.of(2026, 6, 10))).isTrue();
+    assertThat(calculator.knowsTradePrepPhaseOf(TUV100, LocalDate.of(2026, 6, 11))).isFalse();
+    assertThat(calculator.knowsTradePrepPhaseOf(TUK75, LocalDate.of(2026, 6, 11))).isTrue();
   }
 
   private R16FundFlow flow(TulevaFund fund) {

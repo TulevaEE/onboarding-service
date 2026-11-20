@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
@@ -34,54 +33,12 @@ class TransactionAdminService {
   private final TransactionBatchRepository batchRepository;
   private final TransactionOrderRepository orderRepository;
   private final TransactionAuditEventRepository auditEventRepository;
-  private final TransactionPreparationService preparationService;
   private final TransactionBatchFinalizer batchFinalizer;
   private final Clock clock;
-
-  TransactionCommandResponse createAndProcess(
-      CreateTransactionCommandRequest request, String actor) {
-    TransactionCommand command = TransactionCommand.requested(request, actor);
-    commandRepository.save(command);
-    log.info(
-        "Admin transaction command created: id={}, fund={}, mode={}, asOfDate={}",
-        command.getId(),
-        command.getFund(),
-        command.getMode(),
-        command.getAsOfDate());
-    @Nullable ProcessCommandResult result = preparationService.processCommand(command);
-    List<TransactionOrder> orders = result == null ? List.of() : result.orders();
-    return TransactionCommandResponse.from(command, orders, snapshotOf(command));
-  }
 
   @Nullable
   private Map<String, Object> snapshotOf(TransactionCommand command) {
     return command.getBatchId() == null ? null : calculationSnapshot(command.getBatchId());
-  }
-
-  List<TransactionCommandResponse> createAndProcessAll(
-      @Nullable List<TulevaFund> funds,
-      TransactionMode mode,
-      LocalDate asOfDate,
-      String actor,
-      Map<TulevaFund, CashOverride> cashOverrides) {
-    List<TulevaFund> targetFunds =
-        funds == null || funds.isEmpty() ? List.of(TulevaFund.values()) : funds;
-    if (!targetFunds.containsAll(cashOverrides.keySet())) {
-      throw new ResponseStatusException(
-          BAD_REQUEST,
-          "Cash override for fund not in batch: funds="
-              + targetFunds
-              + ", cashFunds="
-              + cashOverrides.keySet());
-    }
-    return targetFunds.stream()
-        .map(
-            fund ->
-                createAndProcess(
-                    new CreateTransactionCommandRequest(
-                        fund, mode, asOfDate, null, cashOverrides.get(fund), null),
-                    actor))
-        .toList();
   }
 
   Optional<TransactionCommandResponse> getCommand(Long id) {
@@ -105,11 +62,8 @@ class TransactionAdminService {
 
   @Nullable
   private Map<String, Object> calculationSnapshot(Long batchId) {
-    return auditEventRepository.findByBatchIdOrderByCreatedAt(batchId).stream()
-        .filter(event -> "CALCULATION_COMPLETED".equals(event.getEventType()))
-        .map(TransactionAuditEvent::getPayload)
-        .findFirst()
-        .orElse(null);
+    return TransactionAuditEvent.calculationSnapshotIn(
+        auditEventRepository.findByBatchIdOrderByCreatedAt(batchId));
   }
 
   @Transactional

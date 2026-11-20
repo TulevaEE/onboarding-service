@@ -29,6 +29,13 @@ public class R16FlowCalculationService {
         .map(summary -> toFlow(fund, summary, asOfDate));
   }
 
+  public Optional<R16FundFlow> calculateThisMonthsFlows(TulevaFund fund, LocalDate asOfDate) {
+    return summaryRepository
+        .findTopByReportTypeAndReportDateAndFundOrderByIdDesc(
+            R16_FORECASTED_PAYMENTS, YearMonth.from(asOfDate).atDay(1), fund)
+        .map(summary -> toFlow(fund, summary, asOfDate));
+  }
+
   private R16FundFlow toFlow(TulevaFund fund, EpisReportSummary summary, LocalDate asOfDate) {
     BigDecimal fondimaksedUnits = number(summary.getData(), "fondimaksedUnits");
     BigDecimal uhekordsedUnits = number(summary.getData(), "uhekordsedUnits");
@@ -36,20 +43,29 @@ public class R16FlowCalculationService {
 
     BigDecimal nav = ownFundNavProvider.latestNav(fund, asOfDate);
     BigDecimal totalOutflowEur = fondimaksedUnits.add(uhekordsedUnits).multiply(nav);
-
-    LocalDate paymentDeadline =
-        estonianCalendar.nextOrSameBusinessDay(paymentMonth.atDay(PAYMENT_DEADLINE_DAY_OF_MONTH));
-    LocalDate sellByDate =
-        estonianCalendar.subtractBusinessDays(
-            paymentDeadline, SELL_BY_BUSINESS_DAYS_BEFORE_DEADLINE);
+    R16PaymentDates dates = paymentDates(paymentMonth);
 
     return new R16FundFlow(
         fund,
         fondimaksedUnits,
         uhekordsedUnits,
         totalOutflowEur,
-        paymentMonth.atDay(1),
-        paymentDeadline,
-        sellByDate);
+        dates.paymentMonth(),
+        dates.paymentDeadline(),
+        dates.sellByDate());
+  }
+
+  public boolean isLoaded(YearMonth paymentMonth) {
+    return summaryRepository.existsByReportTypeAndReportDate(
+        R16_FORECASTED_PAYMENTS, paymentMonth.atDay(1));
+  }
+
+  public R16PaymentDates paymentDates(YearMonth paymentMonth) {
+    LocalDate paymentDeadline =
+        estonianCalendar.nextOrSameBusinessDay(paymentMonth.atDay(PAYMENT_DEADLINE_DAY_OF_MONTH));
+    LocalDate sellByDate =
+        estonianCalendar.subtractBusinessDays(
+            paymentDeadline, SELL_BY_BUSINESS_DAYS_BEFORE_DEADLINE);
+    return new R16PaymentDates(paymentMonth.atDay(1), paymentDeadline, sellByDate);
   }
 }

@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.DONE;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.transaction.CalculationWarningType.FEE_POLICY_UNRESOLVED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
@@ -10,7 +9,6 @@ import static java.math.BigDecimal.ZERO;
 import ee.tuleva.onboarding.investment.epis.FundCycleTimeline;
 import ee.tuleva.onboarding.investment.epis.PevaRavaFlowService;
 import ee.tuleva.onboarding.investment.epis.PevaRavaFlows;
-import ee.tuleva.onboarding.investment.epis.PevaRavaPeriod;
 import ee.tuleva.onboarding.investment.epis.PevaRavaPeriodService;
 import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.epis.R45Result;
@@ -113,7 +111,7 @@ public class TransactionInputService {
     BigDecimal r16 = r16OutflowReader.read(fund, asOfDate);
     liabilities = liabilities.add(r16);
 
-    BigDecimal r45Net = getR45Net(fund);
+    BigDecimal r45Net = getR45Net(fund, asOfDate);
     liabilities = liabilities.add(ZERO.max(r45Net.negate()));
 
     liabilities = liabilities.add(getAdjustment(manualAdjustments, "additionalLiabilities"));
@@ -268,16 +266,11 @@ public class TransactionInputService {
     if (!PEVA_RAVA_FUNDS.contains(fund)) {
       return ZERO;
     }
-    Optional<PevaRavaPeriod> period =
-        pevaRavaPeriodService.getCurrentPeriod(asOfDate).filter(p -> p.phase() != DONE);
-    if (period.isEmpty()) {
-      return ZERO;
-    }
-    FundCycleTimeline timeline = period.get().timelineFor(fund);
-    if (!timeline.dActive()) {
-      return ZERO;
-    }
-    return getPevaRavaLiquidity(fund, asOfDate, timeline);
+    return pevaRavaPeriodService
+        .getCurrentPeriod(asOfDate)
+        .filter(period -> period.countsFlowsOf(fund))
+        .map(period -> getPevaRavaLiquidity(fund, asOfDate, period.timelineFor(fund)))
+        .orElse(ZERO);
   }
 
   private BigDecimal getPevaRavaLiquidity(
@@ -289,14 +282,14 @@ public class TransactionInputService {
     return timeline.sellByReached() ? flows.tradeBufferedLiquidity() : flows.liquidityRequired();
   }
 
-  private BigDecimal getR45Net(TulevaFund fund) {
-    if (r45ReportService.getIncompleteFunds().contains(fund)) {
+  private BigDecimal getR45Net(TulevaFund fund, LocalDate asOfDate) {
+    if (r45ReportService.getIncompleteFundsOn(asOfDate).contains(fund)) {
       throw new IllegalStateException(
           "R45 summary incomplete: fund="
               + fund
               + ", reason=unvalued R45 rows missing NAV, action=supply NAV and reprocess R45");
     }
-    return Optional.ofNullable(r45ReportService.getLatestFlows().get(fund))
+    return Optional.ofNullable(r45ReportService.getFlowsOn(asOfDate).get(fund))
         .map(R45Result::netEur)
         .orElse(ZERO);
   }

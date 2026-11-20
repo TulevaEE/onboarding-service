@@ -225,7 +225,7 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+    given(r45ReportService.getFlowsOn(AS_OF_DATE)).willReturn(Map.of());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
 
@@ -255,7 +255,7 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(r45ReportService.getLatestFlows())
+    given(r45ReportService.getFlowsOn(AS_OF_DATE))
         .willReturn(
             Map.of(
                 TUV100,
@@ -859,7 +859,7 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_r45NetOutflow_addsAbsoluteNetToLiabilities() {
     stubEmptyBaseline(TUV100);
-    given(r45ReportService.getLatestFlows())
+    given(r45ReportService.getFlowsOn(AS_OF_DATE))
         .willReturn(
             Map.of(
                 TUV100,
@@ -876,7 +876,7 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_r45NetInflow_addsNothingToInvestableCash() {
     stubEmptyBaseline(TUV100);
-    given(r45ReportService.getLatestFlows())
+    given(r45ReportService.getFlowsOn(AS_OF_DATE))
         .willReturn(
             Map.of(
                 TUV100,
@@ -893,7 +893,7 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_r45DataMissingForFund_addsNothing() {
     stubEmptyBaseline(TUV100);
-    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+    given(r45ReportService.getFlowsOn(AS_OF_DATE)).willReturn(Map.of());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
 
@@ -904,7 +904,7 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_r45SummaryIncomplete_throwsToBlockTradeSizing() {
     stubEmptyBaseline(TUV100);
-    given(r45ReportService.getIncompleteFunds()).willReturn(List.of(TUV100));
+    given(r45ReportService.getIncompleteFundsOn(AS_OF_DATE)).willReturn(List.of(TUV100));
 
     assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of()))
         .isInstanceOf(IllegalStateException.class)
@@ -914,7 +914,7 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_r45NetOutflowCombinesWithManualAdjustments() {
     stubEmptyBaseline(TUV100);
-    given(r45ReportService.getLatestFlows())
+    given(r45ReportService.getFlowsOn(AS_OF_DATE))
         .willReturn(
             Map.of(
                 TUV100,
@@ -930,9 +930,10 @@ class TransactionInputServiceTest {
   void gatherInput_r16ActivePhase_addsTotalOutflowToLiabilities() {
     stubEmptyBaseline(TUV100);
     var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateFlows(TUV100, AS_OF_DATE))
+    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.phaseFor(flow, AS_OF_DATE)).willReturn(R16Phase.ACTIVE);
+    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
+        .willReturn(R16Phase.ACTIVE);
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
 
@@ -944,9 +945,10 @@ class TransactionInputServiceTest {
   void gatherInput_r16BufferedPhase_addsBufferedRoundedOutflowToLiabilities() {
     stubEmptyBaseline(TUV100);
     var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateFlows(TUV100, AS_OF_DATE))
+    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.phaseFor(flow, AS_OF_DATE)).willReturn(R16Phase.BUFFERED);
+    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
+        .willReturn(R16Phase.BUFFERED);
     given(investmentParameterRepository.findLatestValue(R16_BUFFER_PERCENT, AS_OF_DATE))
         .willReturn(new BigDecimal("0.02"));
     given(investmentParameterRepository.findLatestValue(R16_ROUNDING_STEP, AS_OF_DATE))
@@ -962,9 +964,10 @@ class TransactionInputServiceTest {
   void gatherInput_r16BufferedPhase_rejectsZeroRoundingStep() {
     stubEmptyBaseline(TUV100);
     var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateFlows(TUV100, AS_OF_DATE))
+    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.phaseFor(flow, AS_OF_DATE)).willReturn(R16Phase.BUFFERED);
+    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
+        .willReturn(R16Phase.BUFFERED);
     given(investmentParameterRepository.findLatestValue(R16_BUFFER_PERCENT, AS_OF_DATE))
         .willReturn(new BigDecimal("0.02"));
     given(investmentParameterRepository.findLatestValue(R16_ROUNDING_STEP, AS_OF_DATE))
@@ -980,9 +983,10 @@ class TransactionInputServiceTest {
   void gatherInput_r16BufferedPhase_rejectsNegativeRoundingStep() {
     stubEmptyBaseline(TUV100);
     var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateFlows(TUV100, AS_OF_DATE))
+    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.phaseFor(flow, AS_OF_DATE)).willReturn(R16Phase.BUFFERED);
+    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
+        .willReturn(R16Phase.BUFFERED);
     given(investmentParameterRepository.findLatestValue(R16_BUFFER_PERCENT, AS_OF_DATE))
         .willReturn(new BigDecimal("0.02"));
     given(investmentParameterRepository.findLatestValue(R16_ROUNDING_STEP, AS_OF_DATE))
@@ -998,9 +1002,10 @@ class TransactionInputServiceTest {
   void gatherInput_r16VisiblePhase_addsNothing() {
     stubEmptyBaseline(TUV100);
     var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateFlows(TUV100, AS_OF_DATE))
+    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.phaseFor(flow, AS_OF_DATE)).willReturn(R16Phase.VISIBLE);
+    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
+        .willReturn(R16Phase.VISIBLE);
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
 
@@ -1012,9 +1017,10 @@ class TransactionInputServiceTest {
   void gatherInput_r16IgnorePhase_addsNothing() {
     stubEmptyBaseline(TUV100);
     var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateFlows(TUV100, AS_OF_DATE))
+    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.phaseFor(flow, AS_OF_DATE)).willReturn(R16Phase.IGNORE);
+    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
+        .willReturn(R16Phase.IGNORE);
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
 
@@ -1024,7 +1030,7 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_r16DataMissing_addsNothingAndSkipsPhaseCalculation() {
     stubEmptyBaseline(TUV100);
-    given(r16FlowCalculationService.calculateFlows(TUV100, AS_OF_DATE))
+    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
         .willReturn(Optional.empty());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
@@ -1065,7 +1071,7 @@ class TransactionInputServiceTest {
                 fundIsinRow("Total receivables of unsettled transactions", "20000"),
                 fundIsinRow("Receivables of outstanding units", "8000"),
                 custodianRow(RECEIVABLES, "Other receivables", "500")));
-    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+    given(r45ReportService.getFlowsOn(DAY_AFTER_THE_REPORT)).willReturn(Map.of());
     givenRegistrarReceiptsAfterTheReport(TUV100, "8000");
 
     var result = service.gatherInput(TUV100, DAY_AFTER_THE_REPORT, Map.of());
@@ -1414,7 +1420,7 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+    given(r45ReportService.getFlowsOn(AS_OF_DATE)).willReturn(Map.of());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
 
@@ -1462,7 +1468,7 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+    given(r45ReportService.getFlowsOn(AS_OF_DATE)).willReturn(Map.of());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
 
@@ -1499,7 +1505,7 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+    given(r45ReportService.getFlowsOn(AS_OF_DATE)).willReturn(Map.of());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
 

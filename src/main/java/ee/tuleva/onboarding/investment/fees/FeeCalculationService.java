@@ -38,6 +38,7 @@ public class FeeCalculationService {
 
   private final List<FeeCalculator> feeCalculators;
   private final FeeAccrualRepository feeAccrualRepository;
+  private final OutstandingFees outstandingFees;
   private final NavFeeAccrualLedger navFeeAccrualLedger;
   private final NavLedgerRepository navLedgerRepository;
   private final FeeMonthResolver feeMonthResolver;
@@ -120,25 +121,21 @@ public class FeeCalculationService {
     reconcileNonWorkingDaysAfter(
         fund, positionReportDate, baseValue, chargedPolicies, securityPrices);
 
-    BigDecimal mgmtFee = chargedAccrual(chargedPolicies, fund, MANAGEMENT, positionReportDate);
-    BigDecimal depotFee = chargedAccrual(chargedPolicies, fund, DEPOT, positionReportDate);
+    BigDecimal mgmtFee = owed(chargedPolicies, MANAGEMENT, positionReportDate);
+    BigDecimal depotFee = owed(chargedPolicies, DEPOT, positionReportDate);
     return new FeeResult(mgmtFee, depotFee);
   }
 
-  private BigDecimal chargedAccrual(
+  private BigDecimal owed(
       Map<FeeType, FeeChargedToFundPolicy.Resolver> policies,
-      TulevaFund fund,
       FeeType feeType,
       LocalDate positionReportDate) {
-    Map<LocalDate, BigDecimal> byDate =
-        feeAccrualRepository.getUnsettledAccrualByDate(fund, feeType, positionReportDate);
-    FeeChargedToFundPolicy.Resolver resolver =
-        requireNonNull(policies.get(feeType), "No fee policy resolver: feeType=" + feeType);
-    return roundedToCents(resolver.sumChargedDays(byDate));
+    return outstandingFees.owedOn(policyFor(policies, feeType), positionReportDate);
   }
 
-  private static BigDecimal roundedToCents(BigDecimal amount) {
-    return amount.signum() == 0 ? BigDecimal.ZERO : amount.setScale(2, HALF_UP);
+  private static FeeChargedToFundPolicy.Resolver policyFor(
+      Map<FeeType, FeeChargedToFundPolicy.Resolver> policies, FeeType feeType) {
+    return requireNonNull(policies.get(feeType), "No fee policy resolver: feeType=" + feeType);
   }
 
   private void reconcileNonWorkingDaysAfter(
@@ -174,10 +171,7 @@ public class FeeCalculationService {
       if (existing.filter(accrual::sameValuesAs).isEmpty()) {
         feeAccrualRepository.save(accrual);
       }
-      FeeChargedToFundPolicy.Resolver resolver =
-          requireNonNull(
-              chargedPolicies.get(accrual.feeType()),
-              "No fee policy resolver: feeType=" + accrual.feeType());
+      FeeChargedToFundPolicy.Resolver resolver = policyFor(chargedPolicies, accrual.feeType());
       reconcileLedger(fund, date, accrual, resolver.chargedOn(date), securityPrices);
     }
   }

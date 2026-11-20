@@ -16,7 +16,6 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
@@ -74,7 +73,7 @@ class ModelRebalanceCheckJobTest {
   }
 
   @Test
-  void anOpenWindowsPostThatFails_staysRecordedAndDoesNotStopTheOtherFunds() {
+  void anOpenWindowsPostThatFails_isNotRecordedSoTheNextRunPostsItAndTheOtherFundsAreChecked() {
     given(rebalanceWindows.of(any(), eq(MONDAY), any()))
         .willReturn(new FundRebalanceWindows(Optional.of(warningWindow()), List.of()));
     given(announcements.isOwed(warningWindow())).willReturn(true);
@@ -85,25 +84,25 @@ class ModelRebalanceCheckJobTest {
     jobOn(MONDAY).checkRebalanceWindows();
 
     then(rebalanceWindows).should().of(eq(TKF100), eq(MONDAY), any());
-    then(announcements).should(times(4)).recordOpen(warningWindow(), MONDAY_RUN);
+    then(announcements).should(never()).recordOpen(any(), any());
   }
 
   @Test
-  void anOpenWindowsAnnouncementIsRecordedBeforeItIsPosted() {
+  void anOpenWindowsAnnouncementIsRecordedOnlyOnceSlackHasAcceptedIt() {
     givenWindows(TUV100, warningWindow());
     given(announcements.isOwed(warningWindow())).willReturn(true);
 
     jobOn(MONDAY).checkRebalanceWindows();
 
-    var inOrder = inOrder(announcements, notificationService);
-    then(announcements).should(inOrder).recordOpen(warningWindow(), MONDAY_RUN);
+    var inOrder = inOrder(notificationService, announcements);
     then(notificationService)
         .should(inOrder)
         .sendMessage(startsWith("⚠️ TUV100"), eq(INVESTMENT), eq(WARNING));
+    then(announcements).should(inOrder).recordOpen(warningWindow(), MONDAY_RUN);
   }
 
   @Test
-  void anOpenAnnouncementThatCannotBeRecorded_isNotPostedAndTheFundGetsOneNotice() {
+  void anOpenAnnouncementWhoseRecordFailsAfterPosting_isFollowedByOneNoticeForTheFund() {
     givenWindows(TUV100, warningWindow());
     given(announcements.isOwed(warningWindow())).willReturn(true);
     willThrow(new IllegalStateException("event_log unavailable"))
@@ -112,8 +111,12 @@ class ModelRebalanceCheckJobTest {
 
     jobOn(MONDAY).checkRebalanceWindows();
 
+    var inOrder = inOrder(notificationService);
     then(notificationService)
-        .should()
+        .should(inOrder)
+        .sendMessage(startsWith("⚠️ TUV100"), eq(INVESTMENT), eq(WARNING));
+    then(notificationService)
+        .should(inOrder)
         .sendMessage(startsWith("⏸ TUV100"), eq(INVESTMENT), eq(ERROR));
     then(notificationService).shouldHaveNoMoreInteractions();
   }

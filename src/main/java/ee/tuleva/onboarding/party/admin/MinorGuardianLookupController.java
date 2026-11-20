@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.party.admin;
 import static ee.tuleva.onboarding.party.MinorGuardianLookupService.PAUSE_BETWEEN_QUERIES;
 
 import ee.tuleva.onboarding.admin.AmlServiceTokenValidator;
+import ee.tuleva.onboarding.party.AutomaticGuardianLookups;
 import ee.tuleva.onboarding.party.ChildGuardianLookup;
 import ee.tuleva.onboarding.party.MinorGuardianLookupRun;
 import ee.tuleva.onboarding.party.MinorGuardianLookupService;
@@ -23,6 +24,7 @@ public class MinorGuardianLookupController {
 
   private final AmlServiceTokenValidator amlServiceTokenValidator;
   private final MinorGuardianLookupService minorGuardianLookupService;
+  private final AutomaticGuardianLookups automaticGuardianLookups;
 
   @PostMapping("/minor-guardian-lookups")
   public MinorGuardianLookupRun lookUpMinorGuardians(
@@ -43,5 +45,15 @@ public class MinorGuardianLookupController {
     amlServiceTokenValidator.validate(authorization);
     return minorGuardianLookupService.lookUpChild(
         request.requesterPersonalCode(), request.childPersonalCode());
+  }
+
+  @PostMapping("/minor-guardian-lookups/backfill")
+  public MinorGuardianLookupRun backfillMinorGuardians(
+      @RequestHeader("Authorization") String authorization,
+      @Valid @RequestBody MinorGuardianBackfillRequest request) {
+
+    amlServiceTokenValidator.validate(authorization);
+    log.info("AML service started a minor guardian backfill: batchSize={}", request.batchSize());
+    return automaticGuardianLookups.backfillNow(request.batchSize());
   }
 }

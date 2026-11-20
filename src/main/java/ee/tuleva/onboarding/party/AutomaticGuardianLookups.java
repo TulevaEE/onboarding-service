@@ -102,21 +102,30 @@ public class AutomaticGuardianLookups {
         failed);
   }
 
-  void backfillMinorThirdPillarHolders() {
+  public MinorGuardianLookupRun backfillNow(int batchSize) {
     String asRequester = requester;
-    if (asRequester == null
-        || Thread.currentThread().isInterrupted()
-        || LocalDate.now(clock).isAfter(LAST_BACKFILL_DAY_AT_THE_2026_POPULATION_REGISTER_PRICE)) {
+    if (asRequester == null || backfillIsOver()) {
+      throw new MinorGuardianBackfillUnavailable();
+    }
+    return minorGuardianLookupService.backfillMinorThirdPillarHolders(
+        asRequester, batchSize, pause);
+  }
+
+  void backfillMinorThirdPillarHolders() {
+    if (requester == null || Thread.currentThread().isInterrupted() || backfillIsOver()) {
       return;
     }
     try {
-      minorGuardianLookupService.backfillMinorThirdPillarHolders(
-          asRequester, MAX_BACKFILL_PER_RUN, pause);
+      backfillNow(MAX_BACKFILL_PER_RUN);
     } catch (RuntimeException e) {
       log.error(
           "Minor guardian backfill did not run, it is tried again at the next snapshot: {}",
           RegisterFailure.of(e));
     }
+  }
+
+  private boolean backfillIsOver() {
+    return LocalDate.now(clock).isAfter(LAST_BACKFILL_DAY_AT_THE_2026_POPULATION_REGISTER_PRICE);
   }
 
   List<String> candidates() {

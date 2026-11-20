@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.party;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -202,6 +203,24 @@ class AutomaticGuardianLookupsTest {
     }
 
     verify(service, never()).backfillMinorThirdPillarHolders(anyString(), anyInt(), any());
+  }
+
+  @Test
+  void backfillsABatchOnDemandAsTheConfiguredRequesterAndReturnsItsCounts() {
+    given(service.backfillMinorThirdPillarHolders(REQUESTER, 5, Duration.ZERO))
+        .willReturn(new MinorGuardianLookupRun(5, 0, 5409));
+
+    assertThat(lookups(REQUESTER).backfillNow(5)).isEqualTo(new MinorGuardianLookupRun(5, 0, 5409));
+  }
+
+  @Test
+  void refusesAnOnDemandBackfillWithoutARequesterOrAfterTheLastDayOf2026() {
+    assertThatThrownBy(() -> lookups(null).backfillNow(5))
+        .isInstanceOf(MinorGuardianBackfillUnavailable.class);
+    assertThatThrownBy(() -> lookupsAt(Instant.parse("2027-01-01T00:00:00Z")).backfillNow(5))
+        .isInstanceOf(MinorGuardianBackfillUnavailable.class);
+
+    verifyNoInteractions(service);
   }
 
   private AutomaticGuardianLookups lookups(String requester) {

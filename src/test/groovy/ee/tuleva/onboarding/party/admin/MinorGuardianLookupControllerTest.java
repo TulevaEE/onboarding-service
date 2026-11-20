@@ -10,7 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.admin.AmlServiceTokenValidator;
+import ee.tuleva.onboarding.party.AutomaticGuardianLookups;
 import ee.tuleva.onboarding.party.ChildGuardianLookup;
+import ee.tuleva.onboarding.party.MinorGuardianBackfillUnavailable;
 import ee.tuleva.onboarding.party.MinorGuardianLookupAlreadyRunning;
 import ee.tuleva.onboarding.party.MinorGuardianLookupRun;
 import ee.tuleva.onboarding.party.MinorGuardianLookupService;
@@ -36,6 +38,7 @@ class MinorGuardianLookupControllerTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private MinorGuardianLookupService minorGuardianLookupService;
+  @MockitoBean private AutomaticGuardianLookups automaticGuardianLookups;
 
   @Test
   void looksUpOneBatchAsTheRequesterTheAmlServiceNamesAndReturnsTheCounts() throws Exception {
@@ -198,5 +201,75 @@ class MinorGuardianLookupControllerTest {
                     {"requesterPersonalCode": "38812121215", "batchSize": 25}
                     """))
         .andExpect(status().isConflict());
+  }
+
+  @Test
+  void backfillsOneBatchNowAsTheConfiguredRequesterAndReturnsTheCounts() throws Exception {
+    given(automaticGuardianLookups.backfillNow(10))
+        .willReturn(new MinorGuardianLookupRun(10, 0, 5404));
+
+    mockMvc
+        .perform(
+            post(PATH + "/backfill")
+                .with(csrf())
+                .header("Authorization", "Bearer aml-service-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"batchSize": 10}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.lookedUp").value(10))
+        .andExpect(jsonPath("$.failed").value(0))
+        .andExpect(jsonPath("$.remaining").value(5404));
+  }
+
+  @Test
+  void refusesABackfillWithoutTheTokenOrWithABatchOutsideOneToTheMaximum() throws Exception {
+    mockMvc
+        .perform(
+            post(PATH + "/backfill")
+                .with(csrf())
+                .header("Authorization", "Bearer someone-else")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"batchSize": 10}
+                    """))
+        .andExpect(status().isUnauthorized());
+    for (String batchSize : new String[] {"0", "1001", "null"}) {
+      mockMvc
+          .perform(
+              post(PATH + "/backfill")
+                  .with(csrf())
+                  .header("Authorization", "Bearer aml-service-token")
+                  .contentType(APPLICATION_JSON)
+                  .content(
+                      """
+                      {"batchSize": %s}
+                      """
+                          .formatted(batchSize)))
+          .andExpect(status().isBadRequest());
+    }
+
+    verifyNoInteractions(automaticGuardianLookups);
+  }
+
+  @Test
+  void answersServiceUnavailableWhenTheBackfillCannotRun() throws Exception {
+    given(automaticGuardianLookups.backfillNow(10))
+        .willThrow(new MinorGuardianBackfillUnavailable());
+
+    mockMvc
+        .perform(
+            post(PATH + "/backfill")
+                .with(csrf())
+                .header("Authorization", "Bearer aml-service-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"batchSize": 10}
+                    """))
+        .andExpect(status().isServiceUnavailable());
   }
 }

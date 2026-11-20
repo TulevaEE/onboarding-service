@@ -23,7 +23,7 @@ public record TransactionCommandResponse(
     List<PriceOverride> prices,
     @Nullable AcceptedHoldingDifferences acceptedHoldingDifferences,
     PriceDateRule priceDateRule,
-    List<String> confirmedPriceDeviations,
+    List<PriceDeviationConfirmation> confirmedPriceDeviations,
     List<TransactionOrderResponse> orders,
     @Nullable Map<String, Object> calculationSnapshot) {
 

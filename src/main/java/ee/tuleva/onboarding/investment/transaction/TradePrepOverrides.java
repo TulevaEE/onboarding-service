@@ -11,7 +11,7 @@ record TradePrepOverrides(
     List<PriceOverride> prices,
     @Nullable AcceptedHoldingDifferences acceptedHoldingDifferences,
     PriceDateRule priceDateRule,
-    Set<String> confirmedPriceDeviations) {
+    List<PriceDeviationConfirmation> confirmedPriceDeviations) {
 
   static TradePrepOverrides of(TransactionCommand command) {
     return new TradePrepOverrides(

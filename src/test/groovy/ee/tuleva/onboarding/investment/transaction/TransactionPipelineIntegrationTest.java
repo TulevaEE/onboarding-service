@@ -681,7 +681,8 @@ class TransactionPipelineIntegrationTest {
                     "isin", "LU1291106356",
                     "price", "60.12",
                     "comment", "Price from the issuer's site",
-                    "neededByGate", true)));
+                    "neededByGate", true,
+                    "deviationCheck", "NO_INDEX_PRICE_HISTORY")));
   }
 
   @Test
@@ -701,7 +702,7 @@ class TransactionPipelineIntegrationTest {
                 List.of(manual),
                 null,
                 null,
-                Set.of("IE000O58J820")),
+                List.of(new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("5.00")))),
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
@@ -712,7 +713,8 @@ class TransactionPipelineIntegrationTest {
             .orElseThrow();
     assertThat(order.orderQuantity())
         .isEqualByComparingTo(order.orderAmount().divide(new BigDecimal("5.00"), 6, HALF_UP));
-    assertThat(response.confirmedPriceDeviations()).containsExactly("IE000O58J820");
+    assertThat(response.confirmedPriceDeviations())
+        .containsExactly(new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("5.00")));
     assertThat(response.calculationSnapshot())
         .containsEntry(
             "confirmedPriceDeviations",
@@ -758,7 +760,7 @@ class TransactionPipelineIntegrationTest {
                 List.of(manual),
                 null,
                 null,
-                Set.of("IE000O58J820")),
+                List.of(new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("5.00")))),
             "operator");
 
     assertThat(response.calculationSnapshot().get("priceResolutions"))
@@ -1334,6 +1336,57 @@ class TransactionPipelineIntegrationTest {
             ⚠️ LU1291106356: käsitsi hind 60.12, viimane indeksihind 10 (2025-12-01), erinevus 501.2%: kontrolli hinda või kinnita see (confirmedPriceDeviations)\
             """,
             INVESTMENT);
+  }
+
+  @Test
+  void aConfirmationForAnotherManualPriceDoesNotLetTheNewPriceThrough() {
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(
+                    new PriceOverride(
+                        "IE000O58J820", new BigDecimal("5.00"), "Index price is stale")),
+                null,
+                null,
+                List.of(new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("6.00")))),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            ⚠️ IE000O58J820: käsitsi hind 5, viimane indeksihind 50 (2026-02-10), erinevus -90.0%: kontrolli hinda või kinnita see (confirmedPriceDeviations)\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void aConfirmationForAnInstrumentWithoutAManualPriceFailsTheCommand() {
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("5.00")))),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    assertThat(response.confirmedPriceDeviations())
+        .containsExactly(new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("5.00")));
   }
 
   private void registryRow(String isin, String quantity) {

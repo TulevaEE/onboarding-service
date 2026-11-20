@@ -17,6 +17,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -77,7 +78,7 @@ public class TransactionCommand {
 
   @Builder.Default
   @JdbcTypeCode(JSON)
-  private Set<String> confirmedPriceDeviations = Set.of();
+  private List<PriceDeviationConfirmation> confirmedPriceDeviations = List.of();
 
   @NotNull
   @Enumerated(STRING)
@@ -100,7 +101,7 @@ public class TransactionCommand {
     Set<String> excludeIsins = request.excludeIsins();
     List<PriceOverride> prices = request.prices();
     PriceDateRule priceDateRule = request.priceDateRule();
-    Set<String> confirmedPriceDeviations = request.confirmedPriceDeviations();
+    List<PriceDeviationConfirmation> confirmedPriceDeviations = request.confirmedPriceDeviations();
     return TransactionCommand.builder()
         .fund(request.fund())
         .mode(request.mode())
@@ -114,14 +115,16 @@ public class TransactionCommand {
         .priceDateRule(
             priceDateRule == null ? PriceDateRule.FRESHEST_PER_INSTRUMENT : priceDateRule)
         .confirmedPriceDeviations(
-            confirmedPriceDeviations == null ? Set.of() : Set.copyOf(confirmedPriceDeviations))
+            confirmedPriceDeviations == null ? List.of() : List.copyOf(confirmedPriceDeviations))
         .actor(actor)
         .status(CommandStatus.PROCESSING)
         .build();
   }
 
-  List<String> sortedConfirmedPriceDeviations() {
-    return confirmedPriceDeviations.stream().sorted().toList();
+  List<PriceDeviationConfirmation> sortedConfirmedPriceDeviations() {
+    return confirmedPriceDeviations.stream()
+        .sorted(Comparator.comparing(PriceDeviationConfirmation::isin))
+        .toList();
   }
 
   List<String> sortedExcludeIsins() {

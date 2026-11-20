@@ -54,7 +54,7 @@ class TradePrepPriceGateTest {
   void noManualPriceDeviatesUnlessATestSaysSo() {
     lenient()
         .when(manualPriceDeviations.check(any(), any(), any()))
-        .thenReturn(new PriceDeviations(List.of(), List.of()));
+        .thenReturn(new PriceDeviations(List.of(), List.of(), List.of()));
   }
 
   @Test
@@ -106,7 +106,7 @@ class TradePrepPriceGateTest {
                         List.of(),
                         null,
                         PriceDateRule.FRESHEST_PER_INSTRUMENT,
-                        Set.of()))
+                        List.of()))
                 .failures())
         .isEmpty();
   }
@@ -135,7 +135,7 @@ class TradePrepPriceGateTest {
             TKF100,
             TRADE_DATE,
             new TradePrepOverrides(
-                Set.of(), List.of(manual), null, PriceDateRule.FRESHEST_PER_INSTRUMENT, Set.of()));
+                Set.of(), List.of(manual), null, PriceDateRule.FRESHEST_PER_INSTRUMENT, List.of()));
 
     assertThat(check)
         .isEqualTo(
@@ -143,6 +143,7 @@ class TradePrepPriceGateTest {
                 List.of(),
                 new FreshestPerInstrument(Map.of("HELD_NO_PRICE", new ManualPrice(manual))),
                 List.of(new UsedPriceOverride(manual, GateNeed.CLEARED_A_STOP, null)),
+                List.of(),
                 List.of()));
   }
 
@@ -158,7 +159,7 @@ class TradePrepPriceGateTest {
             TKF100,
             TRADE_DATE,
             new TradePrepOverrides(
-                Set.of(), List.of(manual), null, PriceDateRule.FRESHEST_PER_INSTRUMENT, Set.of()));
+                Set.of(), List.of(manual), null, PriceDateRule.FRESHEST_PER_INSTRUMENT, List.of()));
 
     assertThat(check.pricing())
         .isEqualTo(new FreshestPerInstrument(Map.of("HELD_PRICED", new ManualPrice(manual))));
@@ -187,7 +188,7 @@ class TradePrepPriceGateTest {
                         List.of(stranger),
                         null,
                         PriceDateRule.FRESHEST_PER_INSTRUMENT,
-                        Set.of())))
+                        List.of())))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -208,7 +209,7 @@ class TradePrepPriceGateTest {
                         List.of(first, second),
                         null,
                         PriceDateRule.FRESHEST_PER_INSTRUMENT,
-                        Set.of())))
+                        List.of())))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -233,6 +234,7 @@ class TradePrepPriceGateTest {
                         "A", new IndexPrice(priceOn(dayBefore, "9")),
                         "B", new IndexPrice(priceOn(dayBefore, "20"))),
                     dayBefore),
+                List.of(),
                 List.of(),
                 List.of()));
   }
@@ -265,7 +267,7 @@ class TradePrepPriceGateTest {
             TKF100,
             TRADE_DATE,
             new TradePrepOverrides(
-                Set.of(), List.of(manual), null, PriceDateRule.LATEST_COMMON_DATE, Set.of()));
+                Set.of(), List.of(manual), null, PriceDateRule.LATEST_COMMON_DATE, List.of()));
 
     assertThat(check.pricing())
         .isEqualTo(
@@ -297,7 +299,7 @@ class TradePrepPriceGateTest {
                 List.of(manualA, manualC),
                 null,
                 PriceDateRule.LATEST_COMMON_DATE,
-                Set.of()));
+                List.of()));
 
     assertThat(check.priceOverrides())
         .containsExactly(
@@ -317,7 +319,7 @@ class TradePrepPriceGateTest {
             TKF100,
             TRADE_DATE,
             new TradePrepOverrides(
-                Set.of(), List.of(manual), null, PriceDateRule.LATEST_COMMON_DATE, Set.of()));
+                Set.of(), List.of(manual), null, PriceDateRule.LATEST_COMMON_DATE, List.of()));
 
     assertThat(check.pricing())
         .isEqualTo(new FreshestPerInstrument(Map.of("A", new ManualPrice(manual))));
@@ -325,7 +327,7 @@ class TradePrepPriceGateTest {
 
   private static TradePrepOverrides commonDate() {
     return new TradePrepOverrides(
-        Set.of(), List.of(), null, PriceDateRule.LATEST_COMMON_DATE, Set.of());
+        Set.of(), List.of(), null, PriceDateRule.LATEST_COMMON_DATE, List.of());
   }
 
   private void givenPriceOn(String isin, LocalDate asked, LocalDate priced, String price) {
@@ -363,7 +365,7 @@ class TradePrepPriceGateTest {
     var confirmed =
         new PriceDeviation("A", new BigDecimal("80"), new BigDecimal("100.00"), POSITION_DATE);
     given(manualPriceDeviations.check(any(), any(), any()))
-        .willReturn(new PriceDeviations(List.of(unconfirmed), List.of(confirmed)));
+        .willReturn(new PriceDeviations(List.of(unconfirmed), List.of(confirmed), List.of()));
 
     var check = gates.check(TKF100, TRADE_DATE, noOverrides());
 

@@ -84,7 +84,9 @@ class TransactionPreparationServiceTest {
                 List.of()));
     lenient()
         .when(inputGates.verify(any()))
-        .thenReturn(new GateCheck(List.of(), noResolvedPrices(), List.of(), List.of(), List.of()));
+        .thenReturn(
+            new GateCheck(
+                List.of(), noResolvedPrices(), List.of(), List.of(), List.of(), List.of()));
   }
 
   private static BigDecimal netInvestable(FundTransactionInput input) {

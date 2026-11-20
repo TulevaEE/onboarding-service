@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.FT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
+import static ee.tuleva.onboarding.investment.transaction.TradePrepPricingFixture.noResolvedPrices;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
@@ -190,7 +191,7 @@ class TransactionPipelineIntegrationTest {
 
     var breakdown =
         transactionInputService
-            .gatherInput(TKF100, TEST_DATE, Map.of(), TradePrepPricing.freshest())
+            .gatherInput(TKF100, TEST_DATE, Map.of(), noResolvedPrices())
             .liabilityBreakdown();
 
     assertThat(breakdown.incomingPaymentsClearing()).isEqualByComparingTo("4200.00");
@@ -753,6 +754,33 @@ class TransactionPipelineIntegrationTest {
                     indexPrice.usedPrice().toPlainString(),
                     "indexPriceDate",
                     indexPrice.priceDate().toString())));
+  }
+
+  @Test
+  void aManualPriceShowsAsManualInThePriceResolutionsAndTheOutput() {
+    var manual = new PriceOverride("IE000O58J820", new BigDecimal("5.00"), "Index price is stale");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(manual), null, null),
+            "operator");
+
+    assertThat(response.calculationSnapshot().get("priceResolutions"))
+        .asInstanceOf(LIST)
+        .contains(
+            Map.of(
+                "isin", "IE000O58J820",
+                "price", "5.00",
+                "priceSource", "MANUAL",
+                "comment", "Index price is stale"));
+    assertThat(response.calculationSnapshot().get("output"))
+        .asInstanceOf(LIST)
+        .filteredOn(trade -> "IE000O58J820".equals(((Map<?, ?>) trade).get("isin")))
+        .singleElement()
+        .asInstanceOf(MAP)
+        .containsEntry("price", "5.00")
+        .containsEntry("priceSource", "MANUAL");
   }
 
   @Test

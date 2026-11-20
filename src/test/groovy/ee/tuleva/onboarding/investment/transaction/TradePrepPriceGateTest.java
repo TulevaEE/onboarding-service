@@ -16,6 +16,10 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationReposit
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPrices;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoCommonPriceDate;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.ManualPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPricing.FreshestPerInstrument;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPricing.OnCommonDate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -125,7 +129,7 @@ class TradePrepPriceGateTest {
         .isEqualTo(
             new PriceCheck(
                 Optional.empty(),
-                new TradePrepPricing(Map.of("HELD_NO_PRICE", new BigDecimal("12.5")), null),
+                new FreshestPerInstrument(Map.of("HELD_NO_PRICE", new ManualPrice(manual))),
                 List.of(new UsedPriceOverride(manual, GateNeed.CLEARED_A_STOP, null))));
   }
 
@@ -144,7 +148,7 @@ class TradePrepPriceGateTest {
                 Set.of(), List.of(manual), null, PriceDateRule.FRESHEST_PER_INSTRUMENT, null));
 
     assertThat(check.pricing())
-        .isEqualTo(new TradePrepPricing(Map.of("HELD_PRICED", new BigDecimal("98")), null));
+        .isEqualTo(new FreshestPerInstrument(Map.of("HELD_PRICED", new ManualPrice(manual))));
     assertThat(check.priceOverrides())
         .singleElement()
         .satisfies(
@@ -209,7 +213,14 @@ class TradePrepPriceGateTest {
 
     assertThat(check)
         .isEqualTo(
-            new PriceCheck(Optional.empty(), new TradePrepPricing(Map.of(), dayBefore), List.of()));
+            new PriceCheck(
+                Optional.empty(),
+                new OnCommonDate(
+                    Map.of(
+                        "A", new IndexPrice(priceOn(dayBefore, "9")),
+                        "B", new IndexPrice(priceOn(dayBefore, "20"))),
+                    dayBefore),
+                List.of()));
   }
 
   @Test
@@ -243,7 +254,11 @@ class TradePrepPriceGateTest {
                 Set.of(), List.of(manual), null, PriceDateRule.LATEST_COMMON_DATE, null));
 
     assertThat(check.pricing())
-        .isEqualTo(new TradePrepPricing(Map.of("B", new BigDecimal("21")), TRADE_DATE));
+        .isEqualTo(
+            new OnCommonDate(
+                Map.of(
+                    "A", new IndexPrice(priceOn(TRADE_DATE, "10")), "B", new ManualPrice(manual)),
+                TRADE_DATE));
   }
 
   private static TradePrepOverrides commonDate() {
@@ -262,6 +277,18 @@ class TradePrepPriceGateTest {
         .validationStatus(OK)
         .priceDate(date)
         .build();
+  }
+
+  @Test
+  void theGateHandsTheIndexPricesItResolvedToTheRunSoTheyAreNotResolvedAgain() {
+    givenHeld("HELD_PRICED");
+    givenModel();
+    givenPrice("HELD_PRICED", "100.00");
+
+    assertThat(gates.check(TKF100, TRADE_DATE, noOverrides()).pricing())
+        .isEqualTo(
+            new FreshestPerInstrument(
+                Map.of("HELD_PRICED", new IndexPrice(priceOn(POSITION_DATE, "100.00")))));
   }
 
   @Test

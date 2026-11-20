@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionAuditPayloa
 import static ee.tuleva.onboarding.investment.transaction.TransactionAuditPayloads.putIfPresent;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
-import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,9 +72,8 @@ final class TransactionCommandPayloads {
           "acceptedHoldingDifferences",
           acceptedDifferences(accepted.comment(), gates.acceptedDifferences()));
     }
-    LocalDate commonPriceDate = gates.pricing().priceDate();
-    if (commonPriceDate != null) {
-      payload.put("commonPriceDate", commonPriceDate.toString());
+    if (gates.pricing() instanceof TradePrepPricing.OnCommonDate onCommonDate) {
+      payload.put("commonPriceDate", onCommonDate.date().toString());
     }
     payload.put(
         "output",

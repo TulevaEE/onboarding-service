@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.investment.epis.SettlementTimingWarning.Type.PEVA_DEADLINE_MISS;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.*;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.*;
+import static ee.tuleva.onboarding.investment.transaction.TradePrepPricingFixture.noResolvedPrices;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.SELL;
@@ -72,7 +73,7 @@ class TransactionPreparationServiceTest {
             clock);
     lenient()
         .when(inputGates.verify(any()))
-        .thenReturn(new GateCheck(List.of(), TradePrepPricing.freshest(), List.of(), List.of()));
+        .thenReturn(new GateCheck(List.of(), noResolvedPrices(), List.of(), List.of()));
   }
 
   private static BigDecimal netInvestable(FundTransactionInput input) {
@@ -118,8 +119,7 @@ class TransactionPreparationServiceTest {
         new FundCalculationResult(
             TUV100, BUY, input, trades, netInvestable(input), null, List.of());
 
-    when(inputService.gatherInput(
-            TUV100, command.getAsOfDate(), Map.of(), TradePrepPricing.freshest()))
+    when(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
         .thenReturn(input);
     when(calculationEngine.calculate(input, BUY)).thenReturn(calculationResult);
     when(batchRepository.save(any(TransactionBatch.class)))
@@ -183,7 +183,7 @@ class TransactionPreparationServiceTest {
                 command.getAsOfDate(),
                 Map.of(),
                 new BigDecimal("40000"),
-                TradePrepPricing.freshest()))
+                noResolvedPrices()))
         .willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -198,11 +198,7 @@ class TransactionPreparationServiceTest {
 
     verify(inputService)
         .gatherInput(
-            TUV100,
-            command.getAsOfDate(),
-            Map.of(),
-            new BigDecimal("40000"),
-            TradePrepPricing.freshest());
+            TUV100, command.getAsOfDate(), Map.of(), new BigDecimal("40000"), noResolvedPrices());
     verify(auditEventRepository)
         .save(
             argThat(
@@ -251,7 +247,7 @@ class TransactionPreparationServiceTest {
 
     given(
             inputService.gatherInput(
-                TUV100, command.getAsOfDate(), manualAdjustments, TradePrepPricing.freshest()))
+                TUV100, command.getAsOfDate(), manualAdjustments, noResolvedPrices()))
         .willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -321,7 +317,7 @@ class TransactionPreparationServiceTest {
     var calculationResult =
         new FundCalculationResult(
             TUK75, BUY, input, List.of(), netInvestable(input), null, List.of());
-    given(inputService.gatherInput(TUK75, asOfDate, Map.of(), TradePrepPricing.freshest()))
+    given(inputService.gatherInput(TUK75, asOfDate, Map.of(), noResolvedPrices()))
         .willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -390,9 +386,7 @@ class TransactionPreparationServiceTest {
             netInvestable(input),
             "No trades: mode=BUY, reason=freeCashBelowMinTransactionThreshold",
             List.of());
-    given(
-            inputService.gatherInput(
-                TUV100, command.getAsOfDate(), Map.of(), TradePrepPricing.freshest()))
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
         .willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -441,9 +435,7 @@ class TransactionPreparationServiceTest {
     var calculationResult =
         new FundCalculationResult(
             TUV100, BUY, input, List.of(), netInvestable(input), null, List.of());
-    given(
-            inputService.gatherInput(
-                TUV100, command.getAsOfDate(), Map.of(), TradePrepPricing.freshest()))
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
         .willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -487,9 +479,7 @@ class TransactionPreparationServiceTest {
     var calculationResult =
         new FundCalculationResult(
             TUV100, BUY, input, List.of(), netInvestable(input), null, List.of());
-    given(
-            inputService.gatherInput(
-                TUV100, command.getAsOfDate(), Map.of(), TradePrepPricing.freshest()))
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
         .willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -534,9 +524,7 @@ class TransactionPreparationServiceTest {
     var calculationResult =
         new FundCalculationResult(
             TUV100, BUY, input, trades, new BigDecimal("950000"), null, List.of());
-    given(
-            inputService.gatherInput(
-                TUV100, command.getAsOfDate(), Map.of(), TradePrepPricing.freshest()))
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
         .willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -582,9 +570,7 @@ class TransactionPreparationServiceTest {
             TUV100, BUY, input, List.of(), netInvestable(input), null, List.of());
     var fixedInstant = Instant.parse("2026-01-15T10:00:00Z");
     given(clock.instant()).willReturn(fixedInstant);
-    given(
-            inputService.gatherInput(
-                TUV100, command.getAsOfDate(), Map.of(), TradePrepPricing.freshest()))
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
         .willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -643,9 +629,7 @@ class TransactionPreparationServiceTest {
     var calculationResult =
         new FundCalculationResult(
             TUV100, BUY, input, trades, netInvestable(input), null, List.of());
-    given(
-            inputService.gatherInput(
-                TUV100, command.getAsOfDate(), Map.of(), TradePrepPricing.freshest()))
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
         .willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -917,8 +901,8 @@ class TransactionPreparationServiceTest {
             .validationStatus(ValidationStatus.OK)
             .priceDate(LocalDate.of(2026, 1, 14))
             .build();
-    var resolutions = new java.util.LinkedHashMap<String, ResolvedPrice>();
-    resolutions.put("IE00ETF", resolved);
+    var resolutions = new java.util.LinkedHashMap<String, TradePrepPrice>();
+    resolutions.put("IE00ETF", new TradePrepPrice.IndexPrice(resolved));
     resolutions.put("LU00NOPRICE", null);
 
     var result = TransactionAuditPayloads.serializePriceResolutions(resolutions);
@@ -1142,9 +1126,7 @@ class TransactionPreparationServiceTest {
             TUV100, BUY, input, trades, netInvestable(input), null, List.of());
 
     given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
-    given(
-            inputService.gatherInput(
-                TUV100, command.getAsOfDate(), Map.of(), TradePrepPricing.freshest()))
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
         .willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -1200,9 +1182,7 @@ class TransactionPreparationServiceTest {
             .build();
 
     given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
-    given(
-            inputService.gatherInput(
-                TUV100, command.getAsOfDate(), Map.of(), TradePrepPricing.freshest()))
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
         .willReturn(input);
     given(calculationEngine.calculate(input, BUY))
         .willThrow(new IllegalStateException("engine blew up"));
@@ -1270,8 +1250,7 @@ class TransactionPreparationServiceTest {
         new FundCalculationResult(
             TUV100, BUY, input, trades, netInvestable(input), null, List.of());
 
-    when(inputService.gatherInput(
-            TUV100, command.getAsOfDate(), Map.of(), TradePrepPricing.freshest()))
+    when(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
         .thenReturn(input);
     when(calculationEngine.calculate(input, BUY)).thenReturn(calculationResult);
     when(batchRepository.save(any(TransactionBatch.class)))
@@ -1360,8 +1339,7 @@ class TransactionPreparationServiceTest {
         new FundCalculationResult(
             TUV100, BUY, input, trades, netInvestable(input), null, List.of());
 
-    when(inputService.gatherInput(
-            TUV100, command.getAsOfDate(), Map.of(), TradePrepPricing.freshest()))
+    when(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
         .thenReturn(input);
     when(calculationEngine.calculate(input, BUY)).thenReturn(calculationResult);
     when(batchRepository.save(any(TransactionBatch.class)))
@@ -1429,8 +1407,7 @@ class TransactionPreparationServiceTest {
         new FundCalculationResult(
             TUV100, BUY, input, trades, netInvestable(input), null, List.of());
 
-    when(inputService.gatherInput(
-            TUV100, command.getAsOfDate(), Map.of(), TradePrepPricing.freshest()))
+    when(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
         .thenReturn(input);
     when(calculationEngine.calculate(input, BUY)).thenReturn(calculationResult);
     when(batchRepository.save(any(TransactionBatch.class)))
@@ -1528,9 +1505,7 @@ class TransactionPreparationServiceTest {
     var calculationResult =
         new FundCalculationResult(
             TUV100, BUY, input, trades, netInvestable(input), null, List.of());
-    given(
-            inputService.gatherInput(
-                TUV100, command.getAsOfDate(), Map.of(), TradePrepPricing.freshest()))
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
         .willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -1623,9 +1598,7 @@ class TransactionPreparationServiceTest {
         new FundCalculationResult(
             TUV100, SELL, input, trades, netInvestable(input), null, List.of());
 
-    given(
-            inputService.gatherInput(
-                TUV100, command.getAsOfDate(), Map.of(), TradePrepPricing.freshest()))
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
         .willReturn(input);
     given(calculationEngine.calculate(input, SELL)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -1686,9 +1659,7 @@ class TransactionPreparationServiceTest {
         new FundCalculationResult(
             TUV100, SELL, input, trades, netInvestable(input), null, List.of());
 
-    given(
-            inputService.gatherInput(
-                TUV100, command.getAsOfDate(), Map.of(), TradePrepPricing.freshest()))
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
         .willReturn(input);
     given(calculationEngine.calculate(input, SELL)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -1749,8 +1720,7 @@ class TransactionPreparationServiceTest {
         new FundCalculationResult(
             TUV100, SELL, input, trades, netInvestable(input), null, List.of());
 
-    when(inputService.gatherInput(
-            TUV100, command.getAsOfDate(), Map.of(), TradePrepPricing.freshest()))
+    when(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
         .thenReturn(input);
     when(calculationEngine.calculate(input, SELL)).thenReturn(calculationResult);
     when(batchRepository.save(any(TransactionBatch.class)))
@@ -1787,7 +1757,7 @@ class TransactionPreparationServiceTest {
 
     var result =
         TransactionAuditPayloads.serializeTrades(
-            trades, Map.of(), Map.of("IE00ETF", resolvedPrice));
+            trades, Map.of(), Map.of("IE00ETF", new TradePrepPrice.IndexPrice(resolvedPrice)));
 
     assertThat(result)
         .singleElement()

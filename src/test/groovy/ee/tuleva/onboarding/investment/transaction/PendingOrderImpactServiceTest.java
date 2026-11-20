@@ -1,14 +1,18 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.transaction.TradePrepPricingFixture.noResolvedPrices;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.ManualPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPricing.FreshestPerInstrument;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -38,7 +42,7 @@ class PendingOrderImpactServiceTest {
   void withNoUnsettledOrders_hasNoImpact() {
     given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE)).willReturn(List.of());
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact).isEqualTo(PendingOrderImpact.none());
   }
@@ -60,13 +64,42 @@ class PendingOrderImpactServiceTest {
     given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
         .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("5000")));
     assertThat(impact.unreportedPositionQuantities()).isEmpty();
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
     assertThat(impact.pendingSells()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void valuesASentEtfBuyAtTheRunsManualPriceInsteadOfTheIndexPrice() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.BUY,
+                    InstrumentType.ETF,
+                    OrderStatus.SENT,
+                    new BigDecimal("100"),
+                    new BigDecimal("4000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
+    var manual = new PriceOverride("IE00A", new BigDecimal("42"), "Issuer's NAV");
+
+    var impact =
+        service.calculate(
+            TUV100,
+            AS_OF_DATE,
+            POSITION_DATE,
+            new FreshestPerInstrument(Map.of("IE00A", new ManualPrice(manual))));
+
+    assertThat(impact.unreportedPositionValues())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("4200")));
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("4200"));
+    verifyNoInteractions(positionPriceResolver);
   }
 
   @Test
@@ -84,7 +117,7 @@ class PendingOrderImpactServiceTest {
                     new BigDecimal("53000"))));
     given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00FUND", new BigDecimal("53000")));
@@ -109,7 +142,7 @@ class PendingOrderImpactServiceTest {
     given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
         .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("-1000")));
@@ -135,7 +168,7 @@ class PendingOrderImpactServiceTest {
                     POSITION_DATE)));
     given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("5000")));
@@ -167,7 +200,7 @@ class PendingOrderImpactServiceTest {
                     .reportedDate(AS_OF_DATE)
                     .build()));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00FUND", new BigDecimal("300000")));
@@ -198,7 +231,7 @@ class PendingOrderImpactServiceTest {
                     .reportedDate(POSITION_DATE)
                     .build()));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.pendingBuys()).isEqualByComparingTo(ZERO);
     assertThat(impact.unreportedPositionValues()).isEmpty();
@@ -234,7 +267,7 @@ class PendingOrderImpactServiceTest {
                     .reportedDate(AS_OF_DATE)
                     .build()));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("3500"));
   }
@@ -264,7 +297,7 @@ class PendingOrderImpactServiceTest {
     given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
         .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
   }
@@ -294,7 +327,7 @@ class PendingOrderImpactServiceTest {
     given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
         .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("4700"));
     assertThat(impact.unreportedPositionValues())
@@ -323,7 +356,7 @@ class PendingOrderImpactServiceTest {
                     .reportedDate(AS_OF_DATE)
                     .build()));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("100000"));
   }
@@ -344,7 +377,7 @@ class PendingOrderImpactServiceTest {
     given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
     lenient().when(positionPriceResolver.resolve(any(), any())).thenReturn(Optional.empty());
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("4000")));
@@ -365,7 +398,7 @@ class PendingOrderImpactServiceTest {
                     new BigDecimal("4000"))));
     given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("4000")));
@@ -389,7 +422,7 @@ class PendingOrderImpactServiceTest {
         .willReturn(
             List.of(TransactionExecution.builder().orderId(1L).reportedDate(AS_OF_DATE).build()));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("7000"));
   }
@@ -417,7 +450,7 @@ class PendingOrderImpactServiceTest {
                     .reportedDate(AS_OF_DATE)
                     .build()));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("7000"));
   }
@@ -437,7 +470,7 @@ class PendingOrderImpactServiceTest {
                     null)));
     given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.pendingBuys()).isEqualByComparingTo(ZERO);
     assertThat(impact.unreportedPositionValues()).isEmpty();
@@ -459,7 +492,7 @@ class PendingOrderImpactServiceTest {
     given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
     lenient().when(positionPriceResolver.resolve(any(), any())).thenReturn(Optional.empty());
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.pendingBuys()).isEqualByComparingTo(ZERO);
     assertThat(impact.unreportedPositionValues()).isEmpty();
@@ -485,7 +518,7 @@ class PendingOrderImpactServiceTest {
     given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
         .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(ZERO).build()));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("4000")));
@@ -510,7 +543,7 @@ class PendingOrderImpactServiceTest {
                 execution(1L, "60", "3000", POSITION_DATE),
                 execution(1L, "40", "2000", POSITION_DATE.plusDays(1))));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("2000")));
@@ -535,7 +568,7 @@ class PendingOrderImpactServiceTest {
     given(executionRepository.findByOrderIdIn(List.of(1L)))
         .willReturn(List.of(execution(1L, "100", "5000", POSITION_DATE)));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues()).isEmpty();
     assertThat(impact.unreportedPositionQuantities()).isEmpty();
@@ -560,7 +593,7 @@ class PendingOrderImpactServiceTest {
     given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
         .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("2000")));
@@ -583,7 +616,7 @@ class PendingOrderImpactServiceTest {
                     new BigDecimal("4000"))));
     given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("-4000")));
@@ -606,7 +639,7 @@ class PendingOrderImpactServiceTest {
                     new BigDecimal("1000"))));
     given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00B", new BigDecimal("-1000")));
@@ -631,7 +664,7 @@ class PendingOrderImpactServiceTest {
     given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
         .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionQuantities()).isEmpty();
     assertThat(impact.unreportedPositionValues())
@@ -657,7 +690,7 @@ class PendingOrderImpactServiceTest {
     given(executionRepository.findByOrderIdIn(List.of(1L)))
         .willReturn(List.of(execution(1L, "171871.062", "2716594", POSITION_DATE)));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues()).isEmpty();
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("2716594"));
@@ -680,7 +713,7 @@ class PendingOrderImpactServiceTest {
     given(executionRepository.findByOrderIdIn(List.of(1L)))
         .willReturn(List.of(execution(1L, "171871.062", "2716594", POSITION_DATE)));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues()).isEmpty();
     assertThat(impact.pendingSells()).isEqualByComparingTo(ZERO);
@@ -703,7 +736,7 @@ class PendingOrderImpactServiceTest {
     given(executionRepository.findByOrderIdIn(List.of(1L)))
         .willReturn(List.of(execution(1L, "171871.062", "2716594", POSITION_DATE.minusDays(1))));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues()).isEmpty();
     assertThat(impact.pendingBuys()).isEqualByComparingTo(ZERO);
@@ -725,7 +758,7 @@ class PendingOrderImpactServiceTest {
     given(executionRepository.findByOrderIdIn(List.of(1L)))
         .willReturn(List.of(execution(1L, "100", "5000", null)));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues()).isEmpty();
     assertThat(impact.unreportedPositionQuantities()).isEmpty();
@@ -749,7 +782,7 @@ class PendingOrderImpactServiceTest {
         .willReturn(
             List.of(historicalImportExecution(1L, "100", "5000", POSITION_DATE.plusDays(1))));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues()).isEmpty();
     assertThat(impact.unreportedPositionQuantities()).isEmpty();
@@ -763,7 +796,7 @@ class PendingOrderImpactServiceTest {
     given(executionRepository.findByOrderIdIn(List.of(1L)))
         .willReturn(List.of(execution(1L, "20", "1000", null)));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues()).isEmpty();
     assertThat(impact.pendingSells()).isEqualByComparingTo(ZERO);
@@ -777,7 +810,7 @@ class PendingOrderImpactServiceTest {
         .willReturn(
             List.of(historicalImportExecution(1L, "20", "1000", POSITION_DATE.plusDays(1))));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues()).isEmpty();
     assertThat(impact.pendingSells()).isEqualByComparingTo(ZERO);
@@ -801,7 +834,7 @@ class PendingOrderImpactServiceTest {
     given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
         .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
 
-    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, TradePrepPricing.freshest());
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices());
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("-1000")));

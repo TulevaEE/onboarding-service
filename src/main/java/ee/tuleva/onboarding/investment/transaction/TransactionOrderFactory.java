@@ -4,6 +4,7 @@ import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexPrice;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -35,7 +36,7 @@ public class TransactionOrderFactory {
       TradePrepPricing pricing) {
     var input = result.input();
     List<TransactionOrder> orders = new ArrayList<>();
-    Map<String, @Nullable ResolvedPrice> priceResolutions = new LinkedHashMap<>();
+    Map<String, @Nullable TradePrepPrice> priceResolutions = new LinkedHashMap<>();
 
     List<TradeCalculation> trades = result.trades();
     for (int index = 0; index < trades.size(); index++) {
@@ -65,7 +66,7 @@ public class TransactionOrderFactory {
         continue;
       }
       if (!isAmountBasedOrder(instrumentType, transactionType)) {
-        priceResolutions.put(isin, orderQuantity.resolvedPrice());
+        priceResolutions.put(isin, orderQuantity.price());
       }
       orders.add(
           TransactionOrder.builder()
@@ -114,9 +115,8 @@ public class TransactionOrderFactory {
     if (isAmountBasedOrder(instrumentType, transactionType)) {
       return new OrderQuantity(null, null, null);
     }
-    ResolvedPrice resolvedPrice =
-        pricing.resolve(positionPriceResolver, isin, asOfDate).orElse(null);
-    if (resolvedPrice == null) {
+    TradePrepPrice price = pricing.resolve(positionPriceResolver, isin, asOfDate).orElse(null);
+    if (price == null) {
       log.warn(
           "No price found for order quantity: isin={}, instrumentType={}, asOfDate={}",
           isin,
@@ -124,28 +124,31 @@ public class TransactionOrderFactory {
           asOfDate);
       return new OrderQuantity(null, null, null);
     }
-    BigDecimal price = resolvedPrice.usedPrice();
-    if (price == null) {
+    BigDecimal value = price.value();
+    if (value == null) {
       log.warn(
           "No price found for order quantity: isin={}, instrumentType={}, asOfDate={}",
           isin,
           instrumentType,
           asOfDate);
-      return new OrderQuantity(null, null, resolvedPrice);
+      return new OrderQuantity(null, null, price);
     }
-    if (price.signum() <= 0) {
+    if (value.signum() <= 0) {
       log.warn(
           "Non-positive price for order quantity, leaving quantity unset:"
               + " isin={}, instrumentType={}, price={}, asOfDate={}",
           isin,
           instrumentType,
-          price.toPlainString(),
+          value.toPlainString(),
           asOfDate);
-      return new OrderQuantity(null, null, resolvedPrice);
+      return new OrderQuantity(null, null, price);
     }
-    BigDecimal quantity = OrderUnits.of(instrumentType, transactionType, orderAmount, price);
-    String stalePriceComment = describeIfStale(isin, resolvedPrice, asOfDate);
-    return new OrderQuantity(quantity, stalePriceComment, resolvedPrice);
+    BigDecimal quantity = OrderUnits.of(instrumentType, transactionType, orderAmount, value);
+    String stalePriceComment =
+        price instanceof IndexPrice index
+            ? describeIfStale(isin, index.resolved(), asOfDate)
+            : null;
+    return new OrderQuantity(quantity, stalePriceComment, price);
   }
 
   @Nullable

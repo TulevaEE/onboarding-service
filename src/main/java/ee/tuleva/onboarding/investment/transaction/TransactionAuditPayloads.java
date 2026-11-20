@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.investment.epis.SettlementTimingWarning;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -106,7 +105,7 @@ class TransactionAuditPayloads {
   static List<Map<String, Object>> serializeTrades(
       List<TradeCalculation> trades,
       Map<String, TransactionOrder> ordersByIsin,
-      Map<String, @Nullable ResolvedPrice> priceResolutions) {
+      Map<String, @Nullable TradePrepPrice> priceResolutions) {
     return trades.stream()
         .map(
             trade ->
@@ -116,14 +115,14 @@ class TransactionAuditPayloads {
   }
 
   private static Map<String, Object> serializeTrade(
-      TradeCalculation trade,
-      @Nullable TransactionOrder order,
-      @Nullable ResolvedPrice resolvedPrice) {
+      TradeCalculation trade, @Nullable TransactionOrder order, @Nullable TradePrepPrice price) {
     Map<String, Object> map = new LinkedHashMap<>();
     putIfPresent(map, "isin", trade.isin());
     putIfPresent(map, "tradeAmount", plain(trade.tradeAmount()));
     putIfPresent(map, "projectedWeight", plain(trade.projectedWeight()));
-    putIfPresent(map, "price", resolvedPrice == null ? null : plain(resolvedPrice.usedPrice()));
+    if (price != null) {
+      price.describe(map);
+    }
     putIfPresent(
         map, "limitStatus", trade.limitStatus() == null ? null : trade.limitStatus().name());
     if (order != null) {
@@ -164,34 +163,15 @@ class TransactionAuditPayloads {
   }
 
   static List<Map<String, Object>> serializePriceResolutions(
-      Map<String, @Nullable ResolvedPrice> priceResolutions) {
+      Map<String, @Nullable TradePrepPrice> priceResolutions) {
     return priceResolutions.entrySet().stream()
         .map(entry -> serializePriceResolution(entry.getKey(), entry.getValue()))
         .toList();
   }
 
   private static Map<String, Object> serializePriceResolution(
-      String isin, @Nullable ResolvedPrice resolvedPrice) {
-    Map<String, Object> map = new LinkedHashMap<>();
-    putIfPresent(map, "isin", isin);
-    if (resolvedPrice != null) {
-      putIfPresent(map, "price", plain(resolvedPrice.usedPrice()));
-      putIfPresent(
-          map,
-          "priceDate",
-          resolvedPrice.priceDate() == null ? null : resolvedPrice.priceDate().toString());
-      putIfPresent(
-          map,
-          "priceSource",
-          resolvedPrice.priceSource() == null ? null : resolvedPrice.priceSource().name());
-      putIfPresent(
-          map,
-          "validationStatus",
-          resolvedPrice.validationStatus() == null
-              ? null
-              : resolvedPrice.validationStatus().name());
-    }
-    return map;
+      String isin, @Nullable TradePrepPrice price) {
+    return price == null ? Map.of("isin", isin) : price.resolution(isin);
   }
 
   @Nullable

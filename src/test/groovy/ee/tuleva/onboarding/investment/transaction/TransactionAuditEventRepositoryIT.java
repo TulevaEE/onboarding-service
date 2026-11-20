@@ -102,6 +102,39 @@ class TransactionAuditEventRepositoryIT {
   }
 
   @Test
+  void findByBatchIdAndEventType_returnsTheBatchsEventsOfThatTypeOnly() {
+    TransactionBatch batch = persistOrder().getBatch();
+    TransactionBatch otherBatch = persistOrder().getBatch();
+    TransactionAuditEvent confirmation = saveEvent(batch, "BATCH_FIRST_CONFIRMED");
+    saveEvent(batch, "BATCH_DISCARDED");
+    saveEvent(otherBatch, "BATCH_FIRST_CONFIRMED");
+
+    List<TransactionAuditEvent> found =
+        auditEventRepository.findByBatchIdAndEventType(batch.getId(), "BATCH_FIRST_CONFIRMED");
+
+    assertThat(found).containsExactly(confirmation);
+  }
+
+  @Test
+  void countOrderEventsInBatch_countsThatTypeOnTheBatchsOrdersOnly() {
+    TransactionOrder order = persistOrder();
+    TransactionOrder secondOrder = persistOrderIn(order.getBatch());
+    TransactionOrder otherBatchOrder = persistOrder();
+    saveOrderEvent(order, "ORDER_TYPE_CHANGED");
+    saveOrderEvent(order, "ORDER_TYPE_CHANGED");
+    saveOrderEvent(secondOrder, "ORDER_TYPE_CHANGED");
+    saveOrderEvent(order, "EXECUTION_MATCHED");
+    saveOrderEvent(otherBatchOrder, "ORDER_TYPE_CHANGED");
+    saveEvent(order.getBatch(), "ORDER_TYPE_CHANGED");
+
+    long count =
+        auditEventRepository.countOrderEventsInBatch(
+            order.getBatch().getId(), "ORDER_TYPE_CHANGED");
+
+    assertThat(count).isEqualTo(3);
+  }
+
+  @Test
   void findByEventType_returnsAllEventsOfType() {
     auditEventRepository.save(
         TransactionAuditEvent.builder()
@@ -124,9 +157,31 @@ class TransactionAuditEventRepositoryIT {
         .containsExactlyInAnyOrder("DLA0000001", "DLA0000002");
   }
 
+  private void saveOrderEvent(TransactionOrder order, String eventType) {
+    auditEventRepository.save(
+        TransactionAuditEvent.builder()
+            .orderId(order.getId())
+            .eventType(eventType)
+            .actor("operator-1")
+            .build());
+  }
+
+  private TransactionAuditEvent saveEvent(TransactionBatch batch, String eventType) {
+    return auditEventRepository.save(
+        TransactionAuditEvent.builder()
+            .batch(batch)
+            .eventType(eventType)
+            .actor("operator-1")
+            .build());
+  }
+
   private TransactionOrder persistOrder() {
-    TransactionBatch batch =
-        batchRepository.save(TransactionBatch.builder().fund(TUK75).createdBy("test-user").build());
+    return persistOrderIn(
+        batchRepository.save(
+            TransactionBatch.builder().fund(TUK75).createdBy("test-user").build()));
+  }
+
+  private TransactionOrder persistOrderIn(TransactionBatch batch) {
     return orderRepository.save(
         TransactionOrder.builder()
             .batch(batch)

@@ -97,15 +97,30 @@ public class TransactionCommandController {
             () -> new ResponseStatusException(NOT_FOUND, "Transaction batch not found: id=" + id));
   }
 
+  @PostMapping("/transaction-batches/{id}/first-confirmation")
+  public TransactionBatchResponse giveFirstConfirmation(
+      @RequestHeader("X-Admin-Token") String token,
+      @PathVariable Long id,
+      @Valid @RequestBody ConfirmTransactionBatchRequest request) {
+
+    var actor = authenticator.resolveActor(token);
+
+    log.info("Admin triggered transaction batch first confirmation: id={}, actor={}", id, actor);
+
+    return adminService.giveFirstConfirmation(id, request.version(), actor);
+  }
+
   @PostMapping("/transaction-batches/{id}/confirm")
   public TransactionBatchResponse confirmBatch(
-      @RequestHeader("X-Admin-Token") String token, @PathVariable Long id) {
+      @RequestHeader("X-Admin-Token") String token,
+      @PathVariable Long id,
+      @Valid @RequestBody ConfirmTransactionBatchRequest request) {
 
     var actor = authenticator.resolveActor(token);
 
     log.info("Admin triggered transaction batch confirmation: id={}, actor={}", id, actor);
 
-    return adminService.confirmAndFinalize(id, actor);
+    return adminService.confirmAndFinalize(id, request.version(), actor);
   }
 
   @PostMapping("/transaction-batches/{id}/cancel")

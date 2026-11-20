@@ -16,7 +16,7 @@ class AdminTokenAuthenticatorTest {
     var authenticator =
         new AdminTokenAuthenticator(
             new AdminTokenProperties(
-                "shared", Map.of("taavi", "taavi-token", "marju", "marju-token")));
+                "shared", "ops-token", Map.of("taavi", "taavi-token", "marju", "marju-token")));
 
     assertThat(authenticator.resolveActor("marju-token")).isEqualTo("marju");
   }
@@ -25,16 +25,59 @@ class AdminTokenAuthenticatorTest {
   void resolvesTheSharedTokenToAnExplicitlyUnattributedActor() {
     var authenticator =
         new AdminTokenAuthenticator(
-            new AdminTokenProperties("shared", Map.of("taavi", "taavi-token")));
+            new AdminTokenProperties("shared", "ops-token", Map.of("taavi", "taavi-token")));
 
     assertThat(authenticator.resolveActor("shared")).isEqualTo("shared-admin-token");
+  }
+
+  @Test
+  void countsOnlyOperatorsWithTheirOwnTokenAsNamed() {
+    var authenticator =
+        new AdminTokenAuthenticator(
+            new AdminTokenProperties(
+                "shared", "ops-token", Map.of("operator-1", "operator-1-token")));
+
+    assertThat(authenticator.isNamedOperator("operator-1")).isTrue();
+    assertThat(authenticator.isNamedOperator("shared-admin-token")).isFalse();
+    assertThat(authenticator.isNamedOperator("system")).isFalse();
+  }
+
+  @Test
+  void refusesToStartWithAnOperatorTokenThatIsAlsoTheSharedTokenSoOnePersonCannotActAsTwo() {
+    assertThatThrownBy(
+            () -> new AdminTokenProperties("shared", "ops-token", Map.of("operator-1", "shared")))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void refusesToStartWithAnOperatorTokenThatIsAlsoTheOpsToken() {
+    assertThatThrownBy(() -> new AdminTokenProperties("shared", "ops", Map.of("operator-1", "ops")))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void refusesToStartWithAnOperatorNamedLikeTheSharedTokensActor() {
+    assertThatThrownBy(
+            () ->
+                new AdminTokenProperties(
+                    "shared", "ops", Map.of("shared-admin-token", "own-token")))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void refusesToStartWithTwoOperatorsSharingATokenSoEachTokenNamesOnePerson() {
+    assertThatThrownBy(
+            () ->
+                new AdminTokenProperties(
+                    "shared", "ops-token", Map.of("operator-1", "same", "operator-7", "same")))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
   void rejectsAnUnknownToken() {
     var authenticator =
         new AdminTokenAuthenticator(
-            new AdminTokenProperties("shared", Map.of("taavi", "taavi-token")));
+            new AdminTokenProperties("shared", "ops-token", Map.of("taavi", "taavi-token")));
 
     assertThatThrownBy(() -> authenticator.resolveActor("nope"))
         .isInstanceOf(ResponseStatusException.class)
@@ -45,14 +88,16 @@ class AdminTokenAuthenticatorTest {
   @Test
   void acceptsOperatorTokensEvenWhenNoSharedTokenIsConfigured() {
     var authenticator =
-        new AdminTokenAuthenticator(new AdminTokenProperties("", Map.of("taavi", "taavi-token")));
+        new AdminTokenAuthenticator(
+            new AdminTokenProperties("", "ops-token", Map.of("taavi", "taavi-token")));
 
     assertThat(authenticator.resolveActor("taavi-token")).isEqualTo("taavi");
   }
 
   @Test
   void reportsUnavailableWhenNoTokensAreConfiguredAtAll() {
-    var authenticator = new AdminTokenAuthenticator(new AdminTokenProperties("", Map.of()));
+    var authenticator =
+        new AdminTokenAuthenticator(new AdminTokenProperties("", "ops-token", Map.of()));
 
     assertThatThrownBy(() -> authenticator.resolveActor("anything"))
         .isInstanceOf(ResponseStatusException.class)
@@ -64,9 +109,10 @@ class AdminTokenAuthenticatorTest {
   // than blow up on a null token.
   @Test
   void treatsCompletelyUnsetPropertiesAsNoTokensRatherThanNulls() {
-    var properties = new AdminTokenProperties(null, null);
+    var properties = new AdminTokenProperties(null, null, null);
 
     assertThat(properties.apiToken()).isEmpty();
+    assertThat(properties.opsToken()).isEmpty();
     assertThat(properties.operatorTokens()).isEmpty();
     assertThatThrownBy(() -> new AdminTokenAuthenticator(properties).resolveActor("anything"))
         .isInstanceOf(ResponseStatusException.class)
@@ -76,7 +122,7 @@ class AdminTokenAuthenticatorTest {
 
   @Test
   void refusesToStartWithABlankOperatorTokenThatWouldMatchAnEmptyHeader() {
-    assertThatThrownBy(() -> new AdminTokenProperties("shared", Map.of("ghost", "")))
+    assertThatThrownBy(() -> new AdminTokenProperties("shared", "ops-token", Map.of("ghost", "")))
         .isInstanceOf(IllegalStateException.class);
   }
 }

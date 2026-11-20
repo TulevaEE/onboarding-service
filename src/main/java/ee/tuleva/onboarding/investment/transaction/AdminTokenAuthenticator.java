@@ -29,6 +29,10 @@ public class AdminTokenAuthenticator {
         .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "Invalid admin token"));
   }
 
+  boolean isNamedOperator(String actor) {
+    return properties.operatorTokens().containsKey(actor);
+  }
+
   private Optional<String> operatorFor(String token) {
     return properties.operatorTokens().entrySet().stream()
         .filter(operator -> matches(operator.getValue(), token))

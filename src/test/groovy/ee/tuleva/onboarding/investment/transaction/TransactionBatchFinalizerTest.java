@@ -106,7 +106,7 @@ class TransactionBatchFinalizerTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
+            .orderQuantity(new BigDecimal("9876"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.DRAFT)
             .build();
@@ -179,7 +179,7 @@ class TransactionBatchFinalizerTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
+            .orderQuantity(new BigDecimal("9876"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.DRAFT)
             .build();
@@ -218,7 +218,7 @@ class TransactionBatchFinalizerTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
+            .orderQuantity(new BigDecimal("9876"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.DRAFT)
             .build();
@@ -284,7 +284,7 @@ class TransactionBatchFinalizerTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
+            .orderQuantity(new BigDecimal("9876"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.DRAFT)
             .build();
@@ -351,7 +351,7 @@ class TransactionBatchFinalizerTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
+            .orderQuantity(new BigDecimal("9876"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.DRAFT)
             .build();
@@ -447,7 +447,7 @@ class TransactionBatchFinalizerTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
+            .orderQuantity(new BigDecimal("9876"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.DRAFT)
             .build();
@@ -538,7 +538,7 @@ class TransactionBatchFinalizerTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
+            .orderQuantity(new BigDecimal("9876"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.DRAFT)
             .build();

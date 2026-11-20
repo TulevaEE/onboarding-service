@@ -491,6 +491,44 @@ class TransactionOrderFactoryTest {
   }
 
   @Test
+  void
+      requireQuantitiesForNonAmountOrders_throwsWhenADraftFromBeforeWholeUnitsAsksForAFractionOfAnEtfUnit() {
+    var batch = batch();
+    var order =
+        TransactionOrder.builder()
+            .batch(batch)
+            .fund(TUV100)
+            .instrumentIsin("IE00ETF")
+            .transactionType(TransactionType.BUY)
+            .instrumentType(InstrumentType.ETF)
+            .orderAmount(new BigDecimal("50000"))
+            .orderQuantity(new BigDecimal("513.874615"))
+            .orderVenue(OrderVenue.SEB)
+            .build();
+
+    assertThatThrownBy(() -> factory.requireQuantitiesForNonAmountOrders(batch, List.of(order)))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void requireQuantitiesForNonAmountOrders_allowsAFractionalFundSaleQuantity() {
+    var batch = batch();
+    var order =
+        TransactionOrder.builder()
+            .batch(batch)
+            .fund(TUV100)
+            .instrumentIsin("IE00FUND")
+            .transactionType(TransactionType.SELL)
+            .instrumentType(InstrumentType.FUND)
+            .orderAmount(new BigDecimal("10000"))
+            .orderQuantity(new BigDecimal("819.672131"))
+            .orderVenue(OrderVenue.SEB)
+            .build();
+
+    factory.requireQuantitiesForNonAmountOrders(batch, List.of(order));
+  }
+
+  @Test
   void requireQuantitiesForNonAmountOrders_allowsAmountBasedOrderWithoutQuantity() {
     var batch = batch();
     var order =

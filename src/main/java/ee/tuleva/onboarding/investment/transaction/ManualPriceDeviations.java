@@ -33,7 +33,7 @@ class ManualPriceDeviations {
             .toList();
     requireAConsideredManualPriceForEveryConfirmation(overrides, considered);
     if (considered.isEmpty()) {
-      return new PriceDeviations(List.of(), List.of(), List.of());
+      return new PriceDeviations(List.of(), List.of(), List.of(), List.of());
     }
     BigDecimal threshold =
         investmentParameterRepository.findLatestValue(MANUAL_PRICE_DEVIATION_THRESHOLD, asOfDate);
@@ -51,8 +51,16 @@ class ManualPriceDeviations {
                         .stream())
             .filter(deviation -> deviation.exceeds(threshold))
             .toList();
+    List<PriceDeviation> unconfirmed =
+        beyondThreshold.stream().filter(deviation -> !isConfirmed(deviation, overrides)).toList();
     return new PriceDeviations(
-        beyondThreshold.stream().filter(deviation -> !isConfirmed(deviation, overrides)).toList(),
+        unconfirmed,
+        overrides.confirmedPriceDeviations().stream()
+            .filter(
+                confirmation ->
+                    unconfirmed.stream()
+                        .anyMatch(deviation -> deviation.isin().equals(confirmation.isin())))
+            .toList(),
         beyondThreshold.stream().filter(deviation -> isConfirmed(deviation, overrides)).toList(),
         considered.stream()
             .map(PriceOverride::isin)

@@ -17,7 +17,9 @@ record PriceCheck(
     Stream<InputGateFailure> unconfirmed =
         deviations.unconfirmed().isEmpty()
             ? Stream.empty()
-            : Stream.of(new ManualPriceDeviates(deviations.unconfirmed()));
+            : Stream.of(
+                new ManualPriceDeviates(
+                    deviations.unconfirmed(), deviations.confirmationsAtAnotherPrice()));
     return new PriceCheck(
         Stream.concat(failures.stream(), unconfirmed).toList(),
         pricing,

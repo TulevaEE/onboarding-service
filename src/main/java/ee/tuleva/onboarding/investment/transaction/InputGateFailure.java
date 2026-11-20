@@ -83,22 +83,35 @@ sealed interface InputGateFailure {
     }
   }
 
-  record ManualPriceDeviates(List<PriceDeviation> deviations) implements InputGateFailure {
+  record ManualPriceDeviates(
+      List<PriceDeviation> deviations, List<PriceDeviationConfirmation> confirmationsAtAnotherPrice)
+      implements InputGateFailure {
 
     @Override
     public String slackLine() {
       return deviations.stream()
           .map(
               deviation ->
-                  ("⚠️ %s: käsitsi hind %s, viimane indeksihind %s (%s), erinevus %s%%: kontrolli"
+                  ("⚠️ %s: käsitsi hind %s, viimane indeksihind %s (%s), erinevus %s%%%s: kontrolli"
                           + " hinda või kinnita see (confirmedPriceDeviations)")
                       .formatted(
                           deviation.isin(),
                           deviation.manualPrice().stripTrailingZeros().toPlainString(),
                           deviation.lastIndexPrice().stripTrailingZeros().toPlainString(),
                           deviation.lastIndexPriceDate(),
-                          deviation.gapPercent()))
+                          deviation.gapPercent(),
+                          confirmedPriceOf(deviation)))
           .collect(joining("\n"));
+    }
+
+    private String confirmedPriceOf(PriceDeviation deviation) {
+      return confirmationsAtAnotherPrice.stream()
+          .filter(confirmation -> confirmation.isin().equals(deviation.isin()))
+          .map(
+              confirmation ->
+                  ", kinnitus on hinnale "
+                      + confirmation.price().stripTrailingZeros().toPlainString())
+          .collect(joining());
     }
   }
 

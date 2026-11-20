@@ -6,11 +6,13 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.ingest.FtConfirmationAuditRecorder.FT_CONFIRMATION_VERIFIED;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.util.Comparator.comparing;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
@@ -22,6 +24,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -56,6 +59,8 @@ import software.amazon.awssdk.http.AbortableInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.S3Object;
@@ -65,6 +70,7 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 @TestPropertySource(
     properties = {
       "transaction-registry.ft-confirmation.alerts-from=2026-01-15",
+      "transaction-registry.ft-confirmation.registry-authoritative=true",
       "transaction-registry.ft-confirmation.unconfirmed-lookback-days=36500"
     })
 @Transactional
@@ -80,8 +86,10 @@ class FtConfirmationImportJobIT {
   private static final String CANCELLATION_KEY =
       TKF100.name() + "|IE00BFG1TM61|2026-01-15|2500|12|CANCELLATION";
   private static final String ACCOUNT = "Tuleva Additional Investment Fund";
+  private static final LocalDate ALERTS_FROM = LocalDate.of(2026, 1, 15);
 
   @MockitoBean private S3Client s3Client;
+  @MockitoBean private OperationsNotificationService notificationService;
 
   @Autowired private FtConfirmationPdfParser parser;
   @Autowired private FtConfirmationVerificationService verificationService;
@@ -91,6 +99,7 @@ class FtConfirmationImportJobIT {
   @Autowired private TransactionExecutionRepository executionRepository;
   @Autowired private JdbcClient jdbcClient;
   @Autowired private FtUnconfirmedTradeCheck unconfirmedTradeCheck;
+  @Autowired private FtConfirmationDigest digest;
 
   private FtConfirmationImportJob job;
 
@@ -99,7 +108,12 @@ class FtConfirmationImportJobIT {
     FtConfirmationS3Source s3Source = new FtConfirmationS3Source(s3Client);
     job =
         new FtConfirmationImportJob(
-            s3Source, parser, verificationService, unconfirmedTradeCheck, FIXED_CLOCK);
+            s3Source,
+            parser,
+            verificationService,
+            unconfirmedTradeCheck,
+            new FtUnreadableConfirmationWarning(s3Source, digest, FIXED_CLOCK, ALERTS_FROM),
+            FIXED_CLOCK);
   }
 
   @Test
@@ -499,6 +513,30 @@ class FtConfirmationImportJobIT {
   }
 
   @Test
+  void run_confirmationPdfFromAnAccountTheParserDoesNotKnow_isWarnedAboutOnceOverTwoRuns() {
+    s3Holds(
+        Map.of(
+            "ft-confirmations/TEST0002-00_1.pdf",
+            confirmationPdf(
+                "Trade Confirmation", "TEST0002-00", "Unknown Account", "2,500", "12.345600 EUR")));
+    pdfsUploadedAt(Instant.parse("2026-06-08T17:00:00Z"));
+
+    job.run();
+    job.run();
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "FT confirmation PDF could not be read: key=ft-confirmations/TEST0002-00_1.pdf,"
+                + " error=FT confirmation PDF has unrecognized Account: account=Unknown Account,"
+                + " allocationId=TEST0002-00 — check the trade in this PDF against its order by"
+                + " hand",
+            INVESTMENT);
+    then(notificationService).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
   void run_tradeSentToSebRatherThanFt_isNotLookedAtForAnFtConfirmation() {
     TransactionOrder order = registerOrderExecuted("2500");
     order.setOrderVenue(OrderVenue.SEB);
@@ -607,6 +645,11 @@ class FtConfirmationImportJobIT {
                     AbortableInputStream.create(
                         new ByteArrayInputStream(
                             pdfs.get(invocation.<GetObjectRequest>getArgument(0).key())))));
+  }
+
+  private void pdfsUploadedAt(Instant uploadedAt) {
+    given(s3Client.headObject(any(HeadObjectRequest.class)))
+        .willReturn(HeadObjectResponse.builder().lastModified(uploadedAt).build());
   }
 
   private void stubOneConfirmationPdfUnderPrefix() {

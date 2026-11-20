@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 class SebPendingTransactionExtractor {
+
+  private static final Set<String> PENDING_REPORT_COLUMNS = Set.of("Client ref", "Our ref", "ISIN");
 
   // A content row that fails strict parsing is dropped from the typed rows but still counted as
   // malformed. Settlement-by-absence must not run on an incomplete report: a dropped order would
@@ -29,7 +32,7 @@ class SebPendingTransactionExtractor {
     }
 
     Optional<LocalDate> trustedAsOfDate(InvestmentReport report) {
-      return isComplete()
+      return isComplete() && listsThePendingReportColumns(report.getRawData())
           ? Optional.ofNullable(SebReportHeaders.asOfDate(report))
           : Optional.empty();
     }
@@ -66,6 +69,10 @@ class SebPendingTransactionExtractor {
     return isNonBlank(raw.get("Client ref"))
         || isNonBlank(raw.get("Our ref"))
         || isNonBlank(raw.get("ISIN"));
+  }
+
+  private static boolean listsThePendingReportColumns(List<Map<String, Object>> rawData) {
+    return rawData.stream().anyMatch(raw -> raw.keySet().containsAll(PENDING_REPORT_COLUMNS));
   }
 
   private static boolean isNonBlank(@Nullable Object value) {

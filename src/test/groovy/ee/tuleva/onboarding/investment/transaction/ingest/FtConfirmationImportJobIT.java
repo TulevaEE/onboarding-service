@@ -154,7 +154,7 @@ class FtConfirmationImportJobIT {
     UUID orderUuid = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-000000004117");
     seedFtOrder(orderUuid);
     reconcileSebReport(LocalDate.of(2026, 11, 17), List.of(pendingRow(orderUuid, null)));
-    reconcileSebReport(LocalDate.of(2026, 11, 18), List.of());
+    reconcileSebReport(LocalDate.of(2026, 11, 18), List.of(blankPaddingRow()));
 
     FtConfirmationResult result = verifyAt("2026-11-19T09:00:00Z", tuesdayConfirmation());
 
@@ -208,9 +208,7 @@ class FtConfirmationImportJobIT {
     Map<String, Object> raw = new HashMap<>();
     raw.put("Client name", "Tuleva Täiendav Kogumisfond");
     raw.put("Account", "VP68168");
-    if (ourRef != null) {
-      raw.put("Our ref", ourRef);
-    }
+    raw.put("Our ref", ourRef);
     raw.put("ISIN", FT_ISIN);
     raw.put("Instrument name", "SYNTHETIC TEST SECURITY");
     raw.put("Currency", "EUR");
@@ -223,6 +221,15 @@ class FtConfirmationImportJobIT {
     raw.put("Client ref", clientRef.toString());
     raw.put("Trade date", "2026-11-17T15:30:00Z");
     raw.put("Settlement date", "2026-11-19");
+    return raw;
+  }
+
+  private static Map<String, Object> blankPaddingRow() {
+    Map<String, Object> raw = new HashMap<>();
+    raw.put("Client name", null);
+    raw.put("Client ref", null);
+    raw.put("Our ref", null);
+    raw.put("ISIN", null);
     return raw;
   }
 

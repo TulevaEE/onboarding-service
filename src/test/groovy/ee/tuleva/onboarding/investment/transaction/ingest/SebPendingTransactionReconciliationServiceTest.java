@@ -1591,9 +1591,21 @@ class SebPendingTransactionReconciliationServiceTest {
   void reconcile_ofAReportListingNothingPending_recordsItsAsOfDateAsReconciled() {
     service = newService();
 
-    service.reconcile(reportWithRows(LocalDate.of(2026, 5, 13), 0), LOCK_HELD);
+    service.reconcile(reportOf(blankPaddingRow(), Map.of("asOfDate", "2026-05-12")), LOCK_HELD);
 
     verifyRecordedAsReconciled("2026-05-12");
+  }
+
+  @Test
+  void reconcile_ofAReportWhoseColumnHeaderWasNotFound_recordsNoReconciledReport() {
+    service = newService();
+    Map<String, Object> shiftedHeaderRow = new HashMap<>();
+    shiftedHeaderRow.put("Page:", "Client name");
+    shiftedHeaderRow.put("1", "Account");
+
+    service.reconcile(reportOf(shiftedHeaderRow, Map.of("asOfDate", "2026-05-12")), LOCK_HELD);
+
+    verifyNoReportRecordedAsReconciled();
   }
 
   @Test
@@ -2256,6 +2268,15 @@ class SebPendingTransactionReconciliationServiceTest {
             argThat(
                 (TransactionAuditEvent event) ->
                     "SEB_PENDING_REPORT_RECONCILED".equals(event.getEventType())));
+  }
+
+  private static Map<String, Object> blankPaddingRow() {
+    Map<String, Object> raw = new HashMap<>();
+    raw.put("Client name", null);
+    raw.put("Client ref", null);
+    raw.put("Our ref", null);
+    raw.put("ISIN", null);
+    return raw;
   }
 
   private static Map<String, Object> unreadableRawRow() {

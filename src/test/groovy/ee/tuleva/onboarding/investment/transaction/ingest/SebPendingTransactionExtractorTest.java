@@ -3,18 +3,40 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
+import ee.tuleva.onboarding.investment.report.CsvToJsonConverter;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
+import ee.tuleva.onboarding.investment.report.SebReportSource;
+import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.s3.S3Client;
 
 class SebPendingTransactionExtractorTest {
 
+  private static final String PREAMBLE =
+      "Fund Management Company:;Tuleva Fondid AS;;;;;;;;;;;;;\r\n"
+          + "Sent:;2026-11-19;;;;;;;;;;;;;\r\n"
+          + "Report type:;Unsettled transactions;;;;;;;;;;;;;\r\n"
+          + "As of:;2026-11-18;;;;;;;;;;;;;\r\n";
+  private static final String SPACER = ";;;;;;;;;;;;;;\r\n";
+  private static final String COLUMNS =
+      "Client name;Account;Client ref;Our ref;ISIN;Instrument name;Currency;Quantity;Price;"
+          + "Settlement amount;Broker fee;Total;Buy/Sell;Trade date;Settlement date\r\n";
+  private static final String TRADE =
+      "Tuleva Täiendav Kogumisfond;VP00000;aaaaaaaa-bbbb-cccc-dddd-000000001117;DLA0000000;"
+          + "IE000I9HGDZ3;SYNTHETIC TEST SECURITY;EUR;2500;10,00;25000,00;;25000,00;Buy;"
+          + "2026-11-17T15:30:00Z;2026-11-19\r\n";
+  private static final String EXTRA_LINE = "Page:;1;;;;;;;;;;;;;\r\n";
+
   private final SebPendingTransactionExtractor extractor = new SebPendingTransactionExtractor();
+  private final SebReportSource sebReportSource = new SebReportSource(mock(S3Client.class));
 
   @Test
   void extract_mapsEachRawDataRowToTypedRecord() {
@@ -142,11 +164,43 @@ class SebPendingTransactionExtractorTest {
   }
 
   @Test
-  void trustedAsOfDate_ofAReportListingNothingPending_isItsAsOfDate() {
-    InvestmentReport report = reportAsOf(Map.of("asOfDate", "2026-11-18"), List.of());
+  void trustedAsOfDate_ofSebsCsv_isItsAsOfDate() {
+    InvestmentReport report = reportFromSebCsv(PREAMBLE + SPACER + COLUMNS + TRADE + SPACER);
 
     assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report))
         .contains(LocalDate.of(2026, 11, 18));
+  }
+
+  @Test
+  void trustedAsOfDate_ofSebsCsvListingNothingPending_isItsAsOfDate() {
+    InvestmentReport report =
+        reportFromSebCsv(PREAMBLE + SPACER + COLUMNS + SPACER + SPACER + SPACER + SPACER);
+
+    assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report))
+        .contains(LocalDate.of(2026, 11, 18));
+  }
+
+  @Test
+  void trustedAsOfDate_ofSebsCsvWithAnExtraLineAboveTheColumnHeader_isEmpty() {
+    InvestmentReport report =
+        reportFromSebCsv(PREAMBLE + SPACER + EXTRA_LINE + COLUMNS + TRADE + SPACER);
+
+    assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report)).isEmpty();
+  }
+
+  @Test
+  void trustedAsOfDate_ofSebsCsvWithAnExtraLineInItsPreamble_isEmpty() {
+    InvestmentReport report =
+        reportFromSebCsv(PREAMBLE + EXTRA_LINE + SPACER + COLUMNS + TRADE + SPACER);
+
+    assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report)).isEmpty();
+  }
+
+  @Test
+  void trustedAsOfDate_ofSebsCsvEndingAtItsColumnHeader_isEmpty() {
+    InvestmentReport report = reportFromSebCsv(PREAMBLE + SPACER + COLUMNS);
+
+    assertThat(extractor.extractWithDiagnostics(report).trustedAsOfDate(report)).isEmpty();
   }
 
   @Test
@@ -182,6 +236,19 @@ class SebPendingTransactionExtractorTest {
             .build();
 
     assertThat(extractor.extract(report)).isEmpty();
+  }
+
+  private InvestmentReport reportFromSebCsv(String csv) {
+    byte[] bytes = csv.getBytes(StandardCharsets.UTF_8);
+    return InvestmentReport.builder()
+        .provider(SEB)
+        .reportType(PENDING_TRANSACTIONS)
+        .reportDate(LocalDate.of(2026, 11, 19))
+        .metadata(sebReportSource.extractCsvMetadata(bytes))
+        .rawData(
+            new CsvToJsonConverter()
+                .convert(new ByteArrayInputStream(bytes), ';', sebReportSource.getHeaderRowIndex()))
+        .build();
   }
 
   private static InvestmentReport reportAsOf(

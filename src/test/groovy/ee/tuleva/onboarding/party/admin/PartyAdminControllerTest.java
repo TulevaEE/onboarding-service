@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.party.admin;
 
+import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -19,9 +20,15 @@ import ee.tuleva.onboarding.party.ChildAmlBackfillResult;
 import ee.tuleva.onboarding.party.ChildAmlBackfillService;
 import ee.tuleva.onboarding.party.ChildIsNotAMinorException;
 import ee.tuleva.onboarding.party.ChildSavingsOnboarding;
+import ee.tuleva.onboarding.party.GuardianLinkRegistration;
+import ee.tuleva.onboarding.party.GuardianLinkRegistration.Created;
+import ee.tuleva.onboarding.party.GuardianLinkRegistration.EndDateChanged;
+import ee.tuleva.onboarding.party.GuardianLinkRegistration.Unchanged;
+import ee.tuleva.onboarding.party.ParentChildLink;
 import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
 import ee.tuleva.onboarding.user.NameChangeBasis;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -210,9 +217,30 @@ class PartyAdminControllerTest {
     given(clock.getZone()).willReturn(ZoneOffset.UTC);
   }
 
+  private static ParentChildLink.ParentChildLinkBuilder guardianLink() {
+    return ParentChildLink.builder()
+        .parentPersonalCode("38812121215")
+        .childPersonalCode("48806046007")
+        .relationshipType(GUARDIAN)
+        .validUntil(LocalDate.of(2099, 12, 31));
+  }
+
+  private void givenGuardianRegistration(GuardianLinkRegistration registration) {
+    given(
+            parentChildLinkRegistrationService.registerGuardian(
+                "38812121215",
+                "48806046007",
+                "Ants",
+                "Haldja",
+                LocalDate.of(2099, 12, 31),
+                NameChangeBasis.admin("Court ruling 2-26-1234")))
+        .willReturn(registration);
+  }
+
   @Test
-  void createGuardianLink_delegatesToGuardianRegistration() throws Exception {
+  void createGuardianLink_whenNoLinkExists_answersThatItWasCreated() throws Exception {
     givenCurrentDate(LocalDate.of(2026, 5, 22));
+    givenGuardianRegistration(new Created(guardianLink().build()));
 
     mockMvc
         .perform(
@@ -222,7 +250,11 @@ class PartyAdminControllerTest {
                 .contentType(APPLICATION_JSON)
                 .content(GUARDIAN_LINK_BODY))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("48806046007")));
+        .andExpect(
+            content()
+                .string(
+                    "Created guardian link: guardianCode=38812121215, wardCode=48806046007,"
+                        + " validUntil=2099-12-31"));
 
     verify(parentChildLinkRegistrationService)
         .registerGuardian(
@@ -234,6 +266,53 @@ class PartyAdminControllerTest {
             NameChangeBasis.admin("Court ruling 2-26-1234"));
     verify(childSavingsOnboarding).seedIfAbsent("48806046007");
     verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void createGuardianLink_onASuspendedLink_answersTheChangedEndDateAndThatItStaysSuspended()
+      throws Exception {
+    givenCurrentDate(LocalDate.of(2026, 5, 22));
+    givenGuardianRegistration(
+        new EndDateChanged(
+            guardianLink().suspendedAt(Instant.parse("2026-03-01T10:00:00Z")).build(),
+            LocalDate.of(2027, 1, 31)));
+
+    mockMvc
+        .perform(
+            post("/admin/guardian-link")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(GUARDIAN_LINK_BODY))
+        .andExpect(status().isOk())
+        .andExpect(
+            content()
+                .string(
+                    "Changed guardian link end date, link stays suspended:"
+                        + " guardianCode=38812121215, wardCode=48806046007,"
+                        + " previousValidUntil=2027-01-31, validUntil=2099-12-31"));
+  }
+
+  @Test
+  void createGuardianLink_whenTheLinkAlreadyEndsOnThatDate_answersThatItIsUnchanged()
+      throws Exception {
+    givenCurrentDate(LocalDate.of(2026, 5, 22));
+    givenGuardianRegistration(new Unchanged(guardianLink().build()));
+
+    mockMvc
+        .perform(
+            post("/admin/guardian-link")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(GUARDIAN_LINK_BODY))
+        .andExpect(status().isOk())
+        .andExpect(
+            content()
+                .string(
+                    "Guardian link already ends on that date, unchanged:"
+                        + " guardianCode=38812121215, wardCode=48806046007,"
+                        + " validUntil=2099-12-31"));
   }
 
   @Test

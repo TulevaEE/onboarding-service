@@ -6,6 +6,11 @@ import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import ee.tuleva.onboarding.party.ChildAmlBackfillResult;
 import ee.tuleva.onboarding.party.ChildAmlBackfillService;
 import ee.tuleva.onboarding.party.ChildSavingsOnboarding;
+import ee.tuleva.onboarding.party.GuardianLinkRegistration;
+import ee.tuleva.onboarding.party.GuardianLinkRegistration.Created;
+import ee.tuleva.onboarding.party.GuardianLinkRegistration.EndDateChanged;
+import ee.tuleva.onboarding.party.GuardianLinkRegistration.Unchanged;
+import ee.tuleva.onboarding.party.ParentChildLink;
 import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
 import ee.tuleva.onboarding.user.NameChangeBasis;
 import jakarta.validation.Valid;
@@ -65,19 +70,46 @@ public class PartyAdminController {
           BAD_REQUEST,
           "Guardian link validUntil must be in the future: validUntil=" + request.validUntil());
     }
-    parentChildLinkRegistrationService.registerGuardian(
-        request.guardianCode(),
-        request.wardCode(),
-        request.wardFirstName(),
-        request.wardLastName(),
-        request.validUntil(),
-        NameChangeBasis.admin(request.documentReference()));
+    GuardianLinkRegistration registration =
+        parentChildLinkRegistrationService.registerGuardian(
+            request.guardianCode(),
+            request.wardCode(),
+            request.wardFirstName(),
+            request.wardLastName(),
+            request.validUntil(),
+            NameChangeBasis.admin(request.documentReference()));
     childSavingsOnboarding.seedIfAbsent(request.wardCode());
 
-    return "Created guardian link: guardianCode="
-        + request.guardianCode()
-        + ", wardCode="
-        + request.wardCode();
+    return describe(registration);
+  }
+
+  private String describe(GuardianLinkRegistration registration) {
+    ParentChildLink link = registration.link();
+    String codes =
+        "guardianCode="
+            + link.getParentPersonalCode()
+            + ", wardCode="
+            + link.getChildPersonalCode();
+    String suspension = link.isSuspended() ? ", link stays suspended" : "";
+    return switch (registration) {
+      case Created _ -> "Created guardian link: " + codes + ", validUntil=" + link.getValidUntil();
+      case EndDateChanged changed ->
+          "Changed guardian link end date"
+              + suspension
+              + ": "
+              + codes
+              + ", previousValidUntil="
+              + changed.previousValidUntil()
+              + ", validUntil="
+              + link.getValidUntil();
+      case Unchanged _ ->
+          "Guardian link already ends on that date, unchanged"
+              + suspension
+              + ": "
+              + codes
+              + ", validUntil="
+              + link.getValidUntil();
+    };
   }
 
   @PostMapping("/child-aml-backfill")

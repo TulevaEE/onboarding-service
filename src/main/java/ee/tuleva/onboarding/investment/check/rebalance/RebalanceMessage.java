@@ -19,9 +19,9 @@ record RebalanceMessage(String text, Severity severity) {
 
   static Optional<RebalanceMessage> of(RebalanceWindow window) {
     return switch (window.state()) {
-      case INFO -> Optional.of(inProgress(window));
-      case WARNING -> Optional.of(tradesMissing(window));
-      case FAIL -> Optional.of(inLineDueMissed(window));
+      case INFO -> Optional.of(opened(window));
+      case WARNING -> Optional.of(deadlineApproaching(window));
+      case FAIL -> Optional.of(deadlineMissed(window));
       case OK -> window.closedOn().map(navDate -> closed(window, navDate));
     };
   }
@@ -42,50 +42,46 @@ record RebalanceMessage(String text, Severity severity) {
         ERROR);
   }
 
-  private static RebalanceMessage inProgress(RebalanceWindow window) {
+  private static RebalanceMessage opened(RebalanceWindow window) {
     return new RebalanceMessage(
         """
-        ℹ️ %s: jõustumisest %d päeva, sisemine tähtaeg %s (%d päeva), seaduslik %s
-        %s; tehingud: %s"""
+        ℹ️ %s: tähtaeg %s (sisekord 4 p 2.6.1), jäänud %d päeva
+        %s"""
             .formatted(
                 model(window),
-                window.daysSinceModelEffectiveDate(),
-                date(window.deadlines().inLineDue()),
-                window.daysUntilInLineDue(),
-                date(window.deadlines().legal()),
-                measurement(window),
-                trades(window)),
+                date(window.deadline()),
+                window.daysUntilDeadline(),
+                measurement(window)),
         INFO);
   }
 
-  private static RebalanceMessage tradesMissing(RebalanceWindow window) {
+  private static RebalanceMessage deadlineApproaching(RebalanceWindow window) {
     return new RebalanceMessage(
         """
-        ⚠️ %s: tehingute tähtaeg oli %s, muutunud instrumentides tehinguid pole
+        ⚠️ %s: tähtaeg %s, jäänud %d päeva; tasakaalustamise tehinguid pole tehtud
         %s
-        Tee tasakaalustamise tehingud; sisemine tähtaeg %s, seaduslik %s"""
+        Tee tasakaalustamise tehingud või vii fond tähtajaks %s pp piiresse"""
             .formatted(
                 model(window),
-                date(window.deadlines().tradesDue()),
+                date(window.deadline()),
+                window.daysUntilDeadline(),
                 measurement(window),
-                date(window.deadlines().inLineDue()),
-                date(window.deadlines().legal())),
+                points(window.tolerance())),
         WARNING);
   }
 
-  private static RebalanceMessage inLineDueMissed(RebalanceWindow window) {
+  private static RebalanceMessage deadlineMissed(RebalanceWindow window) {
     return new RebalanceMessage(
         """
-        🛑 %s: sisemine tähtaeg oli %s, fond pole mudeliga vastavuses
-        %s; tehingud: %s
-        Vii fond %s pp piiresse; %s (sisekord 4 p 2.6.1)"""
+        🛑 %s: tähtaeg oli %s, fond pole mudeliga vastavuses ja tasakaalustamise tehinguid pole \
+        tehtud
+        %s
+        Vii fond %s pp piiresse (sisekord 4 p 2.6.1)"""
             .formatted(
                 model(window),
-                date(window.deadlines().inLineDue()),
+                date(window.deadline()),
                 measurement(window),
-                trades(window),
-                points(window.tolerance()),
-                legalDeadline(window)),
+                points(window.tolerance())),
         ERROR);
   }
 
@@ -123,19 +119,6 @@ record RebalanceMessage(String text, Severity severity) {
                     deviation ->
                         deviation.isin() + " " + signedPoints(deviation.percentagePoints()) + " pp")
                 .collect(joining(", ")));
-  }
-
-  private static String trades(RebalanceWindow window) {
-    return window.tradesDone()
-        ? window.tradedIsins().stream().sorted().collect(joining(", "))
-        : "pole";
-  }
-
-  private static String legalDeadline(RebalanceWindow window) {
-    var legal = window.deadlines().legal();
-    return window.checkDate().isAfter(legal)
-        ? "seaduslik tähtaeg oli " + date(legal)
-        : "seaduslik tähtaeg " + date(legal);
   }
 
   private static String points(BigDecimal weight) {

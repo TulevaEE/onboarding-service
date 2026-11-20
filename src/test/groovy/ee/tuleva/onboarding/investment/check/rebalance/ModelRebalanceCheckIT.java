@@ -1,12 +1,8 @@
 package ee.tuleva.onboarding.investment.check.rebalance;
 
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
-import static ee.tuleva.onboarding.investment.transaction.OrderStatus.CANCELLED;
-import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
-import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
-import static ee.tuleva.onboarding.investment.transaction.TransactionBatch.TRADE_REGISTRY_SQL_IMPORT_SOURCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
@@ -26,7 +22,6 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -49,7 +44,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,7 +56,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @Import({
   RebalanceWindows.class,
   RebalanceAnnouncements.class,
-  RebalanceTrades.class,
   NavWeightsReader.class,
   InvestmentParameterRepository.class,
   EstonianCalendar.class,
@@ -75,8 +68,10 @@ class ModelRebalanceCheckIT {
   private static final String NEW_WORLD = "IE000I9HGDZ3";
   private static final String EMERGING = "IE00BMDBMY19";
   private static final String NOT_IN_ANY_MODEL = "LU0476289540";
+  private static final String TRADE_REGISTRY_SQL_EXPORT_SOURCE = "GAS_REGISTRY";
   private static final LocalDate PREVIOUS_MODEL = LocalDate.of(2026, 6, 1);
   private static final LocalDate NEW_MODEL = LocalDate.of(2026, 10, 1);
+  private static final LocalDate SEPTEMBER_MODEL = LocalDate.of(2026, 9, 1);
   private static final BigDecimal NAV = new BigDecimal("1000000");
 
   @Autowired private RebalanceWindows rebalanceWindows;
@@ -90,29 +85,74 @@ class ModelRebalanceCheckIT {
   @MockitoBean private OperationsNotificationService notificationService;
 
   @Test
-  void aWindowThatOpens_postsItsProgressOnceAndStaysQuietUntilAWarningFailOrClose() {
-    givenTuv100ModelSwitchesFromWorldToNewWorld();
-    givenNav(LocalDate.of(2026, 10, 2), Map.of(WORLD, "790000", EMERGING, "200000"));
+  void aWindowThatOpens_postsItsInfoOnceAndStaysQuietUntilFifteenCalendarDaysBeforeTheDeadline() {
+    givenTuv100ModelSwitchesFromWorldToNewWorldOn(SEPTEMBER_MODEL);
+    givenNav(LocalDate.of(2026, 9, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
 
-    runCheckOn(LocalDate.of(2026, 10, 5));
+    runCheckOn(LocalDate.of(2026, 10, 1));
 
     then(notificationService)
         .should()
         .sendMessage(
             """
-            ℹ️ TUV100 mudelportfell alates 01.10.2026: jõustumisest 4 päeva, sisemine tähtaeg \
-            01.12.2026 (57 päeva), seaduslik 04.01.2027
-            Üle 5 pp (NAV 02.10.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp; \
-            tehingud: pole""",
+            ℹ️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026 (sisekord 4 p 2.6.1), \
+            jäänud 61 päeva
+            Üle 5 pp (NAV 30.09.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp""",
             INVESTMENT,
             INFO);
-    then(notificationService).shouldHaveNoMoreInteractions();
 
-    givenNav(LocalDate.of(2026, 10, 5), Map.of(WORLD, "780000", EMERGING, "210000"));
-    runCheckOn(LocalDate.of(2026, 10, 6));
-    runCheckOn(LocalDate.of(2026, 10, 7));
+    runCheckOn(LocalDate.of(2026, 10, 2));
+    givenNav(LocalDate.of(2026, 11, 12), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 11, 13));
 
     then(notificationService).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void
+      fromFifteenCalendarDaysBeforeTheDeadlineAWarningRepeatsUpToTheDeadlineAndAFailEveryDayAfter() {
+    givenTuv100ModelSwitchesFromWorldToNewWorldOn(SEPTEMBER_MODEL);
+    givenNav(LocalDate.of(2026, 9, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 1));
+    givenNav(LocalDate.of(2026, 11, 13), Map.of(WORLD, "790000", EMERGING, "200000"));
+
+    runCheckOn(LocalDate.of(2026, 11, 16));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026, jäänud 15 päeva; \
+            tasakaalustamise tehinguid pole tehtud
+            Üle 5 pp (NAV 13.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
+            Tee tasakaalustamise tehingud või vii fond tähtajaks 5 pp piiresse""",
+            INVESTMENT,
+            WARNING);
+
+    runCheckOn(LocalDate.of(2026, 11, 17));
+    givenNav(LocalDate.of(2026, 11, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 12, 1));
+    runCheckOn(LocalDate.of(2026, 12, 2));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🛑 TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole mudeliga \
+            vastavuses ja tasakaalustamise tehinguid pole tehtud
+            Üle 5 pp (NAV 30.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
+            Vii fond 5 pp piiresse (sisekord 4 p 2.6.1)""",
+            INVESTMENT,
+            ERROR);
+
+    runCheckOn(LocalDate.of(2026, 12, 3));
+
+    then(notificationService)
+        .should(times(3))
+        .sendMessage(startsWith("⚠️ TUV100"), eq(INVESTMENT), eq(WARNING));
+    then(notificationService)
+        .should(times(2))
+        .sendMessage(startsWith("🛑 TUV100"), eq(INVESTMENT), eq(ERROR));
   }
 
   @Test
@@ -132,91 +172,6 @@ class ModelRebalanceCheckIT {
         .should(times(2))
         .sendMessage(
             startsWith("ℹ️ TUV100 mudelportfell alates 01.10.2026"), eq(INVESTMENT), eq(INFO));
-    then(notificationService).shouldHaveNoMoreInteractions();
-  }
-
-  @Test
-  void aWarningRepeatsEveryWorkingDayUntilATradeGoesOutAndThenTheWindowStaysQuiet() {
-    givenTuv100ModelSwitchesFromWorldToNewWorld();
-    givenNav(LocalDate.of(2026, 10, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
-
-    runCheckOn(LocalDate.of(2026, 11, 2));
-    runCheckOn(LocalDate.of(2026, 11, 3));
-    givenOrder(TUV100, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 11, 3));
-    runCheckOn(LocalDate.of(2026, 11, 4));
-    runCheckOn(LocalDate.of(2026, 11, 5));
-
-    then(notificationService)
-        .should(times(2))
-        .sendMessage(startsWith("⚠️ TUV100"), eq(INVESTMENT), eq(WARNING));
-    then(notificationService).shouldHaveNoMoreInteractions();
-  }
-
-  @Test
-  void aMonthWithoutTradesInTheChangedInstruments_warnsUntilATradeIsSent() {
-    givenTuv100ModelSwitchesFromWorldToNewWorld();
-    givenNav(LocalDate.of(2026, 10, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
-    givenOrder(TUV100, EMERGING, BUY, SENT, LocalDate.of(2026, 10, 20));
-    givenOrder(TUV100, WORLD, SELL, CANCELLED, LocalDate.of(2026, 10, 20));
-    givenOrder(TUV100, WORLD, SELL, DRAFT, LocalDate.of(2026, 10, 21));
-    givenOrder(TUV100, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 9, 30));
-
-    runCheckOn(LocalDate.of(2026, 11, 2));
-
-    then(notificationService)
-        .should()
-        .sendMessage(
-            """
-            ⚠️ TUV100 mudelportfell alates 01.10.2026: tehingute tähtaeg oli 01.11.2026, \
-            muutunud instrumentides tehinguid pole
-            Üle 5 pp (NAV 30.10.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
-            Tee tasakaalustamise tehingud; sisemine tähtaeg 01.12.2026, seaduslik 04.01.2027""",
-            INVESTMENT,
-            WARNING);
-    then(notificationService).shouldHaveNoMoreInteractions();
-  }
-
-  @Test
-  void
-      aSentOrderFromABatchFinalisedHereWithoutAnExecution_doesNotClearTheWarningButItsExecutionDoes() {
-    givenTuv100ModelSwitchesFromWorldToNewWorld();
-    givenNav(LocalDate.of(2026, 10, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
-    givenOrderFromABatchFinalisedInThisService(NEW_WORLD, BUY, SENT, LocalDate.of(2026, 10, 30));
-
-    runCheckOn(LocalDate.of(2026, 11, 2));
-
-    then(notificationService)
-        .should()
-        .sendMessage(
-            startsWith("⚠️ TUV100 mudelportfell alates 01.10.2026"), eq(INVESTMENT), eq(WARNING));
-
-    givenOrderFromABatchFinalisedInThisService(WORLD, SELL, EXECUTED, LocalDate.of(2026, 10, 30));
-    runCheckOn(LocalDate.of(2026, 11, 3));
-
-    then(notificationService).shouldHaveNoMoreInteractions();
-    assertThat(rebalanceWindows.current(TUV100, LocalDate.of(2026, 11, 3)).orElseThrow())
-        .extracting(RebalanceWindow::state, RebalanceWindow::tradedIsins)
-        .containsExactly(RebalanceState.INFO, Set.of(WORLD));
-  }
-
-  @Test
-  void aSentTradeInAChangedInstrument_turnsTheWarningBackIntoProgress() {
-    givenTuv100ModelSwitchesFromWorldToNewWorld();
-    givenNav(LocalDate.of(2026, 10, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
-    givenOrder(TUV100, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 10, 30));
-
-    runCheckOn(LocalDate.of(2026, 11, 2));
-
-    then(notificationService)
-        .should()
-        .sendMessage(
-            """
-            ℹ️ TUV100 mudelportfell alates 01.10.2026: jõustumisest 32 päeva, sisemine tähtaeg \
-            01.12.2026 (29 päeva), seaduslik 04.01.2027
-            Üle 5 pp (NAV 30.10.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp; \
-            tehingud: IE000I9HGDZ3""",
-            INVESTMENT,
-            INFO);
     then(notificationService).shouldHaveNoMoreInteractions();
   }
 
@@ -310,15 +265,14 @@ class ModelRebalanceCheckIT {
     givenModel(TUV100, LocalDate.of(2026, 6, 1), Map.of(WORLD, "1.00"));
     givenModel(TUV100, LocalDate.of(2026, 8, 1), Map.of(WORLD, "0.80", EMERGING, "0.20"));
     givenModel(TUV100, LocalDate.of(2026, 9, 1), Map.of(NEW_WORLD, "0.80", EMERGING, "0.20"));
-    givenNav(LocalDate.of(2026, 10, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    givenNav(LocalDate.of(2026, 11, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
 
-    runCheckOn(LocalDate.of(2026, 11, 2));
+    runCheckOn(LocalDate.of(2026, 12, 2));
 
     then(notificationService)
         .should()
         .sendMessage(
-            startsWith(
-                "🛑 TUV100 mudelportfell alates 01.09.2026: sisemine tähtaeg oli 01.11.2026"),
+            startsWith("🛑 TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026"),
             eq(INVESTMENT),
             eq(ERROR));
     then(notificationService).shouldHaveNoMoreInteractions();
@@ -350,7 +304,8 @@ class ModelRebalanceCheckIT {
   }
 
   @Test
-  void aNavRevisionThatTakesBackTheClosingNav_reopensTheWindowAndTheNextNavInLineClosesItAgain() {
+  void
+      aNavRevisionThatTakesBackTheClosingNav_reopensTheWindowWithAnInfoAndTheNextNavInLineClosesIt() {
     givenTuv100ModelSwitchesFromWorldToNewWorld();
     givenNav(LocalDate.of(2026, 10, 29), Map.of(WORLD, "790000", EMERGING, "200000"));
     runCheckOn(LocalDate.of(2026, 10, 30));
@@ -372,7 +327,7 @@ class ModelRebalanceCheckIT {
         .sendMessage(endsWith("NAV 30.10.2026), kontroll suletud"), eq(INVESTMENT), eq(INFO));
     then(notificationService)
         .should(inOrder)
-        .sendMessage(startsWith("⚠️ TUV100"), eq(INVESTMENT), eq(WARNING));
+        .sendMessage(startsWith("ℹ️ TUV100"), eq(INVESTMENT), eq(INFO));
     then(notificationService)
         .should(inOrder)
         .sendMessage(endsWith("NAV 03.11.2026), kontroll suletud"), eq(INVESTMENT), eq(INFO));
@@ -409,58 +364,20 @@ class ModelRebalanceCheckIT {
   }
 
   @Test
-  void aLaterModelVersionWithTheSameWeights_keepsTheUnresolvedWindowAndItsDeadlines() {
+  void aLaterModelVersionWithTheSameWeights_keepsTheUnresolvedWindowAndItsDeadline() {
     givenTuv100ModelSwitchesFromWorldToNewWorld();
     givenModel(TUV100, LocalDate.of(2026, 11, 1), Map.of(NEW_WORLD, "0.8", EMERGING, "0.2"));
     givenNav(LocalDate.of(2026, 11, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
 
-    runCheckOn(LocalDate.of(2026, 12, 2));
+    runCheckOn(LocalDate.of(2027, 1, 5));
 
     then(notificationService)
         .should()
         .sendMessage(
-            startsWith(
-                "🛑 TUV100 mudelportfell alates 01.10.2026: sisemine tähtaeg oli 01.12.2026"),
+            startsWith("🛑 TUV100 mudelportfell alates 01.10.2026: tähtaeg oli 04.01.2027"),
             eq(INVESTMENT),
             eq(ERROR));
     then(notificationService).shouldHaveNoMoreInteractions();
-  }
-
-  @Test
-  void onTheInLineDueDateNothingFails_fromTheDayAfterItFailsUntilANavWithinFivePointsClosesIt() {
-    givenTuv100ModelSwitchesFromWorldToNewWorld();
-    givenOrder(TUV100, WORLD, SELL, EXECUTED, LocalDate.of(2026, 10, 5));
-    givenNav(LocalDate.of(2026, 11, 30), Map.of(WORLD, "300000", NEW_WORLD, "490000"));
-
-    runCheckOn(LocalDate.of(2026, 12, 1));
-    then(notificationService).should(never()).sendMessage(any(), any(), eq(ERROR));
-
-    runCheckOn(LocalDate.of(2026, 12, 2));
-
-    then(notificationService)
-        .should()
-        .sendMessage(
-            """
-            🛑 TUV100 mudelportfell alates 01.10.2026: sisemine tähtaeg oli 01.12.2026, fond pole \
-            mudeliga vastavuses
-            Üle 5 pp (NAV 30.11.2026): IE000I9HGDZ3 -31,00 pp, IE00BFG1TM61 +30,00 pp, \
-            IE00BMDBMY19 -20,00 pp; tehingud: IE00BFG1TM61
-            Vii fond 5 pp piiresse; seaduslik tähtaeg 04.01.2027 (sisekord 4 p 2.6.1)""",
-            INVESTMENT,
-            ERROR);
-
-    givenNav(
-        LocalDate.of(2026, 12, 2), Map.of(NEW_WORLD, "780000", EMERGING, "210000", WORLD, "0"));
-    runCheckOn(LocalDate.of(2026, 12, 3));
-
-    then(notificationService)
-        .should()
-        .sendMessage(
-            "✅ TUV100 mudelportfell alates 01.10.2026: fond on mudeliga vastavuses (kõik"
-                + " osakaalud 5 pp piires, NAV 02.12.2026), kontroll suletud",
-            INVESTMENT,
-            INFO);
-    then(notificationService).should(times(1)).sendMessage(any(), any(), eq(ERROR));
   }
 
   @Test
@@ -515,19 +432,15 @@ class ModelRebalanceCheckIT {
   void exposesTheWindowStateForOtherComponents() {
     givenTuv100ModelSwitchesFromWorldToNewWorld();
     givenNav(LocalDate.of(2026, 10, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
-    givenOrder(TUV100, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 10, 30));
 
     var window = rebalanceWindows.current(TUV100, LocalDate.of(2026, 11, 2)).orElseThrow();
 
     assertThat(window.modelEffectiveDate()).isEqualTo(NEW_MODEL);
     assertThat(window.daysSinceModelEffectiveDate()).isEqualTo(32);
     assertThat(window.changedIsins()).containsExactlyInAnyOrder(WORLD, NEW_WORLD);
-    assertThat(window.tradesDone()).isTrue();
+    assertThat(window.deadline()).isEqualTo(LocalDate.of(2027, 1, 4));
+    assertThat(window.closedOn()).isEmpty();
     assertThat(window.inLine()).isFalse();
-    assertThat(window.deadlines())
-        .isEqualTo(
-            new RebalanceDeadlines(
-                LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 1), LocalDate.of(2027, 1, 4)));
     assertThat(window.state()).isEqualTo(RebalanceState.INFO);
   }
 
@@ -649,7 +562,7 @@ class ModelRebalanceCheckIT {
         status,
         orderDate,
         Map.of(
-            "source", TRADE_REGISTRY_SQL_IMPORT_SOURCE, "importKey", "GAS:" + UUID.randomUUID()));
+            "source", TRADE_REGISTRY_SQL_EXPORT_SOURCE, "importKey", "GAS:" + UUID.randomUUID()));
   }
 
   private void givenOrderFromABatchFinalisedInThisService(

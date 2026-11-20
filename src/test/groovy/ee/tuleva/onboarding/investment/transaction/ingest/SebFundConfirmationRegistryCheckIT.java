@@ -3,9 +3,9 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
-import static ee.tuleva.onboarding.investment.transaction.TransactionBatch.HISTORICAL_IMPORT_SOURCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
+import static ee.tuleva.onboarding.investment.transaction.ingest.HistoricalRegistryImportService.SOURCE_HISTORICAL_IMPORT;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.RegistryStatus.MATCH;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.RegistryStatus.MISMATCH;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.RegistryStatus.NOT_IN_REGISTRY;
@@ -171,7 +171,7 @@ class SebFundConfirmationRegistryCheckIT {
     execution(
         redemption,
         REFERENCE,
-        HISTORICAL_IMPORT_SOURCE,
+        SOURCE_HISTORICAL_IMPORT,
         "18811874.1000",
         "1.00000000",
         "18811874.10");
@@ -186,7 +186,7 @@ class SebFundConfirmationRegistryCheckIT {
     execution(
         redemption,
         REFERENCE,
-        HISTORICAL_IMPORT_SOURCE,
+        SOURCE_HISTORICAL_IMPORT,
         "18811874.1001",
         "1.00000000",
         "18811874.10");
@@ -218,14 +218,14 @@ class SebFundConfirmationRegistryCheckIT {
     execution(
         redemption,
         FIRST_FILL,
-        HISTORICAL_IMPORT_SOURCE,
+        SOURCE_HISTORICAL_IMPORT,
         "10000000.0100",
         "1.00000000",
         "10000000.01");
     execution(
         redemption,
         REFERENCE,
-        HISTORICAL_IMPORT_SOURCE,
+        SOURCE_HISTORICAL_IMPORT,
         "8811874.0946",
         "1.00000000",
         "8811874.09");

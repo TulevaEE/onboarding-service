@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.investment.check.rebalance;
 
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.MODEL_REBALANCE_IN_LINE_DUE_MONTHS;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.MODEL_REBALANCE_TOLERANCE;
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.MODEL_REBALANCE_TRADES_DUE_MONTHS;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.MODEL_REBALANCE_WARNING_CALENDAR_DAYS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,7 +20,6 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class RebalanceWindowsTest {
@@ -30,20 +28,18 @@ class RebalanceWindowsTest {
 
   private final ModelPortfolioAllocationRepository allocationRepository =
       mock(ModelPortfolioAllocationRepository.class);
-  private final RebalanceTrades rebalanceTrades = mock(RebalanceTrades.class);
   private final NavWeightsReader navWeightsReader = mock(NavWeightsReader.class);
   private final InvestmentParameterRepository parameterRepository =
       mock(InvestmentParameterRepository.class);
   private final RebalanceWindows rebalanceWindows =
       new RebalanceWindows(
           allocationRepository,
-          rebalanceTrades,
           navWeightsReader,
           parameterRepository,
           new EstonianCalendar(new PublicHolidays()));
 
   @Test
-  void aFundsModelHistoryAndTheThreeParametersAreLoadedOnceHoweverManyWindowsAreMeasured() {
+  void aFundsModelHistoryAndTheParametersAreLoadedOnceHoweverManyWindowsAreMeasured() {
     given(allocationRepository.findByFundAndEffectiveDateLessThanEqual(TUV100, CHECK_DATE))
         .willReturn(
             List.of(
@@ -53,12 +49,9 @@ class RebalanceWindowsTest {
                 allocation(TUV100, LocalDate.of(2026, 10, 1), "USA")));
     given(parameterRepository.findLatestValue(MODEL_REBALANCE_TOLERANCE, CHECK_DATE))
         .willReturn(new BigDecimal("0.05"));
-    given(parameterRepository.findLatestValue(MODEL_REBALANCE_TRADES_DUE_MONTHS, CHECK_DATE))
-        .willReturn(BigDecimal.ONE);
-    given(parameterRepository.findLatestValue(MODEL_REBALANCE_IN_LINE_DUE_MONTHS, CHECK_DATE))
-        .willReturn(new BigDecimal("2"));
+    given(parameterRepository.findLatestValue(MODEL_REBALANCE_WARNING_CALENDAR_DAYS, CHECK_DATE))
+        .willReturn(new BigDecimal("15"));
     given(navWeightsReader.between(any(), any(), any())).willReturn(List.of());
-    given(rebalanceTrades.tradedIsins(any(), any(), any())).willReturn(Set.of());
 
     var windows = rebalanceWindows.of(TUV100, CHECK_DATE, modelEffectiveDate -> true);
 
@@ -76,10 +69,7 @@ class RebalanceWindowsTest {
         .findLatestValue(MODEL_REBALANCE_TOLERANCE, CHECK_DATE);
     then(parameterRepository)
         .should(times(1))
-        .findLatestValue(MODEL_REBALANCE_TRADES_DUE_MONTHS, CHECK_DATE);
-    then(parameterRepository)
-        .should(times(1))
-        .findLatestValue(MODEL_REBALANCE_IN_LINE_DUE_MONTHS, CHECK_DATE);
+        .findLatestValue(MODEL_REBALANCE_WARNING_CALENDAR_DAYS, CHECK_DATE);
   }
 
   @Test

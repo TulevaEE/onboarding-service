@@ -16,117 +16,103 @@ import org.junit.jupiter.api.Test;
 
 class RebalanceMessageTest {
 
-  private static final LocalDate EFFECTIVE = LocalDate.of(2026, 10, 1);
-  private static final RebalanceDeadlines DEADLINES =
-      new RebalanceDeadlines(
-          LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 1), LocalDate.of(2027, 1, 4));
+  private static final LocalDate EFFECTIVE = LocalDate.of(2026, 9, 1);
+  private static final LocalDate DEADLINE = LocalDate.of(2026, 12, 1);
+  private static final LocalDate WARNING_FROM = LocalDate.of(2026, 11, 16);
   private static final List<Deviation> OUT_OF_LINE =
       List.of(
           new Deviation("IE000I9HGDZ3", new BigDecimal("0.80"), ZERO),
           new Deviation("IE00BFG1TM61", ZERO, new BigDecimal("0.79")));
 
   @Test
-  void inTheFirstMonth_reportsDaysSinceTheEffectiveDateDaysLeftAndWhatIsOff() {
-    var window =
-        window(LocalDate.of(2026, 10, 5), Set.of(), LocalDate.of(2026, 10, 2), OUT_OF_LINE, null);
+  void anOpeningWindow_reportsTheSisekordDeadlineDaysLeftAndWhatIsOff() {
+    var window = window(LocalDate.of(2026, 10, 1), LocalDate.of(2026, 9, 30), OUT_OF_LINE, null);
 
     assertThat(RebalanceMessage.of(window))
         .contains(
             new RebalanceMessage(
                 """
-                ℹ️ TUV100 mudelportfell alates 01.10.2026: jõustumisest 4 päeva, sisemine tähtaeg \
-                01.12.2026 (57 päeva), seaduslik 04.01.2027
-                Üle 5 pp (NAV 02.10.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp; \
-                tehingud: pole""",
+                ℹ️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026 (sisekord 4 p \
+                2.6.1), jäänud 61 päeva
+                Üle 5 pp (NAV 30.09.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp""",
                 INFO));
   }
 
   @Test
   void beforeTheFirstNavSinceTheEffectiveDate_saysTheNavIsNotPublishedYet() {
-    var window = window(LocalDate.of(2026, 10, 1), Set.of("IE000I9HGDZ3"), null, List.of(), null);
+    var window = window(EFFECTIVE, null, List.of(), null);
 
     assertThat(RebalanceMessage.of(window))
         .contains(
             new RebalanceMessage(
                 """
-                ℹ️ TUV100 mudelportfell alates 01.10.2026: jõustumisest 0 päeva, sisemine tähtaeg \
-                01.12.2026 (61 päeva), seaduslik 04.01.2027
-                NAV alates 01.10.2026 pole veel avaldatud; tehingud: IE000I9HGDZ3""",
+                ℹ️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026 (sisekord 4 p \
+                2.6.1), jäänud 91 päeva
+                NAV alates 01.09.2026 pole veel avaldatud""",
                 INFO));
   }
 
   @Test
-  void aMonthWithoutTrades_warnsWithTheTradeToMake() {
-    var window =
-        window(LocalDate.of(2026, 11, 2), Set.of(), LocalDate.of(2026, 10, 30), OUT_OF_LINE, null);
+  void inTheWarningPeriod_warnsWithTheDeadlineDaysLeftAndTheTradeToMake() {
+    var window = window(WARNING_FROM, LocalDate.of(2026, 11, 13), OUT_OF_LINE, null);
 
     assertThat(RebalanceMessage.of(window))
         .contains(
             new RebalanceMessage(
                 """
-                ⚠️ TUV100 mudelportfell alates 01.10.2026: tehingute tähtaeg oli 01.11.2026, \
-                muutunud instrumentides tehinguid pole
-                Üle 5 pp (NAV 30.10.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
-                Tee tasakaalustamise tehingud; sisemine tähtaeg 01.12.2026, seaduslik 04.01.2027""",
+                ⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026, jäänud 15 päeva; \
+                tasakaalustamise tehinguid pole tehtud
+                Üle 5 pp (NAV 13.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
+                Tee tasakaalustamise tehingud või vii fond tähtajaks 5 pp piiresse""",
                 WARNING));
   }
 
   @Test
-  void twoMonthsOutOfLine_failsWithTheLegalDeadline() {
-    var window =
-        window(
-            LocalDate.of(2026, 12, 2),
-            Set.of("IE00BFG1TM61", "IE000I9HGDZ3"),
-            LocalDate.of(2026, 11, 30),
-            OUT_OF_LINE,
-            null);
+  void onTheDeadlineItself_warnsWithNoDaysLeft() {
+    var window = window(DEADLINE, LocalDate.of(2026, 11, 30), OUT_OF_LINE, null);
+
+    assertThat(RebalanceMessage.of(window).orElseThrow().text())
+        .startsWith(
+            "⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026, jäänud 0 päeva");
+  }
+
+  @Test
+  void pastTheDeadline_failsCitingSisekord4P261() {
+    var window = window(DEADLINE.plusDays(1), LocalDate.of(2026, 11, 30), OUT_OF_LINE, null);
 
     assertThat(RebalanceMessage.of(window))
         .contains(
             new RebalanceMessage(
                 """
-                🛑 TUV100 mudelportfell alates 01.10.2026: sisemine tähtaeg oli 01.12.2026, fond \
-                pole mudeliga vastavuses
-                Üle 5 pp (NAV 30.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp; \
-                tehingud: IE000I9HGDZ3, IE00BFG1TM61
-                Vii fond 5 pp piiresse; seaduslik tähtaeg 04.01.2027 (sisekord 4 p 2.6.1)""",
+                🛑 TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole \
+                mudeliga vastavuses ja tasakaalustamise tehinguid pole tehtud
+                Üle 5 pp (NAV 30.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
+                Vii fond 5 pp piiresse (sisekord 4 p 2.6.1)""",
                 ERROR));
-  }
-
-  @Test
-  void pastTheLegalDeadline_failsSayingItWasMissed() {
-    var window =
-        window(LocalDate.of(2027, 1, 5), Set.of(), LocalDate.of(2027, 1, 4), OUT_OF_LINE, null);
-
-    assertThat(RebalanceMessage.of(window).orElseThrow().text())
-        .endsWith("Vii fond 5 pp piiresse; seaduslik tähtaeg oli 04.01.2027 (sisekord 4 p 2.6.1)");
   }
 
   @Test
   void aClosedWindow_namesTheNavThatClosedItEvenWhenANewerNavIsOff() {
     var closing = LocalDate.of(2026, 10, 30);
-    var window =
-        window(
-            LocalDate.of(2026, 11, 3), Set.of(), LocalDate.of(2026, 11, 2), OUT_OF_LINE, closing);
+    var window = window(LocalDate.of(2026, 11, 3), LocalDate.of(2026, 11, 2), OUT_OF_LINE, closing);
 
     assertThat(RebalanceMessage.of(window))
         .contains(
             new RebalanceMessage(
-                "✅ TUV100 mudelportfell alates 01.10.2026: fond on mudeliga vastavuses (kõik"
+                "✅ TUV100 mudelportfell alates 01.09.2026: fond on mudeliga vastavuses (kõik"
                     + " osakaalud 5 pp piires, NAV 30.10.2026), kontroll suletud",
                 INFO));
   }
 
   @Test
   void aSupersededWindowThatNeverCameIntoLine_isClosedWithTheModelThatReplacedIt() {
-    var window =
-        window(LocalDate.of(2026, 11, 3), Set.of(), LocalDate.of(2026, 11, 2), OUT_OF_LINE, null);
+    var window = window(LocalDate.of(2026, 11, 3), LocalDate.of(2026, 11, 2), OUT_OF_LINE, null);
 
     assertThat(
             RebalanceMessage.ofSuperseded(new SupersededWindow(window, LocalDate.of(2026, 11, 3))))
         .isEqualTo(
             new RebalanceMessage(
-                "⏹ TUV100 mudelportfell alates 01.10.2026: asendatud mudeliga alates 03.11.2026,"
+                "⏹ TUV100 mudelportfell alates 01.09.2026: asendatud mudeliga alates 03.11.2026,"
                     + " vastavusse ei jõudnud; kontroll suletud",
                 INFO));
   }
@@ -134,15 +120,13 @@ class RebalanceMessageTest {
   @Test
   void aSupersededWindowThatCameIntoLine_isClosedAsInLine() {
     var closing = LocalDate.of(2026, 10, 30);
-    var window =
-        window(
-            LocalDate.of(2026, 11, 3), Set.of(), LocalDate.of(2026, 11, 2), OUT_OF_LINE, closing);
+    var window = window(LocalDate.of(2026, 11, 3), LocalDate.of(2026, 11, 2), OUT_OF_LINE, closing);
 
     assertThat(
             RebalanceMessage.ofSuperseded(new SupersededWindow(window, LocalDate.of(2026, 11, 3))))
         .isEqualTo(
             new RebalanceMessage(
-                "✅ TUV100 mudelportfell alates 01.10.2026: fond on mudeliga vastavuses (kõik"
+                "✅ TUV100 mudelportfell alates 01.09.2026: fond on mudeliga vastavuses (kõik"
                     + " osakaalud 5 pp piires, NAV 30.10.2026), kontroll suletud",
                 INFO));
   }
@@ -156,11 +140,11 @@ class RebalanceMessageTest {
             LocalDate.of(2026, 10, 30),
             new BigDecimal("0.025"),
             Set.of("IE00BFG1TM61"),
-            Set.of(),
             LocalDate.of(2026, 10, 30),
             List.of(),
             LocalDate.of(2026, 10, 30),
-            DEADLINES);
+            DEADLINE,
+            WARNING_FROM);
 
     assertThat(RebalanceMessage.of(window).orElseThrow().text())
         .contains("kõik osakaalud 2,5 pp piires");
@@ -168,7 +152,6 @@ class RebalanceMessageTest {
 
   private static RebalanceWindow window(
       LocalDate checkDate,
-      Set<String> tradedIsins,
       @Nullable LocalDate latestNavDate,
       List<Deviation> outsideTolerance,
       @Nullable LocalDate inLineSince) {
@@ -178,10 +161,10 @@ class RebalanceMessageTest {
         checkDate,
         new BigDecimal("0.05"),
         Set.of("IE00BFG1TM61", "IE000I9HGDZ3"),
-        tradedIsins,
         latestNavDate,
         outsideTolerance,
         inLineSince,
-        DEADLINES);
+        DEADLINE,
+        WARNING_FROM);
   }
 }

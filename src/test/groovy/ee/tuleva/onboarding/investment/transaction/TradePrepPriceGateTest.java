@@ -261,6 +261,50 @@ class TradePrepPriceGateTest {
                 TRADE_DATE));
   }
 
+  @Test
+  void underTheCommonDateRuleAManualPriceIsMeasuredAgainstTheCommonDate() {
+    givenHeld("A", "B", "C");
+    givenModel();
+    LocalDate dayBefore = TRADE_DATE.minusDays(1);
+    givenPriceOn("A", TRADE_DATE, TRADE_DATE, "10");
+    givenPriceOn("A", dayBefore, TRADE_DATE.minusDays(3), "9");
+    givenPriceOn("B", TRADE_DATE, dayBefore, "20");
+    givenPriceOn("C", TRADE_DATE, TRADE_DATE, "30");
+    givenPriceOn("C", dayBefore, dayBefore, "29");
+    var manualA = new PriceOverride("A", new BigDecimal("11"), "No price on the common date");
+    var manualC = new PriceOverride("C", new BigDecimal("31"), "Price on the common date is off");
+
+    var check =
+        gates.check(
+            TKF100,
+            TRADE_DATE,
+            new TradePrepOverrides(
+                Set.of(), List.of(manualA, manualC), null, PriceDateRule.LATEST_COMMON_DATE, null));
+
+    assertThat(check.priceOverrides())
+        .containsExactly(
+            new UsedPriceOverride(manualA, GateNeed.CLEARED_A_STOP, null),
+            new UsedPriceOverride(manualC, GateNeed.NOT_NEEDED, priceOn(dayBefore, "29")));
+  }
+
+  @Test
+  void underTheCommonDateRuleAFundPricedOnlyByHandHasNoCommonDate() {
+    givenHeld("A");
+    givenModel();
+    givenPriceOn("A", TRADE_DATE, TRADE_DATE, "10");
+    var manual = new PriceOverride("A", new BigDecimal("11"), "Issuer's NAV");
+
+    var check =
+        gates.check(
+            TKF100,
+            TRADE_DATE,
+            new TradePrepOverrides(
+                Set.of(), List.of(manual), null, PriceDateRule.LATEST_COMMON_DATE, null));
+
+    assertThat(check.pricing())
+        .isEqualTo(new FreshestPerInstrument(Map.of("A", new ManualPrice(manual))));
+  }
+
   private static TradePrepOverrides commonDate() {
     return new TradePrepOverrides(
         Set.of(), List.of(), null, PriceDateRule.LATEST_COMMON_DATE, null);

@@ -146,7 +146,7 @@ public class TransactionOrderFactory {
     BigDecimal quantity = OrderUnits.of(instrumentType, transactionType, orderAmount, value);
     String stalePriceComment =
         price instanceof IndexPrice index
-            ? describeIfStale(isin, index.resolved(), asOfDate)
+            ? describeIfStale(isin, index.resolved(), pricing.stalenessReference(asOfDate))
             : null;
     return new OrderQuantity(quantity, stalePriceComment, price);
   }

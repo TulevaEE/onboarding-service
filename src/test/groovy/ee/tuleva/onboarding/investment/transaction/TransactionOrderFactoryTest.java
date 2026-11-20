@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexPrice;
 import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.ManualPrice;
 import ee.tuleva.onboarding.investment.transaction.TradePrepPricing.FreshestPerInstrument;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPricing.OnCommonDate;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -124,6 +125,32 @@ class TransactionOrderFactoryTest {
     assertThat(order.getOrderQuantity()).isEqualByComparingTo("400.000000");
     assertThat(order.getComment()).isNull();
     assertThat(calculated.priceResolutions()).containsEntry("IE00ETF", manual);
+  }
+
+  @Test
+  void createOrders_aPriceOnTheChosenCommonDateIsNotStaleHoweverOldThatDateIs() {
+    var input = inputWith(Map.of("IE00ETF", InstrumentType.ETF), Map.of("IE00ETF", OrderVenue.FT));
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00ETF", new BigDecimal("50000"), new BigDecimal("0.10"), LimitStatus.OK));
+    var commonDate = AS_OF_DATE.minusDays(5);
+    var onCommonDate =
+        new IndexPrice(
+            ResolvedPrice.builder()
+                .usedPrice(new BigDecimal("100.00"))
+                .priceDate(commonDate)
+                .build());
+
+    var calculated =
+        factory.createOrders(
+            batch(),
+            resultWith(input, trades),
+            AS_OF_DATE,
+            CREATED_AT,
+            new OnCommonDate(Map.of("IE00ETF", onCommonDate), commonDate));
+
+    assertThat(calculated.orders().get(0).getComment()).isNull();
   }
 
   @Test

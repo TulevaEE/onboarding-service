@@ -81,12 +81,12 @@ public class RebalanceWindows {
         change.effectiveDate(),
         checkDate,
         tolerance,
-        change.changedIsins(),
         latest.map(NavWeights::navDate).orElse(null),
         latest.map(nav -> nav.outsideTolerance(change.modelWeights(), tolerance)).orElse(List.of()),
-        firstNavInLine(navs, change, tolerance).orElse(null),
-        rebalanceTrades
-            .firstRebalancingTradeDate(fund, change.effectiveDate(), measuredUntil)
+        RebalanceClosure.whicheverFirst(
+                firstNavInLine(navs, change, tolerance),
+                rebalanceTrades.firstRebalancingTradeDate(
+                    fund, change.effectiveDate(), measuredUntil))
             .orElse(null),
         deadline,
         rules.warningFrom(deadline));

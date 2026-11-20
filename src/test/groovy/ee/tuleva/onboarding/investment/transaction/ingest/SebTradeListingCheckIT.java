@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
 import static ee.tuleva.onboarding.investment.transaction.SettlementSource.BANK_STATEMENT;
 import static ee.tuleva.onboarding.investment.transaction.SettlementSource.PENDING_REPORT_ABSENCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
@@ -42,6 +43,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlement;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementService;
+import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.TradeSettlementBookings;
 import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
@@ -251,6 +253,62 @@ class SebTradeListingCheckIT {
   }
 
   @Test
+  void aBookingOfAnotherFund_isNotItsPayment_andTheDroppedTradeIsAlerted() {
+    TransactionOrder order = order(EXECUTED);
+    piece(order, REFERENCE, SETTLEMENT_DAY);
+    bankBooks(TUK75, REFERENCE, EJAP, "-209025.86", SETTLEMENT_DAY);
+    pendingReport(SETTLEMENT_DAY, List.of(anotherOrdersRow()));
+
+    checkWithStatementsFor(SETTLEMENT_DAY).run(LOCK_HELD);
+
+    then(notificationService).should().sendMessage(droppedPurchase(), INVESTMENT, WARNING);
+  }
+
+  @Test
+  void aBookingOfAnotherInstrument_isNotItsPayment_andTheDroppedTradeIsAlerted() {
+    TransactionOrder order = order(EXECUTED);
+    piece(order, REFERENCE, SETTLEMENT_DAY);
+    bankBooks(TKF100, REFERENCE, "IE00BK5BQT80", "-209025.86", SETTLEMENT_DAY);
+    pendingReport(SETTLEMENT_DAY, List.of(anotherOrdersRow()));
+
+    checkWithStatementsFor(SETTLEMENT_DAY).run(LOCK_HELD);
+
+    then(notificationService).should().sendMessage(droppedPurchase(), INVESTMENT, WARNING);
+  }
+
+  @Test
+  void cashLeavingTheFundForASale_isNotItsPayment_andTheDroppedSaleIsAlerted() {
+    TransactionOrder order = order(TKF100, EXECUTED, SELL);
+    piece(order, REFERENCE, SETTLEMENT_DAY);
+    bankBooks(TKF100, REFERENCE, EJAP, "-209025.86", SETTLEMENT_DAY);
+    pendingReport(SETTLEMENT_DAY, List.of(anotherOrdersRow()));
+
+    checkWithStatementsFor(SETTLEMENT_DAY).run(LOCK_HELD);
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "⚠️ SEB tehing kadus ootel-tehingutest, pangas pole selle viitega makset: 1\n"
+                + "TKF100 · DLA0553690 · müük LU1291102447 · SEB arvelduspäev 12.02.2026\n"
+                + "Küsi SEB-lt, miks tehing nimekirjast kadus ja kas see arveldub.",
+            INVESTMENT,
+            WARNING);
+  }
+
+  @Test
+  void aReferenceTheBankBookedTwice_isNotOnePayment_andTheDroppedTradeIsAlerted() {
+    TransactionOrder order = order(EXECUTED);
+    piece(order, REFERENCE, SETTLEMENT_DAY);
+    bankBooks(REFERENCE, SETTLEMENT_DAY);
+    bankBooks(REFERENCE, SETTLEMENT_DAY);
+    pendingReport(SETTLEMENT_DAY, List.of(anotherOrdersRow()));
+
+    checkWithStatementsFor(SETTLEMENT_DAY).run(LOCK_HELD);
+
+    then(notificationService).should().sendMessage(droppedPurchase(), INVESTMENT, WARNING);
+  }
+
+  @Test
   void aTradeTheBankDated_raisesNothing() {
     TransactionOrder order = order(SETTLED);
     piece(order, REFERENCE, SETTLEMENT_DAY);
@@ -441,6 +499,12 @@ class SebTradeListingCheckIT {
             WARNING);
   }
 
+  private static String droppedPurchase() {
+    return "⚠️ SEB tehing kadus ootel-tehingutest, pangas pole selle viitega makset: 1\n"
+        + "TKF100 · DLA0553690 · ost LU1291102447 · SEB arvelduspäev 12.02.2026\n"
+        + "Küsi SEB-lt, miks tehing nimekirjast kadus ja kas see arveldub.";
+  }
+
   private static BankAccount investmentAccount(TulevaFund fund) {
     return new BankAccount("EE00" + fund.name(), FUND_INVESTMENT_EUR, fund, "client");
   }
@@ -485,6 +549,10 @@ class SebTradeListingCheckIT {
   }
 
   private TransactionOrder order(TulevaFund fund, OrderStatus status) {
+    return order(fund, status, BUY);
+  }
+
+  private TransactionOrder order(TulevaFund fund, OrderStatus status, TransactionType side) {
     TransactionBatch batch =
         batchRepository.save(TransactionBatch.builder().fund(fund).createdBy("test").build());
     TransactionOrder order =
@@ -493,7 +561,7 @@ class SebTradeListingCheckIT {
                 .batch(batch)
                 .fund(fund)
                 .instrumentIsin(EJAP)
-                .transactionType(BUY)
+                .transactionType(side)
                 .instrumentType(ETF)
                 .orderQuantity(new BigDecimal("11704"))
                 .orderVenue(OrderVenue.SEB)
@@ -531,13 +599,18 @@ class SebTradeListingCheckIT {
   }
 
   private void bankBooks(String reference, LocalDate bookingDate) {
+    bankBooks(TKF100, reference, EJAP, "-209025.86", bookingDate);
+  }
+
+  private void bankBooks(
+      TulevaFund fund, String reference, String isin, String cash, LocalDate bookingDate) {
     fundBankLedger.recordTradeSettlement(
-        TKF100,
-        new BigDecimal("-209025.86"),
+        fund,
+        new BigDecimal(cash),
         new BigDecimal("11704"),
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
-        new TradeSettlementDetails(reference, EJAP, "EJAP", "test instrument", BigDecimal.ONE),
+        new TradeSettlementDetails(reference, isin, "EJAP", "test instrument", BigDecimal.ONE),
         bookingDate);
     entityManager.flush();
   }

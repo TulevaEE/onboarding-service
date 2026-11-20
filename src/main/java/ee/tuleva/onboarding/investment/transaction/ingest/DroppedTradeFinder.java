@@ -4,19 +4,16 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
 import static java.time.ZoneOffset.UTC;
 import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementService;
-import ee.tuleva.onboarding.ledger.TradeSettlementBooking;
 import ee.tuleva.onboarding.ledger.TradeSettlementBookings;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -62,10 +59,11 @@ class DroppedTradeFinder {
             .toList();
     DroppedTrades withTheStatementIn =
         bankStatementArrival.keepThoseWhoseStatementIsIn(offTheList, listing.asOfDate());
-    Set<String> paidReferences = paidReferencesSince(since);
+    BookingsByReference bookings =
+        new BookingsByReference(tradeSettlementBookings.bookedSince(since), Map.of());
     return new DroppedTrades(
         withTheStatementIn.trades().stream()
-            .filter(trade -> !paidReferences.contains(trade.reference()))
+            .filter(trade -> !bookings.paysFor(trade.order(), trade.reference()))
             .toList(),
         withTheStatementIn.fundsNotChecked());
   }
@@ -80,13 +78,6 @@ class DroppedTradeFinder {
 
   private boolean isDatedByTheBank(TransactionOrder order) {
     return order.getOrderStatus() == SETTLED && settlementService.isSettledByTheBank(order);
-  }
-
-  private Set<String> paidReferencesSince(LocalDate since) {
-    return tradeSettlementBookings.bookedSince(since).stream()
-        .map(TradeSettlementBooking::brokerReference)
-        .filter(Objects::nonNull)
-        .collect(toSet());
   }
 
   private Optional<DroppedTrade> dueSinceAlertsFrom(

@@ -19,7 +19,7 @@ enum FtIssueCause {
   SEVERAL_ORDERS(
       "ambiguousOrderCount",
       (value, confirmation, details) -> value + " registry orders match",
-      "leave one live order for the trade in the registry"),
+      "find which registry order the trade belongs to; cancel only a duplicate"),
   ORDER_QUANTITY_MISSING(
       "orderQuantityMissing",
       (value, confirmation, details) -> "the order has no quantity",

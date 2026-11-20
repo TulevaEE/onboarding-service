@@ -169,7 +169,7 @@ class FtConfirmationDigestTest {
                 + "FT issue: fund=TUK75, isin=IE000I9HGDZ3, tradeDate=2026-06-08, quantity=40434"
                 + " — reference price 0 is not positive\n"
                 + "Next: import the batch's orders into the registry\n"
-                + "Next: leave one live order for the trade in the registry\n"
+                + "Next: find which registry order the trade belongs to; cancel only a duplicate\n"
                 + "Next: fill in the order's quantity in the registry\n"
                 + "Next: compare FT's confirmation with SEB's pending report\n"
                 + "Next: check the instrument's price source",

@@ -12,10 +12,13 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
+import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 
+import ee.tuleva.onboarding.aml.RegisterRequester;
 import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
 import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionRepository;
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwner;
@@ -28,8 +31,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,12 +44,16 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 
 @DataJpaTest
 @ExtendWith(OutputCaptureExtension.class)
 class AutomaticGuardianLookupsTest {
 
-  private static final String REQUESTER = "requester-as-configured";
+  private static final String REQUESTER = "requester-as-designated";
+  private static final String NEXT_REQUESTER = "next-requester-as-designated";
+  private static final String DESIGNATED_PERSONAL_CODE = "38812121215";
   private static final Instant NOW = Instant.parse("2026-11-19T03:45:00Z");
   private static final LocalDate EARLIER = LocalDate.of(2026, 11, 18);
   private static final LocalDate LATEST = LocalDate.of(2026, 11, 19);
@@ -61,7 +70,7 @@ class AutomaticGuardianLookupsTest {
   @Autowired private JdbcClient database;
 
   private final MinorGuardianLookupService service = mock(MinorGuardianLookupService.class);
-  private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+  private final RegisterRequester registerRequester = mock(RegisterRequester.class);
 
   // A new minor holder, a minor with a payout this week, a new adult holder and a new minor holder
   // looked up already.
@@ -76,11 +85,16 @@ class AutomaticGuardianLookupsTest {
         new GuardianLookup(LOOKED_UP_MINOR, LATEST, NOW, UUID.randomUUID(), Set.of()));
   }
 
+  @BeforeEach
+  void designateTheRequester() {
+    given(registerRequester.designatedXRoadUserId()).willReturn(Optional.of(REQUESTER));
+  }
+
   @Test
-  void looksUpEachNewMinorHolderAndMinorWithARecentPayoutOnceAsTheConfiguredRequester() {
+  void looksUpEachNewMinorHolderAndMinorWithARecentPayoutOnceAsTheDesignatedRequester() {
     newHoldersAndARecentPayout();
 
-    lookups(REQUESTER).lookUpNewHoldersAndPayouts();
+    lookups().onUnitOwnerSnapshot();
 
     verify(service).lookUpChildOnce(REQUESTER, NEW_MINOR);
     verify(service).lookUpChildOnce(REQUESTER, MINOR_WITH_A_PAYOUT);
@@ -90,12 +104,34 @@ class AutomaticGuardianLookupsTest {
   }
 
   @Test
+  void asksAmlServiceForTheRequesterOnceASnapshotRunNotOnceAChild() {
+    newHoldersAndARecentPayout();
+
+    lookups().onUnitOwnerSnapshot();
+
+    verify(registerRequester, times(1)).designatedXRoadUserId();
+  }
+
+  @Test
+  void asksAmlServiceForTheRequesterAtEachRunSoANewDesignationTakesEffectWithoutARestart() {
+    given(registerRequester.designatedXRoadUserId())
+        .willReturn(Optional.of(REQUESTER), Optional.of(NEXT_REQUESTER));
+    AutomaticGuardianLookups lookups = lookups();
+
+    lookups.lookUpOnce(NEW_MINOR);
+    lookups.lookUpOnce(MINOR_WITH_A_PAYOUT);
+
+    verify(service).lookUpChildOnce(REQUESTER, NEW_MINOR);
+    verify(service).lookUpChildOnce(NEXT_REQUESTER, MINOR_WITH_A_PAYOUT);
+  }
+
+  @Test
   void looksUpNoHolderSeenBeforeWithoutAPayoutThisWeek() {
     holder(KNOWN_MINOR_WITH_AN_OLD_PAYOUT, EARLIER);
     holder(KNOWN_MINOR_WITH_AN_OLD_PAYOUT, LATEST);
     payout(KNOWN_MINOR_WITH_AN_OLD_PAYOUT, LATEST.minusDays(30));
 
-    assertThat(lookups(REQUESTER).candidates()).isEmpty();
+    assertThat(lookups().candidates()).isEmpty();
   }
 
   @Test
@@ -116,7 +152,7 @@ class AutomaticGuardianLookupsTest {
     given(service.lookUpChildOnce(REQUESTER, NEW_MINOR))
         .willThrow(new PopulationRegisterException("rejected", rejection));
 
-    lookups(REQUESTER).lookUpNewHoldersAndPayouts();
+    lookups().onUnitOwnerSnapshot();
 
     assertThat(output.getAll())
         .contains("status=403, code=FORBIDDEN, title=Forbidden, traceId=abc123")
@@ -129,7 +165,7 @@ class AutomaticGuardianLookupsTest {
     given(service.lookUpChildOnce(REQUESTER, NEW_MINOR))
         .willThrow(new PopulationRegisterException("no person"));
 
-    lookups(REQUESTER).lookUpOnce(NEW_MINOR);
+    lookups().lookUpOnce(NEW_MINOR);
 
     assertThat(output.getAll())
         .contains("Automatic guardian lookup failed")
@@ -138,19 +174,45 @@ class AutomaticGuardianLookupsTest {
   }
 
   @Test
-  void looksUpNoOneUntilARequesterIsConfiguredAndSaysSoWithoutCodes(CapturedOutput output) {
-    lookups(null).onUnitOwnerSnapshot();
-    lookups(null).lookUpOnce(NEW_MINOR);
+  void looksUpNoOneWhileAmlServiceDesignatesNoRequesterAndSaysSoWithoutCodes(
+      CapturedOutput output) {
+    newHoldersAndARecentPayout();
+    given(registerRequester.designatedXRoadUserId()).willReturn(Optional.empty());
+
+    lookups().onUnitOwnerSnapshot();
+    lookups().lookUpOnce(NEW_MINOR);
 
     verifyNoInteractions(service);
     assertThat(output.getAll())
-        .contains("Automatic guardian lookup skipped, no requester configured")
-        .doesNotContain(NEW_MINOR);
+        .contains("no requester designated in aml-service")
+        .doesNotContain(NEW_MINOR, MINOR_WITH_A_PAYOUT);
   }
 
   @Test
-  void looksUpOneChildOnceAtAnEventAsTheConfiguredRequesterAsItIs() {
-    lookups(REQUESTER).lookUpOnce(NEW_MINOR);
+  void looksUpNoOneWhenAmlServiceCannotNameTheRequesterAndLogsAnErrorWithoutItsAnswer(
+      CapturedOutput output) {
+    newHoldersAndARecentPayout();
+    given(registerRequester.designatedXRoadUserId())
+        .willThrow(
+            HttpServerErrorException.create(
+                INTERNAL_SERVER_ERROR,
+                "Internal Server Error",
+                new HttpHeaders(),
+                ("{\"personalCode\": \"" + DESIGNATED_PERSONAL_CODE + "\"}").getBytes(UTF_8),
+                UTF_8));
+
+    lookups().onUnitOwnerSnapshot();
+    lookups().lookUpOnce(NEW_MINOR);
+
+    verifyNoInteractions(service);
+    assertThat(output.getAll())
+        .contains("ERROR")
+        .doesNotContain(DESIGNATED_PERSONAL_CODE, NEW_MINOR, MINOR_WITH_A_PAYOUT);
+  }
+
+  @Test
+  void looksUpOneChildOnceAtAnEventAsTheDesignatedRequesterAsItIs() {
+    lookups().lookUpOnce(NEW_MINOR);
 
     verify(service).lookUpChildOnce(REQUESTER, NEW_MINOR);
   }
@@ -159,15 +221,14 @@ class AutomaticGuardianLookupsTest {
   void looksUpNoMoreThanFiftyChildrenARun() {
     newHoldersAndARecentPayout();
     assertThat(AutomaticGuardianLookups.MAX_PER_RUN).isEqualTo(50);
-    assertThat(lookups(REQUESTER).candidates())
-        .containsExactlyInAnyOrder(NEW_MINOR, MINOR_WITH_A_PAYOUT);
+    assertThat(lookups().candidates()).containsExactlyInAnyOrder(NEW_MINOR, MINOR_WITH_A_PAYOUT);
   }
 
   @Test
-  void backfillsMinorThirdPillarHoldersAfterTheNewHoldersAtTheSnapshotAsTheConfiguredRequester() {
+  void backfillsMinorThirdPillarHoldersAfterTheNewHoldersAtTheSnapshotAsTheDesignatedRequester() {
     holder(NEW_MINOR, LATEST);
 
-    lookups(REQUESTER).onUnitOwnerSnapshot();
+    lookups().onUnitOwnerSnapshot();
 
     var inOrder = inOrder(service);
     inOrder.verify(service).lookUpChildOnce(REQUESTER, NEW_MINOR);
@@ -190,14 +251,14 @@ class AutomaticGuardianLookupsTest {
     given(service.backfillMinorThirdPillarHolders(REQUESTER, 1000, Duration.ZERO))
         .willThrow(new MinorGuardianLookupAlreadyRunning());
 
-    assertThatNoException().isThrownBy(() -> lookups(REQUESTER).onUnitOwnerSnapshot());
+    assertThatNoException().isThrownBy(() -> lookups().onUnitOwnerSnapshot());
   }
 
   @Test
   void startsNoBackfillOnceTheSnapshotListenerIsInterrupted() {
     Thread.currentThread().interrupt();
     try {
-      lookups(REQUESTER).onUnitOwnerSnapshot();
+      lookups().onUnitOwnerSnapshot();
     } finally {
       Thread.interrupted();
     }
@@ -206,31 +267,44 @@ class AutomaticGuardianLookupsTest {
   }
 
   @Test
-  void backfillsABatchOnDemandAsTheConfiguredRequesterAndReturnsItsCounts() {
+  void backfillsABatchOnDemandAsTheDesignatedRequesterAndReturnsItsCounts() {
     given(service.backfillMinorThirdPillarHolders(REQUESTER, 5, Duration.ZERO))
         .willReturn(new MinorGuardianLookupRun(5, 0, 5409));
 
-    assertThat(lookups(REQUESTER).backfillNow(5)).isEqualTo(new MinorGuardianLookupRun(5, 0, 5409));
+    assertThat(lookups().backfillNow(5)).isEqualTo(new MinorGuardianLookupRun(5, 0, 5409));
   }
 
   @Test
-  void refusesAnOnDemandBackfillWithoutARequesterOrAfterTheLastDayOf2026() {
-    assertThatThrownBy(() -> lookups(null).backfillNow(5))
-        .isInstanceOf(MinorGuardianBackfillUnavailable.class);
-    assertThatThrownBy(() -> lookupsAt(Instant.parse("2027-01-01T00:00:00Z")).backfillNow(5))
-        .isInstanceOf(MinorGuardianBackfillUnavailable.class);
+  void refusesAnOnDemandBackfillWhileAmlServiceDesignatesNoRequester() {
+    given(registerRequester.designatedXRoadUserId()).willReturn(Optional.empty());
 
+    assertThatThrownBy(() -> lookups().backfillNow(5))
+        .isInstanceOf(MinorGuardianBackfillUnavailable.class);
     verifyNoInteractions(service);
   }
 
-  private AutomaticGuardianLookups lookups(String requester) {
-    return new AutomaticGuardianLookups(
-        service,
-        new AutomaticGuardianLookupCandidates(database, clock),
-        guardianLookups,
-        clock,
-        requester,
-        Duration.ZERO);
+  @Test
+  void refusesAnOnDemandBackfillWhenAmlServiceCannotNameTheRequester() {
+    given(registerRequester.designatedXRoadUserId())
+        .willThrow(new ResourceAccessException("aml-service did not answer"));
+
+    assertThatThrownBy(() -> lookups().backfillNow(5))
+        .isInstanceOf(MinorGuardianBackfillUnavailable.class);
+    verifyNoInteractions(service);
+  }
+
+  @Test
+  void refusesAnOnDemandBackfillAfterTheLastDayOf2026WithoutAskingForARequester() {
+    AutomaticGuardianLookups afterTheLastDay = lookupsAt(Instant.parse("2027-01-01T00:00:00Z"));
+
+    assertThatThrownBy(() -> afterTheLastDay.backfillNow(5))
+        .isInstanceOf(MinorGuardianBackfillUnavailable.class);
+    verify(registerRequester, never()).designatedXRoadUserId();
+    verifyNoInteractions(service);
+  }
+
+  private AutomaticGuardianLookups lookups() {
+    return lookupsAt(NOW);
   }
 
   private AutomaticGuardianLookups lookupsAt(Instant now) {
@@ -239,8 +313,8 @@ class AutomaticGuardianLookupsTest {
         service,
         new AutomaticGuardianLookupCandidates(database, at),
         guardianLookups,
+        registerRequester,
         at,
-        REQUESTER,
         Duration.ZERO);
   }
 

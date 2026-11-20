@@ -118,6 +118,36 @@ class RebalanceMessageTest {
   }
 
   @Test
+  void aSupersededWindowThatNeverCameIntoLine_isClosedWithTheModelThatReplacedIt() {
+    var window =
+        window(LocalDate.of(2026, 11, 3), Set.of(), LocalDate.of(2026, 11, 2), OUT_OF_LINE, null);
+
+    assertThat(
+            RebalanceMessage.ofSuperseded(new SupersededWindow(window, LocalDate.of(2026, 11, 3))))
+        .isEqualTo(
+            new RebalanceMessage(
+                "⏹ TUV100 mudelportfell alates 01.10.2026: asendatud mudeliga alates 03.11.2026,"
+                    + " vastavusse ei jõudnud; kontroll suletud",
+                INFO));
+  }
+
+  @Test
+  void aSupersededWindowThatCameIntoLine_isClosedAsInLine() {
+    var closing = LocalDate.of(2026, 10, 30);
+    var window =
+        window(
+            LocalDate.of(2026, 11, 3), Set.of(), LocalDate.of(2026, 11, 2), OUT_OF_LINE, closing);
+
+    assertThat(
+            RebalanceMessage.ofSuperseded(new SupersededWindow(window, LocalDate.of(2026, 11, 3))))
+        .isEqualTo(
+            new RebalanceMessage(
+                "✅ TUV100 mudelportfell alates 01.10.2026: fond on mudeliga vastavuses (kõik"
+                    + " osakaalud 5 pp piires, NAV 30.10.2026), kontroll suletud",
+                INFO));
+  }
+
+  @Test
   void aToleranceWithDecimals_isWrittenWithADecimalComma() {
     var window =
         new RebalanceWindow(

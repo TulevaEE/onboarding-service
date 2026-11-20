@@ -359,6 +359,35 @@ class ModelRebalanceCheckIT {
   }
 
   @Test
+  void aWindowANewerModelReplacesBeforeItCameIntoLine_isClosedOnceAndNoLongerMeasured() {
+    givenTuv100ModelSwitchesFromWorldToNewWorld();
+    givenNav(LocalDate.of(2026, 10, 2), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 5));
+    givenModel(TUV100, LocalDate.of(2026, 11, 3), Map.of(NEW_WORLD, "0.70", EMERGING, "0.30"));
+    givenNav(LocalDate.of(2026, 11, 2), Map.of(WORLD, "790000", EMERGING, "200000"));
+
+    runCheckOn(LocalDate.of(2026, 11, 3));
+    runCheckOn(LocalDate.of(2026, 11, 4));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "⏹ TUV100 mudelportfell alates 01.10.2026: asendatud mudeliga alates 03.11.2026,"
+                + " vastavusse ei jõudnud; kontroll suletud",
+            INVESTMENT,
+            INFO);
+    then(notificationService)
+        .should()
+        .sendMessage(
+            startsWith("ℹ️ TUV100 mudelportfell alates 03.11.2026"), eq(INVESTMENT), eq(INFO));
+    then(notificationService)
+        .should()
+        .sendMessage(
+            startsWith("ℹ️ TUV100 mudelportfell alates 01.10.2026"), eq(INVESTMENT), eq(INFO));
+    then(notificationService).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
   void aLaterModelVersionWithTheSameWeights_keepsTheUnresolvedWindowAndItsDeadlines() {
     givenTuv100ModelSwitchesFromWorldToNewWorld();
     givenModel(TUV100, LocalDate.of(2026, 11, 1), Map.of(NEW_WORLD, "0.8", EMERGING, "0.2"));

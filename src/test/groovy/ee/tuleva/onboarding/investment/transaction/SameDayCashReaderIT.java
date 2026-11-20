@@ -98,7 +98,7 @@ class SameDayCashReaderIT {
   }
 
   @Test
-  void readsTheLatestCurrentDayReportForToday() {
+  void theLatestCurrentDayReportForTodayIsTheCashSource() {
     store(
         INTRA_DAY_REPORT,
         TODAY,
@@ -113,7 +113,7 @@ class SameDayCashReaderIT {
     assertThat(reader.read(TUK75, TODAY, null, null))
         .isEqualTo(
             new CashSourceReport(
-                CashSource.POSITION_REPORT,
+                CashSource.GATEWAY_BALANCE,
                 new CurrentDayBalance(new BigDecimal("1000.00"), LATER_THIS_MORNING, Set.of()),
                 null,
                 List.of()));

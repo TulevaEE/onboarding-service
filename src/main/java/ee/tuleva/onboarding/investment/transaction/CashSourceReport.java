@@ -23,6 +23,12 @@ record CashSourceReport(
     return new CashSourceReport(source, gateway, reportCash, differenceWarnings);
   }
 
+  Optional<CurrentDayBalance> gatewayBalanceInUse() {
+    return source == CashSource.GATEWAY_BALANCE && gateway instanceof CurrentDayBalance current
+        ? Optional.of(current)
+        : Optional.empty();
+  }
+
   Optional<SourcesDifference> sourcesDifference() {
     return gateway instanceof CurrentDayBalance current && reportCash != null
         ? Optional.of(new SourcesDifference(current.balance(), reportCash))

@@ -15,6 +15,8 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 record TradeSettlementsInTheBalance(List<SettledInTheBalance> settlements) {
 
+  static final TradeSettlementsInTheBalance NONE = new TradeSettlementsInTheBalance(List.of());
+
   Netted<UnsettledTrades> net(UnsettledTrades atReportDate) {
     List<BigDecimal> againstTheReportRows =
         settlements.stream()

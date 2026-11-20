@@ -105,8 +105,8 @@ class FtConfirmationDigestTest {
             "FT confirmation check: 1 issue(s) need attention\n"
                 + "FT confirmation PDF could not be read:"
                 + " key=ft-confirmations/MIDTEST0001-00_18f0c0ffee.pdf, error=FT confirmation PDF"
-                + " missing required field: field=Gross Price — check the trade in this PDF"
-                + " against its order by hand",
+                + " missing required field: field=Gross Price\n"
+                + "Next: check the trade in the unreadable PDF against its order by hand",
             INVESTMENT);
   }
 
@@ -119,8 +119,8 @@ class FtConfirmationDigestTest {
             "FT confirmation check: 1 issue(s) need attention\n"
                 + "FT price could not be checked: fund=TUK75, isin=IE000F60HVH9,"
                 + " tradeDate=2026-06-08, quantity=40434, price=10.09 — no closing price for the"
-                + " trade date by the end of 2026-06-09; check the price against the official"
-                + " close by hand",
+                + " trade date by the end of 2026-06-09\n"
+                + "Next: check the price against the official close by hand",
             INVESTMENT);
   }
 
@@ -146,7 +146,8 @@ class FtConfirmationDigestTest {
                 + "SEB executed an FT trade with no readable FT confirmation by the end of"
                 + " 2026-06-09: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08,"
                 + " quantity=40434, sebPrice=10.09 — price within tolerance of the closing price"
-                + " 10.09; ask FT for the confirmation",
+                + " 10.09\n"
+                + "Next: ask FT for the missing confirmation",
             INVESTMENT);
   }
 
@@ -164,8 +165,8 @@ class FtConfirmationDigestTest {
             "FT confirmation check: 1 issue(s) need attention\n"
                 + "SEB executed an FT trade with no readable FT confirmation by the end of"
                 + " 2026-06-09: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08,"
-                + " quantity=40434, sebPrice=10.09 — price 0.50% off the closing price 10.04; ask"
-                + " FT for the confirmation",
+                + " quantity=40434, sebPrice=10.09 — price 0.50% off the closing price 10.04\n"
+                + "Next: ask FT for the missing confirmation",
             INVESTMENT);
   }
 
@@ -182,8 +183,8 @@ class FtConfirmationDigestTest {
             "FT confirmation check: 1 issue(s) need attention\n"
                 + "SEB executed an FT trade with no readable FT confirmation by the end of"
                 + " 2026-06-09: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08,"
-                + " quantity=40434, sebPrice=10.09 — closing price 0.00 is not valid; ask FT for"
-                + " the confirmation",
+                + " quantity=40434, sebPrice=10.09 — closing price 0.00 is not valid\n"
+                + "Next: ask FT for the missing confirmation",
             INVESTMENT);
   }
 
@@ -199,8 +200,9 @@ class FtConfirmationDigestTest {
                 + "SEB executed an FT trade with no readable FT confirmation by the end of"
                 + " 2026-06-09: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08,"
                 + " quantity=40434, sebPrice=10.09 — no closing price for the trade date by the"
-                + " end of 2026-06-09, check the price against the official close by hand; ask"
-                + " FT for the confirmation",
+                + " end of 2026-06-09\n"
+                + "Next: ask FT for the missing confirmation\n"
+                + "Next: check the price against the official close by hand",
             INVESTMENT);
   }
 
@@ -216,7 +218,8 @@ class FtConfirmationDigestTest {
                 + "SEB executed an FT trade with no readable FT confirmation by the end of"
                 + " 2026-06-09: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08,"
                 + " quantity=40434, sebPrice=10.09 — price could not be checked: price source"
-                + " down; ask FT for the confirmation",
+                + " down\n"
+                + "Next: ask FT for the missing confirmation",
             INVESTMENT);
   }
 
@@ -247,7 +250,36 @@ class FtConfirmationDigestTest {
                 + "SEB executed an FT trade with no readable FT confirmation by the end of"
                 + " 2026-06-09: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08,"
                 + " quantity=40434, sebPrice=none — price could not be checked: SEB reported no"
-                + " price for the trade; ask FT for the confirmation",
+                + " price for the trade\n"
+                + "Next: ask FT for the missing confirmation",
+            INVESTMENT);
+  }
+
+  @Test
+  void nextStepsAreListedOnceAfterAllTheIssueLines_evenWhenSeveralIssuesShareOne() {
+    digest(true)
+        .publish(
+            List.of(
+                unconfirmedTrade(PRICE_MISSING, Map.of("closingPriceDueBy", "2026-06-09")),
+                priceMissing(OK),
+                new FtUnreadableConfirmation(
+                    "ft-confirmations/MIDTEST0001-00_18f0c0ffee.pdf", "malformed")));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 3 issue(s) need attention\n"
+                + "SEB executed an FT trade with no readable FT confirmation by the end of"
+                + " 2026-06-09: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08,"
+                + " quantity=40434, sebPrice=10.09 — no closing price for the trade date by the"
+                + " end of 2026-06-09\n"
+                + "FT price could not be checked: fund=TUK75, isin=IE000F60HVH9,"
+                + " tradeDate=2026-06-08, quantity=40434, price=10.09 — no closing price for the"
+                + " trade date by the end of 2026-06-09\n"
+                + "FT confirmation PDF could not be read:"
+                + " key=ft-confirmations/MIDTEST0001-00_18f0c0ffee.pdf, error=malformed\n"
+                + "Next: ask FT for the missing confirmation\n"
+                + "Next: check the price against the official close by hand\n"
+                + "Next: check the trade in the unreadable PDF against its order by hand",
             INVESTMENT);
   }
 
@@ -300,9 +332,9 @@ class FtConfirmationDigestTest {
         .sendMessage(
             "FT confirmation check: 1 issue(s) need attention\n"
                 + "FT cancelled a trade and sent no new confirmation of the same quantity:"
-                + " fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434"
-                + " — check with FT;"
-                + " if the trade did not happen, cancel the order in the registry",
+                + " fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434\n"
+                + "Next: check the cancelled trade with FT; if it did not happen, cancel the order"
+                + " in the registry",
             INVESTMENT);
   }
 
@@ -314,9 +346,9 @@ class FtConfirmationDigestTest {
         .sendMessage(
             "FT confirmation check: 1 issue(s) need attention\n"
                 + "FT cancelled a trade and sent no new confirmation of the same quantity:"
-                + " fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434"
-                + " — check with FT;"
-                + " if the trade did not happen, cancel the order in the registry",
+                + " fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434\n"
+                + "Next: check the cancelled trade with FT; if it did not happen, cancel the order"
+                + " in the registry",
             INVESTMENT);
   }
 

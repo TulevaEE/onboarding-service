@@ -64,6 +64,10 @@ class FtConfirmationDigest {
         .append(actionable.size())
         .append(" issue(s) need attention");
     actionable.forEach(outcome -> message.append('\n').append(outcome.describe()));
+    actionable.stream()
+        .flatMap(outcome -> outcome.nextSteps().stream())
+        .distinct()
+        .forEach(step -> message.append("\nNext: ").append(step));
     return message.toString();
   }
 }

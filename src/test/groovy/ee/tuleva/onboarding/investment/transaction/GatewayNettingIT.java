@@ -40,6 +40,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @Import({
   GatewayNettingIT.LedgerWriting.class,
   GatewayNetting.class,
+  TradeSettlementsInTheBalanceReader.class,
   PendingOrderImpactService.class,
   ClockConfig.class
 })
@@ -66,6 +67,7 @@ class GatewayNettingIT {
       new NettingWindow(TUK75, REPORT_DATE, TODAY, Set.of());
 
   @Autowired GatewayNetting netting;
+  @Autowired TradeSettlementsInTheBalanceReader settlementsReader;
   @Autowired PendingOrderImpactService pendingOrderImpactService;
   @MockitoBean PositionPriceResolver positionPriceResolver;
   @Autowired FundBankLedger fundBankLedger;
@@ -83,10 +85,9 @@ class GatewayNettingIT {
     bankBooks(TUK75, "NO-ORDER", "-30000.00", TODAY);
 
     var netted =
-        netting.unsettledTrades(
-            WINDOW,
-            netting.tradeSettlements(WINDOW),
-            new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("200000.00")));
+        settlementsReader
+            .read(WINDOW)
+            .net(new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("200000.00")));
 
     assertThat(netted.after().payables()).isEqualByComparingTo("150000.00");
     assertThat(netted.after().receivables()).isEqualByComparingTo("0.00");
@@ -104,10 +105,9 @@ class GatewayNettingIT {
     bankBooks(TUK75, "B-SETTLED", "-40000.00", TODAY);
 
     var netted =
-        netting.unsettledTrades(
-            WINDOW,
-            netting.tradeSettlements(WINDOW),
-            new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("0.00")));
+        settlementsReader
+            .read(WINDOW)
+            .net(new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("0.00")));
 
     assertThat(netted.after().payables()).isEqualByComparingTo("300000.00");
   }
@@ -120,10 +120,9 @@ class GatewayNettingIT {
     bankBooks(TUK75, "FUND-BUY", "-60000.00", TODAY);
 
     var netted =
-        netting.unsettledTrades(
-            WINDOW,
-            netting.tradeSettlements(WINDOW),
-            new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("0.00")));
+        settlementsReader
+            .read(WINDOW)
+            .net(new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("0.00")));
 
     assertThat(netted.after().payables()).isEqualByComparingTo("300000.00");
   }
@@ -132,7 +131,7 @@ class GatewayNettingIT {
   void anOrderExecutedTodayWhoseSettlementTheBankBookedBeforeTheRegisterMarkedItIsCountedOnce() {
     filled(BUY, "B-TODAY", TODAY);
     bankBooks(TUK75, "B-TODAY", "-50000.00", TODAY);
-    var settlements = netting.tradeSettlements(WINDOW);
+    var settlements = settlementsReader.read(WINDOW);
 
     var pendingOrders =
         pendingOrderImpactService.calculate(
@@ -145,11 +144,8 @@ class GatewayNettingIT {
     assertThat(pendingOrders.pendingBuys()).isEqualByComparingTo("0");
     assertThat(pendingOrders.buysInTheBalance()).isEqualByComparingTo("50000");
     assertThat(
-            netting
-                .unsettledTrades(
-                    WINDOW,
-                    settlements,
-                    new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("0.00")))
+            settlements
+                .net(new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("0.00")))
                 .after()
                 .payables())
         .isEqualByComparingTo("300000.00");
@@ -163,10 +159,9 @@ class GatewayNettingIT {
     var window = new NettingWindow(TUK75, REPORT_DATE, TODAY, Set.of(pending));
 
     var netted =
-        netting.unsettledTrades(
-            window,
-            netting.tradeSettlements(window),
-            new UnsettledTrades(new BigDecimal("100000.00"), new BigDecimal("0.00")));
+        settlementsReader
+            .read(window)
+            .net(new UnsettledTrades(new BigDecimal("100000.00"), new BigDecimal("0.00")));
 
     assertThat(netted.after().payables()).isEqualByComparingTo("100000.00");
   }
@@ -177,10 +172,9 @@ class GatewayNettingIT {
     bankBooks(TUK75, "BIG-SELL", "90000.00", TODAY);
 
     var netted =
-        netting.unsettledTrades(
-            WINDOW,
-            netting.tradeSettlements(WINDOW),
-            new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("50000.00")));
+        settlementsReader
+            .read(WINDOW)
+            .net(new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("50000.00")));
 
     assertThat(netted.after().payables()).isEqualByComparingTo("0");
     assertThat(netted.after().receivables()).isEqualByComparingTo("0");

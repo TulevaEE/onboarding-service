@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisSnapshot;
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
+import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisRefresh;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -29,6 +30,7 @@ class PortfolioReconciliationServiceTest {
   private static final LocalDate AS_OF = LocalDate.of(2026, 5, 18);
   private static final String ISIN_A = "IE00BFG1TM61";
   private static final String ISIN_B = "IE0009FT4LX4";
+  private static final CostBasisRefresh REFRESHED = CostBasisRefresh.refreshed();
 
   @Mock private PortfolioCostBasisService costBasisService;
   @Mock private NavReportPositionLookup navReportLookup;
@@ -48,7 +50,7 @@ class PortfolioReconciliationServiceTest {
     given(navReportLookup.findSecurityQuantities(TUK75, AS_OF))
         .willReturn(Map.of(ISIN_A, new BigDecimal("10000.0000")));
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, REFRESHED);
 
     verifyNoInteractions(eventPublisher);
   }
@@ -60,10 +62,11 @@ class PortfolioReconciliationServiceTest {
     given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF)).willReturn(List.of());
     given(navReportLookup.findSecurityQuantities(TUK75, AS_OF)).willReturn(reported);
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, REFRESHED);
 
     verify(eventPublisher)
-        .publishEvent(new PortfolioReconciliationSkippedEvent(TUK75, AS_OF, Map.of(), reported));
+        .publishEvent(
+            new PortfolioReconciliationSkippedEvent(TUK75, AS_OF, Map.of(), reported, REFRESHED));
   }
 
   @Test
@@ -72,7 +75,7 @@ class PortfolioReconciliationServiceTest {
         .willReturn(List.of(costBasis(ISIN_A, "10000.0000"), costBasis(ISIN_B, "2000.0000")));
     given(navReportLookup.findSecurityQuantities(TUK75, AS_OF)).willReturn(Map.of());
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, REFRESHED);
 
     verify(eventPublisher)
         .publishEvent(
@@ -80,7 +83,8 @@ class PortfolioReconciliationServiceTest {
                 TUK75,
                 AS_OF,
                 Map.of(ISIN_A, new BigDecimal("10000.0000"), ISIN_B, new BigDecimal("2000.0000")),
-                Map.of()));
+                Map.of(),
+                REFRESHED));
   }
 
   @Test
@@ -90,7 +94,7 @@ class PortfolioReconciliationServiceTest {
     given(navReportLookup.findSecurityQuantities(TUK75, AS_OF))
         .willReturn(Map.of(ISIN_A, new BigDecimal("10000.0000")));
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, REFRESHED);
 
     verifyNoInteractions(eventPublisher);
   }
@@ -102,7 +106,7 @@ class PortfolioReconciliationServiceTest {
     given(navReportLookup.findSecurityQuantities(TUK75, AS_OF))
         .willReturn(Map.of(ISIN_A, new BigDecimal("10000.0000")));
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, REFRESHED);
 
     ArgumentCaptor<PortfolioReconciliationMismatchEvent> captor =
         ArgumentCaptor.forClass(PortfolioReconciliationMismatchEvent.class);
@@ -125,7 +129,7 @@ class PortfolioReconciliationServiceTest {
     given(navReportLookup.findSecurityQuantities(TUK75, AS_OF))
         .willReturn(Map.of(ISIN_B, new BigDecimal("100.0000")));
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, REFRESHED);
 
     ArgumentCaptor<PortfolioReconciliationMismatchEvent> captor =
         ArgumentCaptor.forClass(PortfolioReconciliationMismatchEvent.class);
@@ -144,7 +148,7 @@ class PortfolioReconciliationServiceTest {
     given(navReportLookup.findSecurityQuantities(TUK75, AS_OF))
         .willReturn(Map.of(ISIN_A, new BigDecimal("250.0000"), ISIN_B, new BigDecimal("100.0000")));
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, REFRESHED);
 
     ArgumentCaptor<PortfolioReconciliationMismatchEvent> captor =
         ArgumentCaptor.forClass(PortfolioReconciliationMismatchEvent.class);
@@ -161,7 +165,7 @@ class PortfolioReconciliationServiceTest {
     given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF)).willReturn(List.of());
     given(navReportLookup.findSecurityQuantities(TUK75, AS_OF)).willReturn(Map.of());
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, REFRESHED);
 
     verifyNoInteractions(eventPublisher);
   }
@@ -173,7 +177,7 @@ class PortfolioReconciliationServiceTest {
     given(navReportLookup.findSecurityQuantities(TUK75, AS_OF))
         .willReturn(Map.of(ISIN_B, new BigDecimal("250.0000")));
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, REFRESHED);
 
     ArgumentCaptor<PortfolioReconciliationMismatchEvent> captor =
         ArgumentCaptor.forClass(PortfolioReconciliationMismatchEvent.class);
@@ -193,9 +197,46 @@ class PortfolioReconciliationServiceTest {
     given(navReportLookup.findSecurityQuantities(TUK75, AS_OF))
         .willReturn(Map.of(ISIN_A, BigDecimal.ZERO));
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, REFRESHED);
 
     verify(eventPublisher, org.mockito.Mockito.never()).publishEvent(any());
+  }
+
+  @Test
+  void mismatchCarriesTheLedgerRefreshThatCouldNotRun() {
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
+        .willReturn(List.of(costBasis(ISIN_A, "8663419.3100")));
+    given(navReportLookup.findSecurityQuantities(TUK75, AS_OF))
+        .willReturn(Map.of(ISIN_A, new BigDecimal("8669802.22000000")));
+
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.lockNotTaken());
+
+    verify(eventPublisher)
+        .publishEvent(
+            new PortfolioReconciliationMismatchEvent(
+                TUK75,
+                AS_OF,
+                List.of(
+                    new MismatchEntry(
+                        ISIN_A,
+                        new BigDecimal("8663419.3100"),
+                        new BigDecimal("8669802.22000000"),
+                        new BigDecimal("-6382.91000000"))),
+                CostBasisRefresh.lockNotTaken()));
+  }
+
+  @Test
+  void skipCarriesTheLedgerRefreshThatFailed() {
+    Map<String, BigDecimal> reported = Map.of(ISIN_A, new BigDecimal("10000"));
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF)).willReturn(List.of());
+    given(navReportLookup.findSecurityQuantities(TUK75, AS_OF)).willReturn(reported);
+
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.failed("Cost-basis oversell"));
+
+    verify(eventPublisher)
+        .publishEvent(
+            new PortfolioReconciliationSkippedEvent(
+                TUK75, AS_OF, Map.of(), reported, CostBasisRefresh.failed("Cost-basis oversell")));
   }
 
   private PortfolioCostBasisSnapshot costBasis(String isin, String quantity) {

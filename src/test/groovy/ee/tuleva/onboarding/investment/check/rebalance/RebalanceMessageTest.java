@@ -91,6 +91,65 @@ class RebalanceMessageTest {
   }
 
   @Test
+  void inTheWarningPeriodWithRebalanceOrdersSent_saysTheyAwaitExecution() {
+    var window =
+        window(
+            WARNING_FROM,
+            LocalDate.of(2026, 11, 13),
+            OUT_OF_LINE,
+            null,
+            LocalDate.of(2026, 11, 13));
+
+    assertThat(RebalanceMessage.of(window))
+        .isEqualTo(
+            new RebalanceMessage(
+                """
+                ⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026, jäänud 15 päeva; \
+                Rebalance-jooksu tehingud saadetud 13.11.2026, ootavad SEB täitmise kinnitust
+                Üle 5 pp (NAV 13.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
+                Tee tasakaalustamise tehingud või vii fond tähtajaks 5 pp piiresse""",
+                WARNING));
+  }
+
+  @Test
+  void pastTheDeadlineWithRebalanceOrdersSentByIt_warnsThatTheyAwaitExecution() {
+    var window =
+        window(DEADLINE.plusDays(1), LocalDate.of(2026, 11, 30), OUT_OF_LINE, null, DEADLINE);
+
+    assertThat(RebalanceMessage.of(window))
+        .isEqualTo(
+            new RebalanceMessage(
+                """
+                ⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026; \
+                Rebalance-jooksu tehingud saadetud 01.12.2026, ootavad SEB täitmise kinnitust
+                Üle 5 pp (NAV 30.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
+                Kontrolli SEB-st tehingute täitmist""",
+                WARNING));
+  }
+
+  @Test
+  void pastTheDeadlineWithRebalanceOrdersSentOnlyAfterIt_failsSayingWhenTheyWereSent() {
+    var window =
+        window(
+            DEADLINE.plusDays(2),
+            LocalDate.of(2026, 11, 30),
+            OUT_OF_LINE,
+            null,
+            DEADLINE.plusDays(1));
+
+    assertThat(RebalanceMessage.of(window))
+        .isEqualTo(
+            new RebalanceMessage(
+                """
+                🛑 TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole \
+                mudeliga vastavuses ja Rebalance-jooksu tehingud saadetud 02.12.2026, ootavad SEB \
+                täitmise kinnitust
+                Üle 5 pp (NAV 30.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
+                Vii fond 5 pp piiresse (sisekord 4 p 2.6.1)""",
+                ERROR));
+  }
+
+  @Test
   void aClosedWindow_namesTheNavThatClosedItEvenWhenANewerNavIsOff() {
     var closing = RebalanceClosure.byAnInLineNav(LocalDate.of(2026, 10, 30));
     var window = window(LocalDate.of(2026, 11, 3), LocalDate.of(2026, 11, 2), OUT_OF_LINE, closing);
@@ -176,6 +235,7 @@ class RebalanceMessageTest {
             LocalDate.of(2026, 10, 30),
             List.of(),
             RebalanceClosure.byAnInLineNav(LocalDate.of(2026, 10, 30)),
+            null,
             DEADLINE,
             WARNING_FROM);
 
@@ -187,6 +247,15 @@ class RebalanceMessageTest {
       @Nullable LocalDate latestNavDate,
       List<Deviation> outsideTolerance,
       @Nullable RebalanceClosure closure) {
+    return window(checkDate, latestNavDate, outsideTolerance, closure, null);
+  }
+
+  private static RebalanceWindow window(
+      LocalDate checkDate,
+      @Nullable LocalDate latestNavDate,
+      List<Deviation> outsideTolerance,
+      @Nullable RebalanceClosure closure,
+      @Nullable LocalDate rebalanceOrdersSentOn) {
     return new RebalanceWindow(
         TUV100,
         EFFECTIVE,
@@ -195,6 +264,7 @@ class RebalanceMessageTest {
         latestNavDate,
         outsideTolerance,
         closure,
+        rebalanceOrdersSentOn,
         DEADLINE,
         WARNING_FROM);
   }

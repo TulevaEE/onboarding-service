@@ -20,4 +20,11 @@ record UnitReceivable(BigDecimal reported, BigDecimal receivedSinceReport, Count
       case ONCE_IT_ARRIVES -> reported.min(receivedSinceReport);
     };
   }
+
+  BigDecimal dueOnTopOfGatewayBalance() {
+    return switch (counted) {
+      case BEFORE_IT_ARRIVES -> ZERO.max(reported.subtract(receivedSinceReport));
+      case ONCE_IT_ARRIVES -> ZERO;
+    };
+  }
 }

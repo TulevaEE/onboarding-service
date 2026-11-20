@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.U
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.NullMarked;
 
@@ -47,8 +48,7 @@ record FtConfirmationOutcome(FtConfirmation confirmation, FtConfirmationResult r
       case PRICE_NOT_CHECKED ->
           String.format(
               "FT price could not be checked: fund=%s, isin=%s, tradeDate=%s, quantity=%s,"
-                  + " price=%s — no closing price for the trade date by the end of %s; check the"
-                  + " price against the official close by hand",
+                  + " price=%s — no closing price for the trade date by the end of %s",
               confirmation.fund().name(),
               confirmation.isin(),
               confirmation.tradeDate(),
@@ -58,8 +58,7 @@ record FtConfirmationOutcome(FtConfirmation confirmation, FtConfirmationResult r
       case CANCELLED_WITHOUT_REPLACEMENT ->
           String.format(
               "FT cancelled a trade and sent no new confirmation of the same quantity: fund=%s,"
-                  + " isin=%s, tradeDate=%s, quantity=%s — check with FT; if the trade did not"
-                  + " happen, cancel the order in the registry",
+                  + " isin=%s, tradeDate=%s, quantity=%s",
               confirmation.fund().name(),
               confirmation.isin(),
               confirmation.tradeDate(),
@@ -77,6 +76,11 @@ record FtConfirmationOutcome(FtConfirmation confirmation, FtConfirmationResult r
     };
   }
 
+  @Override
+  public List<String> nextSteps() {
+    return line().nextSteps;
+  }
+
   private Line line() {
     if (result.quantityStatus() == UNCHECKED) {
       return Line.NOT_CHECKED;
@@ -91,9 +95,18 @@ record FtConfirmationOutcome(FtConfirmation confirmation, FtConfirmationResult r
   }
 
   private enum Line {
-    NOT_CHECKED,
-    PRICE_NOT_CHECKED,
-    CANCELLED_WITHOUT_REPLACEMENT,
-    ISSUE
+    NOT_CHECKED(List.of()),
+    PRICE_NOT_CHECKED(List.of(CHECK_THE_PRICE_AGAINST_THE_OFFICIAL_CLOSE_BY_HAND)),
+    CANCELLED_WITHOUT_REPLACEMENT(
+        List.of(
+            "check the cancelled trade with FT; if it did not happen, cancel the order in the"
+                + " registry")),
+    ISSUE(List.of());
+
+    private final List<String> nextSteps;
+
+    Line(List<String> nextSteps) {
+      this.nextSteps = nextSteps;
+    }
   }
 }

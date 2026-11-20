@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PRICE_MISSING;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
@@ -7,6 +8,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.jspecify.annotations.NullMarked;
@@ -24,6 +26,8 @@ record FtExecutedTrade(
     implements FtCheckOutcome {
 
   private static final int DEVIATION_DECIMALS = 2;
+  private static final String ASK_FT_FOR_THE_MISSING_CONFIRMATION =
+      "ask FT for the missing confirmation";
 
   @Override
   public String auditKey() {
@@ -48,7 +52,7 @@ record FtExecutedTrade(
   public String describe() {
     return String.format(
         "SEB executed an FT trade with no readable FT confirmation by the end of %s: fund=%s,"
-            + " isin=%s, tradeDate=%s, quantity=%s, sebPrice=%s — %s; ask FT for the confirmation",
+            + " isin=%s, tradeDate=%s, quantity=%s, sebPrice=%s — %s",
         detail("confirmationDueBy"),
         fund.name(),
         isin,
@@ -58,13 +62,20 @@ record FtExecutedTrade(
         priceResult());
   }
 
+  @Override
+  public List<String> nextSteps() {
+    if (result.priceStatus() == PRICE_MISSING) {
+      return List.of(
+          ASK_FT_FOR_THE_MISSING_CONFIRMATION, CHECK_THE_PRICE_AGAINST_THE_OFFICIAL_CLOSE_BY_HAND);
+    }
+    return List.of(ASK_FT_FOR_THE_MISSING_CONFIRMATION);
+  }
+
   private String priceResult() {
     return switch (result.priceStatus()) {
       case OK -> "price within tolerance of the closing price " + detail("referencePrice");
       case PRICE_MISSING ->
-          "no closing price for the trade date by the end of "
-              + detail("closingPriceDueBy")
-              + ", check the price against the official close by hand";
+          "no closing price for the trade date by the end of " + detail("closingPriceDueBy");
       case ERROR -> priceError();
       default -> "price could not be checked: " + detail("verificationError");
     };

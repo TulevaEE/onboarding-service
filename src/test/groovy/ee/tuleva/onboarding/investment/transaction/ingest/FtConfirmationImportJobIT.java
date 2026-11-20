@@ -530,8 +530,8 @@ class FtConfirmationImportJobIT {
             "FT confirmation check: 1 issue(s) need attention\n"
                 + "FT confirmation PDF could not be read: key=ft-confirmations/TEST0002-00_1.pdf,"
                 + " error=FT confirmation PDF has unrecognized Account: account=Unknown Account,"
-                + " allocationId=TEST0002-00 — check the trade in this PDF against its order by"
-                + " hand",
+                + " allocationId=TEST0002-00\n"
+                + "Next: check the trade in the unreadable PDF against its order by hand",
             INVESTMENT);
     then(notificationService).shouldHaveNoMoreInteractions();
   }

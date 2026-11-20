@@ -30,15 +30,20 @@ class RebalanceWindowTest {
   }
 
   @Test
-  void fromTheTradesDueDateWithoutATrade_isWarningAndATradeClearsItBackToInfo() {
-    assertThat(window(LocalDate.of(2026, 11, 1), NO_TRADES, null).state()).isEqualTo(WARNING);
+  void
+      onTheTradesDueDateItself_isStillInfoAndFromTheDayAfterWithoutATrade_isWarningUntilATradeClearsIt() {
+    assertThat(window(LocalDate.of(2026, 11, 1), NO_TRADES, null).state()).isEqualTo(INFO);
+    assertThat(window(LocalDate.of(2026, 11, 2), NO_TRADES, null).state()).isEqualTo(WARNING);
     assertThat(window(LocalDate.of(2026, 11, 30), NO_TRADES, null).state()).isEqualTo(WARNING);
-    assertThat(window(LocalDate.of(2026, 11, 1), A_TRADE, null).state()).isEqualTo(INFO);
+    assertThat(window(LocalDate.of(2026, 11, 2), A_TRADE, null).state()).isEqualTo(INFO);
   }
 
   @Test
-  void fromTheInLineDueDateWithoutAnInLineNav_isFailWhetherOrNotThereAreTrades() {
-    assertThat(window(LocalDate.of(2026, 12, 1), NO_TRADES, null).state()).isEqualTo(FAIL);
+  void
+      onTheInLineDueDateItself_isNotYetFailAndFromTheDayAfterWithoutAnInLineNav_failsWithOrWithoutTrades() {
+    assertThat(window(LocalDate.of(2026, 12, 1), A_TRADE, null).state()).isEqualTo(INFO);
+    assertThat(window(LocalDate.of(2026, 12, 1), NO_TRADES, null).state()).isEqualTo(WARNING);
+    assertThat(window(LocalDate.of(2026, 12, 2), NO_TRADES, null).state()).isEqualTo(FAIL);
     assertThat(window(LocalDate.of(2027, 3, 1), A_TRADE, null).state()).isEqualTo(FAIL);
   }
 

@@ -79,6 +79,7 @@ class ModelRebalanceCheckIT {
   private static final String NEW_WORLD = "IE000I9HGDZ3";
   private static final String EMERGING = "IE00BMDBMY19";
   private static final String NOT_IN_ANY_MODEL = "LU0476289540";
+  private static final String CANADA = "LU0476289540";
   private static final String TRADE_REGISTRY_SQL_EXPORT_SOURCE = "GAS_REGISTRY";
   private static final TransactionMode BUY_MODE = TransactionMode.BUY;
   private static final LocalDate PREVIOUS_MODEL = LocalDate.of(2026, 6, 1);
@@ -485,6 +486,33 @@ class ModelRebalanceCheckIT {
     assertThat(
             rebalanceWindows.current(TUV100, LocalDate.of(2026, 10, 30)).orElseThrow().closedOn())
         .isEmpty();
+  }
+
+  @Test
+  void aZeroPercentRowAddedByALaterVersionWithTheSameWeights_isMeasuredAndKeepsTheWindowOpen() {
+    givenTuv100ModelSwitchesFromWorldToNewWorld();
+    givenNav(LocalDate.of(2026, 10, 2), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 5));
+    givenModel(
+        TUV100,
+        LocalDate.of(2026, 10, 15),
+        Map.of(NEW_WORLD, "0.80", EMERGING, "0.20", WORLD, "0", CANADA, "0"));
+    givenNav(
+        LocalDate.of(2026, 10, 30),
+        Map.of(NEW_WORLD, "760000", EMERGING, "180000", CANADA, "60000"));
+
+    runCheckOn(LocalDate.of(2026, 11, 2));
+
+    then(notificationService)
+        .should()
+        .sendMessage(startsWith("ℹ️ TUV100"), eq(INVESTMENT), eq(INFO));
+    then(notificationService).shouldHaveNoMoreInteractions();
+    var window = rebalanceWindows.current(TUV100, LocalDate.of(2026, 11, 2)).orElseThrow();
+    assertThat(window.modelEffectiveDate()).isEqualTo(NEW_MODEL);
+    assertThat(window.closed()).isFalse();
+    assertThat(window.outsideToleranceAtLatestNav())
+        .extracting(Deviation::isin)
+        .containsExactly(CANADA);
   }
 
   @Test

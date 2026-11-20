@@ -152,14 +152,21 @@ public class TransactionOrderFactory {
       return units;
     }
     List<PositionSnapshot> positions = input.positions();
-    if (index >= positions.size() || !Objects.equals(positions.get(index).isin(), trade.isin())) {
-      return units;
+    PositionSnapshot holding =
+        index < positions.size() && Objects.equals(positions.get(index).isin(), trade.isin())
+            ? positions.get(index)
+            : null;
+    BigDecimal heldUnits = holding == null ? null : holding.quantity();
+    if (holding == null || heldUnits == null) {
+      log.warn(
+          "ETF sale has no held units to size against, leaving its quantity unset:"
+              + " fund={}, isin={}, amount={}",
+          input.fund(),
+          trade.isin(),
+          trade.tradeAmount().abs().toPlainString());
+      return null;
     }
-    PositionSnapshot holding = positions.get(index);
-    BigDecimal heldUnits = holding.quantity();
-    return heldUnits == null
-        ? units
-        : OrderUnits.etfSaleWithin(holding, heldUnits, units, trade.tradeAmount().abs());
+    return OrderUnits.etfSaleWithin(holding, heldUnits, units, trade.tradeAmount().abs());
   }
 
   @Nullable

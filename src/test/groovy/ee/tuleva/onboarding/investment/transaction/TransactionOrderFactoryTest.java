@@ -258,7 +258,8 @@ class TransactionOrderFactoryTest {
   }
 
   @Test
-  void createOrders_etfSellOfAHoldingWithoutAReportedQuantity_roundsUpWithoutACap() {
+  void
+      createOrders_etfSellOfAHoldingWithUnknownUnits_leavesTheQuantityUnsetSoTheBatchCannotBeSent() {
     var input =
         inputWith(
             Map.of("IE00ETF", InstrumentType.ETF),
@@ -270,7 +271,7 @@ class TransactionOrderFactoryTest {
     var calculated =
         factory.createOrders(batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT);
 
-    assertThat(calculated.orders().getFirst().getOrderQuantity()).isEqualTo(new BigDecimal("301"));
+    assertThat(calculated.orders().getFirst().getOrderQuantity()).isNull();
   }
 
   private static TradeCalculation trade(String isin, String amount) {

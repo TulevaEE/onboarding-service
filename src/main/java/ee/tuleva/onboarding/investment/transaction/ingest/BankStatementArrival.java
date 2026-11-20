@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
+import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccounts;
@@ -9,7 +11,6 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.EnumMap;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,36 +23,51 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class BankStatementArrival {
 
+  private enum StatementState {
+    IN,
+    NOT_YET,
+    UNREADABLE
+  }
+
   private final BankAccounts bankAccounts;
   private final BankStatementBalances statementBalances;
   private final PublicHolidays publicHolidays;
 
   DroppedTrades keepThoseWhoseStatementIsIn(List<DroppedTrade> candidates, LocalDate asOfDate) {
     LocalDate statementDay = bankDayOnOrAfter(asOfDate);
-    Map<TulevaFund, Boolean> statementIn = new EnumMap<>(TulevaFund.class);
-    Set<TulevaFund> fundsNotChecked = EnumSet.noneOf(TulevaFund.class);
-    for (DroppedTrade candidate : candidates) {
-      TulevaFund fund = candidate.order().getFund();
-      if (!statementIn.containsKey(fund)) {
-        try {
-          statementIn.put(fund, isStatementIn(fund, statementDay));
-        } catch (RuntimeException e) {
-          log.error(
-              "SEB trade listing check could not read the bank statement: fund={},"
-                  + " statementDay={}",
-              fund,
-              statementDay,
-              e);
-          statementIn.put(fund, false);
-          fundsNotChecked.add(fund);
-        }
-      }
-    }
+    Map<TulevaFund, StatementState> stateByFund =
+        candidates.stream()
+            .map(candidate -> candidate.order().getFund())
+            .distinct()
+            .collect(
+                toMap(
+                    fund -> fund,
+                    fund -> stateOf(fund, statementDay),
+                    (first, second) -> first,
+                    () -> new EnumMap<>(TulevaFund.class)));
     List<DroppedTrade> dropped =
         candidates.stream()
-            .filter(candidate -> statementIn.get(candidate.order().getFund()))
+            .filter(candidate -> stateByFund.get(candidate.order().getFund()) == StatementState.IN)
             .toList();
-    return new DroppedTrades(dropped, Set.copyOf(fundsNotChecked));
+    Set<TulevaFund> fundsNotChecked =
+        stateByFund.entrySet().stream()
+            .filter(entry -> entry.getValue() == StatementState.UNREADABLE)
+            .map(Map.Entry::getKey)
+            .collect(toUnmodifiableSet());
+    return new DroppedTrades(dropped, fundsNotChecked);
+  }
+
+  private StatementState stateOf(TulevaFund fund, LocalDate statementDay) {
+    try {
+      return isStatementIn(fund, statementDay) ? StatementState.IN : StatementState.NOT_YET;
+    } catch (RuntimeException e) {
+      log.error(
+          "SEB trade listing check could not read the bank statement: fund={}, statementDay={}",
+          fund,
+          statementDay,
+          e);
+      return StatementState.UNREADABLE;
+    }
   }
 
   private boolean isStatementIn(TulevaFund fund, LocalDate statementDay) {

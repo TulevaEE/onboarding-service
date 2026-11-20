@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEvent;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
@@ -78,7 +79,7 @@ class SebTradeListingAlerts {
   }
 
   private static String droppedBlock(List<DroppedTrade> dropped) {
-    return "⚠️ SEB tehing kadus ootel-tehingutest, pangas makset pole: "
+    return "⚠️ SEB tehing kadus ootel-tehingutest, pangas pole selle viitega makset: "
         + dropped.size()
         + "\n"
         + dropped.stream().map(SebTradeListingAlerts::droppedLine).collect(Collectors.joining("\n"))
@@ -99,13 +100,14 @@ class SebTradeListingAlerts {
   }
 
   private static String neverListedBlock(List<TransactionOrder> orders) {
-    return "⚠️ SEB pole tehingut ootel-tehingutesse pannud: "
+    return "⚠️ SEB ootel-tehingutes pole tehingukorraldust: "
         + orders.size()
         + "\n"
         + orders.stream()
             .map(SebTradeListingAlerts::neverListedLine)
             .collect(Collectors.joining("\n"))
-        + "\nKontrolli SEB-lt, kas tehingukorraldus jõudis kohale.";
+        + "\nKontrolli SEB-lt, kas tehingukorraldus jõudis kohale (või jäi SEB rida os-is"
+        + " sidumata).";
   }
 
   private static String neverListedLine(TransactionOrder order) {
@@ -121,7 +123,8 @@ class SebTradeListingAlerts {
   }
 
   private static String sentOn(@Nullable Instant orderTimestamp) {
-    return orderTimestamp == null ? "?" : DATE.format(orderTimestamp.atZone(TALLINN));
+    return DATE.format(
+        requireNonNull(orderTimestamp, "A never-listed order has a send time").atZone(TALLINN));
   }
 
   private static String skippedBlock(SkippedListingCheck check) {

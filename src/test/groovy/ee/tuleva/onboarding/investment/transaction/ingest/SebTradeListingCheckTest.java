@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.transaction.ingest.SkippedListingCheck.DROPPED_TRADES;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SkippedListingCheck.NEVER_LISTED_ORDERS;
+import static ee.tuleva.onboarding.investment.transaction.ingest.SkippedListingCheck.REPORT_LOOKUP_FAILED;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
@@ -25,6 +26,15 @@ class SebTradeListingCheckTest {
   private final SebTradeListingCheck check =
       new SebTradeListingCheck(
           latestPendingReport, droppedTradeFinder, neverListedOrderFinder, alerts);
+
+  @Test
+  void aReportLookupThatFails_isReportedAsNotChecked() {
+    given(latestPendingReport.listing()).willThrow(new IllegalStateException("database down"));
+
+    check.run();
+
+    then(alerts).should().publish(List.of(), List.of(), List.of(REPORT_LOOKUP_FAILED));
+  }
 
   @Test
   void aDroppedTradeSearchThatFails_isReportedAsNotChecked_andNeverListedOrdersStillGoOut() {

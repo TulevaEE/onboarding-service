@@ -20,7 +20,15 @@ class SebTradeListingCheck {
   private final SebTradeListingAlerts alerts;
 
   void run() {
-    Optional<PendingListing> listing = latestPendingReport.listing();
+    Optional<PendingListing> listing;
+    try {
+      listing = latestPendingReport.listing();
+    } catch (RuntimeException e) {
+      log.error(
+          "SEB trade listing check could not read the pending report: error={}", e.getMessage(), e);
+      alerts.publish(List.of(), List.of(), List.of(SkippedListingCheck.REPORT_LOOKUP_FAILED));
+      return;
+    }
     if (listing.isEmpty()) {
       alerts.publish(List.of(), List.of(), List.of(SkippedListingCheck.UNREADABLE_REPORT));
       return;

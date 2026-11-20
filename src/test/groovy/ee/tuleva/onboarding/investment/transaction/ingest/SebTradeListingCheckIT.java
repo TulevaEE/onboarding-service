@@ -26,6 +26,7 @@ import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.BankStatementBalances;
 import ee.tuleva.onboarding.banking.seb.SebIntegrationTest;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
@@ -40,6 +41,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlement;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionSettlementService;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.TradeSettlementBookings;
 import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
@@ -66,8 +68,6 @@ class SebTradeListingCheckIT {
   private static final String REFERENCE = "DLA0553690";
   private static final LocalDate SETTLEMENT_DAY = LocalDate.of(2026, 2, 12);
   private static final Instant ORDERED = Instant.parse("2026-02-10T10:00:00Z");
-  private static final Clock MORNING_AFTER =
-      Clock.fixed(Instant.parse("2026-02-16T08:15:00Z"), ZoneId.of("Europe/Tallinn"));
   private static final SebTradeListingCheckProperties ALERTS_FROM_FEBRUARY =
       new SebTradeListingCheckProperties(LocalDate.of(2026, 2, 1));
 
@@ -75,6 +75,7 @@ class SebTradeListingCheckIT {
   @Autowired private TransactionOrderRepository orderRepository;
   @Autowired private TransactionExecutionRepository executionRepository;
   @Autowired private TransactionSettlementRepository settlementRepository;
+  @Autowired private TransactionSettlementService settlementService;
   @Autowired private TransactionAuditEventRepository auditEventRepository;
   @Autowired private InvestmentReportRepository reportRepository;
   @Autowired private LatestPendingReport latestPendingReport;
@@ -86,9 +87,11 @@ class SebTradeListingCheckIT {
   @Autowired private EntityManager entityManager;
   private final OperationsNotificationService notificationService =
       mock(OperationsNotificationService.class);
+  private LocalDate latestAsOfDate = SETTLEMENT_DAY;
 
   @Test
-  void aTradeGoneFromSebsListWithNoPaymentOnItsSettlementDay_isAlertedOnce() {
+  void
+      aTradeGoneFromSebsListWithNoPaymentOnItsSettlementDay_isAlertedOnce_andARunWithNothingNewPostsNothing() {
     TransactionOrder order = order(EXECUTED);
     piece(order, REFERENCE, SETTLEMENT_DAY);
     pendingReport(SETTLEMENT_DAY, List.of(anotherOrdersRow()));
@@ -100,7 +103,36 @@ class SebTradeListingCheckIT {
     then(notificationService)
         .should(times(1))
         .sendMessage(
-            "⚠️ SEB tehing kadus ootel-tehingutest, pangas makset pole: 1\n"
+            "⚠️ SEB tehing kadus ootel-tehingutest, pangas pole selle viitega makset: 1\n"
+                + "TKF100 · DLA0553690 · ost LU1291102447 · SEB arvelduspäev 12.02.2026\n"
+                + "Küsi SEB-lt, miks tehing nimekirjast kadus ja kas see arveldub.",
+            INVESTMENT,
+            WARNING);
+  }
+
+  @Test
+  void runsAfterTheSebPendingImport() {
+    TransactionOrder order = order(EXECUTED);
+    piece(order, REFERENCE, SETTLEMENT_DAY);
+    pendingReport(SETTLEMENT_DAY, List.of(anotherOrdersRow()));
+    Clock clock = morningOf(SETTLEMENT_DAY.plusDays(1));
+    SebTradeListingCheckListener listener =
+        new SebTradeListingCheckListener(
+            clock,
+            check(
+                ALERTS_FROM_FEBRUARY,
+                bankAccounts,
+                new StatementsIn(Set.of(SETTLEMENT_DAY)),
+                clock),
+            RecordingLockProvider.free().reconciliationLockAt(clock));
+
+    listener.onReportImportCompleted(
+        new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, SETTLEMENT_DAY.plusDays(1), 1));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "⚠️ SEB tehing kadus ootel-tehingutest, pangas pole selle viitega makset: 1\n"
                 + "TKF100 · DLA0553690 · ost LU1291102447 · SEB arvelduspäev 12.02.2026\n"
                 + "Küsi SEB-lt, miks tehing nimekirjast kadus ja kas see arveldub.",
             INVESTMENT,
@@ -119,11 +151,43 @@ class SebTradeListingCheckIT {
     then(notificationService)
         .should()
         .sendMessage(
-            "⚠️ SEB tehing kadus ootel-tehingutest, pangas makset pole: 1\n"
+            "⚠️ SEB tehing kadus ootel-tehingutest, pangas pole selle viitega makset: 1\n"
                 + "TKF100 · DLA0553690 · ost LU1291102447 · SEB arvelduspäev 12.02.2026\n"
                 + "Küsi SEB-lt, miks tehing nimekirjast kadus ja kas see arveldub.",
             INVESTMENT,
             WARNING);
+  }
+
+  @Test
+  void anUnpaidPieceGoneFromTheList_isAlertedWhileItsSiblingIsStillListed() {
+    TransactionOrder order = order(EXECUTED);
+    piece(order, REFERENCE, SETTLEMENT_DAY);
+    piece(order, "DLA0553691", SETTLEMENT_DAY.plusDays(4));
+    pendingReport(
+        SETTLEMENT_DAY,
+        List.of(Map.of("Client ref", order.getOrderUuid().toString(), "Our ref", "DLA0553691")));
+
+    checkWithStatementsFor(SETTLEMENT_DAY).run();
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "⚠️ SEB tehing kadus ootel-tehingutest, pangas pole selle viitega makset: 1\n"
+                + "TKF100 · DLA0553690 · ost LU1291102447 · SEB arvelduspäev 12.02.2026\n"
+                + "Küsi SEB-lt, miks tehing nimekirjast kadus ja kas see arveldub.",
+            INVESTMENT,
+            WARNING);
+  }
+
+  @Test
+  void aRowWithTheOrdersClientRefButNoReference_holdsEveryPieceBack() {
+    TransactionOrder order = order(EXECUTED);
+    piece(order, REFERENCE, SETTLEMENT_DAY);
+    pendingReport(SETTLEMENT_DAY, List.of(Map.of("Client ref", order.getOrderUuid().toString())));
+
+    checkWithStatementsFor(SETTLEMENT_DAY).run();
+
+    then(notificationService).shouldHaveNoInteractions();
   }
 
   @Test
@@ -220,11 +284,12 @@ class SebTradeListingCheckIT {
     then(notificationService)
         .should(times(1))
         .sendMessage(
-            "⚠️ SEB pole tehingut ootel-tehingutesse pannud: 1\n"
+            "⚠️ SEB ootel-tehingutes pole tehingukorraldust: 1\n"
                 + "TKF100 · tehingukorraldus "
                 + order.getId()
                 + " · ost LU1291102447 · saadetud 10.02.2026\n"
-                + "Kontrolli SEB-lt, kas tehingukorraldus jõudis kohale.",
+                + "Kontrolli SEB-lt, kas tehingukorraldus jõudis kohale (või jäi SEB rida os-is"
+                + " sidumata).",
             INVESTMENT,
             WARNING);
   }
@@ -300,7 +365,7 @@ class SebTradeListingCheckIT {
     then(notificationService)
         .should()
         .sendMessage(
-            "⚠️ SEB tehing kadus ootel-tehingutest, pangas makset pole: 1\n"
+            "⚠️ SEB tehing kadus ootel-tehingutest, pangas pole selle viitega makset: 1\n"
                 + "TUK75 · DLA0553691 · ost LU1291102447 · SEB arvelduspäev 12.02.2026\n"
                 + "Küsi SEB-lt, miks tehing nimekirjast kadus ja kas see arveldub.\n\n"
                 + "⚠️ SEB ootel-tehingute kontroll jäi tegemata: fondi TKF100 pangaväljavõtet ei"
@@ -327,17 +392,26 @@ class SebTradeListingCheckIT {
       SebTradeListingCheckProperties properties,
       BankAccounts accounts,
       BankStatementBalances statements) {
+    return check(
+        properties, accounts, statements, morningOf(publicHolidays.nextWorkingDay(latestAsOfDate)));
+  }
+
+  private SebTradeListingCheck check(
+      SebTradeListingCheckProperties properties,
+      BankAccounts accounts,
+      BankStatementBalances statements,
+      Clock clock) {
     return new SebTradeListingCheck(
         latestPendingReport,
         new DroppedTradeFinder(
             orderRepository,
             executionRepository,
-            settlementRepository,
+            settlementService,
             tradeSettlementBookings,
             new BankStatementArrival(accounts, statements, publicHolidays),
             properties),
         new NeverListedOrderFinder(orderRepository, overdueSettlementDetector, properties),
-        new SebTradeListingAlerts(notificationService, auditEventRepository, MORNING_AFTER));
+        new SebTradeListingAlerts(notificationService, auditEventRepository, clock));
   }
 
   private TransactionOrder order(OrderStatus status) {
@@ -413,10 +487,17 @@ class SebTradeListingCheckIT {
             .createdAt(Instant.now())
             .build());
     entityManager.flush();
+    latestAsOfDate = asOfDate;
   }
 
   private static Map<String, Object> anotherOrdersRow() {
     return Map.of("Client ref", UUID.randomUUID().toString());
+  }
+
+  private static Clock morningOf(LocalDate day) {
+    return Clock.fixed(
+        day.atTime(10, 15).atZone(ZoneId.of("Europe/Tallinn")).toInstant(),
+        ZoneId.of("Europe/Tallinn"));
   }
 
   private record StatementsIn(Set<LocalDate> days) implements BankStatementBalances {

@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
-import static ee.tuleva.onboarding.investment.transaction.SettlementSource.BANK_STATEMENT;
 import static java.time.ZoneOffset.UTC;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toSet;
@@ -11,7 +10,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
-import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionSettlementService;
 import ee.tuleva.onboarding.ledger.TradeSettlementBooking;
 import ee.tuleva.onboarding.ledger.TradeSettlementBookings;
 import java.time.LocalDate;
@@ -32,7 +31,7 @@ class DroppedTradeFinder {
 
   private final TransactionOrderRepository orderRepository;
   private final TransactionExecutionRepository executionRepository;
-  private final TransactionSettlementRepository settlementRepository;
+  private final TransactionSettlementService settlementService;
   private final TradeSettlementBookings tradeSettlementBookings;
   private final BankStatementArrival bankStatementArrival;
   private final SebTradeListingCheckProperties properties;
@@ -73,20 +72,14 @@ class DroppedTradeFinder {
       List<TransactionExecution> executions,
       PendingListing listing,
       Set<String> paidReferences) {
-    if (listing.mayStillList(order, executions)) {
-      return Stream.empty();
-    }
     return executions.stream()
-        .flatMap(
-            execution -> unpaid(order, execution, listing.asOfDate(), paidReferences).stream());
+        .flatMap(execution -> unpaid(order, execution, paidReferences).stream())
+        .filter(trade -> !listing.mayStillListPiece(order, executions, trade.reference()))
+        .filter(trade -> !listing.asOfDate().isBefore(trade.settlementDate()));
   }
 
   private boolean isDatedByTheBank(TransactionOrder order) {
-    return order.getOrderStatus() == SETTLED
-        && settlementRepository
-            .findByOrderId(order.getId())
-            .filter(settlement -> settlement.getSource() == BANK_STATEMENT)
-            .isPresent();
+    return order.getOrderStatus() == SETTLED && settlementService.isSettledByTheBank(order);
   }
 
   private Set<String> paidReferencesSince(LocalDate since) {
@@ -97,16 +90,13 @@ class DroppedTradeFinder {
   }
 
   private Optional<DroppedTrade> unpaid(
-      TransactionOrder order,
-      TransactionExecution execution,
-      LocalDate asOfDate,
-      Set<String> paidReferences) {
+      TransactionOrder order, TransactionExecution execution, Set<String> paidReferences) {
     String reference = execution.getBrokerTransactionId();
     LocalDate settlementDate = execution.getScheduledSettlementDate();
-    if (reference == null || settlementDate == null || paidReferences.contains(reference)) {
-      return Optional.empty();
-    }
-    if (settlementDate.isBefore(properties.alertsFrom()) || asOfDate.isBefore(settlementDate)) {
+    if (reference == null
+        || settlementDate == null
+        || paidReferences.contains(reference)
+        || settlementDate.isBefore(properties.alertsFrom())) {
       return Optional.empty();
     }
     return Optional.of(new DroppedTrade(order, reference, settlementDate));

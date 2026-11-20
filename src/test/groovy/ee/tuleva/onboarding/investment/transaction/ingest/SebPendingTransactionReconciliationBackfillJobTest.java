@@ -121,7 +121,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     willAnswer(
             invocation -> {
               ReconciliationAlerts alerts = invocation.getArgument(1);
-              alerts.raise(truncationOn(invocation.getArgument(0)));
+              alerts.raise(priceDivergenceOn(invocation.getArgument(0)));
               return SettlementCheck.CHECKED;
             })
         .given(reconciliationService)
@@ -143,9 +143,10 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             SEB ootel-tehingute raportid sobitati uuesti vanimast uusimani. Raporteid: 2 \
             (2026-04-21 kuni 2026-05-08).
             Uusi täitmisi: 4, uusi arveldusi: 2. Saatmata hoiatusi: 2 (koguse või summa \
-            lahknevusi: 0, kärbitud raporteid: 1, tükkide hinnaerinevusi: 1).
+            lahknevusi: 0, tükkide hinnaerinevusi: 2).
+            Tükkide hinnaerinevus: tellimus 123, IE000F60HVH9, raport 2026-04-21.
             Tükkide hinnaerinevus: tellimus 123, IE000F60HVH9, raport 2026-05-08.
-            Lahknevused ja kärbitud raportid on auditis (investment_transaction_audit_event). \
+            Lahknevused on auditis (investment_transaction_audit_event). \
             Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
             INVESTMENT,
             WARNING);
@@ -168,8 +169,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             SEB ootel-tehingute raportid sobitati uuesti vanimast uusimani. Raporteid: 1 \
             (2026-04-21).
             Uusi täitmisi: 1, uusi arveldusi: 1. Saatmata hoiatusi: 0 (koguse või summa \
-            lahknevusi: 0, kärbitud raporteid: 0, tükkide hinnaerinevusi: 0).
-            Lahknevused ja kärbitud raportid on auditis (investment_transaction_audit_event). \
+            lahknevusi: 0, tükkide hinnaerinevusi: 0).
+            Lahknevused on auditis (investment_transaction_audit_event). \
             Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
             INVESTMENT);
   }
@@ -192,9 +193,9 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             SEB ootel-tehingute raportid sobitati uuesti vanimast uusimani. Raporteid: 1 \
             (2026-04-21).
             Uusi täitmisi: 0, uusi arveldusi: 0, varasemaks nihutatud arvelduskuupäevi: 2. \
-            Saatmata hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, \
+            Saatmata hoiatusi: 0 (koguse või summa lahknevusi: 0, \
             tükkide hinnaerinevusi: 0).
-            Lahknevused ja kärbitud raportid on auditis (investment_transaction_audit_event). \
+            Lahknevused on auditis (investment_transaction_audit_event). \
             Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
             INVESTMENT);
   }
@@ -219,10 +220,10 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             SEB ootel-tehingute raportid sobitati uuesti vanimast uusimani. Raporteid: 2 \
             (2026-04-21 kuni 2026-05-08).
             Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata hoiatusi: 0 (koguse või summa \
-            lahknevusi: 0, kärbitud raporteid: 0, tükkide hinnaerinevusi: 0).
+            lahknevusi: 0, tükkide hinnaerinevusi: 0).
             Arvelduse kontroll jäi vahele: 2026-04-21 (vigased read), 2026-05-08 (ükski rida ei \
             sobitunud).
-            Lahknevused ja kärbitud raportid on auditis (investment_transaction_audit_event). \
+            Lahknevused on auditis (investment_transaction_audit_event). \
             Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
             INVESTMENT,
             WARNING);
@@ -242,7 +243,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .doAnswer(
             invocation -> {
               ReconciliationAlerts alerts = invocation.getArgument(1);
-              alerts.raise(truncationOn(invocation.getArgument(0)));
+              alerts.raise(priceDivergenceOn(invocation.getArgument(0)));
               throw new IllegalStateException("broken report");
             })
         .when(reconciliationService)
@@ -260,7 +261,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             SEB ootel-tehingute raportite uuesti sobitamine peatus raportil 2026-05-08 \
             (põhjus on logis).
             Enne seda raporteid: 1 (2026-04-21). Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata \
-            hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, tükkide \
+            hoiatusi: 0 (koguse või summa lahknevusi: 0, tükkide \
             hinnaerinevusi: 0).
             Paranda põhjus ja jätka raportist 2026-05-08:
             INSERT INTO investment_job_trigger (job_name) VALUES \
@@ -321,7 +322,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             SEB ootel-tehingute raportite uuesti sobitamine peatus raportil 2026-05-08 \
             (põhjus on logis).
             Enne seda raporteid: 1 (2026-04-21). Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata \
-            hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, tükkide \
+            hoiatusi: 0 (koguse või summa lahknevusi: 0, tükkide \
             hinnaerinevusi: 0).
             Paranda põhjus ja jätka raportist 2026-05-08:
             INSERT INTO investment_job_trigger (job_name) VALUES \
@@ -498,7 +499,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             SEB ootel-tehingute raportite uuesti sobitamine peatus enne raportit 2026-05-08, sest \
             algas SEB raportite impordi aeg.
             Enne seda raporteid: 1 (2026-04-21). Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata \
-            hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, tükkide \
+            hoiatusi: 0 (koguse või summa lahknevusi: 0, tükkide \
             hinnaerinevusi: 0).
             Jätka õhtul raportist 2026-05-08:
             INSERT INTO investment_job_trigger (job_name) VALUES \
@@ -536,7 +537,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             SEB ootel-tehingute raportite uuesti sobitamine peatus enne raportit 2026-05-08, sest \
             selle käivituse aeg sai täis (kuni 45 minutit, käivitajate 60-minutilise luku sees).
             Enne seda raporteid: 1 (2026-04-21). Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata \
-            hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, tükkide \
+            hoiatusi: 0 (koguse või summa lahknevusi: 0, tükkide \
             hinnaerinevusi: 0).
             Jätka raportist 2026-05-08:
             INSERT INTO investment_job_trigger (job_name) VALUES \
@@ -611,7 +612,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             SEB ootel-tehingute raportite uuesti sobitamine peatus enne raportit 2026-05-08, sest \
             sobitamise lukk läks kaotsi (põhjus on logis) ja sobitada võib nüüd keegi teine.
             Enne seda raporteid: 1 (2026-04-21). Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata \
-            hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, tükkide \
+            hoiatusi: 0 (koguse või summa lahknevusi: 0, tükkide \
             hinnaerinevusi: 0).
             Jätka raportist 2026-05-08, kui teine sobitamine on lõppenud:
             INSERT INTO investment_job_trigger (job_name) VALUES \
@@ -721,7 +722,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             SEB ootel-tehingute raportite uuesti sobitamine peatus enne raportit 2026-05-08, sest \
             selle käivituse aeg sai täis (kuni 45 minutit, käivitajate 60-minutilise luku sees).
             Enne seda raporteid: 1 (2026-04-21). Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata \
-            hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, tükkide \
+            hoiatusi: 0 (koguse või summa lahknevusi: 0, tükkide \
             hinnaerinevusi: 0).
             Jätka raportist 2026-05-08:
             INSERT INTO investment_job_trigger (job_name) VALUES \
@@ -753,11 +754,6 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             auditEventRepository,
             window,
             jobTriggerLease));
-  }
-
-  private static PossibleReportTruncationEvent truncationOn(InvestmentReport report) {
-    return new PossibleReportTruncationEvent(
-        report.getReportDate(), 1, report.getReportDate().minusDays(1), 50);
   }
 
   private static ExecutionPriceConsistencyEvent priceDivergenceOn(InvestmentReport report) {

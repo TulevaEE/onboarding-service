@@ -34,46 +34,66 @@ record FtConfirmationOutcome(FtConfirmation confirmation, FtConfirmationResult r
 
   @Override
   public String describe() {
+    return switch (line()) {
+      case NOT_CHECKED ->
+          String.format(
+              "FT confirmation could not be checked: fund=%s, isin=%s, tradeDate=%s, quantity=%s,"
+                  + " error=%s",
+              confirmation.fund().name(),
+              confirmation.isin(),
+              confirmation.tradeDate(),
+              confirmation.quantity().toPlainString(),
+              result.details().get("verificationError"));
+      case PRICE_NOT_CHECKED ->
+          String.format(
+              "FT price could not be checked: fund=%s, isin=%s, tradeDate=%s, quantity=%s,"
+                  + " price=%s — no closing price for the trade date by the end of %s; check the"
+                  + " price against the official close by hand",
+              confirmation.fund().name(),
+              confirmation.isin(),
+              confirmation.tradeDate(),
+              confirmation.quantity().toPlainString(),
+              confirmation.grossPrice().toPlainString(),
+              result.details().get("closingPriceDueBy"));
+      case CANCELLED_WITHOUT_REPLACEMENT ->
+          String.format(
+              "FT cancelled a trade and sent no new confirmation of the same quantity: fund=%s,"
+                  + " isin=%s, tradeDate=%s, quantity=%s — check with FT; if the trade did not"
+                  + " happen, cancel the order in the registry",
+              confirmation.fund().name(),
+              confirmation.isin(),
+              confirmation.tradeDate(),
+              confirmation.quantity().toPlainString());
+      case ISSUE ->
+          String.format(
+              "FT issue: fund=%s, isin=%s, tradeDate=%s, quantity=%s, quantityStatus=%s,"
+                  + " priceStatus=%s",
+              confirmation.fund().name(),
+              confirmation.isin(),
+              confirmation.tradeDate(),
+              confirmation.quantity().toPlainString(),
+              result.quantityStatus(),
+              result.priceStatus());
+    };
+  }
+
+  private Line line() {
     if (result.quantityStatus() == UNCHECKED) {
-      return String.format(
-          "FT confirmation could not be checked: fund=%s, isin=%s, tradeDate=%s, quantity=%s,"
-              + " error=%s",
-          confirmation.fund().name(),
-          confirmation.isin(),
-          confirmation.tradeDate(),
-          confirmation.quantity().toPlainString(),
-          result.details().get("verificationError"));
+      return Line.NOT_CHECKED;
     }
     if (result.isOnlyThePriceMissing()) {
-      return String.format(
-          "FT price could not be checked: fund=%s, isin=%s, tradeDate=%s, quantity=%s, price=%s"
-              + " — no closing price for the trade date by the end of %s; check the price against"
-              + " the official close by hand",
-          confirmation.fund().name(),
-          confirmation.isin(),
-          confirmation.tradeDate(),
-          confirmation.quantity().toPlainString(),
-          confirmation.grossPrice().toPlainString(),
-          result.details().get("closingPriceDueBy"));
+      return Line.PRICE_NOT_CHECKED;
     }
     if (confirmation.isCancellation()) {
-      return String.format(
-          "FT cancelled a trade and sent no new confirmation of the same quantity: fund=%s,"
-              + " isin=%s, tradeDate=%s,"
-              + " quantity=%s — check with FT; if the trade did not happen, cancel the order in"
-              + " the registry",
-          confirmation.fund().name(),
-          confirmation.isin(),
-          confirmation.tradeDate(),
-          confirmation.quantity().toPlainString());
+      return Line.CANCELLED_WITHOUT_REPLACEMENT;
     }
-    return String.format(
-        "FT issue: fund=%s, isin=%s, tradeDate=%s, quantity=%s, quantityStatus=%s, priceStatus=%s",
-        confirmation.fund().name(),
-        confirmation.isin(),
-        confirmation.tradeDate(),
-        confirmation.quantity().toPlainString(),
-        result.quantityStatus(),
-        result.priceStatus());
+    return Line.ISSUE;
+  }
+
+  private enum Line {
+    NOT_CHECKED,
+    PRICE_NOT_CHECKED,
+    CANCELLED_WITHOUT_REPLACEMENT,
+    ISSUE
   }
 }

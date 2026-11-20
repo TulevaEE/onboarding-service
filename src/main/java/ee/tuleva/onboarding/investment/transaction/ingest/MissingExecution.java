@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.ingest.MissingExecution.Stage.AWAITING_SEB_REPORT;
+
 import java.util.Map;
 import org.jspecify.annotations.NullMarked;
 
@@ -17,6 +19,6 @@ record MissingExecution(Stage stage, Map<String, String> details) {
   }
 
   boolean awaitsSebReport() {
-    return stage == Stage.AWAITING_SEB_REPORT;
+    return stage == AWAITING_SEB_REPORT;
   }
 }

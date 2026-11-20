@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.ingest.MissingExecution.Stage.AWAITING_SEB_REPORT;
+import static ee.tuleva.onboarding.investment.transaction.ingest.MissingExecution.Stage.MISSING_AFTER_SEB_REPORT;
+import static ee.tuleva.onboarding.investment.transaction.ingest.MissingExecution.Stage.SEB_REPORT_NOT_RECONCILED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
@@ -44,7 +47,7 @@ class FtExecutionWaitTest {
     assertThat(missing)
         .isEqualTo(
             new MissingExecution(
-                MissingExecution.Stage.AWAITING_SEB_REPORT,
+                AWAITING_SEB_REPORT,
                 Map.of(
                     "awaitingSebReportAsOf", "2026-11-18",
                     "executionPendingUntil", "2026-11-19")));
@@ -60,7 +63,7 @@ class FtExecutionWaitTest {
     assertThat(missing)
         .isEqualTo(
             new MissingExecution(
-                MissingExecution.Stage.MISSING_AFTER_SEB_REPORT,
+                MISSING_AFTER_SEB_REPORT,
                 Map.of(
                     "executionMissing", "no execution after SEB pending report as of 2026-11-18",
                     "sebReportAsOf", "2026-11-18")));
@@ -87,7 +90,7 @@ class FtExecutionWaitTest {
     assertThat(missing)
         .isEqualTo(
             new MissingExecution(
-                MissingExecution.Stage.SEB_REPORT_NOT_RECONCILED,
+                SEB_REPORT_NOT_RECONCILED,
                 Map.of(
                     "executionMissing",
                     "no SEB pending report as of 2026-11-18 or later reconciled by 2026-11-19",

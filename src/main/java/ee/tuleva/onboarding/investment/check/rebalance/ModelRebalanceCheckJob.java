@@ -46,15 +46,17 @@ class ModelRebalanceCheckJob {
           rebalanceWindows.of(
               fund, today, modelEffectiveDate -> announcements.closeOwed(fund, modelEffectiveDate));
       windows.current().ifPresent(ModelRebalanceCheckJob::logWindow);
-      windows.superseded().stream()
-          .map(SupersededWindow::window)
-          .filter(RebalanceWindow::inLine)
-          .forEach(this::announce);
+      windows.superseded().forEach(this::closeSuperseded);
       windows.current().filter(announcements::isOwed).ifPresent(this::announce);
     } catch (RuntimeException e) {
       log.error("Model rebalance check could not run: fund={}, checkDate={}", fund, today, e);
       post(fund, RebalanceMessage.couldNotRun(fund));
     }
+  }
+
+  private void closeSuperseded(SupersededWindow superseded) {
+    postThenRecordSoACloseIsNeverLost(
+        superseded.window(), RebalanceMessage.ofSuperseded(superseded), clock.instant());
   }
 
   private void announce(RebalanceWindow window) {

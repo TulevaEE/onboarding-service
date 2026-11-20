@@ -26,6 +26,14 @@ record RebalanceMessage(String text, Severity severity) {
     };
   }
 
+  static RebalanceMessage ofSuperseded(SupersededWindow superseded) {
+    var window = superseded.window();
+    return window
+        .closedOn()
+        .map(navDate -> closed(window, navDate))
+        .orElseGet(() -> replacedBeforeComingIntoLine(window, superseded.replacedOn()));
+  }
+
   static RebalanceMessage couldNotRun(TulevaFund fund) {
     return new RebalanceMessage(
         ("⏸ %s mudelportfelli tasakaalustamise kontroll ei jooksnud; põhjus on rakenduse logis,"
@@ -85,6 +93,14 @@ record RebalanceMessage(String text, Severity severity) {
     return new RebalanceMessage(
         "✅ %s: fond on mudeliga vastavuses (kõik osakaalud %s pp piires, NAV %s), kontroll suletud"
             .formatted(model(window), points(window.tolerance()), date(closingNavDate)),
+        INFO);
+  }
+
+  private static RebalanceMessage replacedBeforeComingIntoLine(
+      RebalanceWindow window, LocalDate replacedOn) {
+    return new RebalanceMessage(
+        "⏹ %s: asendatud mudeliga alates %s, vastavusse ei jõudnud; kontroll suletud"
+            .formatted(model(window), date(replacedOn)),
         INFO);
   }
 

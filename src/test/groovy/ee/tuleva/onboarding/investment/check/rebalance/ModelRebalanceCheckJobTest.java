@@ -180,6 +180,26 @@ class ModelRebalanceCheckJobTest {
   }
 
   @Test
+  void aSupersededWindowThatNeverCameIntoLine_isClosedWithAReplacedLineAndRecorded() {
+    given(rebalanceWindows.of(eq(TUV100), eq(MONDAY), any()))
+        .willReturn(
+            new FundRebalanceWindows(
+                Optional.empty(),
+                List.of(new SupersededWindow(warningWindow(), LocalDate.of(2026, 11, 2)))));
+
+    jobOn(MONDAY).checkRebalanceWindows();
+
+    var inOrder = inOrder(notificationService, announcements);
+    then(notificationService)
+        .should(inOrder)
+        .sendMessage(
+            startsWith("⏹ TUV100 mudelportfell alates 01.10.2026: asendatud mudeliga alates"),
+            eq(INVESTMENT),
+            eq(INFO));
+    then(announcements).should(inOrder).recordClose(warningWindow(), MONDAY_RUN);
+  }
+
+  @Test
   void aPublicHoliday_checksNothingAndSendsNothing() {
     jobOn(CHRISTMAS_EVE).checkRebalanceWindows();
 

@@ -203,14 +203,14 @@ class TransactionAuditPayloads {
     return position.marketValue().divide(grossPortfolioValue, 6, RoundingMode.HALF_UP);
   }
 
-  private static void putIfPresent(Map<String, Object> map, String key, @Nullable Object value) {
+  static void putIfPresent(Map<String, Object> map, String key, @Nullable Object value) {
     if (value != null) {
       map.put(key, value);
     }
   }
 
   @Nullable
-  private static String plain(@Nullable BigDecimal value) {
+  static String plain(@Nullable BigDecimal value) {
     return value == null ? null : value.toPlainString();
   }
 }

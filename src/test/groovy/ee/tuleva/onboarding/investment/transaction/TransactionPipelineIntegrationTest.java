@@ -799,6 +799,8 @@ class TransactionPipelineIntegrationTest {
 
     assertThat(response.status()).isEqualTo(CALCULATED);
     assertThat(response.acceptedHoldingDifferences()).isEqualTo(accepted);
+    assertThat(response.acceptedHoldingDifferences().isins())
+        .containsExactly("IE00BMDBMY19", "LU1291099718");
     assertThat(response.calculationSnapshot())
         .containsEntry(
             "acceptedHoldingDifferences",

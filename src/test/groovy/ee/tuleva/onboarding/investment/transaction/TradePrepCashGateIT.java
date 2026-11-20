@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.INTRA_DAY_REPORT;
+import static ee.tuleva.onboarding.investment.transaction.TradePrepOverridesFixture.noOverrides;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -73,14 +74,14 @@ class TradePrepCashGateIT {
     store(HISTORIC_STATEMENT, TODAY.minusDays(1), YESTERDAY_AFTERNOON, statement("900.00"));
     store(HISTORIC_STATEMENT, TODAY, THIS_MORNING, statement("1000.00"));
 
-    assertThat(gate.missingSameDayCash(TUK75, TradePrepOverrides.none())).isEmpty();
+    assertThat(gate.missingSameDayCash(TUK75, noOverrides())).isEmpty();
   }
 
   @Test
   void aBalanceLastFetchedYesterdayStopsTheFundAndSaysWhenItWasFetched() {
     store(HISTORIC_STATEMENT, TODAY.minusDays(1), YESTERDAY_AFTERNOON, statement("900.00"));
 
-    assertThat(gate.missingSameDayCash(TUK75, TradePrepOverrides.none()))
+    assertThat(gate.missingSameDayCash(TUK75, noOverrides()))
         .contains(new NoSameDayCash(YESTERDAY_AFTERNOON));
   }
 
@@ -89,22 +90,20 @@ class TradePrepCashGateIT {
     store(HISTORIC_STATEMENT, TODAY.minusDays(1), YESTERDAY_AFTERNOON, statement("900.00"));
     storeFailed(TODAY, THIS_MORNING);
 
-    assertThat(gate.missingSameDayCash(TUK75, TradePrepOverrides.none()))
+    assertThat(gate.missingSameDayCash(TUK75, noOverrides()))
         .contains(new NoSameDayCash(YESTERDAY_AFTERNOON));
   }
 
   @Test
   void anAccountWithNoBalanceAtAllStopsTheFund() {
-    assertThat(gate.missingSameDayCash(TUK75, TradePrepOverrides.none()))
-        .contains(new NoSameDayCash(null));
+    assertThat(gate.missingSameDayCash(TUK75, noOverrides())).contains(new NoSameDayCash(null));
   }
 
   @Test
   void aBalanceThatCannotBeReadStopsTheFundAndSaysSo() {
     store(INTRA_DAY_REPORT, TODAY, THIS_MORNING, "<not-a-statement/>");
 
-    assertThat(gate.missingSameDayCash(TUK75, TradePrepOverrides.none()))
-        .contains(new UnreadableSameDayCash());
+    assertThat(gate.missingSameDayCash(TUK75, noOverrides())).contains(new UnreadableSameDayCash());
   }
 
   @Test

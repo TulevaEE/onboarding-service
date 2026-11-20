@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
+import static ee.tuleva.onboarding.investment.transaction.TradePrepOverridesFixture.noOverrides;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -51,7 +52,7 @@ class TradePrepPriceGateTest {
         .willReturn(Optional.of(ResolvedPrice.builder().validationStatus(NO_PRICE_DATA).build()));
     givenPrice("IN_BOTH", "25.00");
 
-    assertThat(gates.check(TKF100, TRADE_DATE, TradePrepOverrides.none()).missingPrices())
+    assertThat(gates.check(TKF100, TRADE_DATE, noOverrides()).missingPrices())
         .contains(new MissingPrices(List.of("HELD_UNKNOWN_INSTRUMENT", "MODEL_NO_PRICE_DATA")));
   }
 
@@ -61,7 +62,7 @@ class TradePrepPriceGateTest {
     givenModel();
     givenPrice("ZERO_PRICE", "0");
 
-    assertThat(gates.check(TKF100, TRADE_DATE, TradePrepOverrides.none()).missingPrices())
+    assertThat(gates.check(TKF100, TRADE_DATE, noOverrides()).missingPrices())
         .contains(new MissingPrices(List.of("ZERO_PRICE")));
   }
 
@@ -71,8 +72,7 @@ class TradePrepPriceGateTest {
         .willReturn(Optional.empty());
     givenModel(model("SOLD_OUT_OF_THE_MODEL", "0"));
 
-    assertThat(gates.check(TKF100, TRADE_DATE, TradePrepOverrides.none()).missingPrices())
-        .isEmpty();
+    assertThat(gates.check(TKF100, TRADE_DATE, noOverrides()).missingPrices()).isEmpty();
   }
 
   @Test
@@ -104,8 +104,7 @@ class TradePrepPriceGateTest {
             List.of(new PositionSnapshot("SOLD_OUT", ZERO, new BigDecimal("0.000000"), null)));
     givenModel();
 
-    assertThat(gates.check(TKF100, TRADE_DATE, TradePrepOverrides.none()).missingPrices())
-        .isEmpty();
+    assertThat(gates.check(TKF100, TRADE_DATE, noOverrides()).missingPrices()).isEmpty();
   }
 
   @Test
@@ -271,8 +270,7 @@ class TradePrepPriceGateTest {
     givenModel(model("HELD_PRICED", "1"));
     givenPrice("HELD_PRICED", "100.00");
 
-    assertThat(gates.check(TKF100, TRADE_DATE, TradePrepOverrides.none()).missingPrices())
-        .isEmpty();
+    assertThat(gates.check(TKF100, TRADE_DATE, noOverrides()).missingPrices()).isEmpty();
   }
 
   private void givenHeld(String... isins) {

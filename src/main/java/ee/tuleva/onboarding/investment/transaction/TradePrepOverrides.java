@@ -14,11 +14,6 @@ record TradePrepOverrides(
     PriceDateRule priceDateRule,
     @Nullable BigDecimal cash) {
 
-  static TradePrepOverrides none() {
-    return new TradePrepOverrides(
-        Set.of(), List.of(), null, PriceDateRule.FRESHEST_PER_INSTRUMENT, null);
-  }
-
   static TradePrepOverrides of(TransactionCommand command) {
     return new TradePrepOverrides(
         command.getExcludeIsins(),

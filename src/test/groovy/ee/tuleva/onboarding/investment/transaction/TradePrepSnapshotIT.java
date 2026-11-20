@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.EPIS;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
+import static ee.tuleva.onboarding.investment.transaction.TradePrepOverridesFixture.noOverrides;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.util.stream.Collectors.joining;
@@ -140,8 +141,7 @@ class TradePrepSnapshotIT {
 
     tradePrep.executeWithoutResult(
         status -> {
-          assertThat(gates.check(TUV100, TRADE_DATE, TradePrepOverrides.none()).failures())
-              .isEmpty();
+          assertThat(gates.check(TUV100, TRADE_DATE, noOverrides()).failures()).isEmpty();
 
           reuploadInItsOwnTransaction("SUB;EE3600109435;0.80000;0;1500.00;19.11.2026");
 

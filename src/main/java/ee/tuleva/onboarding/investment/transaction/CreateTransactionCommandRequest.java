@@ -21,4 +21,11 @@ public record CreateTransactionCommandRequest(
     @Nullable Set<@NotNull @Pattern(regexp = "[A-Z]{2}[A-Z0-9]{9}[0-9]") String> excludeIsins,
     @Nullable List<@NotNull @Valid PriceOverride> prices,
     @Nullable @Valid AcceptedHoldingDifferences acceptedHoldingDifferences,
-    @Nullable PriceDateRule priceDateRule) {}
+    @Nullable PriceDateRule priceDateRule) {
+
+  static CreateTransactionCommandRequest withOnlyCash(
+      TulevaFund fund, TransactionMode mode, LocalDate asOfDate, @Nullable CashOverride cash) {
+    return new CreateTransactionCommandRequest(
+        fund, mode, asOfDate, null, cash, null, null, null, null);
+  }
+}

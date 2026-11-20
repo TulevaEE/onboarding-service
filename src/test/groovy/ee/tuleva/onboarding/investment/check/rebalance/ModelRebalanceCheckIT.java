@@ -115,6 +115,26 @@ class ModelRebalanceCheckIT {
   }
 
   @Test
+  void anOpeningInfoWhosePostFails_isPostedOnTheNextWorkingDayAndThenNotAgain() {
+    givenTuv100ModelSwitchesFromWorldToNewWorld();
+    givenNav(LocalDate.of(2026, 10, 2), Map.of(WORLD, "790000", EMERGING, "200000"));
+    willThrow(new IllegalStateException("Slack unavailable"))
+        .given(notificationService)
+        .sendMessage(startsWith("ℹ️"), eq(INVESTMENT), eq(INFO));
+    runCheckOn(LocalDate.of(2026, 10, 5));
+
+    willDoNothing().given(notificationService).sendMessage(any(), any(), any());
+    runCheckOn(LocalDate.of(2026, 10, 6));
+    runCheckOn(LocalDate.of(2026, 10, 7));
+
+    then(notificationService)
+        .should(times(2))
+        .sendMessage(
+            startsWith("ℹ️ TUV100 mudelportfell alates 01.10.2026"), eq(INVESTMENT), eq(INFO));
+    then(notificationService).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
   void aWarningRepeatsEveryWorkingDayUntilATradeGoesOutAndThenTheWindowStaysQuiet() {
     givenTuv100ModelSwitchesFromWorldToNewWorld();
     givenNav(LocalDate.of(2026, 10, 30), Map.of(WORLD, "790000", EMERGING, "200000"));

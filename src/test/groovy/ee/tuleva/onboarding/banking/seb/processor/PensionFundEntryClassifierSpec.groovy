@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.seb.processor
 
+import ee.tuleva.onboarding.banking.ManagementCompanies
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration
@@ -14,6 +15,7 @@ import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.Reg
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.TradeSettlement
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.Unclassified
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.UnrecognisedManagementCompanyCredit
+import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.UnrecognisedManagementCompanyDebit
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry
 import ee.tuleva.onboarding.banking.statement.TransactionType
 import ee.tuleva.onboarding.instrument.InstrumentReference
@@ -54,7 +56,8 @@ class PensionFundEntryClassifierSpec extends Specification {
     }
   }
   def classifier = new PensionFundEntryClassifier(
-      new TradeSettlementParser(instrumentReferenceService), configuration)
+      new TradeSettlementParser(instrumentReferenceService), configuration,
+      new ManagementCompanies(configuration))
 
   @Unroll
   def "classifies #description"() {
@@ -90,7 +93,10 @@ class PensionFundEntryClassifierSpec extends Specification {
     "management company BlackRock fees passed on as a rebate" | entry("ESCT", 38531.70, "Tuleva Fondid AS", OTHER_IBAN, "BR tasud TUK75") | new ManagementFeeRebate()
     "management company BlackRock fees split across whitespace" | entry("ESCT", 38531.70, "Tuleva Fondid AS", OTHER_IBAN, "BR  tasud\nTUK75") | new ManagementFeeRebate()
     "management company damage compensation goes to suspense" | entry("ESCT", 7178.00, "Tuleva Fondid AS", OTHER_IBAN, "Kahju hüvitamine fondile") | new UnrecognisedManagementCompanyCredit()
-    "management company expense debit"       | entry("BOOK", -1500.00, "Tuleva Fondid AS", OTHER_IBAN, "BR tasud")                | new ManagementFeePayment()
+    "management company debit not stated as a management fee goes to suspense" | entry("BOOK", -1500.00, "Tuleva Fondid AS", OTHER_IBAN, "BR tasud") | new UnrecognisedManagementCompanyDebit()
+    "management fee payment in capitals"     | entry("ICDT", -742.34, "Tuleva Fondid AS", OTHER_IBAN, "TUK75 VALITSEMISTASU 02/2026") | new ManagementFeePayment()
+    "management company debit without remittance goes to suspense" | entry("ICDT", -742.34, "Tuleva Fondid AS", OTHER_IBAN, null) | new UnrecognisedManagementCompanyDebit()
+    "management company debit for another expense goes to suspense" | entry("ICDT", -250.00, "Tuleva Fondid AS", OTHER_IBAN, "Kulude hüvitamine") | new UnrecognisedManagementCompanyDebit()
     "management company book credit not stated as a rebate goes to suspense" | entry("BOOK", 250.00, "Tuleva Fondid AS", OTHER_IBAN, "Ülekanne fondile") | new UnrecognisedManagementCompanyCredit()
     "subfund redemption settlement"          | entry("REDM", 993343.12, null, null, REDM_SALE)                                    | developedWorldSettlement("DLA0695877", new BigDecimal("59145"), 33.295)
     "own account transfer in"                | entry("ESCT", 1633975.32, "TULEVA MAAILMA AKTSIATE PENSIONIFOND", OWN_ACCOUNT_IBAN, "Ülekanne fondi teisele kontole") | new OwnAccountTransfer()
@@ -98,6 +104,10 @@ class PensionFundEntryClassifierSpec extends Specification {
     "legacy bank service invoice"            | entry("ESCT", -140.00, "Swedbank AS", BANK_FEE_IBAN, "Arve nr 03-03-2026-3")       | new BankFee()
     "detailed ADJT from unknown party"       | entry("ADJT", 12.34, "Random Company OU", OTHER_IBAN, "korrektsioon")              | new Unclassified("unknown counterparty")
     "enriched kickback booking"              | entry("BOOK", 4370.58, "BlackRock AM", OTHER_IBAN, "Management fee kickback VP00001") | new ManagementFeeRebate()
+    "detail-less kickback debit goes to suspense" | entry("BOOK", -4370.58, null, null, "Management fee kickback VP00001") | new Unclassified("subFamilyCode=BOOK")
+    "management company kickback debit goes to suspense" | entry("BOOK", -100.00, "Tuleva Fondid AS", OTHER_IBAN, "Kickback 02/2026") | new UnrecognisedManagementCompanyDebit()
+    "kickback debit from another counterparty goes to suspense" | entry("BOOK", -4370.58, "BlackRock AM", OTHER_IBAN, "Management fee kickback VP00001") | new Unclassified("unknown counterparty")
+    "zero-amount kickback booking stays a rebate" | entry("BOOK", 0.00, null, null, "Management fee kickback VP00001") | new ManagementFeeRebate()
     "entry with null remittance"             | entry("XXXX", 10.00, null, null, null)                                             | new Unclassified("subFamilyCode=XXXX")
     "management company zero amount not stated as a rebate goes to suspense" | entry("BOOK", 0.00, "Tuleva Fondid AS", OTHER_IBAN, "nullülekanne") | new UnrecognisedManagementCompanyCredit()
     "registrar zero amount is a payout"      | entry("RCDT", 0.00, "AS Pensionikeskus", REGISTRAR_IBAN, "null-liikumine")         | new RegistrarPayout()

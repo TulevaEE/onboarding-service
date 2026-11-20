@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.E
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.IGNORED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.OK;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ORPHAN;
-import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_EXECUTION;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_NAV;
 import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.toList;
@@ -14,18 +13,14 @@ import static java.util.stream.Collectors.toList;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
-import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationBatchResult;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
 import ee.tuleva.onboarding.investment.transaction.FtVerificationStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
-import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
-import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import java.math.BigDecimal;
-import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -33,7 +28,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,19 +42,15 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class FtConfirmationVerificationService {
 
-  private static final BigDecimal QUANTITY_TOLERANCE = BigDecimal.ONE;
   private static final BigDecimal DEFAULT_PRICE_TOLERANCE = new BigDecimal("0.001");
-  private static final int EXECUTION_PENDING_BUSINESS_DAYS = 1;
   private static final String ADMIN_ACTOR = "admin";
 
   private final TransactionOrderRepository orderRepository;
-  private final TransactionExecutionRepository executionRepository;
   private final PositionPriceResolver positionPriceResolver;
   private final PriceValidator priceValidator;
-  private final Target2Calendar target2Calendar;
+  private final FtQuantityCheck quantityCheck;
   private final FtConfirmationAuditRecorder auditRecorder;
   private final FtConfirmationDigest digest;
-  private final Clock clock;
 
   @Value("${investment.transaction.ft-confirmation.price-tolerance:0.001}")
   private BigDecimal priceTolerance = DEFAULT_PRICE_TOLERANCE;
@@ -162,7 +152,7 @@ public class FtConfirmationVerificationService {
       return new Computed(result(AMBIGUOUS, AMBIGUOUS, details), order);
     }
 
-    FtVerificationStatus quantityStatus = checkQuantity(confirmation, order, details);
+    FtVerificationStatus quantityStatus = quantityCheck.check(confirmation, order, details);
     FtVerificationStatus priceStatus = checkPrice(confirmation, details);
     return new Computed(result(quantityStatus, priceStatus, details), order);
   }
@@ -225,7 +215,8 @@ public class FtConfirmationVerificationService {
                 order -> {
                   var orderQuantity = order.getOrderQuantity();
                   return orderQuantity != null
-                      && withinQuantityTolerance(confirmation.quantity(), orderQuantity);
+                      && FtQuantityCheck.withinQuantityTolerance(
+                          confirmation.quantity(), orderQuantity);
                 })
             .collect(toList());
     if (quantityMatches.size() == 1) {
@@ -247,49 +238,6 @@ public class FtConfirmationVerificationService {
     var timestamp = order.getOrderTimestamp();
     return timestamp != null
         && LocalDate.ofInstant(timestamp, ZoneOffset.UTC).equals(ftUtcTradeDate);
-  }
-
-  private FtVerificationStatus checkQuantity(
-      FtConfirmation confirmation, TransactionOrder order, Map<String, String> details) {
-    boolean orderQuantityOk = false;
-    if (order.getOrderQuantity() == null) {
-      details.put("orderQuantityMissing", "order has no quantity");
-    } else {
-      details.put("orderQuantity", order.getOrderQuantity().toPlainString());
-      orderQuantityOk = withinQuantityTolerance(confirmation.quantity(), order.getOrderQuantity());
-    }
-
-    BigDecimal totalExecuted = sumExecutedQuantityAcrossPieces(order);
-    Optional<BigDecimal> executedQuantity =
-        totalExecuted.signum() > 0 ? Optional.of(totalExecuted) : Optional.empty();
-
-    if (executedQuantity.isEmpty()) {
-      LocalDate executionDeadline =
-          target2Calendar.addBusinessDays(
-              confirmation.tradeDate(), EXECUTION_PENDING_BUSINESS_DAYS);
-      if (!LocalDate.now(clock).isAfter(executionDeadline)) {
-        details.put("executionPendingUntil", executionDeadline.toString());
-        return orderQuantityOk ? PENDING_EXECUTION : ERROR;
-      }
-      details.put("executionMissing", "no execution after " + executionDeadline);
-      return ERROR;
-    }
-
-    details.put("executedQuantity", executedQuantity.get().toPlainString());
-    boolean executedQuantityOk =
-        withinQuantityTolerance(confirmation.quantity(), executedQuantity.get());
-    return orderQuantityOk && executedQuantityOk ? OK : ERROR;
-  }
-
-  private BigDecimal sumExecutedQuantityAcrossPieces(TransactionOrder order) {
-    return executionRepository.findAllByOrderId(order.getId()).stream()
-        .map(TransactionExecution::getExecutedQuantity)
-        .filter(Objects::nonNull)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
-  }
-
-  private static boolean withinQuantityTolerance(BigDecimal ftQuantity, BigDecimal quantity) {
-    return ftQuantity.subtract(quantity).abs().compareTo(QUANTITY_TOLERANCE) <= 0;
   }
 
   private FtVerificationStatus checkPrice(

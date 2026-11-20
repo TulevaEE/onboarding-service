@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TransactionAuditEventRepository
@@ -15,4 +16,7 @@ public interface TransactionAuditEventRepository
   List<TransactionAuditEvent> findByEventTypeAndDedupKey(String eventType, String dedupKey);
 
   List<TransactionAuditEvent> findByOrderIdAndEventType(Long orderId, String eventType);
+
+  Optional<TransactionAuditEvent> findFirstByEventTypeAndDedupKeyGreaterThanEqualOrderByDedupKeyAsc(
+      String eventType, String dedupKey);
 }

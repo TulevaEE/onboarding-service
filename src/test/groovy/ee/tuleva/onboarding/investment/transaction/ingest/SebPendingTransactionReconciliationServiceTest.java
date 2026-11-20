@@ -1538,6 +1538,148 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
+  void reconcile_recordsTheReportAsReconciledUnderItsAsOfDate() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+
+    service.reconcile(
+        reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-12")), LOCK_HELD);
+
+    verifyRecordedAsReconciled("2026-05-12");
+  }
+
+  @Test
+  void reconcile_ofAReportWhoseAsOfDateCannotBeRead_recordsNoReconciledReport() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+
+    service.reconcile(reportOf(validRawRow(clientRef), Map.of()), LOCK_HELD);
+
+    verifyNoReportRecordedAsReconciled();
+  }
+
+  @Test
+  void reconcile_ofAnOlderReportAfterANewerOneArrived_stillRecordsItsAsOfDateAsReconciled() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS))
+        .willReturn(
+            Optional.of(
+                InvestmentReport.builder()
+                    .provider(SEB)
+                    .reportType(PENDING_TRANSACTIONS)
+                    .reportDate(LocalDate.of(2026, 5, 14))
+                    .metadata(Map.of("asOfDate", "2026-05-14"))
+                    .rawData(List.of())
+                    .build()));
+
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
+
+    verifyRecordedAsReconciled("2026-05-13");
+  }
+
+  @Test
+  void reconcile_ofAReportListingNothingPending_recordsItsAsOfDateAsReconciled() {
+    service = newService();
+
+    service.reconcile(reportOf(blankPaddingRow(), Map.of("asOfDate", "2026-05-12")), LOCK_HELD);
+
+    verifyRecordedAsReconciled("2026-05-12");
+  }
+
+  @Test
+  void reconcile_ofAReportWhoseColumnHeaderWasNotFound_recordsNoReconciledReport() {
+    service = newService();
+    Map<String, Object> shiftedHeaderRow = new HashMap<>();
+    shiftedHeaderRow.put("Page:", "Client name");
+    shiftedHeaderRow.put("1", "Account");
+
+    service.reconcile(reportOf(shiftedHeaderRow, Map.of("asOfDate", "2026-05-12")), LOCK_HELD);
+
+    verifyNoReportRecordedAsReconciled();
+  }
+
+  @Test
+  void reconcile_ofAReportWhoseRowsMatchNoOrder_recordsItsAsOfDateAsReconciled() {
+    service = newService();
+    UUID clientRef = UUID.fromString("00000000-0000-0000-0000-000000000099");
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.empty());
+
+    service.reconcile(
+        reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-12")), LOCK_HELD);
+
+    verifyRecordedAsReconciled("2026-05-12");
+  }
+
+  @Test
+  void reconcile_ofAReportWithFarFewerRowsThanTheReportBefore_recordsItsAsOfDateAsReconciled() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    given(reportService.getPriorReport(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13)))
+        .willReturn(Optional.of(reportWithRows(LocalDate.of(2026, 5, 12), 9)));
+
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
+
+    verifyRecordedAsReconciled("2026-05-13");
+  }
+
+  @Test
+  void reconcile_ofAReportWithARowThatCouldNotBeRead_recordsNoReconciledReport() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    InvestmentReport report =
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(LocalDate.of(2026, 5, 13))
+            .metadata(Map.of("asOfDate", "2026-05-12"))
+            .rawData(List.of(validRawRow(clientRef), unreadableRawRow()))
+            .build();
+
+    service.reconcile(report, LOCK_HELD);
+
+    verifyNoReportRecordedAsReconciled();
+  }
+
+  @Test
+  void reconcile_ofAReportWhoseOnlyRowCouldNotBeRead_recordsNoReconciledReport() {
+    service = newService();
+
+    service.reconcile(reportOf(unreadableRawRow(), Map.of("asOfDate", "2026-05-12")), LOCK_HELD);
+
+    verifyNoReportRecordedAsReconciled();
+  }
+
+  @Test
+  void reconcile_thatLosesItsLock_recordsNoReconciledReport() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+
+    assertThatThrownBy(() -> service.reconcile(reportWithSingleRow(clientRef), () -> false))
+        .isInstanceOf(SebReconciliationLockLostException.class);
+
+    verifyNoReportRecordedAsReconciled();
+  }
+
+  @Test
   void replay_thatNoLongerHoldsTheLock_refusesToCommitTheReport() {
     service = newService();
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
@@ -2109,6 +2251,54 @@ class SebPendingTransactionReconciliationServiceTest {
 
   private static Object auditedField(TransactionAuditEvent event, String side, String field) {
     return ((Map<?, ?>) event.getPayload().get(side)).get(field);
+  }
+
+  private void verifyRecordedAsReconciled(String asOfDate) {
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "SEB_PENDING_REPORT_RECONCILED".equals(event.getEventType())
+                        && asOfDate.equals(event.getDedupKey())));
+  }
+
+  private void verifyNoReportRecordedAsReconciled() {
+    verify(auditEventRepository, never())
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "SEB_PENDING_REPORT_RECONCILED".equals(event.getEventType())));
+  }
+
+  private static Map<String, Object> blankPaddingRow() {
+    Map<String, Object> raw = new HashMap<>();
+    List.of(
+            "Client name",
+            "Account",
+            "Client ref",
+            "Our ref",
+            "ISIN",
+            "Instrument name",
+            "Currency",
+            "Quantity",
+            "Price",
+            "Settlement amount",
+            "Broker fee",
+            "Total",
+            "Buy/Sell",
+            "Trade date",
+            "Settlement date")
+        .forEach(column -> raw.put(column, null));
+    return raw;
+  }
+
+  private static Map<String, Object> unreadableRawRow() {
+    Map<String, Object> raw = new HashMap<>();
+    raw.put("ISIN", "IE000F60HVH9");
+    raw.put("Client ref", "not-a-uuid");
+    raw.put("Buy/Sell", "Buy");
+    raw.put("Our ref", "DLA9999999");
+    return raw;
   }
 
   private static InvestmentReport reportWithSingleRow(UUID clientRef) {

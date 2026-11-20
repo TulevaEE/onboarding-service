@@ -1,9 +1,12 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
+import ee.tuleva.onboarding.investment.report.SebReportHeaders;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -23,6 +26,12 @@ class SebPendingTransactionExtractor {
 
     boolean isComplete() {
       return malformedRows.isEmpty();
+    }
+
+    Optional<LocalDate> trustedAsOfDate(InvestmentReport report) {
+      return isComplete() && listsEveryColumnRead(report.getRawData())
+          ? Optional.ofNullable(SebReportHeaders.asOfDate(report))
+          : Optional.empty();
     }
   }
 
@@ -57,6 +66,11 @@ class SebPendingTransactionExtractor {
     return isNonBlank(raw.get("Client ref"))
         || isNonBlank(raw.get("Our ref"))
         || isNonBlank(raw.get("ISIN"));
+  }
+
+  private static boolean listsEveryColumnRead(List<Map<String, Object>> rawData) {
+    return rawData.stream()
+        .anyMatch(raw -> raw.keySet().containsAll(SebPendingTransactionRow.COLUMNS_READ));
   }
 
   private static boolean isNonBlank(@Nullable Object value) {

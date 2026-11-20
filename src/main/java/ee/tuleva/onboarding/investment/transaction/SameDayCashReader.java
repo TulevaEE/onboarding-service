@@ -50,12 +50,17 @@ class SameDayCashReader {
       @Nullable BigDecimal reportCash) {
     GatewayCash gateway = isToday(asOfDate) ? gatewayCash(fund, asOfDate) : new NotTodaysRun();
     CashSourceReport report =
-        new CashSourceReport(
-            operatorAmount == null ? CashSource.POSITION_REPORT : CashSource.OPERATOR_AMOUNT,
-            gateway,
-            reportCash,
-            List.of());
+        new CashSourceReport(sourceOf(operatorAmount, gateway), gateway, reportCash, List.of());
     return report.withWarnings(differenceWarning(fund, asOfDate, report).stream().toList());
+  }
+
+  private static CashSource sourceOf(@Nullable BigDecimal operatorAmount, GatewayCash gateway) {
+    if (operatorAmount != null) {
+      return CashSource.OPERATOR_AMOUNT;
+    }
+    return gateway instanceof CurrentDayBalance
+        ? CashSource.GATEWAY_BALANCE
+        : CashSource.POSITION_REPORT;
   }
 
   private boolean isToday(LocalDate asOfDate) {

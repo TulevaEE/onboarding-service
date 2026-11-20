@@ -56,11 +56,6 @@ class PendingOrderImpactService {
   private final PositionPriceResolver positionPriceResolver;
 
   PendingOrderImpact calculate(
-      TulevaFund fund, LocalDate asOfDate, LocalDate positionDate, TradePrepPricing pricing) {
-    return calculate(fund, asOfDate, positionDate, pricing, Set.of());
-  }
-
-  PendingOrderImpact calculate(
       TulevaFund fund,
       LocalDate asOfDate,
       LocalDate positionDate,

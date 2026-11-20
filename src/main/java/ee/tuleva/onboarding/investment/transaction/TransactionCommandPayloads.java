@@ -67,7 +67,6 @@ final class TransactionCommandPayloads {
   static Map<String, Object> completed(
       TransactionCommand command,
       GateCheck gates,
-      CashSourceReport cash,
       FundTransactionInput input,
       FundCalculationResult result,
       CalculatedOrders calculated,
@@ -77,7 +76,10 @@ final class TransactionCommandPayloads {
     payload.put(
         "input", TransactionInputPayloads.serializeInput(input, command.getManualAdjustments()));
     putIfPresent(payload, "cashComment", command.getCashComment());
-    payload.put("cash", cash.payload());
+    CashSection cash = input.cashSection();
+    if (cash != null) {
+      payload.put("cash", cash.payload());
+    }
     putExcludeIsins(payload, command);
     if (!gates.priceOverrides().isEmpty()) {
       payload.put(
@@ -111,7 +113,10 @@ final class TransactionCommandPayloads {
     payload.put(
         "calculationWarnings",
         TransactionAuditPayloads.serializeCalculationWarnings(
-            Stream.concat(result.warnings().stream(), cash.warnings().stream()).toList()));
+            Stream.concat(
+                    result.warnings().stream(),
+                    cash == null ? Stream.empty() : cash.warnings().stream())
+                .toList()));
     payload.put("modelDrift", TransactionAuditPayloads.serializeModelDrift(input, result));
     Map<String, Object> summary = new LinkedHashMap<>();
     summary.put("fund", command.getFund().name());

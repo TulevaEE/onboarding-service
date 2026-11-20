@@ -16,6 +16,7 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
+import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ONE;
@@ -33,8 +34,10 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
+import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.persistence.EntityManager;
@@ -116,6 +119,7 @@ class TransactionPipelineIntegrationTest {
   @Autowired private TransactionCommandRunner commandRunner;
   @Autowired private JdbcClient jdbcClient;
   @Autowired private BankAccounts bankAccounts;
+  @Autowired private FundBankLedger fundBankLedger;
   @MockitoBean private OperationsNotificationService notificationService;
 
   @BeforeEach
@@ -1024,7 +1028,44 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Test
-  void aCurrentDayReportForTodayIsShownBesideTheRunsCash() {
+  void aBalanceSebReportedTodayIsTheRunsCashAndEachForecastShowsWhatItWasBeforeNetting() {
+    jdbcClient.sql("DELETE FROM banking_message").update();
+    storeInvestmentAccountMessage(
+        "INTRA_DAY_REPORT",
+        TEST_DATE,
+        FIXED_INSTANT,
+        currentDayReport(investmentIban(), TEST_DATE, "520000.00"));
+    jdbcClient
+        .sql(
+            "UPDATE investment_fund_position SET nav_date = DATE '2026-02-09'"
+                + " WHERE fund_code = 'TKF100' AND nav_date = DATE '2026-02-10'")
+        .update();
+    jdbcClient
+        .sql(
+            "UPDATE investment_portfolio_cost_basis SET as_of_date = DATE '2026-02-09'"
+                + " WHERE as_of_date = DATE '2026-02-10'")
+        .update();
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fund_position
+              (nav_date, fund_code, account_type, account_name, account_id, quantity,
+               market_price, market_value, currency, created_at)
+            VALUES (DATE '2026-02-09', 'TKF100', 'LIABILITY',
+               'Total payables of unsettled transactions', 'PAYABLES', 0, 0, -300000.00, 'EUR',
+               CURRENT_TIMESTAMP)
+            """)
+        .update();
+    fundBankLedger.recordTradeSettlement(
+        TKF100,
+        new BigDecimal("-120000.00"),
+        new BigDecimal("1000"),
+        randomUUID(),
+        FUND_INVESTMENT_CASH_CLEARING,
+        new TradeSettlementDetails(
+            "SYNTHETIC-1", "IE00BFG1TM61", "TICK", "test instrument", BigDecimal.ONE),
+        TEST_DATE);
+
     var response =
         commandRunner.createAndProcess(
             new CreateTransactionCommandRequest(
@@ -1032,21 +1073,30 @@ class TransactionPipelineIntegrationTest {
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
-    assertThat(response.calculationSnapshot())
-        .containsEntry(
-            "cash",
+    assertThat(response.calculationSnapshot().get("cash"))
+        .isEqualTo(
             Map.of(
                 "source",
-                "POSITION_REPORT",
+                "GATEWAY_BALANCE",
                 "reportCash",
                 "500000.00",
                 "gateway",
                 Map.of(
                     "status", "CURRENT_DAY_BALANCE",
-                    "balance", "500000.00",
+                    "balance", "520000.00",
                     "fetchedAt", "2026-02-09T23:00:00Z"),
                 "gatewayMinusReportCash",
-                "0.00"));
+                "20000.00",
+                "forecasts",
+                List.of(
+                    Map.of(
+                        "name", "unsettledTradePayables",
+                        "before", "300000.00",
+                        "after", "180000.00",
+                        "treatment", "NETTED_AGAINST_THE_BALANCE"))));
+    assertThat(response.calculationSnapshot().get("input"))
+        .asInstanceOf(MAP)
+        .containsEntry("appliedCash", "520000.00");
   }
 
   @Test

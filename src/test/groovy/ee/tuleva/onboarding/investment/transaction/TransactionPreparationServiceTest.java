@@ -12,7 +12,6 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.*;
@@ -53,7 +52,6 @@ class TransactionPreparationServiceTest {
   @Mock private PositionPriceResolver positionPriceResolver;
   @Mock private SettlementTimingWarningService settlementTimingWarningService;
   @Mock private TradePrepInputGates inputGates;
-  @Mock private SameDayCashReader sameDayCashReader;
   @Mock private Clock clock;
 
   private TransactionPreparationService service;
@@ -72,16 +70,7 @@ class TransactionPreparationServiceTest {
             orderFactory,
             settlementTimingWarningService,
             inputGates,
-            sameDayCashReader,
             clock);
-    lenient()
-        .when(sameDayCashReader.read(any(), any(), any(), any()))
-        .thenReturn(
-            new CashSourceReport(
-                CashSource.POSITION_REPORT,
-                new GatewayCash.NoCurrentDayReportToday(),
-                null,
-                List.of()));
     lenient()
         .when(inputGates.verify(any()))
         .thenReturn(new GateCheck(List.of(), noResolvedPrices(), List.of(), List.of(), List.of()));
@@ -184,6 +173,15 @@ class TransactionPreparationServiceTest {
             .minTransactionThreshold(new BigDecimal("5000"))
             .positionLimits(Map.of())
             .fastSellIsins(Set.of())
+            .cashSection(
+                new CashSection(
+                    new CashSourceReport(
+                        CashSource.OPERATOR_AMOUNT,
+                        new GatewayCash.NoCurrentDayReportToday(),
+                        null,
+                        List.of()),
+                    List.of(),
+                    R16Reserve.NONE))
             .build();
     var calculationResult =
         new FundCalculationResult(
@@ -204,14 +202,6 @@ class TransactionPreparationServiceTest {
               batch.setId(1L);
               return batch;
             });
-
-    given(sameDayCashReader.read(eq(TUV100), any(), eq(new BigDecimal("40000")), any()))
-        .willReturn(
-            new CashSourceReport(
-                CashSource.OPERATOR_AMOUNT,
-                new GatewayCash.NoCurrentDayReportToday(),
-                null,
-                List.of()));
 
     service.processCommand(command);
 
@@ -1127,29 +1117,8 @@ class TransactionPreparationServiceTest {
             .manualAdjustments(Map.of())
             .status(PROCESSING)
             .build();
-    var input =
-        FundTransactionInput.builder()
-            .fund(TUV100)
-            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("500000"))))
-            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
-            .grossPortfolioValue(new BigDecimal("1000000"))
-            .cashBuffer(new BigDecimal("50000"))
-            .liabilities(ZERO)
-            .receivables(ZERO)
-            .freeCash(new BigDecimal("100000"))
-            .minTransactionThreshold(new BigDecimal("5000"))
-            .positionLimits(Map.of())
-            .fastSellIsins(Set.of())
-            .build();
     given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
     given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
-        .willReturn(input);
-    lenient()
-        .when(calculationEngine.calculate(input, BUY))
-        .thenReturn(
-            new FundCalculationResult(
-                TUV100, BUY, input, List.of(), netInvestable(input), null, List.of()));
-    given(sameDayCashReader.read(any(), any(), any(), any()))
         .willThrow(new IllegalStateException("connection lost"));
 
     var result = service.processCommand(command);

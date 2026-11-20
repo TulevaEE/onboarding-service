@@ -46,12 +46,14 @@ import ee.tuleva.onboarding.ledger.RegistrarContribution;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -76,6 +78,9 @@ class TransactionInputServiceTest {
   @Mock private PevaRavaFlowService pevaRavaFlowService;
   @Mock private R45ReportService r45ReportService;
   @Mock private R16OutflowReader r16OutflowReader;
+  @Mock private SameDayCashReader sameDayCashReader;
+  @Mock private TradeSettlementsInTheBalanceReader tradeSettlementsReader;
+  @Mock private GatewayNetting gatewayNetting;
   @Mock private PendingOrderImpactService pendingOrderImpactService;
   @Mock private RegistrarCashFlowRepository registrarCashFlowRepository;
 
@@ -85,9 +90,20 @@ class TransactionInputServiceTest {
   void setUp() {
     lenient().when(navLedgerRepository.getSystemAccountBalance(anyString())).thenReturn(ZERO);
     lenient()
-        .when(pendingOrderImpactService.calculate(any(), any(), any(), any()))
+        .when(pendingOrderImpactService.calculate(any(), any(), any(), any(), any()))
         .thenReturn(PendingOrderImpact.none());
     lenient().when(r16OutflowReader.read(any(), any(), any())).thenReturn(R16Reserve.NONE);
+    lenient()
+        .when(sameDayCashReader.read(any(), any(), any(), any()))
+        .thenAnswer(
+            invocation ->
+                new CashSourceReport(
+                    invocation.getArgument(2) == null
+                        ? CashSource.POSITION_REPORT
+                        : CashSource.OPERATOR_AMOUNT,
+                    new GatewayCash.NotTodaysRun(),
+                    invocation.getArgument(3),
+                    List.of()));
     lenient()
         .when(feeChargedToFundPolicy.resolverFor(any(), any()))
         .thenAnswer(
@@ -99,8 +115,7 @@ class TransactionInputServiceTest {
             feeChargedToFundPolicy,
             navLedgerRepository,
             new UnitRegisterCashFlows(navLedgerRepository, fundValueQueries),
-            pevaRavaPeriodService,
-            pevaRavaFlowService,
+            new PevaRavaForecastReader(pevaRavaPeriodService, pevaRavaFlowService),
             r45ReportService,
             r16OutflowReader,
             pendingOrderImpactService,
@@ -113,7 +128,10 @@ class TransactionInputServiceTest {
                     DAY_AFTER_THE_REPORT.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant(),
                     ZoneId.of("Europe/Tallinn"))),
             new TransactionParameterLoader(
-                modelPortfolioAllocationRepository, fundLimitRepository, positionLimitRepository));
+                modelPortfolioAllocationRepository, fundLimitRepository, positionLimitRepository),
+            sameDayCashReader,
+            tradeSettlementsReader,
+            gatewayNetting);
   }
 
   @Test
@@ -706,7 +724,7 @@ class TransactionInputServiceTest {
             .orderStatus(OrderStatus.SENT)
             .expectedSettlementDate(AS_OF_DATE.plusDays(2))
             .build();
-    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any(), any()))
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any(), any(), any()))
         .willReturn(
             new PendingOrderImpact(
                 new BigDecimal("30000"),
@@ -757,7 +775,7 @@ class TransactionInputServiceTest {
             .orderStatus(OrderStatus.EXECUTED)
             .expectedSettlementDate(AS_OF_DATE.plusDays(1))
             .build();
-    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any(), any()))
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any(), any(), any()))
         .willReturn(
             new PendingOrderImpact(new BigDecimal("25000"), ZERO, Map.of(), Map.of(), ZERO, ZERO));
 
@@ -925,6 +943,32 @@ class TransactionInputServiceTest {
             TUV100, AS_OF_DATE, Map.of("additionalLiabilities", 2000), noResolvedPrices());
 
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("6000"));
+  }
+
+  @Test
+  void gatherInput_onTodaysSebBalanceSizesOnItAndCountsR16PaymentsBookedUpToToday() {
+    stubEmptyBaseline(TUV100);
+    var balance =
+        new GatewayCash.CurrentDayBalance(
+            new BigDecimal("600000"), Instant.parse("2026-01-15T08:00:00Z"), Set.of());
+    given(sameDayCashReader.read(TUV100, AS_OF_DATE, null, ZERO))
+        .willReturn(new CashSourceReport(CashSource.GATEWAY_BALANCE, balance, ZERO, List.of()));
+    given(tradeSettlementsReader.read(new NettingWindow(TUV100, AS_OF_DATE, AS_OF_DATE, Set.of())))
+        .willReturn(TradeSettlementsInTheBalance.NONE);
+    given(gatewayNetting.r45(any(), any())).willReturn(new Netted<>(ZERO, ZERO));
+    given(r16OutflowReader.read(TUV100, AS_OF_DATE, AS_OF_DATE))
+        .willReturn(
+            new R16Reserve(
+                R16Reserve.Basis.FORECAST_NOT_YET_BOOKED,
+                List.of(),
+                new BigDecimal("1000000"),
+                new BigDecimal("500000"),
+                new BigDecimal("10000")));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
+
+    assertThat(result.appliedCash()).isEqualByComparingTo("600000");
+    assertThat(result.freeCash()).isEqualByComparingTo("590000");
   }
 
   @Test
@@ -1160,7 +1204,7 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any(), any()))
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any(), any(), any()))
         .willReturn(
             new PendingOrderImpact(
                 new BigDecimal("40000"),
@@ -1258,7 +1302,7 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any(), any()))
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any(), any(), any()))
         .willReturn(
             new PendingOrderImpact(
                 new BigDecimal("40000"),

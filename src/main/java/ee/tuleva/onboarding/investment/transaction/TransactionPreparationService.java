@@ -29,7 +29,6 @@ public class TransactionPreparationService {
   private final TransactionOrderFactory orderFactory;
   private final SettlementTimingWarningService settlementTimingWarningService;
   private final TradePrepInputGates inputGates;
-  private final SameDayCashReader sameDayCashReader;
   private final Clock clock;
 
   @Transactional(isolation = REPEATABLE_READ)
@@ -46,9 +45,6 @@ public class TransactionPreparationService {
       GateCheck gates = inputGates.verify(command);
       input = gatherInput(command, gates.pricing());
       input = input.excluding(command.getExcludeIsins());
-      var cash =
-          sameDayCashReader.read(
-              command.getFund(), command.getAsOfDate(), command.getCash(), input.reportCash());
 
       var result = calculationEngine.calculate(input, command.getMode());
 
@@ -78,7 +74,6 @@ public class TransactionPreparationService {
                   TransactionCommandPayloads.completed(
                       command,
                       gates,
-                      cash,
                       input,
                       result,
                       calculated,

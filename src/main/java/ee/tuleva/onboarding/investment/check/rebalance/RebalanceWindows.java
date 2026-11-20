@@ -32,15 +32,17 @@ public class RebalanceWindows {
 
   FundRebalanceWindows of(
       TulevaFund fund, LocalDate checkDate, Predicate<LocalDate> stillAnnouncedOpen) {
-    var changesNewestFirst =
-        ModelChange.allIn(
+    var versions =
+        ModelVersions.of(
             allocationRepository.findByFundAndEffectiveDateLessThanEqual(fund, checkDate));
+    var changesNewestFirst = versions.changesNewestFirst();
     if (changesNewestFirst.isEmpty()) {
       return FundRebalanceWindows.NONE;
     }
     var rules = rulesAsOf(checkDate);
     return new FundRebalanceWindows(
-        Optional.of(window(fund, changesNewestFirst.getFirst(), checkDate, checkDate, rules)),
+        Optional.of(
+            window(fund, changesNewestFirst.getFirst(), versions, checkDate, checkDate, rules)),
         IntStream.range(1, changesNewestFirst.size())
             .filter(older -> stillAnnouncedOpen.test(changesNewestFirst.get(older).effectiveDate()))
             .mapToObj(
@@ -50,6 +52,7 @@ public class RebalanceWindows {
                       window(
                           fund,
                           changesNewestFirst.get(older),
+                          versions,
                           checkDate,
                           replacedOn.minusDays(1),
                           rules),
@@ -69,6 +72,7 @@ public class RebalanceWindows {
   private RebalanceWindow window(
       TulevaFund fund,
       ModelChange change,
+      ModelVersions versions,
       LocalDate checkDate,
       LocalDate measuredUntil,
       RebalanceRules rules) {
@@ -82,9 +86,11 @@ public class RebalanceWindows {
         checkDate,
         tolerance,
         latest.map(NavWeights::navDate).orElse(null),
-        latest.map(nav -> nav.outsideTolerance(change.modelWeights(), tolerance)).orElse(List.of()),
+        latest
+            .map(nav -> nav.outsideTolerance(versions.weightsOn(nav.navDate()), tolerance))
+            .orElse(List.of()),
         RebalanceClosure.whicheverFirst(
-                firstNavInLine(navs, change, tolerance),
+                firstNavInLine(navs, versions, tolerance),
                 rebalanceTrades.firstRebalancingTradeDate(
                     fund, change.effectiveDate(), measuredUntil))
             .orElse(null),
@@ -93,9 +99,9 @@ public class RebalanceWindows {
   }
 
   private static Optional<LocalDate> firstNavInLine(
-      List<NavWeights> navs, ModelChange change, BigDecimal tolerance) {
+      List<NavWeights> navs, ModelVersions versions, BigDecimal tolerance) {
     return navs.stream()
-        .filter(nav -> nav.outsideTolerance(change.modelWeights(), tolerance).isEmpty())
+        .filter(nav -> nav.outsideTolerance(versions.weightsOn(nav.navDate()), tolerance).isEmpty())
         .map(NavWeights::navDate)
         .findFirst();
   }

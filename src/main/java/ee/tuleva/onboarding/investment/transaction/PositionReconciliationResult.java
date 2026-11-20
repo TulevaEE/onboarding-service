@@ -11,8 +11,7 @@ public sealed interface PositionReconciliationResult {
   record RegistryHasNoHoldings(List<HoldingDifference> differences)
       implements PositionReconciliationResult {}
 
-  record ReportHasNoSecurities(List<HoldingDifference> differences)
-      implements PositionReconciliationResult {}
+  record ReportHasNoSecurities() implements PositionReconciliationResult {}
 
   record ReportRowsWithoutQuantity(List<String> isins) implements PositionReconciliationResult {}
 

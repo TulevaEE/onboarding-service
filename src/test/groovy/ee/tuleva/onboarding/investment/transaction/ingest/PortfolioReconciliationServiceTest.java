@@ -293,9 +293,7 @@ class PortfolioReconciliationServiceTest {
         .willReturn(List.of());
 
     assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of()))
-        .isEqualTo(
-            new ReportHasNoSecurities(
-                List.of(new HoldingDifference(ISIN_A, new BigDecimal("1000.0000"), null))));
+        .isEqualTo(new ReportHasNoSecurities());
   }
 
   @Test

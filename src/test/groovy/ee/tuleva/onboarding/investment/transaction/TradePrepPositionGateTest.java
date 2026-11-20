@@ -54,7 +54,7 @@ class TradePrepPositionGateTest {
     given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE, Set.of()))
         .willReturn(
             new RegistryHasNoHoldings(List.of(new HoldingDifference("A", null, ONE))),
-            new ReportHasNoSecurities(List.of(new HoldingDifference("A", ONE, null))));
+            new ReportHasNoSecurities());
 
     assertThat(gates.check(TKF100, POSITION_DATE, TradePrepOverrides.none()).failures())
         .containsExactly(new NoRegistryHoldings(POSITION_DATE));
@@ -154,6 +154,27 @@ class TradePrepPositionGateTest {
                         null))
                 .failures())
         .isEmpty();
+  }
+
+  @Test
+  void aReportWithoutSecuritiesStopsTheFundWhateverIsAccepted() {
+    given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE, Set.of()))
+        .willReturn(new ReportHasNoSecurities());
+
+    assertThat(
+            gates.check(
+                TKF100,
+                POSITION_DATE,
+                new TradePrepOverrides(
+                    Set.of(),
+                    List.of(),
+                    new AcceptedHoldingDifferences(Set.of("A"), "Report is late"),
+                    PriceDateRule.FRESHEST_PER_INSTRUMENT,
+                    null)))
+        .isEqualTo(
+            new PositionCheck(
+                List.of(new NoReportSecurities(POSITION_DATE)),
+                List.of(new AcceptedHoldingDifference("A", GateNeed.NOT_NEEDED, null, null))));
   }
 
   @Test

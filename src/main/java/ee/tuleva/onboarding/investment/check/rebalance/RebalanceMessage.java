@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.check.rebalance;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService.Severity;
@@ -11,26 +12,26 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
-import java.util.Optional;
 
 record RebalanceMessage(String text, Severity severity) {
 
   private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
-  static Optional<RebalanceMessage> of(RebalanceWindow window) {
+  static RebalanceMessage of(RebalanceWindow window) {
     return switch (window.state()) {
-      case INFO -> Optional.of(opened(window));
-      case WARNING -> Optional.of(deadlineApproaching(window));
-      case FAIL -> Optional.of(deadlineMissed(window));
-      case OK -> Optional.ofNullable(window.closure()).map(closure -> closed(window, closure));
+      case INFO -> opened(window);
+      case WARNING -> deadlineApproaching(window);
+      case FAIL -> deadlineMissed(window);
+      case OK -> closed(window, requireNonNull(window.closure()));
     };
   }
 
   static RebalanceMessage ofSuperseded(SupersededWindow superseded) {
     var window = superseded.window();
-    return Optional.ofNullable(window.closure())
-        .map(closure -> closed(window, closure))
-        .orElseGet(() -> replacedBeforeComingIntoLine(window, superseded.replacedOn()));
+    var closure = window.closure();
+    return closure != null
+        ? closed(window, closure)
+        : replacedBeforeComingIntoLine(window, superseded.replacedOn());
   }
 
   static RebalanceMessage couldNotRun(TulevaFund fund) {

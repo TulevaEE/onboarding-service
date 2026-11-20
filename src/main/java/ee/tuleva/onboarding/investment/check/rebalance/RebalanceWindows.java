@@ -41,8 +41,7 @@ public class RebalanceWindows {
     }
     var rules = rulesAsOf(checkDate);
     return new FundRebalanceWindows(
-        Optional.of(
-            window(fund, changesNewestFirst.getFirst(), versions, checkDate, checkDate, rules)),
+        Optional.of(window(fund, changesNewestFirst.getFirst(), checkDate, checkDate, rules)),
         IntStream.range(1, changesNewestFirst.size())
             .filter(older -> stillAnnouncedOpen.test(changesNewestFirst.get(older).effectiveDate()))
             .mapToObj(
@@ -52,7 +51,6 @@ public class RebalanceWindows {
                       window(
                           fund,
                           changesNewestFirst.get(older),
-                          versions,
                           checkDate,
                           replacedOn.minusDays(1),
                           rules),
@@ -72,7 +70,6 @@ public class RebalanceWindows {
   private RebalanceWindow window(
       TulevaFund fund,
       ModelChange change,
-      ModelVersions versions,
       LocalDate checkDate,
       LocalDate measuredUntil,
       RebalanceRules rules) {
@@ -87,10 +84,10 @@ public class RebalanceWindows {
         tolerance,
         latest.map(NavWeights::navDate).orElse(null),
         latest
-            .map(nav -> nav.outsideTolerance(versions.weightsOn(nav.navDate()), tolerance))
+            .map(nav -> nav.outsideTolerance(change.weightsOn(nav.navDate()), tolerance))
             .orElse(List.of()),
         RebalanceClosure.whicheverFirst(
-                firstNavInLine(navs, versions, tolerance),
+                firstNavInLine(navs, change, tolerance),
                 rebalanceTrades.firstRebalancingTradeDate(
                     fund, change.effectiveDate(), measuredUntil))
             .orElse(null),
@@ -99,9 +96,9 @@ public class RebalanceWindows {
   }
 
   private static Optional<LocalDate> firstNavInLine(
-      List<NavWeights> navs, ModelVersions versions, BigDecimal tolerance) {
+      List<NavWeights> navs, ModelChange change, BigDecimal tolerance) {
     return navs.stream()
-        .filter(nav -> nav.outsideTolerance(versions.weightsOn(nav.navDate()), tolerance).isEmpty())
+        .filter(nav -> nav.outsideTolerance(change.weightsOn(nav.navDate()), tolerance).isEmpty())
         .map(NavWeights::navDate)
         .findFirst();
   }

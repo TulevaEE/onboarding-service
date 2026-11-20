@@ -28,7 +28,7 @@ class RebalanceMessageTest {
     var window = window(LocalDate.of(2026, 10, 1), LocalDate.of(2026, 9, 30), OUT_OF_LINE, null);
 
     assertThat(RebalanceMessage.of(window))
-        .contains(
+        .isEqualTo(
             new RebalanceMessage(
                 """
                 ℹ️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026 (sisekord 4 p \
@@ -42,7 +42,7 @@ class RebalanceMessageTest {
     var window = window(EFFECTIVE, null, List.of(), null);
 
     assertThat(RebalanceMessage.of(window))
-        .contains(
+        .isEqualTo(
             new RebalanceMessage(
                 """
                 ℹ️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026 (sisekord 4 p \
@@ -56,7 +56,7 @@ class RebalanceMessageTest {
     var window = window(WARNING_FROM, LocalDate.of(2026, 11, 13), OUT_OF_LINE, null);
 
     assertThat(RebalanceMessage.of(window))
-        .contains(
+        .isEqualTo(
             new RebalanceMessage(
                 """
                 ⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026, jäänud 15 päeva; \
@@ -70,7 +70,7 @@ class RebalanceMessageTest {
   void onTheDeadlineItself_warnsWithNoDaysLeft() {
     var window = window(DEADLINE, LocalDate.of(2026, 11, 30), OUT_OF_LINE, null);
 
-    assertThat(RebalanceMessage.of(window).orElseThrow().text())
+    assertThat(RebalanceMessage.of(window).text())
         .startsWith(
             "⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026, jäänud 0 päeva");
   }
@@ -80,7 +80,7 @@ class RebalanceMessageTest {
     var window = window(DEADLINE.plusDays(1), LocalDate.of(2026, 11, 30), OUT_OF_LINE, null);
 
     assertThat(RebalanceMessage.of(window))
-        .contains(
+        .isEqualTo(
             new RebalanceMessage(
                 """
                 🛑 TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole \
@@ -96,7 +96,7 @@ class RebalanceMessageTest {
     var window = window(LocalDate.of(2026, 11, 3), LocalDate.of(2026, 11, 2), OUT_OF_LINE, closing);
 
     assertThat(RebalanceMessage.of(window))
-        .contains(
+        .isEqualTo(
             new RebalanceMessage(
                 "✅ TUV100 mudelportfell alates 01.09.2026: fond on mudeliga vastavuses (kõik"
                     + " osakaalud 5 pp piires, NAV 30.10.2026), kontroll suletud",
@@ -113,7 +113,7 @@ class RebalanceMessageTest {
             RebalanceClosure.byRebalancingTrades(LocalDate.of(2026, 10, 28)));
 
     assertThat(RebalanceMessage.of(window))
-        .contains(
+        .isEqualTo(
             new RebalanceMessage(
                 "✅ TUV100 mudelportfell alates 01.09.2026: tasakaalustamise tehingud tehtud"
                     + " 28.10.2026, kontroll suletud",
@@ -179,8 +179,7 @@ class RebalanceMessageTest {
             DEADLINE,
             WARNING_FROM);
 
-    assertThat(RebalanceMessage.of(window).orElseThrow().text())
-        .contains("kõik osakaalud 2,5 pp piires");
+    assertThat(RebalanceMessage.of(window).text()).contains("kõik osakaalud 2,5 pp piires");
   }
 
   private static RebalanceWindow window(

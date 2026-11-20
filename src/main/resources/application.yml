@@ -277,6 +277,8 @@ transaction-registry:
     max-nav-dates-after-receipt: 2
     business-days-to-wait: 3
     alerts-from: 2026-10-01
+  seb-trade-listing-check:
+    alerts-from: 2026-11-23
   ft-confirmation:
     # Whether onboarding-service alerts on FT confirmations. When true, FtConfirmationDigest
     # sends a Slack digest of ERROR/AMBIGUOUS/ORPHAN rows and broker cancellations, once per

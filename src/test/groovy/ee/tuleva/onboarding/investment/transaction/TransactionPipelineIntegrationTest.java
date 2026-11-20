@@ -1094,6 +1094,46 @@ class TransactionPipelineIntegrationTest {
             INVESTMENT);
   }
 
+  @Test
+  void excludingTheOnlyInstrumentSebListsLeavesTheOtherDifferencesOpenToAcceptance() {
+    String onlyListed = "IE00BMDBMY19";
+    jdbcClient
+        .sql(
+            "DELETE FROM investment_fund_position WHERE fund_code = 'TKF100'"
+                + " AND nav_date = :navDate AND account_type = 'SECURITY'"
+                + " AND account_id <> :onlyListed")
+        .param("navDate", TEST_DATE)
+        .param("onlyListed", onlyListed)
+        .update();
+    Set<String> unlisted =
+        Set.copyOf(
+            jdbcClient
+                .sql(
+                    "SELECT instrument_isin FROM investment_portfolio_cost_basis"
+                        + " WHERE fund_isin = :fundIsin AND quantity <> 0"
+                        + " AND instrument_isin <> :onlyListed")
+                .param("fundIsin", TKF100.getIsin())
+                .param("onlyListed", onlyListed)
+                .query(String.class)
+                .list());
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                Set.of(onlyListed),
+                null,
+                new AcceptedHoldingDifferences(unlisted, "Report sent one row"),
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+  }
+
   private void registryRow(String isin, String quantity) {
     jdbcClient
         .sql(

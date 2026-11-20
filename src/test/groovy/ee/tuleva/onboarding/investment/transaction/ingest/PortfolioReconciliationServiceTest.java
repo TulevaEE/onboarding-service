@@ -297,6 +297,29 @@ class PortfolioReconciliationServiceTest {
   }
 
   @Test
+  void againstThePositionReport_excludingTheOnlyInstrumentSebListsLeavesTheReportNotEmpty() {
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
+        .willReturn(List.of(costBasis(ISIN_A, "1000.0000"), costBasis(ISIN_B, "500.0000")));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK75, SECURITY))
+        .willReturn(List.of(reportRow(ISIN_A, "1000.000000")));
+
+    assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of(ISIN_A)))
+        .isEqualTo(
+            new Compared(List.of(new HoldingDifference(ISIN_B, new BigDecimal("500.0000"), null))));
+  }
+
+  @Test
+  void againstThePositionReport_aReportWithNoSecuritiesStaysEmptyWhateverIsExcluded() {
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
+        .willReturn(List.of(costBasis(ISIN_A, "1000.0000"), costBasis(ISIN_B, "500.0000")));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK75, SECURITY))
+        .willReturn(List.of());
+
+    assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of(ISIN_A)))
+        .isEqualTo(new ReportHasNoSecurities());
+  }
+
+  @Test
   void againstThePositionReport_aFundWithoutSecuritiesOnEitherSideHasNothingToDiffer() {
     given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF)).willReturn(List.of());
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK75, SECURITY))

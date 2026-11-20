@@ -37,7 +37,7 @@ class FtUnreadableConfirmationWarning {
           .map(
               uploadedAt ->
                   !uploadedAt.isBefore(alertsFrom.atStartOfDay(clock.getZone()).toInstant()))
-          .orElse(false);
+          .orElse(true);
     } catch (RuntimeException e) {
       log.error(
           "FT confirmation PDF upload time could not be read, warning anyway: key={}, error={}",

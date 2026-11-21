@@ -48,8 +48,9 @@ interface FeeCheckEventRepository extends JpaRepository<FeeCheckEvent, Long> {
         AND event.feeMonth IS NULL
         AND event.deviationFound = true
         AND event.checkType IN :checkTypes
-        AND event.checkType <>
-            ee.tuleva.onboarding.investment.check.fee.FeeCheckType.PENSIONIKESKUS_MANAGEMENT_FEE
+        AND event.checkType NOT IN (
+            ee.tuleva.onboarding.investment.check.fee.FeeCheckType.PENSIONIKESKUS_MANAGEMENT_FEE,
+            ee.tuleva.onboarding.investment.check.fee.FeeCheckType.PENSIONIKESKUS_ONGOING_CHARGES)
         AND NOT EXISTS (
           SELECT clean.id FROM FeeCheckEvent clean
           WHERE clean.fund = event.fund

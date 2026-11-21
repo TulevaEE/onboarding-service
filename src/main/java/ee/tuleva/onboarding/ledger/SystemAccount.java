@@ -90,9 +90,13 @@ public enum SystemAccount {
     return name() + ":" + fund.name() + ":" + instrument;
   }
 
+  public boolean owns(String accountName) {
+    return accountName.equals(name()) || accountName.startsWith(name() + ":");
+  }
+
   public static SystemAccount fromAccountName(String accountName) {
     return Arrays.stream(values())
-        .filter(sa -> accountName.equals(sa.name()) || accountName.startsWith(sa.name() + ":"))
+        .filter(sa -> sa.owns(accountName))
         .findFirst()
         .orElseThrow(() -> new IllegalArgumentException("Unknown system account: " + accountName));
   }

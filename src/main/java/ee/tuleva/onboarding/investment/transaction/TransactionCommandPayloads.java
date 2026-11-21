@@ -147,9 +147,7 @@ final class TransactionCommandPayloads {
   private static Map<String, Object> priceOverride(UsedPriceOverride used) {
     Map<String, Object> map = requestedPrice(used.override());
     map.put("neededByGate", used.need().neededByGate());
-    if (used.deviationCheck() == ManualPriceDeviationCheck.NO_INDEX_PRICE_HISTORY) {
-      map.put("deviationCheck", used.deviationCheck().name());
-    }
+    map.put("deviationCheck", used.deviationCheck().name());
     ResolvedPrice indexPrice = used.indexPrice();
     if (indexPrice != null) {
       putIfPresent(map, "indexPrice", plain(indexPrice.usedPrice()));

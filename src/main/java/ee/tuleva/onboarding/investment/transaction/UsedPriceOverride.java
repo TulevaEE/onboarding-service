@@ -9,12 +9,4 @@ record UsedPriceOverride(
     PriceOverride override,
     GateNeed need,
     ManualPriceDeviationCheck deviationCheck,
-    @Nullable ResolvedPrice indexPrice) {
-
-  UsedPriceOverride checkedAgainst(PriceDeviations deviations) {
-    return deviations.withoutIndexPriceHistory().contains(override.isin())
-        ? new UsedPriceOverride(
-            override, need, ManualPriceDeviationCheck.NO_INDEX_PRICE_HISTORY, indexPrice)
-        : this;
-  }
-}
+    @Nullable ResolvedPrice indexPrice) {}

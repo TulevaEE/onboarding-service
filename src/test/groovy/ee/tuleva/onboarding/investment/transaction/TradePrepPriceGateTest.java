@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willReturn;
 import static org.mockito.Mockito.lenient;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
@@ -55,7 +56,16 @@ class TradePrepPriceGateTest {
   void noManualPriceDeviatesUnlessATestSaysSo() {
     lenient()
         .when(manualPriceDeviations.check(any(), any(), any()))
-        .thenReturn(new PriceDeviations(List.of(), List.of(), List.of(), List.of()));
+        .thenAnswer(
+            invocation ->
+                new PriceDeviations(
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    invocation.<TradePrepOverrides>getArgument(1).prices().stream()
+                        .collect(
+                            java.util.stream.Collectors.toMap(
+                                PriceOverride::isin, override -> MEASURED))));
   }
 
   @Test
@@ -364,9 +374,9 @@ class TradePrepPriceGateTest {
         new PriceDeviation("A", new BigDecimal("50"), new BigDecimal("100.00"), POSITION_DATE);
     var confirmed =
         new PriceDeviation("A", new BigDecimal("80"), new BigDecimal("100.00"), POSITION_DATE);
-    given(manualPriceDeviations.check(any(), any(), any()))
-        .willReturn(
-            new PriceDeviations(List.of(unconfirmed), List.of(), List.of(confirmed), List.of()));
+    willReturn(new PriceDeviations(List.of(unconfirmed), List.of(), List.of(confirmed), Map.of()))
+        .given(manualPriceDeviations)
+        .check(any(), any(), any());
 
     var check = gates.check(TKF100, TRADE_DATE, noOverrides());
 

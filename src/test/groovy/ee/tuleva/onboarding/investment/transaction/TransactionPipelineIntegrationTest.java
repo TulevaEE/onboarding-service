@@ -667,6 +667,34 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Test
+  void aManualPriceForAnExcludedInstrumentIsRecordedAsNotMeasured() {
+    var manual = new PriceOverride("LU1291106356", new BigDecimal("60.12"), "Issuer's NAV");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                Set.of("LU1291106356"),
+                List.of(manual),
+                null,
+                null,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.calculationSnapshot().get("priceOverrides"))
+        .asInstanceOf(LIST)
+        .singleElement()
+        .asInstanceOf(MAP)
+        .containsEntry("neededByGate", false)
+        .containsEntry("deviationCheck", "SKIPPED_EXCLUDED");
+  }
+
+  @Test
   void aManualPriceForAnInstrumentWithNoPriceInIndexValuesLetsTheFundMakeADraftAndIsRecorded() {
     jdbcClient.sql("DELETE FROM index_values WHERE key = 'PAC.DE'").update();
     var manual =
@@ -745,6 +773,8 @@ class TransactionPipelineIntegrationTest {
                     "Index price is stale",
                     "neededByGate",
                     false,
+                    "deviationCheck",
+                    "MEASURED",
                     "indexPrice",
                     indexPrice.usedPrice().toPlainString(),
                     "indexPriceDate",

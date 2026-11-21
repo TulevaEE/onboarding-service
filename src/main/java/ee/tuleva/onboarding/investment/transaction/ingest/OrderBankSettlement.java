@@ -4,7 +4,10 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebReportedPrecision.asSebReportsIt;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.Comparator.naturalOrder;
+import static java.util.Objects.requireNonNull;
 
+import ee.tuleva.onboarding.investment.event.RunPortfolioCostBasisRebuildFromBaselineRequested;
+import ee.tuleva.onboarding.investment.event.trigger.JobTriggerQueue;
 import ee.tuleva.onboarding.investment.transaction.BankDating;
 import ee.tuleva.onboarding.investment.transaction.PreviousSettlement;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
@@ -36,6 +39,7 @@ class OrderBankSettlement {
   private final TransactionSettlementService settlementService;
   private final QuantityAmountValidator quantityAmountValidator;
   private final ReconciliationAuditRecorder auditRecorder;
+  private final JobTriggerQueue jobTriggerQueue;
 
   @Transactional
   BankSettlementOutcome settle(
@@ -85,17 +89,21 @@ class OrderBankSettlement {
 
   private void takeTheBanksUnitsWhereSebRoundedThem(
       TransactionOrder order, List<BookedPiece> pieces) {
-    if (pieces.stream().allMatch(BookedPiece::unitsAgreeWithTheBanksToSebsPrecision)) {
-      pieces.forEach(piece -> takeTheBanksUnits(order, piece));
+    if (!pieces.stream().allMatch(BookedPiece::unitsAgreeWithTheBanksToSebsPrecision)) {
+      return;
     }
+    List<BookedPiece> roundedBySeb =
+        pieces.stream().filter(BookedPiece::unitsDifferFromTheBanks).toList();
+    if (roundedBySeb.isEmpty()) {
+      return;
+    }
+    roundedBySeb.forEach(piece -> takeTheBanksUnits(order, piece));
+    jobTriggerQueue.defer(RunPortfolioCostBasisRebuildFromBaselineRequested.JOB_NAME);
   }
 
   private void takeTheBanksUnits(TransactionOrder order, BookedPiece piece) {
-    BigDecimal sebUnits = piece.execution().getExecutedQuantity();
-    BigDecimal bankUnits = piece.bankUnits();
-    if (sebUnits == null || bankUnits == null || sebUnits.compareTo(bankUnits) == 0) {
-      return;
-    }
+    BigDecimal sebUnits = requireNonNull(piece.execution().getExecutedQuantity());
+    BigDecimal bankUnits = requireNonNull(piece.bankUnits());
     piece.execution().setExecutedQuantity(bankUnits);
     piece.execution().setModifiedBy(MODIFIED_BY_BANK_SETTLEMENT);
     executionRepository.save(piece.execution());
@@ -148,16 +156,29 @@ class OrderBankSettlement {
       @Nullable BigDecimal units) {
 
     @Nullable BigDecimal bankUnits() {
-      return units == null ? null : units.abs().setScale(EXECUTED_QUANTITY_COLUMN_SCALE, HALF_UP);
+      BigDecimal custodyUnits = units;
+      return custodyUnits == null ? null : atTheRegistrysScale(custodyUnits.abs());
     }
 
     boolean unitsAgreeWithTheBanksToSebsPrecision() {
       BigDecimal sebUnits = execution.getExecutedQuantity();
+      BigDecimal custodyUnits = units;
+      if (sebUnits == null || custodyUnits == null) {
+        return false;
+      }
+      BigDecimal exactUnits = custodyUnits.abs();
+      return sebUnits.compareTo(atTheRegistrysScale(exactUnits)) == 0
+          || sebUnits.compareTo(asSebReportsIt(exactUnits)) == 0;
+    }
+
+    boolean unitsDifferFromTheBanks() {
+      BigDecimal sebUnits = execution.getExecutedQuantity();
       BigDecimal bankUnits = bankUnits();
-      return sebUnits != null
-          && bankUnits != null
-          && (sebUnits.compareTo(bankUnits) == 0
-              || sebUnits.compareTo(asSebReportsIt(bankUnits)) == 0);
+      return sebUnits != null && bankUnits != null && sebUnits.compareTo(bankUnits) != 0;
+    }
+
+    private static BigDecimal atTheRegistrysScale(BigDecimal quantity) {
+      return quantity.setScale(EXECUTED_QUANTITY_COLUMN_SCALE, HALF_UP);
     }
   }
 }

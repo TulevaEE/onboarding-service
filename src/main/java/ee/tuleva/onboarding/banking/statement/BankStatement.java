@@ -44,6 +44,7 @@ public class BankStatement {
   private final List<BankStatementEntry> entries;
   private final StatementPeriod period;
   private final boolean lastPage;
+  private final @Nullable ZonedDateTime reportedUntil;
 
   public BankStatement(
       BankStatementType type,
@@ -51,11 +52,17 @@ public class BankStatement {
       List<BankStatementBalance> balances,
       List<BankStatementEntry> entries,
       StatementPeriod period) {
-    this(type, bankStatementAccount, balances, entries, period, true);
+    this(type, bankStatementAccount, balances, entries, period, true, null);
   }
 
   public BankStatement withMorePagesToFollow() {
-    return new BankStatement(type, bankStatementAccount, balances, entries, period, false);
+    return new BankStatement(
+        type, bankStatementAccount, balances, entries, period, false, reportedUntil);
+  }
+
+  BankStatement reportedUntil(ZonedDateTime bankTime) {
+    return new BankStatement(
+        type, bankStatementAccount, balances, entries, period, lastPage, bankTime);
   }
 
   public Optional<BigDecimal> bookedBalance() {
@@ -133,7 +140,8 @@ public class BankStatement {
     var summary = TransactionSummary.from(report.getTxsSummry());
     requireIntegrity(entries, summary, balances, account);
 
-    return new BankStatement(INTRA_DAY_REPORT, account, balances, entries, period);
+    return new BankStatement(INTRA_DAY_REPORT, account, balances, entries, period)
+        .reportedUntil(reportedUntil);
   }
 
   static BankStatement from(AccountStatement2 statement, ZoneId timezone) {

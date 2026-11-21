@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebReportedPrecision.asSebReportsIt;
+import static java.math.RoundingMode.HALF_UP;
 import static java.util.Comparator.naturalOrder;
 
 import ee.tuleva.onboarding.investment.transaction.BankDating;
@@ -16,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 @RequiredArgsConstructor
 class OrderBankSettlement {
+
+  static final String MODIFIED_BY_BANK_SETTLEMENT = "system:bank-settlement";
+  private static final int EXECUTED_QUANTITY_COLUMN_SCALE = 4;
 
   private final TransactionOrderRepository orderRepository;
   private final TransactionExecutionRepository executionRepository;
@@ -62,6 +68,7 @@ class OrderBankSettlement {
         });
     return switch (settlementService.settleFromTheBank(order, bookingDate)) {
       case BankDating.Settled() -> {
+        takeTheBanksUnitsWhereSebRoundedThem(order, bookedPieces);
         auditRecorder.recordSettlementFromBank(order, bookingDate);
         yield BankSettlementOutcome.SETTLED;
       }
@@ -73,6 +80,26 @@ class OrderBankSettlement {
             : BankSettlementOutcome.NEW_DATE;
       }
     };
+  }
+
+  private void takeTheBanksUnitsWhereSebRoundedThem(
+      TransactionOrder order, List<BookedPiece> pieces) {
+    if (pieces.stream().allMatch(BookedPiece::unitsAgreeWithTheBanksToSebsPrecision)) {
+      pieces.forEach(piece -> takeTheBanksUnits(order, piece));
+    }
+  }
+
+  private void takeTheBanksUnits(TransactionOrder order, BookedPiece piece) {
+    BigDecimal sebUnits = piece.execution().getExecutedQuantity();
+    BigDecimal bankUnits = piece.bankUnits();
+    if (sebUnits == null || bankUnits == null || sebUnits.compareTo(bankUnits) == 0) {
+      return;
+    }
+    piece.execution().setExecutedQuantity(bankUnits);
+    piece.execution().setModifiedBy(MODIFIED_BY_BANK_SETTLEMENT);
+    executionRepository.save(piece.execution());
+    auditRecorder.recordUnitsFromBank(
+        order, piece.execution(), piece.bookingDate(), sebUnits, bankUnits);
   }
 
   private static Optional<BookedPiece> bookedPiece(
@@ -104,9 +131,26 @@ class OrderBankSettlement {
           cash);
       return Optional.empty();
     }
-    return Optional.of(new BookedPiece(execution, booking.bookingDate(), cash));
+    return Optional.of(new BookedPiece(execution, booking.bookingDate(), cash, booking.units()));
   }
 
   private record BookedPiece(
-      TransactionExecution execution, LocalDate bookingDate, BigDecimal cash) {}
+      TransactionExecution execution,
+      LocalDate bookingDate,
+      BigDecimal cash,
+      @Nullable BigDecimal units) {
+
+    @Nullable BigDecimal bankUnits() {
+      return units == null ? null : units.abs().setScale(EXECUTED_QUANTITY_COLUMN_SCALE, HALF_UP);
+    }
+
+    boolean unitsAgreeWithTheBanksToSebsPrecision() {
+      BigDecimal sebUnits = execution.getExecutedQuantity();
+      BigDecimal bankUnits = bankUnits();
+      return sebUnits != null
+          && bankUnits != null
+          && (sebUnits.compareTo(bankUnits) == 0
+              || sebUnits.compareTo(asSebReportsIt(bankUnits)) == 0);
+    }
+  }
 }

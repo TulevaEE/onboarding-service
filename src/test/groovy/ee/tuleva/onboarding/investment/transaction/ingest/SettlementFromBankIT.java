@@ -3,12 +3,15 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
 import static ee.tuleva.onboarding.investment.transaction.SettlementSource.BANK_STATEMENT;
 import static ee.tuleva.onboarding.investment.transaction.SettlementSource.PENDING_REPORT_ABSENCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
+import static ee.tuleva.onboarding.investment.transaction.ingest.OrderBankSettlement.MODIFIED_BY_BANK_SETTLEMENT;
+import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder.EXECUTION_UNITS_FROM_BANK;
 import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder.SETTLEMENT_FROM_BANK;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
@@ -65,6 +68,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 class SettlementFromBankIT {
 
   private static final String EJAP = "LU1291102447";
+  private static final String INDEX_FUND = "IE00BD0NCM55";
   private static final LocalDate SINCE = LocalDate.of(2026, 2, 1);
   private static final BooleanSupplier LOCK_HELD = () -> true;
   private static final Clock AFTER_THE_BOOKINGS =
@@ -328,6 +332,143 @@ class SettlementFromBankIT {
   }
 
   @Test
+  void aFundBoughtInEurosOfOverTenMillionUnits_takesTheBanksUnitsWhereSebRoundedThemToTenDigits() {
+    TransactionOrder order = orderInEuros(BUY, "209025.86");
+    TransactionExecution piece = piece(order, "DLA0553690", "12345678.91", "209025.86");
+    bankBooks("DLA0553690", INDEX_FUND, "-209025.86", "12345678.912", LocalDate.of(2026, 2, 12));
+
+    settleFromTheBank();
+
+    assertThat(executionRepository.findById(piece.getId()).orElseThrow())
+        .satisfies(
+            execution -> {
+              assertThat(execution.getExecutedQuantity()).isEqualByComparingTo("12345678.912");
+              assertThat(execution.getModifiedBy()).isEqualTo(MODIFIED_BY_BANK_SETTLEMENT);
+            });
+    assertThat(
+            auditEventRepository.findByOrderIdAndEventType(
+                order.getId(), EXECUTION_UNITS_FROM_BANK))
+        .singleElement()
+        .satisfies(
+            event ->
+                assertThat(event.getPayload())
+                    .containsEntry("brokerReference", "DLA0553690")
+                    .containsEntry("sebUnits", "12345678.91")
+                    .containsEntry("bankUnits", "12345678.912"));
+  }
+
+  @Test
+  void aFundSoldInEurosOfOverTenMillionUnits_takesTheBanksUnitsToo() {
+    TransactionOrder order = orderInEuros(SELL, "209025.86");
+    TransactionExecution piece = piece(order, "DLA0553690", "12345678.91", "209025.86");
+    bankBooks("DLA0553690", INDEX_FUND, "209025.86", "-12345678.912", LocalDate.of(2026, 2, 12));
+
+    settleFromTheBank();
+
+    assertThat(executionRepository.findById(piece.getId()).orElseThrow().getExecutedQuantity())
+        .isEqualByComparingTo("12345678.912");
+  }
+
+  @Test
+  void aFundBoughtInEurosInPieces_takesTheBanksUnitsForEveryPiece() {
+    TransactionOrder order = orderInEuros(BUY, "418051.72");
+    TransactionExecution first = piece(order, "DLA0553690", "12345678.91", "209025.86");
+    TransactionExecution second = piece(order, "DLA0553691", "12345678.92", "209025.86");
+    bankBooks("DLA0553690", INDEX_FUND, "-209025.86", "12345678.912", LocalDate.of(2026, 2, 12));
+    bankBooks("DLA0553691", INDEX_FUND, "-209025.86", "12345678.916", LocalDate.of(2026, 2, 12));
+
+    settleFromTheBank();
+
+    assertThat(executionRepository.findAllById(List.of(first.getId(), second.getId())))
+        .extracting(TransactionExecution::getExecutedQuantity)
+        .usingElementComparator(BigDecimal::compareTo)
+        .containsExactlyInAnyOrder(new BigDecimal("12345678.912"), new BigDecimal("12345678.916"));
+  }
+
+  @Test
+  void anOrderInPiecesWhereOnePieceDisagreesWithTheBank_keepsEveryPieceAsItIs() {
+    TransactionOrder order = executedOrder(OrderVenue.SEB, "20000000", SELL);
+    TransactionExecution first = piece(order, "DLA0553690", "10000000.00");
+    TransactionExecution closing = piece(order, "DLA0553691", "10000000.00");
+    bankBooks("DLA0553690", EJAP, "104512.93", "-10000000.004", LocalDate.of(2026, 2, 12));
+    bankBooks("DLA0553691", EJAP, "104512.93", "-9999999.996", LocalDate.of(2026, 2, 12));
+
+    settleFromTheBank();
+
+    assertThat(executionRepository.findAllById(List.of(first.getId(), closing.getId())))
+        .extracting(TransactionExecution::getExecutedQuantity)
+        .usingElementComparator(BigDecimal::compareTo)
+        .containsExactly(new BigDecimal("10000000.00"), new BigDecimal("10000000.00"));
+    assertThat(
+            auditEventRepository.findByOrderIdAndEventType(
+                order.getId(), EXECUTION_UNITS_FROM_BANK))
+        .isEmpty();
+  }
+
+  @Test
+  void unitsFurtherFromTheBanksThanSebsRounding_stayAsTheyAre() {
+    TransactionOrder order = orderInEuros(BUY, "209025.86");
+    TransactionExecution piece = piece(order, "DLA0553690", "12345678.8", "209025.86");
+    bankBooks("DLA0553690", INDEX_FUND, "-209025.86", "12345678.912", LocalDate.of(2026, 2, 12));
+
+    settleFromTheBank();
+
+    assertThat(executionRepository.findById(piece.getId()).orElseThrow().getExecutedQuantity())
+        .isEqualByComparingTo("12345678.8");
+    assertThat(
+            auditEventRepository.findByOrderIdAndEventType(
+                order.getId(), EXECUTION_UNITS_FROM_BANK))
+        .isEmpty();
+  }
+
+  @Test
+  void unitsTheBankBookedAlike_areLeftWithoutAnAuditEvent() {
+    TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
+    piece(order, "DLA0553690", "11704");
+    bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
+
+    settleFromTheBank();
+
+    assertThat(
+            auditEventRepository.findByOrderIdAndEventType(
+                order.getId(), EXECUTION_UNITS_FROM_BANK))
+        .isEmpty();
+  }
+
+  @Test
+  void unitsTheBankBooksBeyondTheRegistrysFourDecimals_areLeftWithoutAnAuditEvent() {
+    TransactionOrder order = orderInEuros(BUY, "209025.86");
+    TransactionExecution piece = piece(order, "DLA0553690", "123456.789", "209025.86");
+    bankBooks("DLA0553690", INDEX_FUND, "-209025.86", "123456.78901", LocalDate.of(2026, 2, 12));
+
+    settleFromTheBank();
+
+    assertThat(executionRepository.findById(piece.getId()).orElseThrow().getExecutedQuantity())
+        .isEqualByComparingTo("123456.789");
+    assertThat(
+            auditEventRepository.findByOrderIdAndEventType(
+                order.getId(), EXECUTION_UNITS_FROM_BANK))
+        .isEmpty();
+  }
+
+  @Test
+  void anOrderSettledByAbsence_keepsSebsUnitsWhenTheBankDatesIt() {
+    TransactionOrder order = orderInEuros(BUY, "209025.86");
+    TransactionExecution piece = piece(order, "DLA0553690", "12345678.91", "209025.86");
+    settledEarlier(order, LocalDate.of(2026, 2, 16), PENDING_REPORT_ABSENCE);
+    bankBooks("DLA0553690", INDEX_FUND, "-209025.86", "12345678.912", LocalDate.of(2026, 2, 12));
+
+    settleFromTheBank();
+
+    assertThat(executionRepository.findById(piece.getId()).orElseThrow().getExecutedQuantity())
+        .isEqualByComparingTo("12345678.91");
+    assertThat(
+            auditEventRepository.findByOrderIdAndEventType(
+                order.getId(), EXECUTION_UNITS_FROM_BANK))
+        .isEmpty();
+  }
+
+  @Test
   void aBuyWhoseCashCameIn_doesNotSettle() {
     TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
     piece(order, "DLA0553690", "11704");
@@ -515,18 +656,52 @@ class SettlementFromBankIT {
     return order;
   }
 
+  private TransactionOrder orderInEuros(TransactionType transactionType, String amount) {
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
+    TransactionOrder order =
+        orderRepository.save(
+            TransactionOrder.builder()
+                .batch(batch)
+                .fund(TKF100)
+                .instrumentIsin(INDEX_FUND)
+                .transactionType(transactionType)
+                .instrumentType(FUND)
+                .orderAmount(new BigDecimal(amount))
+                .orderVenue(OrderVenue.SEB)
+                .orderUuid(UUID.randomUUID())
+                .orderStatus(EXECUTED)
+                .orderTimestamp(Instant.parse("2026-02-10T10:00:00Z"))
+                .build());
+    entityManager.flush();
+    return order;
+  }
+
   private TransactionExecution piece(
       TransactionOrder order, String brokerReference, String quantity) {
-    TransactionExecution execution =
-        executionRepository.save(
-            TransactionExecution.builder()
-                .orderId(order.getId())
-                .brokerTransactionId(brokerReference)
-                .executionTimestamp(Instant.parse("2026-02-10T11:00:00Z"))
-                .executedQuantity(new BigDecimal(quantity))
-                .source("SEB_OOTEL")
-                .reportedDate(LocalDate.of(2026, 2, 10))
-                .build());
+    return saved(pieceOf(order, brokerReference, quantity));
+  }
+
+  private TransactionExecution piece(
+      TransactionOrder order, String brokerReference, String quantity, String consideration) {
+    return saved(
+        pieceOf(order, brokerReference, quantity)
+            .totalConsideration(new BigDecimal(consideration)));
+  }
+
+  private static TransactionExecution.TransactionExecutionBuilder pieceOf(
+      TransactionOrder order, String brokerReference, String quantity) {
+    return TransactionExecution.builder()
+        .orderId(order.getId())
+        .brokerTransactionId(brokerReference)
+        .executionTimestamp(Instant.parse("2026-02-10T11:00:00Z"))
+        .executedQuantity(new BigDecimal(quantity))
+        .source("SEB_OOTEL")
+        .reportedDate(LocalDate.of(2026, 2, 10));
+  }
+
+  private TransactionExecution saved(TransactionExecution.TransactionExecutionBuilder piece) {
+    TransactionExecution execution = executionRepository.save(piece.build());
     entityManager.flush();
     return execution;
   }
@@ -568,12 +743,27 @@ class SettlementFromBankIT {
 
   private UUID bankBooks(
       TulevaFund fund, String brokerReference, String isin, String cash, LocalDate bookingDate) {
+    return bankBooks(fund, brokerReference, isin, cash, "11704", bookingDate);
+  }
+
+  private UUID bankBooks(
+      String brokerReference, String isin, String cash, String units, LocalDate bookingDate) {
+    return bankBooks(TKF100, brokerReference, isin, cash, units, bookingDate);
+  }
+
+  private UUID bankBooks(
+      TulevaFund fund,
+      String brokerReference,
+      String isin,
+      String cash,
+      String units,
+      LocalDate bookingDate) {
     BigDecimal amount = new BigDecimal(cash);
     LedgerTransaction booking =
         fundBankLedger.recordTradeSettlement(
             fund,
             amount,
-            new BigDecimal("11704"),
+            new BigDecimal(units),
             randomUUID(),
             FUND_INVESTMENT_CASH_CLEARING,
             new TradeSettlementDetails(

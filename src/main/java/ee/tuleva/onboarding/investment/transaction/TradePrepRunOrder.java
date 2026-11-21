@@ -5,4 +5,4 @@ import java.time.LocalDate;
 import org.jspecify.annotations.Nullable;
 
 public record TradePrepRunOrder(
-    Instant orderTimestamp, @Nullable LocalDate expectedSettlementDate) {}
+    String instrumentIsin, Instant orderTimestamp, @Nullable LocalDate expectedSettlementDate) {}

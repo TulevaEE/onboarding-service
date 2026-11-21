@@ -7,6 +7,8 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -18,7 +20,9 @@ class RebalanceMessageTest {
   private static final LocalDate EFFECTIVE = LocalDate.of(2026, 9, 1);
   private static final LocalDate DEADLINE = LocalDate.of(2026, 12, 1);
   private static final LocalDate WARNING_FROM = LocalDate.of(2026, 11, 16);
-  private static final LocalDate AWAITING_EXECUTION_UNTIL = LocalDate.of(2026, 12, 3);
+  private static final String NEW_WORLD = "IE000I9HGDZ3";
+  private static final String WORLD = "IE00BFG1TM61";
+  private static final EstonianCalendar CALENDAR = new EstonianCalendar(new PublicHolidays());
   private static final List<Deviation> OUT_OF_LINE =
       List.of(
           new Deviation("IE000I9HGDZ3", new BigDecimal("0.80"), ZERO),
@@ -99,7 +103,7 @@ class RebalanceMessageTest {
             LocalDate.of(2026, 11, 13),
             OUT_OF_LINE,
             null,
-            LocalDate.of(2026, 11, 13));
+            sent(NEW_WORLD, LocalDate.of(2026, 11, 13), LocalDate.of(2026, 11, 17)));
 
     assertThat(RebalanceMessage.of(window))
         .isEqualTo(
@@ -113,9 +117,62 @@ class RebalanceMessageTest {
   }
 
   @Test
+  void inTheWarningPeriodWithAnOrderPastItsGrace_listsItAndAsksForTheTradesAndTheExecutionCheck() {
+    var window =
+        window(
+            LocalDate.of(2026, 11, 25),
+            LocalDate.of(2026, 11, 24),
+            OUT_OF_LINE,
+            null,
+            sent(NEW_WORLD, LocalDate.of(2026, 11, 13), LocalDate.of(2026, 11, 17)));
+
+    assertThat(RebalanceMessage.of(window))
+        .isEqualTo(
+            new RebalanceMessage(
+                """
+                ⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026, jäänud 6 päeva; SEB \
+                pole Rebalance-jooksu tehingute täitmist kinnitanud: IE000I9HGDZ3 (saadetud \
+                13.11.2026)
+                Üle 5 pp (NAV 24.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
+                Tee tasakaalustamise tehingud või vii fond tähtajaks 5 pp piiresse; kontrolli \
+                SEB-st saadetud tehingute täitmist""",
+                WARNING));
+  }
+
+  @Test
+  void inTheWarningPeriodWithOneOrderAwaitedAndAnotherOverdue_reportsBothAndAsksForTheTrades() {
+    var window =
+        window(
+            LocalDate.of(2026, 11, 25),
+            LocalDate.of(2026, 11, 24),
+            OUT_OF_LINE,
+            null,
+            sent(WORLD, LocalDate.of(2026, 11, 13), LocalDate.of(2026, 11, 17)),
+            sent(NEW_WORLD, LocalDate.of(2026, 11, 24), LocalDate.of(2026, 11, 26)));
+
+    assertThat(RebalanceMessage.of(window))
+        .isEqualTo(
+            new RebalanceMessage(
+                """
+                ⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026, jäänud 6 päeva; \
+                Rebalance-jooksu tehingud saadetud 24.11.2026, ootavad SEB täitmise kinnitust; SEB \
+                pole Rebalance-jooksu tehingute täitmist kinnitanud: IE00BFG1TM61 (saadetud \
+                13.11.2026)
+                Üle 5 pp (NAV 24.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
+                Tee tasakaalustamise tehingud või vii fond tähtajaks 5 pp piiresse; kontrolli \
+                SEB-st saadetud tehingute täitmist""",
+                WARNING));
+  }
+
+  @Test
   void pastTheDeadlineWithRebalanceOrdersSentByIt_warnsThatTheyAwaitExecution() {
     var window =
-        window(DEADLINE.plusDays(1), LocalDate.of(2026, 11, 30), OUT_OF_LINE, null, DEADLINE);
+        window(
+            DEADLINE.plusDays(1),
+            LocalDate.of(2026, 11, 30),
+            OUT_OF_LINE,
+            null,
+            sent(NEW_WORLD, DEADLINE, LocalDate.of(2026, 12, 3)));
 
     assertThat(RebalanceMessage.of(window))
         .isEqualTo(
@@ -130,44 +187,70 @@ class RebalanceMessageTest {
   }
 
   @Test
-  void pastTheGraceWithRebalanceOrdersSentByTheDeadline_failsSayingSebHasNotConfirmedThem() {
+  void pastTheDeadlineAwaitingAnOrderSentByIt_alsoListsAnEarlierOrderPastItsGrace() {
     var window =
         window(
-            AWAITING_EXECUTION_UNTIL.plusDays(1),
+            DEADLINE.plusDays(1),
             LocalDate.of(2026, 11, 30),
             OUT_OF_LINE,
             null,
-            DEADLINE);
+            sent(WORLD, LocalDate.of(2026, 11, 13), LocalDate.of(2026, 11, 17)),
+            sent(NEW_WORLD, DEADLINE, LocalDate.of(2026, 12, 3)));
+
+    assertThat(RebalanceMessage.of(window))
+        .isEqualTo(
+            new RebalanceMessage(
+                """
+                ⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole \
+                mudeliga vastavuses; Rebalance-jooksu tehingud saadetud 01.12.2026, ootavad SEB \
+                täitmise kinnitust; SEB pole Rebalance-jooksu tehingute täitmist kinnitanud: \
+                IE00BFG1TM61 (saadetud 13.11.2026)
+                Üle 5 pp (NAV 30.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
+                Kontrolli SEB-st tehingute täitmist (sisekord 4 p 2.6.1)""",
+                WARNING));
+  }
+
+  @Test
+  void pastTheGraceOfTheOrdersSentByTheDeadline_failsListingEachIsinSebHasNotConfirmedOnce() {
+    var window =
+        window(
+            LocalDate.of(2026, 12, 7),
+            LocalDate.of(2026, 11, 30),
+            OUT_OF_LINE,
+            null,
+            sent(NEW_WORLD, DEADLINE, LocalDate.of(2026, 12, 3)),
+            sent(WORLD, LocalDate.of(2026, 11, 30), LocalDate.of(2026, 12, 2)),
+            sent(NEW_WORLD, DEADLINE, LocalDate.of(2026, 12, 3)));
 
     assertThat(RebalanceMessage.of(window))
         .isEqualTo(
             new RebalanceMessage(
                 """
                 🛑 TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole \
-                mudeliga vastavuses ja Rebalance-jooksu tehingud saadetud 01.12.2026, SEB pole \
-                täitmist kinnitanud
+                mudeliga vastavuses ja SEB pole Rebalance-jooksu tehingute täitmist kinnitanud: \
+                IE00BFG1TM61 (saadetud 30.11.2026), IE000I9HGDZ3 (saadetud 01.12.2026)
                 Üle 5 pp (NAV 30.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
                 Vii fond 5 pp piiresse (sisekord 4 p 2.6.1)""",
                 ERROR));
   }
 
   @Test
-  void pastTheDeadlineWithRebalanceOrdersSentOnlyAfterIt_failsSayingWhenTheyWereSent() {
+  void pastTheDeadlineWithAnOrderSentOnlyAfterIt_failsSayingItAwaitsSebWithinItsGrace() {
     var window =
         window(
-            DEADLINE.plusDays(2),
+            LocalDate.of(2026, 12, 3),
             LocalDate.of(2026, 11, 30),
             OUT_OF_LINE,
             null,
-            DEADLINE.plusDays(1));
+            sent(NEW_WORLD, LocalDate.of(2026, 12, 2), LocalDate.of(2026, 12, 4)));
 
     assertThat(RebalanceMessage.of(window))
         .isEqualTo(
             new RebalanceMessage(
                 """
                 🛑 TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole \
-                mudeliga vastavuses ja Rebalance-jooksu tehingud saadetud 02.12.2026, SEB pole \
-                täitmist kinnitanud
+                mudeliga vastavuses ja Rebalance-jooksu tehingud saadetud 02.12.2026, ootavad SEB \
+                täitmise kinnitust
                 Üle 5 pp (NAV 30.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
                 Vii fond 5 pp piiresse (sisekord 4 p 2.6.1)""",
                 ERROR));
@@ -259,10 +342,9 @@ class RebalanceMessageTest {
             LocalDate.of(2026, 10, 30),
             List.of(),
             RebalanceClosure.byAnInLineNav(LocalDate.of(2026, 10, 30)),
-            null,
+            List.of(),
             DEADLINE,
-            WARNING_FROM,
-            null);
+            WARNING_FROM);
 
     assertThat(RebalanceMessage.of(window).text()).contains("kõik osakaalud 2,5 pp piires");
   }
@@ -271,16 +353,8 @@ class RebalanceMessageTest {
       LocalDate checkDate,
       @Nullable LocalDate latestNavDate,
       List<Deviation> outsideTolerance,
-      @Nullable RebalanceClosure closure) {
-    return window(checkDate, latestNavDate, outsideTolerance, closure, null);
-  }
-
-  private static RebalanceWindow window(
-      LocalDate checkDate,
-      @Nullable LocalDate latestNavDate,
-      List<Deviation> outsideTolerance,
       @Nullable RebalanceClosure closure,
-      @Nullable LocalDate rebalanceOrdersSentOn) {
+      SentRebalanceOrder... sent) {
     return new RebalanceWindow(
         TUV100,
         EFFECTIVE,
@@ -289,16 +363,13 @@ class RebalanceMessageTest {
         latestNavDate,
         outsideTolerance,
         closure,
-        rebalanceOrdersSentOn,
+        List.of(sent),
         DEADLINE,
-        WARNING_FROM,
-        awaitedThroughWhenSentByTheDeadline(rebalanceOrdersSentOn));
+        WARNING_FROM);
   }
 
-  private static @Nullable LocalDate awaitedThroughWhenSentByTheDeadline(
-      @Nullable LocalDate rebalanceOrdersSentOn) {
-    return rebalanceOrdersSentOn != null && !rebalanceOrdersSentOn.isAfter(DEADLINE)
-        ? AWAITING_EXECUTION_UNTIL
-        : null;
+  private static SentRebalanceOrder sent(
+      String isin, LocalDate sentOn, LocalDate expectedSettlementDate) {
+    return SentRebalanceOrder.of(isin, sentOn, expectedSettlementDate, CALENDAR);
   }
 }

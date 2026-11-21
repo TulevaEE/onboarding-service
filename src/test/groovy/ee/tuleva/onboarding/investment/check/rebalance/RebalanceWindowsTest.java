@@ -57,8 +57,6 @@ class RebalanceWindowsTest {
     given(navWeightsReader.between(any(), any(), any())).willReturn(List.of());
     given(rebalanceTrades.firstRebalancingTradeDate(any(), any(), any()))
         .willReturn(Optional.empty());
-    given(rebalanceTrades.rebalanceOrdersAwaitingExecution(any(), any(), any()))
-        .willReturn(new RebalanceOrdersAwaitingExecution(List.of()));
 
     var windows = rebalanceWindows.of(TUV100, CHECK_DATE, modelEffectiveDate -> true);
 

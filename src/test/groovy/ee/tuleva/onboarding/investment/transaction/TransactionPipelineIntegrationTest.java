@@ -295,9 +295,7 @@ class TransactionPipelineIntegrationTest {
       Map<String, Row> rowsByIsin = new java.util.HashMap<>();
       for (int i = 1; i <= sheet.getLastRowNum(); i++) {
         Row row = sheet.getRow(i);
-        if (row != null
-            && row.getCell(6) != null
-            && !row.getCell(6).getStringCellValue().isEmpty()) {
+        if (row != null && row.getCell(1) != null) {
           rowsByIsin.put(row.getCell(6).getStringCellValue(), row);
         }
       }
@@ -327,6 +325,12 @@ class TransactionPipelineIntegrationTest {
         totalAmount = totalAmount.add(BigDecimal.valueOf(row.getCell(7).getNumericCellValue()));
       }
       assertThat(totalAmount).isCloseTo(EXPECTED_FT_TOTAL, within(BigDecimal.ONE));
+
+      Row totalRow = sheet.getRow(sheet.getLastRowNum());
+      assertThat(totalRow.getCell(6).getStringCellValue())
+          .isEqualTo("Approximate total order size:");
+      assertThat(BigDecimal.valueOf(totalRow.getCell(7).getNumericCellValue()))
+          .isCloseTo(EXPECTED_FT_TOTAL, within(BigDecimal.ONE));
     }
   }
 

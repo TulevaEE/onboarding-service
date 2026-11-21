@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.investment.epis;
 import static ee.tuleva.onboarding.investment.epis.SummaryData.dates;
 import static ee.tuleva.onboarding.investment.epis.SummaryData.number;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findValue;
-import static ee.tuleva.onboarding.investment.epis.parser.EpisDates.findDate;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.EPIS;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
@@ -273,7 +272,7 @@ public class R45ReportService {
         continue;
       }
       Optional<TulevaFund> fund = TulevaFund.findByIsin(trimmedUpperCase(findValue(row, "isin")));
-      LocalDate settlementDate = settlementDate(row);
+      LocalDate settlementDate = R45ReportParser.settlementDate(row);
       if (fund.isEmpty() || settlementDate == null) {
         continue;
       }
@@ -281,11 +280,6 @@ public class R45ReportService {
     }
     dates.replaceAll((fundCode, fundDates) -> fundDates.stream().distinct().sorted().toList());
     return dates;
-  }
-
-  private static @Nullable LocalDate settlementDate(Map<String, String> row) {
-    String value = findValue(row, "täitmise kuupäev", "taitmise kuupaev");
-    return value == null ? null : findDate(value);
   }
 
   private Map<String, BigDecimal> fallbackNavsByIsin(LocalDate asOfDate) {

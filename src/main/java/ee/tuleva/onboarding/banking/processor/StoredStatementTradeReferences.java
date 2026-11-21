@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.banking.processor;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
+import ee.tuleva.onboarding.banking.BankEntryReference;
 import ee.tuleva.onboarding.banking.StoredTradeReferences;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
@@ -55,7 +54,7 @@ class StoredStatementTradeReferences implements StoredTradeReferences {
             .ifPresent(
                 trade ->
                     references.putIfAbsent(
-                        UUID.nameUUIDFromBytes((iban + ":" + entry.externalId()).getBytes(UTF_8)),
+                        BankEntryReference.of(iban, entry.externalId()),
                         trade.details().brokerReference()));
       }
     }

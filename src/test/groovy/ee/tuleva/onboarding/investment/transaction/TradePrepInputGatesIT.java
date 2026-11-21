@@ -425,7 +425,11 @@ class TradePrepInputGatesIT {
     assertThat(gates.check(TUV100, WEDNESDAY, noOverrides()).failures()).isEmpty();
     assertThat(
             r16OutflowReader
-                .read(TUV100, WEDNESDAY, new CashHorizon.ThroughTheReportDate(TUESDAY))
+                .read(
+                    TUV100,
+                    WEDNESDAY,
+                    new CashHorizon.ThroughTheReportDate(TUESDAY),
+                    new R16Reserves(new BigDecimal("1000000"), null))
                 .reserved())
         .isZero();
   }
@@ -439,7 +443,11 @@ class TradePrepInputGatesIT {
 
     assertThat(
             r16OutflowReader
-                .read(TUK75, thursday, new CashHorizon.ThroughTheReportDate(thursday.minusDays(1)))
+                .read(
+                    TUK75,
+                    thursday,
+                    new CashHorizon.ThroughTheReportDate(thursday.minusDays(1)),
+                    new R16Reserves(new BigDecimal("1000000"), null))
                 .reserved())
         .isEqualByComparingTo("2000");
   }

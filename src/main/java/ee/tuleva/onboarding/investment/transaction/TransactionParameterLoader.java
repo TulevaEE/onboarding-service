@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NullMarked;
@@ -43,8 +42,9 @@ class TransactionParameterLoader {
     List<ModelWeight> modelWeights = toModelWeights(allocations);
     assertModelWeightsSumToOne(fund, modelWeights);
     LocalDate modelEffectiveDate = getModelEffectiveDate(allocations);
-    BigDecimal cashBuffer = getCashBuffer(fund, asOfDate);
-    BigDecimal minTransaction = getMinTransaction(fund, asOfDate);
+    FundLimit limit = getFundLimit(fund, asOfDate);
+    BigDecimal cashBuffer = required(fund, limit.getReserveSoft(), "reserveSoft");
+    BigDecimal minTransaction = required(fund, limit.getMinTransaction(), "minTransaction");
     Map<String, PositionLimitSnapshot> positionLimits = getPositionLimits(fund, asOfDate);
     Set<String> fastSellIsins = getFastSellIsins(allocations, previousAllocations);
     Map<String, InstrumentType> instrumentTypes =
@@ -54,6 +54,7 @@ class TransactionParameterLoader {
         modelWeights,
         modelEffectiveDate,
         cashBuffer,
+        limit.getReserveHard(),
         minTransaction,
         positionLimits,
         fastSellIsins,
@@ -106,24 +107,14 @@ class TransactionParameterLoader {
         .orElse(null);
   }
 
-  private BigDecimal getCashBuffer(TulevaFund fund, LocalDate asOfDate) {
-    return getFundLimitValue(fund, asOfDate, FundLimit::getReserveSoft, "reserveSoft");
+  private FundLimit getFundLimit(TulevaFund fund, LocalDate asOfDate) {
+    return fundLimitRepository
+        .findLatestByFundAsOf(fund, asOfDate)
+        .orElseThrow(() -> new IllegalStateException("No fund limit found: fund=" + fund));
   }
 
-  private BigDecimal getMinTransaction(TulevaFund fund, LocalDate asOfDate) {
-    return getFundLimitValue(fund, asOfDate, FundLimit::getMinTransaction, "minTransaction");
-  }
-
-  private BigDecimal getFundLimitValue(
-      TulevaFund fund,
-      LocalDate asOfDate,
-      Function<FundLimit, @Nullable BigDecimal> extractor,
-      String fieldName) {
-    FundLimit limit =
-        fundLimitRepository
-            .findLatestByFundAsOf(fund, asOfDate)
-            .orElseThrow(() -> new IllegalStateException("No fund limit found: fund=" + fund));
-    BigDecimal value = extractor.apply(limit);
+  private static BigDecimal required(
+      TulevaFund fund, @Nullable BigDecimal value, String fieldName) {
     if (value == null) {
       throw new IllegalStateException(
           "Fund limit field is missing: fund=" + fund + ", field=" + fieldName);

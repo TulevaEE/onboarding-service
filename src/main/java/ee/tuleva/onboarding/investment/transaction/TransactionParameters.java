@@ -11,8 +11,14 @@ record TransactionParameters(
     List<ModelWeight> modelWeights,
     @Nullable LocalDate modelEffectiveDate,
     BigDecimal cashBuffer,
+    @Nullable BigDecimal reserveHard,
     BigDecimal minTransaction,
     Map<String, PositionLimitSnapshot> positionLimits,
     Set<String> fastSellIsins,
     Map<String, InstrumentType> instrumentTypes,
-    Map<String, OrderVenue> orderVenues) {}
+    Map<String, OrderVenue> orderVenues) {
+
+  R16Reserves r16Reserves() {
+    return new R16Reserves(cashBuffer, reserveHard);
+  }
+}

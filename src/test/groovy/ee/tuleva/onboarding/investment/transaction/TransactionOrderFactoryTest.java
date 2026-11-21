@@ -128,141 +128,117 @@ class TransactionOrderFactoryTest {
   }
 
   @Test
-  void createOrders_aSaleSizedAboveTheUnitsHeldIsAStopNotACap() {
-    var input =
-        holding(
-            new PositionSnapshot(
-                "IE00ETF", new BigDecimal("100000"), new BigDecimal("1000"), new BigDecimal("100")),
-            Map.of("IE00ETF", new SellableUnits(new BigDecimal("1000"), BigDecimal.ZERO)));
-    var manual =
-        new ManualPrice(new PriceOverride("IE00ETF", new BigDecimal("95"), "Issuer's NAV"));
+  void createOrders_aFullSaleAtALowerPriceSellsExactlyTheUnitsHeld() {
+    var calculated = sellOn(thousandUnits(BigDecimal.ZERO), "-100000", manual("95"));
 
-    var calculated = sellOn(input, "-100000", manual);
-
-    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("1052.631579");
-    assertThat(calculated.unsellable())
+    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("1000");
+    assertThat(calculated.orders().get(0).getOrderAmount()).isEqualByComparingTo("100000");
+    assertThat(calculated.sizedSales())
         .containsExactly(
-            new InputGateFailure.SaleBeyondSellableUnits(
+            new SizedSale(
                 "IE00ETF",
-                new BigDecimal("1052.631579"),
                 new BigDecimal("1000"),
                 BigDecimal.ZERO,
                 new BigDecimal("1000"),
-                new BigDecimal("95")));
+                new BigDecimal("95"),
+                SizedSale.Kind.FULL));
   }
 
   @Test
-  void createOrders_unitsAnOutstandingSaleAlreadyCommitsCannotBeSoldAgain() {
+  void createOrders_aFullSaleAtAHigherPriceLeavesNoUnitsBehind() {
+    var calculated = sellOn(thousandUnits(BigDecimal.ZERO), "-100000", manual("105"));
+
+    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("1000");
+  }
+
+  @Test
+  void createOrders_aFullSaleSellsOnlyTheUnitsNotAlreadyInASentSale() {
     var input =
         holding(
             new PositionSnapshot(
                 "IE00ETF", new BigDecimal("45400"), new BigDecimal("1000"), new BigDecimal("100")),
             Map.of("IE00ETF", new SellableUnits(new BigDecimal("1000"), new BigDecimal("600"))));
-    var manual =
-        new ManualPrice(new PriceOverride("IE00ETF", new BigDecimal("91"), "Issuer's NAV"));
 
-    var calculated = sellOn(input, "-45400", manual);
+    var calculated = sellOn(input, "-45400", manual("91"));
 
-    assertThat(calculated.unsellable())
-        .containsExactly(
-            new InputGateFailure.SaleBeyondSellableUnits(
-                "IE00ETF",
-                new BigDecimal("498.901099"),
-                new BigDecimal("1000"),
-                new BigDecimal("600"),
-                new BigDecimal("400"),
-                new BigDecimal("91")));
+    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("400");
   }
 
   @Test
-  void createOrders_aPositionTheReportDoesNotHoldHasNoUnitsToSell() {
+  void createOrders_aPartialSaleWithinTheUnitsTheFundMaySellIsSizedOnItsAmount() {
+    var calculated = sellOn(thousandUnits(BigDecimal.ZERO), "-47500", manual("95"));
+
+    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("500");
+    assertThat(calculated.sizedSales()).isEmpty();
+  }
+
+  @Test
+  void createOrders_aPartialSaleBeyondTheUnitsTheFundMaySellTakesWhatIsLeft() {
+    var calculated = sellOn(thousandUnits(new BigDecimal("600")), "-45500", manual("100"));
+
+    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("400");
+    assertThat(calculated.sizedSales())
+        .containsExactly(
+            new SizedSale(
+                "IE00ETF",
+                new BigDecimal("1000"),
+                new BigDecimal("600"),
+                new BigDecimal("400"),
+                new BigDecimal("100"),
+                SizedSale.Kind.PARTIAL));
+  }
+
+  @Test
+  void createOrders_aSaleOfAPositionTheReportDoesNotHoldWritesNoOrder() {
     var input =
         holding(
             new PositionSnapshot("IE00ETF", new BigDecimal("50000"), new BigDecimal("500"), null),
             Map.of());
-    var manual =
-        new ManualPrice(new PriceOverride("IE00ETF", new BigDecimal("100"), "Issuer's NAV"));
 
-    var calculated = sellOn(input, "-50000", manual);
+    var calculated = sellOn(input, "-50000", manual("100"));
 
-    assertThat(calculated.unsellable())
+    assertThat(calculated.orders()).isEmpty();
+    assertThat(calculated.sizedSales())
         .containsExactly(
-            new InputGateFailure.SaleBeyondSellableUnits(
+            new SizedSale(
                 "IE00ETF",
-                new BigDecimal("500.000000"),
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
-                new BigDecimal("100")));
+                new BigDecimal("100"),
+                SizedSale.Kind.FULL));
   }
 
   @Test
-  void createOrders_aFullSaleOverByLessThanTheCentItsValueWasRoundedToSellsExactlyTheUnitsHeld() {
+  void createOrders_aReportRowWithoutUnitsIsSizedOnItsAmountAndNoted() {
     var input =
         holding(
-            new PositionSnapshot(
-                "IE00ETF",
-                new BigDecimal("4601.75"),
-                new BigDecimal("123"),
-                new BigDecimal("37.41253")),
-            Map.of("IE00ETF", new SellableUnits(new BigDecimal("123"), BigDecimal.ZERO)));
-    var price =
-        new IndexPrice(
-            ResolvedPrice.builder()
-                .usedPrice(new BigDecimal("37.41253"))
-                .priceDate(AS_OF_DATE)
-                .build());
+            new PositionSnapshot("IE00ETF", new BigDecimal("100000"), null, null),
+            Map.of("IE00ETF", new SellableUnits(null, BigDecimal.ZERO)));
 
-    var calculated = sellOn(input, "-4601.75", price);
+    var calculated = sellOn(input, "-100000", manual("95"));
 
-    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("123");
-    assertThat(calculated.unsellable()).isEmpty();
-  }
-
-  @Test
-  void createOrders_aSaleOverByMoreThanACentStillStops() {
-    var input =
-        holding(
-            new PositionSnapshot(
-                "IE00ETF",
-                new BigDecimal("4601.75"),
-                new BigDecimal("123"),
-                new BigDecimal("37.41253")),
-            Map.of("IE00ETF", new SellableUnits(new BigDecimal("123"), BigDecimal.ZERO)));
-    var price =
-        new IndexPrice(
-            ResolvedPrice.builder()
-                .usedPrice(new BigDecimal("37.41253"))
-                .priceDate(AS_OF_DATE)
-                .build());
-
-    var calculated = sellOn(input, "-4601.7512", price);
-
-    assertThat(calculated.unsellable())
+    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("1052.631579");
+    assertThat(calculated.sizedSales())
         .containsExactly(
-            new InputGateFailure.SaleBeyondSellableUnits(
+            new SizedSale(
                 "IE00ETF",
-                new BigDecimal("123.000268"),
-                new BigDecimal("123"),
+                null,
                 BigDecimal.ZERO,
-                new BigDecimal("123"),
-                new BigDecimal("37.41253")));
+                new BigDecimal("1052.631579"),
+                new BigDecimal("95"),
+                SizedSale.Kind.FULL));
   }
 
-  @Test
-  void createOrders_aPartialSaleWithinTheSellableUnitsPasses() {
-    var input =
-        holding(
-            new PositionSnapshot(
-                "IE00ETF", new BigDecimal("100000"), new BigDecimal("1000"), new BigDecimal("100")),
-            Map.of("IE00ETF", new SellableUnits(new BigDecimal("1000"), BigDecimal.ZERO)));
-    var manual =
-        new ManualPrice(new PriceOverride("IE00ETF", new BigDecimal("95"), "Issuer's NAV"));
+  private static FundTransactionInput thousandUnits(BigDecimal inSentSales) {
+    return holding(
+        new PositionSnapshot(
+            "IE00ETF", new BigDecimal("100000"), new BigDecimal("1000"), new BigDecimal("100")),
+        Map.of("IE00ETF", new SellableUnits(new BigDecimal("1000"), inSentSales)));
+  }
 
-    var calculated = sellOn(input, "-47500", manual);
-
-    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("500");
-    assertThat(calculated.unsellable()).isEmpty();
+  private static ManualPrice manual(String price) {
+    return new ManualPrice(new PriceOverride("IE00ETF", new BigDecimal(price), "Issuer's NAV"));
   }
 
   private CalculatedOrders sellOn(FundTransactionInput input, String amount, TradePrepPrice price) {

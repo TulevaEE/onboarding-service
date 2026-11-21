@@ -38,13 +38,13 @@ class PositionAssembler {
   Map<String, SellableUnits> sellableUnits(
       TulevaFund fund, LocalDate positionDate, PendingOrderImpact pendingOrders) {
     return getPositions(fund, positionDate).stream()
-        .filter(position -> position.isin() != null && position.quantity() != null)
+        .filter(position -> position.isin() != null)
         .collect(
             toMap(
                 position -> Objects.requireNonNull(position.isin()),
                 position ->
                     new SellableUnits(
-                        Objects.requireNonNull(position.quantity()),
+                        position.quantity(),
                         pendingOrders
                             .unreportedSellQuantities()
                             .getOrDefault(position.isin(), ZERO)),

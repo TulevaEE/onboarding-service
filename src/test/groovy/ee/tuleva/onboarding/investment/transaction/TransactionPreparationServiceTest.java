@@ -1734,7 +1734,7 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
-  void processCommand_aSaleOfMoreUnitsThanTheFundMaySellStopsTheRunWithoutADraft() {
+  void processCommand_aFullSaleOnALowerPriceSellsTheUnitsHeldAndTheAuditSaysHowItWasSized() {
     var command =
         TransactionCommand.builder()
             .id(4L)
@@ -1781,23 +1781,33 @@ class TransactionPreparationServiceTest {
     given(positionPriceResolver.resolve("IE00A", command.getAsOfDate()))
         .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("95")).build()));
 
-    var result = service.processCommand(command);
+    given(batchRepository.save(any(TransactionBatch.class)))
+        .willAnswer(
+            invocation -> {
+              TransactionBatch batch = invocation.getArgument(0);
+              batch.setId(1L);
+              return batch;
+            });
 
-    assertThat(result)
-        .isEqualTo(
-            new CommandOutcome.StoppedByInputGates(
-                TUV100,
-                command.getAsOfDate(),
-                List.of(
-                    new InputGateFailure.SaleBeyondSellableUnits(
-                        "IE00A",
-                        new BigDecimal("1052.631579"),
-                        new BigDecimal("1000"),
-                        ZERO,
-                        new BigDecimal("1000"),
-                        new BigDecimal("95")))));
-    assertThat(command.getStatus()).isEqualTo(FAILED);
-    verifyNoInteractions(batchRepository, orderRepository);
+    var result = (ProcessCommandResult) service.processCommand(command);
+
+    assertThat(result.orders())
+        .singleElement()
+        .satisfies(order -> assertThat(order.getOrderQuantity()).isEqualByComparingTo("1000"));
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                event ->
+                    "CALCULATION_COMPLETED".equals(event.getEventType())
+                        && List.of(
+                                Map.of(
+                                    "isin", "IE00A",
+                                    "reportUnits", "1000",
+                                    "unitsInSentSales", "0",
+                                    "quantitySold", "1000",
+                                    "price", "95",
+                                    "fullSale", true))
+                            .equals(event.getPayload().get("sizedSales"))));
   }
 
   @Test

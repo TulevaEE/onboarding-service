@@ -106,6 +106,9 @@ final class TransactionCommandPayloads {
         "output",
         TransactionAuditPayloads.serializeTrades(
             result.trades(), ordersByIsin(orders), calculated.priceResolutions()));
+    if (!calculated.sizedSales().isEmpty()) {
+      payload.put("sizedSales", calculated.sizedSales().stream().map(SizedSale::payload).toList());
+    }
     payload.put(
         "priceResolutions",
         TransactionAuditPayloads.serializePriceResolutions(calculated.priceResolutions()));

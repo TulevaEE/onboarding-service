@@ -53,6 +53,24 @@ class PositionAssemblerTest {
   }
 
   @Test
+  void sellableUnits_aReportRowWithoutUnitsIsKeptWithoutUnitsSoItsSaleIsSizedOnItsAmount() {
+    var position =
+        FundPosition.builder()
+            .accountId("IE00A")
+            .fund(TUV100)
+            .navDate(POSITION_DATE)
+            .marketValue(new BigDecimal("500000"))
+            .build();
+    given(
+            fundPositionRepository.findByNavDateAndFundAndAccountType(
+                POSITION_DATE, TUV100, SECURITY))
+        .willReturn(List.of(position));
+
+    assertThat(assembler.sellableUnits(TUV100, POSITION_DATE, PendingOrderImpact.none()))
+        .isEqualTo(Map.of("IE00A", new SellableUnits(null, ZERO)));
+  }
+
+  @Test
   void assemble_withASecurityRowWithoutAnIsin_stillAppliesTheOtherPendingPositions() {
     given(
             fundPositionRepository.findByNavDateAndFundAndAccountType(

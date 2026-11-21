@@ -59,7 +59,6 @@ public class TransactionPreparationService {
       CalculatedOrders calculated =
           orderFactory.createOrders(
               draft, result, command.getAsOfDate(), Instant.now(clock), gates.pricing());
-      calculated.requireSellable(command.getFund(), command.getAsOfDate());
       batchRepository.save(draft);
       batch = draft;
       List<TransactionOrder> orders = calculated.orders();

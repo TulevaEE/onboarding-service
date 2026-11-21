@@ -36,7 +36,7 @@ public class TransactionOrderFactory {
       TradePrepPricing pricing) {
     var input = result.input();
     List<TransactionOrder> orders = new ArrayList<>();
-    SellableUnitsCheck sellableUnits = new SellableUnitsCheck(input.sellableUnits());
+    SaleSizing saleSizing = new SaleSizing(input.sellableUnits(), input.positions());
     Map<String, @Nullable TradePrepPrice> priceResolutions = new LinkedHashMap<>();
 
     List<TradeCalculation> trades = result.trades();
@@ -52,12 +52,17 @@ public class TransactionOrderFactory {
       var transactionType =
           trade.tradeAmount().compareTo(ZERO) > 0 ? TransactionType.BUY : TransactionType.SELL;
       var orderAmount = trade.tradeAmount().abs();
-      var orderQuantity =
-          sellableUnits.fit(
+      var sized =
+          saleSizing.size(
               transactionType,
               isin,
+              orderAmount,
               resolveOrderQuantity(
                   instrumentType, transactionType, isin, orderAmount, asOfDate, pricing));
+      if (sized.isEmpty()) {
+        continue;
+      }
+      var orderQuantity = sized.get();
       BigDecimal quantity =
           withinTheSoldHolding(input, index, trade, instrumentType, orderQuantity.quantity());
       if (quantity != null && quantity.signum() == 0) {
@@ -86,7 +91,7 @@ public class TransactionOrderFactory {
               .createdAt(createdAt)
               .build());
     }
-    return new CalculatedOrders(orders, priceResolutions, sellableUnits.unsellable());
+    return new CalculatedOrders(orders, priceResolutions, saleSizing.sizedSales());
   }
 
   void requireQuantitiesForNonAmountOrders(TransactionBatch batch, List<TransactionOrder> orders) {

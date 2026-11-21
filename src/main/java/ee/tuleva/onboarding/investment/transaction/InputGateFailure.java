@@ -118,33 +118,6 @@ sealed interface InputGateFailure {
     }
   }
 
-  record SaleBeyondSellableUnits(
-      String isin,
-      BigDecimal computedQuantity,
-      BigDecimal heldQuantity,
-      BigDecimal pendingSellQuantity,
-      BigDecimal allowedQuantity,
-      BigDecimal price)
-      implements InputGateFailure {
-
-    @Override
-    public String slackLine() {
-      return ("%s: müük %s osakut, lubatud %s (SEB raportis %s, ootel müükides %s), hind %s:"
-              + " kontrolli hinda või anna käsitsi hind (prices)")
-          .formatted(
-              isin,
-              plain(computedQuantity),
-              plain(allowedQuantity),
-              plain(heldQuantity),
-              plain(pendingSellQuantity),
-              plain(price));
-    }
-
-    private static String plain(BigDecimal value) {
-      return value.stripTrailingZeros().toPlainString();
-    }
-  }
-
   record NoCommonPriceDate(LocalDate from, LocalDate to) implements InputGateFailure {
 
     @Override

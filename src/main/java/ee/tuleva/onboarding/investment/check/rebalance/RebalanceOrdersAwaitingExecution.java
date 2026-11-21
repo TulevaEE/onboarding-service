@@ -28,7 +28,7 @@ record RebalanceOrdersAwaitingExecution(List<SentOrder> orders) {
         .map(
             latestSettlementDate ->
                 calendar.addBusinessDays(
-                    latestSettlementDate,
+                    calendar.nextOrSameBusinessDay(latestSettlementDate),
                     THE_CUSTODIANS_REPORT_FOR_A_DAY_ARRIVES_WORKING_DAYS_LATER));
   }
 

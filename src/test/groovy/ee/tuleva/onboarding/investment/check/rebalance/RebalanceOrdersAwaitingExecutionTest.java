@@ -27,6 +27,16 @@ class RebalanceOrdersAwaitingExecutionTest {
   }
 
   @Test
+  void anOrderSettlingOnAnEstonianOnlyHoliday_isAwaitedThroughTheSecondEstonianWorkingDayAfter() {
+    var orders =
+        new RebalanceOrdersAwaitingExecution(
+            List.of(new SentOrder(LocalDate.of(2026, 6, 19), LocalDate.of(2026, 6, 23))));
+
+    assertThat(orders.awaitedThrough(LocalDate.of(2026, 6, 30), CALENDAR))
+        .contains(LocalDate.of(2026, 6, 26));
+  }
+
+  @Test
   void anOrderWithoutAnExpectedSettlementDate_isTakenToSettleTwoWorkingDaysAfterTheDeadline() {
     var orders =
         new RebalanceOrdersAwaitingExecution(

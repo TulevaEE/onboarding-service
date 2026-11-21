@@ -20,27 +20,26 @@ record CashSourceReport(
     List<CalculationWarning> warnings,
     GatewayHold hold) {
 
-  CashSourceReport withWarnings(List<CalculationWarning> differenceWarnings) {
-    return new CashSourceReport(source, gateway, reportCash, differenceWarnings, hold);
-  }
-
   Optional<CurrentDayBalance> gatewayBalanceInUse() {
     return source == CashSource.GATEWAY_BALANCE && gateway instanceof CurrentDayBalance current
         ? Optional.of(current)
         : Optional.empty();
   }
 
-  Optional<SourcesDifference> sourcesDifference() {
-    return gateway instanceof CurrentDayBalance current && reportCash != null
-        ? Optional.of(new SourcesDifference(current.balance(), reportCash))
-        : Optional.empty();
-  }
-
   @Nullable BigDecimal gatewayMinusReportCash() {
-    return sourcesDifference().map(SourcesDifference::gatewayMinusReportCash).orElse(null);
+    return SourcesDifference.between(gateway, reportCash)
+        .map(SourcesDifference::gatewayMinusReportCash)
+        .orElse(null);
   }
 
   record SourcesDifference(BigDecimal gatewayBalance, BigDecimal reportCash) {
+
+    static Optional<SourcesDifference> between(
+        GatewayCash gateway, @Nullable BigDecimal reportCash) {
+      return gateway instanceof CurrentDayBalance current && reportCash != null
+          ? Optional.of(new SourcesDifference(current.balance(), reportCash))
+          : Optional.empty();
+    }
 
     BigDecimal gatewayMinusReportCash() {
       return gatewayBalance.subtract(reportCash);

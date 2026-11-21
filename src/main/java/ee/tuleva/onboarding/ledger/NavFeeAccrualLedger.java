@@ -7,11 +7,13 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -24,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class NavFeeAccrualLedger {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+  private static final int MAX_SETTLEMENT_REVISIONS = 50;
 
   private final LedgerAccountService ledgerAccountService;
   private final LedgerTransactionService ledgerTransactionService;
@@ -72,26 +75,95 @@ public class NavFeeAccrualLedger {
         entry(getSystemAccount(feeAccount, fund), amount.negate()));
   }
 
+  public FeeMonthSettlement settlementOf(
+      TulevaFund fund, LocalDate feeMonth, SystemAccount feeAccount) {
+    return new FeeMonthSettlement(
+        jdbcClient
+            .sql(
+                """
+                SELECT t.transaction_date, e.amount
+                FROM ledger.entry e
+                JOIN ledger.account a ON e.account_id = a.id
+                JOIN ledger.transaction t ON e.transaction_id = t.id
+                WHERE t.external_reference IN (:externalReferences)
+                  AND t.transaction_type = CAST('FEE_SETTLEMENT' AS ledger.transaction_type)
+                  AND a.name = :accountName
+                ORDER BY t.transaction_date, t.id
+                """)
+            .param(
+                "externalReferences",
+                IntStream.range(0, MAX_SETTLEMENT_REVISIONS)
+                    .mapToObj(revision -> settlementReference(fund, feeMonth, feeAccount, revision))
+                    .toList())
+            .param("accountName", feeAccount.getAccountName(fund))
+            .query(
+                (rs, rowNum) ->
+                    new FeeMonthSettlement.Revision(
+                        rs.getTimestamp("transaction_date")
+                            .toInstant()
+                            .atZone(ESTONIAN_ZONE)
+                            .toLocalDate(),
+                        rs.getBigDecimal("amount")))
+            .list());
+  }
+
+  public BigDecimal accruedIn(TulevaFund fund, LocalDate feeMonth, SystemAccount feeAccount) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT COALESCE(SUM(e.amount), 0)
+            FROM ledger.entry e
+            JOIN ledger.account a ON e.account_id = a.id
+            JOIN ledger.transaction t ON e.transaction_id = t.id
+            WHERE a.name = :accountName
+              AND t.transaction_type <> CAST('FEE_SETTLEMENT' AS ledger.transaction_type)
+              AND t.transaction_date >= :fromInclusive
+              AND t.transaction_date < :toExclusive
+            """)
+        .param("accountName", feeAccount.getAccountName(fund))
+        .param("fromInclusive", Timestamp.from(startOf(feeMonth)))
+        .param("toExclusive", Timestamp.from(startOf(feeMonth.plusMonths(1))))
+        .query(BigDecimal.class)
+        .single()
+        .negate();
+  }
+
   @Transactional
   public void settleFeeAccrual(
-      TulevaFund fund, LocalDate settlementDate, SystemAccount feeAccount, BigDecimal amount) {
-    if (amount == null || amount.signum() == 0) {
+      TulevaFund fund,
+      LocalDate feeMonth,
+      LocalDate settledOn,
+      SystemAccount feeAccount,
+      BigDecimal amount,
+      int revision) {
+    if (amount.signum() == 0) {
       log.info(
-          "Skipping zero fee settlement: fund={}, date={}, feeAccount={}",
+          "Skipping zero fee settlement: fund={}, feeMonth={}, feeAccount={}",
           fund,
-          settlementDate,
+          feeMonth,
           feeAccount.name());
       return;
     }
+    if (revision >= MAX_SETTLEMENT_REVISIONS) {
+      log.error(
+          "Fee settlement revisions exhausted, left for the settlement check: fund={}, feeMonth={}, feeAccount={}, revision={}, amount={}",
+          fund,
+          feeMonth,
+          feeAccount.name(),
+          revision,
+          amount);
+      return;
+    }
 
-    UUID externalReference = generateSettlementReference(fund, settlementDate, feeAccount);
+    UUID externalReference = settlementReference(fund, feeMonth, feeAccount, revision);
     if (ledgerTransactionService.existsByExternalReferenceAndTransactionType(
         externalReference, FEE_SETTLEMENT)) {
       log.info(
-          "Fee settlement already recorded: fund={}, date={}, feeAccount={}",
+          "Fee settlement already recorded: fund={}, feeMonth={}, feeAccount={}, revision={}",
           fund,
-          settlementDate,
-          feeAccount.name());
+          feeMonth,
+          feeAccount.name(),
+          revision);
       return;
     }
 
@@ -103,10 +175,14 @@ public class NavFeeAccrualLedger {
             fund.name(),
             "feeType",
             feeAccount.name(),
+            "feeMonth",
+            feeMonth.toString(),
             "settlementDate",
-            settlementDate.toString());
+            settledOn.toString(),
+            "revision",
+            revision);
 
-    Instant transactionDate = settlementDate.atTime(12, 0).atZone(ESTONIAN_ZONE).toInstant();
+    Instant transactionDate = settledOn.atTime(12, 0).atZone(ESTONIAN_ZONE).toInstant();
     ledgerTransactionService.createTransaction(
         FEE_SETTLEMENT,
         transactionDate,
@@ -257,11 +333,16 @@ public class NavFeeAccrualLedger {
     return UUID.nameUUIDFromBytes(key.getBytes(UTF_8));
   }
 
-  // TODO: should come from the settlement payment instead
-  private UUID generateSettlementReference(
-      TulevaFund fund, LocalDate settlementDate, SystemAccount feeAccount) {
-    String key = fund.name() + ":" + settlementDate + ":" + feeAccount.name() + ":SETTLEMENT";
-    return UUID.nameUUIDFromBytes(key.getBytes(UTF_8));
+  private UUID settlementReference(
+      TulevaFund fund, LocalDate feeMonth, SystemAccount feeAccount, int revision) {
+    LocalDate lastDayOfFeeMonth = feeMonth.plusMonths(1).minusDays(1);
+    String key = fund.name() + ":" + lastDayOfFeeMonth + ":" + feeAccount.name() + ":SETTLEMENT";
+    String revisedKey = revision == 0 ? key : key + ":" + revision;
+    return UUID.nameUUIDFromBytes(revisedKey.getBytes(UTF_8));
+  }
+
+  private static Instant startOf(LocalDate date) {
+    return date.atStartOfDay(ESTONIAN_ZONE).toInstant();
   }
 
   private LedgerAccount getSystemAccount(SystemAccount systemAccount, TulevaFund fund) {

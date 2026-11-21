@@ -222,32 +222,48 @@ class FeeRepositoriesIntegrationTest {
       assertThat(dailyAmountGross).isEqualByComparingTo(BigDecimal.TEN);
     }
 
-    // Left unrounded per day on purpose: the caller drops the days the policy does not charge and
-    // rounds what is left, so rounding here would round days that never reach the total.
     @Test
-    void getUnsettledAccrualByDate_returnsEachDayUnroundedAndStillSumsThenRoundsTo17_68() {
-      LocalDate feeMonth = LocalDate.of(2025, 1, 1);
+    void getAccrualByDateBetween_returnsEachDayUnroundedAcrossTheMonthsInTheRange() {
       insertAccrualWithFeeMonth(
-          TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 13), feeMonth, new BigDecimal("5.891"));
+          TUK75,
+          FeeType.MANAGEMENT,
+          LocalDate.of(2024, 12, 31),
+          LocalDate.of(2024, 12, 1),
+          new BigDecimal("5.890"));
       insertAccrualWithFeeMonth(
-          TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 14), feeMonth, new BigDecimal("5.892"));
+          TUK75,
+          FeeType.MANAGEMENT,
+          LocalDate.of(2025, 1, 1),
+          LocalDate.of(2025, 1, 1),
+          new BigDecimal("5.891"));
       insertAccrualWithFeeMonth(
-          TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 15), feeMonth, new BigDecimal("5.893"));
+          TUK75,
+          FeeType.MANAGEMENT,
+          LocalDate.of(2025, 1, 2),
+          LocalDate.of(2025, 1, 1),
+          new BigDecimal("5.892"));
+      insertAccrualWithFeeMonth(
+          TUK75,
+          FeeType.MANAGEMENT,
+          LocalDate.of(2025, 1, 3),
+          LocalDate.of(2025, 1, 1),
+          new BigDecimal("5.893"));
+      insertAccrualWithFeeMonth(
+          TUK75,
+          FeeType.DEPOT,
+          LocalDate.of(2025, 1, 2),
+          LocalDate.of(2025, 1, 1),
+          new BigDecimal("1.111"));
 
       var byDate =
-          feeAccrualRepository.getUnsettledAccrualByDate(
-              TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 15));
+          feeAccrualRepository.getAccrualByDateBetween(
+              TUK75, FeeType.MANAGEMENT, LocalDate.of(2024, 12, 31), LocalDate.of(2025, 1, 2));
 
       assertThat(byDate)
           .containsOnlyKeys(
-              LocalDate.of(2025, 1, 13), LocalDate.of(2025, 1, 14), LocalDate.of(2025, 1, 15));
+              LocalDate.of(2024, 12, 31), LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 2));
       assertThat(byDate.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add))
-          .isEqualByComparingTo(new BigDecimal("17.676"));
-      assertThat(
-              byDate.values().stream()
-                  .reduce(BigDecimal.ZERO, BigDecimal::add)
-                  .setScale(2, java.math.RoundingMode.HALF_UP))
-          .isEqualByComparingTo(new BigDecimal("17.68"));
+          .isEqualByComparingTo("17.673");
     }
 
     @Test

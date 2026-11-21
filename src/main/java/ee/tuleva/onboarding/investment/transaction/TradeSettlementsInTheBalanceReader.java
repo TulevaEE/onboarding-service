@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.counting;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -40,16 +41,45 @@ class TradeSettlementsInTheBalanceReader {
             .filter(booking -> window.holds(booking.externalReference(), booking.bookingDate()))
             .toList();
     Map<String, List<Fill>> fillsByReference = fillsByReference(bookings);
-    return new TradeSettlementsInTheBalance(
+    List<Resolution> resolutions =
         bookings.stream()
             .map(
                 booking ->
-                    settled(
+                    new Resolution(
                         booking,
-                        fillsByReference.getOrDefault(booking.brokerReference(), List.of()),
-                        window))
+                        onlyFittingFill(
+                            booking,
+                            fillsByReference.getOrDefault(booking.brokerReference(), List.of()))))
+            .toList();
+    Map<String, Long> bookingsPerReference =
+        bookings.stream()
+            .map(TradeSettlementBooking::brokerReference)
+            .filter(Objects::nonNull)
+            .collect(groupingBy(identity(), counting()));
+    Map<Long, Long> bookingsPerExecution =
+        resolutions.stream()
+            .flatMap(resolution -> resolution.fill().stream())
+            .collect(groupingBy(fill -> fill.execution().getId(), counting()));
+    return new TradeSettlementsInTheBalance(
+        resolutions.stream()
+            .map(
+                resolution ->
+                    resolution
+                        .fill()
+                        .filter(
+                            fill ->
+                                bookingsPerReference.getOrDefault(
+                                            resolution.booking().brokerReference(), 0L)
+                                        == 1
+                                    && bookingsPerExecution.getOrDefault(
+                                            fill.execution().getId(), 0L)
+                                        == 1)
+                        .map(fill -> settled(resolution.booking(), fill, window))
+                        .orElseGet(() -> new Unmatched(resolution.booking())))
             .toList());
   }
+
+  private record Resolution(TradeSettlementBooking booking, Optional<Fill> fill) {}
 
   private Map<String, List<Fill>> fillsByReference(List<TradeSettlementBooking> bookings) {
     Set<String> references =
@@ -79,13 +109,14 @@ class TradeSettlementsInTheBalanceReader {
                 toList()));
   }
 
-  private static SettledInTheBalance settled(
-      TradeSettlementBooking booking, List<Fill> candidates, NettingWindow window) {
+  private static Optional<Fill> onlyFittingFill(
+      TradeSettlementBooking booking, List<Fill> candidates) {
     List<Fill> fitting = candidates.stream().filter(fill -> fill.fits(booking)).toList();
-    if (fitting.size() != 1) {
-      return new Unmatched(booking);
-    }
-    Fill fill = fitting.getFirst();
+    return fitting.size() == 1 ? Optional.of(fitting.getFirst()) : Optional.empty();
+  }
+
+  private static SettledInTheBalance settled(
+      TradeSettlementBooking booking, Fill fill, NettingWindow window) {
     return carriedByTheOrder(fill, window)
         ? new CarriedByAPendingFill(booking, fill.execution().getId())
         : new AgainstTheReportRows(booking);

@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.investment.check.rebalance;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
+import static java.util.Comparator.comparing;
+import static java.util.Comparator.naturalOrder;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
@@ -11,7 +13,10 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 record RebalanceMessage(String text, Severity severity) {
 
@@ -68,7 +73,7 @@ record RebalanceMessage(String text, Severity severity) {
                 model(window),
                 date(window.deadline()),
                 window.daysUntilDeadline(),
-                rebalanceRunTradesAwaitingConfirmation(window),
+                rebalanceRunTrades(window),
                 measurement(window),
                 actionBeforeTheDeadline(window)),
         WARNING);
@@ -83,7 +88,7 @@ record RebalanceMessage(String text, Severity severity) {
             .formatted(
                 model(window),
                 date(window.deadline()),
-                rebalanceRunTradesAwaitingConfirmation(window),
+                rebalanceRunTrades(window),
                 measurement(window),
                 CHECK_THE_EXECUTION_WITH_SEB),
         WARNING);
@@ -98,7 +103,7 @@ record RebalanceMessage(String text, Severity severity) {
             .formatted(
                 model(window),
                 date(window.deadline()),
-                rebalanceRunTradesUnconfirmed(window),
+                rebalanceRunTrades(window),
                 measurement(window),
                 points(window.tolerance())),
         ERROR);
@@ -146,26 +151,49 @@ record RebalanceMessage(String text, Severity severity) {
                 .collect(joining(", ")));
   }
 
-  private static String rebalanceRunTradesAwaitingConfirmation(RebalanceWindow window) {
-    var sentOn = window.rebalanceOrdersSentOn();
-    return sentOn == null
-        ? NO_REBALANCE_RUN_TRADES
-        : "Rebalance-jooksu tehingud saadetud %s, ootavad SEB täitmise kinnitust"
-            .formatted(date(sentOn));
+  private static String rebalanceRunTrades(RebalanceWindow window) {
+    var phrases =
+        Stream.of(
+                awaitingConfirmation(window.ordersAwaitingConfirmation()),
+                overdueForConfirmation(window.ordersOverdueForConfirmation()))
+            .flatMap(Optional::stream)
+            .toList();
+    return phrases.isEmpty() ? NO_REBALANCE_RUN_TRADES : String.join("; ", phrases);
   }
 
-  private static String rebalanceRunTradesUnconfirmed(RebalanceWindow window) {
-    var sentOn = window.rebalanceOrdersSentOn();
-    return sentOn == null
-        ? NO_REBALANCE_RUN_TRADES
-        : "Rebalance-jooksu tehingud saadetud %s, SEB pole täitmist kinnitanud"
-            .formatted(date(sentOn));
+  private static Optional<String> awaitingConfirmation(List<SentRebalanceOrder> orders) {
+    return orders.stream()
+        .map(SentRebalanceOrder::sentOn)
+        .min(naturalOrder())
+        .map(
+            firstSentOn ->
+                "Rebalance-jooksu tehingud saadetud %s, ootavad SEB täitmise kinnitust"
+                    .formatted(date(firstSentOn)));
+  }
+
+  private static Optional<String> overdueForConfirmation(List<SentRebalanceOrder> orders) {
+    if (orders.isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        "SEB pole Rebalance-jooksu tehingute täitmist kinnitanud: "
+            + orders.stream()
+                .sorted(
+                    comparing(SentRebalanceOrder::sentOn).thenComparing(SentRebalanceOrder::isin))
+                .map(order -> "%s (saadetud %s)".formatted(order.isin(), date(order.sentOn())))
+                .distinct()
+                .collect(joining(", ")));
   }
 
   private static String actionBeforeTheDeadline(RebalanceWindow window) {
-    return window.rebalanceOrdersSentOn() == null
-        ? "Tee tasakaalustamise tehingud või vii fond tähtajaks %s pp piiresse"
-            .formatted(points(window.tolerance()))
+    var makeTheTrades =
+        "Tee tasakaalustamise tehingud või vii fond tähtajaks %s pp piiresse"
+            .formatted(points(window.tolerance()));
+    if (!window.ordersOverdueForConfirmation().isEmpty()) {
+      return makeTheTrades + "; kontrolli SEB-st saadetud tehingute täitmist";
+    }
+    return window.ordersAwaitingConfirmation().isEmpty()
+        ? makeTheTrades
         : CHECK_THE_EXECUTION_WITH_SEB;
   }
 

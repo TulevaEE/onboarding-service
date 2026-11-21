@@ -8,6 +8,8 @@ import static ee.tuleva.onboarding.investment.check.rebalance.RebalanceState.WAR
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -19,7 +21,7 @@ class RebalanceWindowTest {
   private static final LocalDate EFFECTIVE = LocalDate.of(2026, 9, 1);
   private static final LocalDate DEADLINE = LocalDate.of(2026, 12, 1);
   private static final LocalDate WARNING_FROM = LocalDate.of(2026, 11, 16);
-  private static final LocalDate AWAITING_EXECUTION_UNTIL = LocalDate.of(2026, 12, 3);
+  private static final EstonianCalendar CALENDAR = new EstonianCalendar(new PublicHolidays());
 
   @Test
   void beforeTheWarningPeriod_isInfo() {
@@ -40,43 +42,57 @@ class RebalanceWindowTest {
   }
 
   @Test
-  void pastTheDeadlineRebalanceOrdersSentByItAwaitExecutionUntilTheGraceEnds_thenItFails() {
-    assertThat(window(DEADLINE.plusDays(1), null, DEADLINE).state()).isEqualTo(AWAITING_EXECUTION);
-    assertThat(window(AWAITING_EXECUTION_UNTIL, null, WARNING_FROM).state())
+  void pastTheDeadlineAnOrderSentByItAwaitsExecutionThroughItsOwnGrace_thenItFails() {
+    var sentOnTheDeadline = sent(DEADLINE, LocalDate.of(2026, 12, 3));
+
+    assertThat(window(DEADLINE.plusDays(1), null, sentOnTheDeadline).state())
         .isEqualTo(AWAITING_EXECUTION);
-    assertThat(window(AWAITING_EXECUTION_UNTIL.plusDays(1), null, DEADLINE).state())
-        .isEqualTo(FAIL);
+    assertThat(window(LocalDate.of(2026, 12, 4), null, sentOnTheDeadline).state())
+        .isEqualTo(AWAITING_EXECUTION);
+    assertThat(window(LocalDate.of(2026, 12, 7), null, sentOnTheDeadline).state()).isEqualTo(FAIL);
   }
 
   @Test
-  void pastTheDeadlineWithNoOrderSentByIt_failsAtOnce() {
-    var window =
-        new RebalanceWindow(
-            TUV100,
-            EFFECTIVE,
-            DEADLINE.plusDays(1),
-            new BigDecimal("0.05"),
-            null,
-            List.of(),
-            null,
-            DEADLINE.plusDays(1),
-            DEADLINE,
-            WARNING_FROM,
-            null);
+  void pastTheDeadlineAnOrderSentByItWithinItsGrace_awaitsExecutionWhileAnEarlierOneIsOverdue() {
+    var overdue = sent(LocalDate.of(2026, 11, 13), LocalDate.of(2026, 11, 17));
+    var sentOnTheDeadline = sent(DEADLINE, LocalDate.of(2026, 12, 3));
+
+    var window = window(LocalDate.of(2026, 12, 2), null, overdue, sentOnTheDeadline);
+
+    assertThat(window.state()).isEqualTo(AWAITING_EXECUTION);
+    assertThat(window.ordersAwaitingConfirmation()).containsExactly(sentOnTheDeadline);
+    assertThat(window.ordersOverdueForConfirmation()).containsExactly(overdue);
+  }
+
+  @Test
+  void pastTheDeadlineAnOrderSentOnlyAfterIt_leavesItAFailEvenWithinTheOrdersGrace() {
+    var sentAfterTheDeadline = sent(LocalDate.of(2026, 12, 2), LocalDate.of(2026, 12, 4));
+
+    var window = window(LocalDate.of(2026, 12, 3), null, sentAfterTheDeadline);
 
     assertThat(window.state()).isEqualTo(FAIL);
+    assertThat(window.ordersAwaitingConfirmation()).containsExactly(sentAfterTheDeadline);
+    assertThat(window.ordersOverdueForConfirmation()).isEmpty();
   }
 
   @Test
-  void pastTheDeadlineRebalanceOrdersSentOnlyAfterIt_leaveItAFail() {
-    assertThat(window(DEADLINE.plusDays(2), null, DEADLINE.plusDays(1)).state()).isEqualTo(FAIL);
-  }
-
-  @Test
-  void beforeTheDeadlineRebalanceOrdersAwaitingExecution_changeNoState() {
-    assertThat(window(LocalDate.of(2026, 10, 1), null, LocalDate.of(2026, 9, 30)).state())
+  void beforeTheDeadlineRebalanceOrdersAwaitingOrOverdue_changeNoState() {
+    assertThat(
+            window(
+                    LocalDate.of(2026, 10, 1),
+                    null,
+                    sent(LocalDate.of(2026, 9, 30), LocalDate.of(2026, 10, 2)))
+                .state())
         .isEqualTo(INFO);
-    assertThat(window(WARNING_FROM, null, WARNING_FROM).state()).isEqualTo(WARNING);
+    assertThat(window(WARNING_FROM, null, sent(WARNING_FROM, LocalDate.of(2026, 11, 18))).state())
+        .isEqualTo(WARNING);
+    assertThat(
+            window(
+                    LocalDate.of(2026, 11, 25),
+                    null,
+                    sent(LocalDate.of(2026, 11, 13), LocalDate.of(2026, 11, 17)))
+                .state())
+        .isEqualTo(WARNING);
   }
 
   @Test
@@ -97,14 +113,8 @@ class RebalanceWindowTest {
     assertThat(window(DEADLINE, null).daysUntilDeadline()).isZero();
   }
 
-  private static RebalanceWindow window(LocalDate checkDate, @Nullable RebalanceClosure closure) {
-    return window(checkDate, closure, null);
-  }
-
   private static RebalanceWindow window(
-      LocalDate checkDate,
-      @Nullable RebalanceClosure closure,
-      @Nullable LocalDate rebalanceOrdersSentOn) {
+      LocalDate checkDate, @Nullable RebalanceClosure closure, SentRebalanceOrder... sent) {
     return new RebalanceWindow(
         TUV100,
         EFFECTIVE,
@@ -113,16 +123,12 @@ class RebalanceWindowTest {
         null,
         List.of(),
         closure,
-        rebalanceOrdersSentOn,
+        List.of(sent),
         DEADLINE,
-        WARNING_FROM,
-        awaitedThroughWhenSentByTheDeadline(rebalanceOrdersSentOn));
+        WARNING_FROM);
   }
 
-  private static @Nullable LocalDate awaitedThroughWhenSentByTheDeadline(
-      @Nullable LocalDate rebalanceOrdersSentOn) {
-    return rebalanceOrdersSentOn != null && !rebalanceOrdersSentOn.isAfter(DEADLINE)
-        ? AWAITING_EXECUTION_UNTIL
-        : null;
+  private static SentRebalanceOrder sent(LocalDate sentOn, LocalDate expectedSettlementDate) {
+    return SentRebalanceOrder.of("IE000I9HGDZ3", sentOn, expectedSettlementDate, CALENDAR);
   }
 }

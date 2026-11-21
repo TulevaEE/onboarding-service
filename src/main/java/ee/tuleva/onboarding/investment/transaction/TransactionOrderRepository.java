@@ -90,7 +90,7 @@ public interface TransactionOrderRepository extends JpaRepository<TransactionOrd
   @Query(
       """
       SELECT new ee.tuleva.onboarding.investment.transaction.TradePrepRunOrder(
-        o.orderTimestamp, o.expectedSettlementDate)
+        o.instrumentIsin, o.orderTimestamp, o.expectedSettlementDate)
       FROM TransactionOrder o
         JOIN TransactionCommand c ON c.batchId = o.batch.id
       WHERE c.mode = :mode

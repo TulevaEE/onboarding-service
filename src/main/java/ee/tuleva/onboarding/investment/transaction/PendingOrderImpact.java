@@ -14,6 +14,17 @@ record PendingOrderImpact(
     BigDecimal sellsInTheBalance,
     Map<String, BigDecimal> unreportedSellQuantities) {
 
+  PendingOrderImpact withUnreportedSellQuantities(Map<String, BigDecimal> quantities) {
+    return new PendingOrderImpact(
+        pendingBuys,
+        pendingSells,
+        unreportedPositionValues,
+        unreportedPositionQuantities,
+        buysInTheBalance,
+        sellsInTheBalance,
+        quantities);
+  }
+
   static PendingOrderImpact none() {
     return new PendingOrderImpact(ZERO, ZERO, Map.of(), Map.of(), ZERO, ZERO, Map.of());
   }

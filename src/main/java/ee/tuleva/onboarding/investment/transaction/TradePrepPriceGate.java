@@ -53,8 +53,9 @@ class TradePrepPriceGate {
             .filter(isin -> !overrides.excludedIsins().contains(isin))
             .filter(isin -> !indexPrices.containsKey(isin) && !manual.prices(isin))
             .toList();
-    return priced(asOfDate, overrides, unpriced, manual, indexPrices)
-        .withDeviations(manualPriceDeviations.check(asOfDate, overrides, indexPrices));
+    PriceDeviations deviations = manualPriceDeviations.check(asOfDate, overrides, indexPrices);
+    return priced(asOfDate, overrides, unpriced, manual, indexPrices, deviations.checks())
+        .withDeviations(deviations);
   }
 
   private PriceCheck priced(
@@ -62,15 +63,16 @@ class TradePrepPriceGate {
       TradePrepOverrides overrides,
       List<String> unpriced,
       ManualPrices manual,
-      Map<String, ResolvedPrice> indexPrices) {
+      Map<String, ResolvedPrice> indexPrices,
+      Map<String, ManualPriceDeviationCheck> checks) {
     Map<String, ResolvedPrice> unmanuallyPriced = withoutManual(indexPrices, manual);
     if (!unpriced.isEmpty()) {
       return stoppedOnTheCommandsDate(
-          new MissingPrices(unpriced), manual, overrides, indexPrices, unmanuallyPriced);
+          new MissingPrices(unpriced), manual, checks, indexPrices, unmanuallyPriced);
     }
     if (overrides.priceDateRule() == PriceDateRule.FRESHEST_PER_INSTRUMENT
         || unmanuallyPriced.isEmpty()) {
-      return passedOnTheCommandsDate(manual, overrides, indexPrices, unmanuallyPriced);
+      return passedOnTheCommandsDate(manual, checks, indexPrices, unmanuallyPriced);
     }
     return latestCommonDate(unmanuallyPriced, asOfDate)
         .map(
@@ -79,7 +81,7 @@ class TradePrepPriceGate {
                     List.of(),
                     new OnCommonDate(manual.withIndexPrices(common.prices()), common.date()),
                     manual.uses(
-                        overrides.excludedIsins(),
+                        checks,
                         manualInstrumentsIndexPricesOn(
                             common.date(), indexPrices, manual, overrides.excludedIsins())),
                     List.of()))
@@ -88,7 +90,7 @@ class TradePrepPriceGate {
                 stoppedOnTheCommandsDate(
                     new NoCommonPriceDate(asOfDate.minusDays(MAX_LOOKBACK_DAYS), asOfDate),
                     manual,
-                    overrides,
+                    checks,
                     indexPrices,
                     unmanuallyPriced));
   }
@@ -96,25 +98,25 @@ class TradePrepPriceGate {
   private static PriceCheck stoppedOnTheCommandsDate(
       InputGateFailure failure,
       ManualPrices manual,
-      TradePrepOverrides overrides,
+      Map<String, ManualPriceDeviationCheck> checks,
       Map<String, ResolvedPrice> indexPrices,
       Map<String, ResolvedPrice> unmanuallyPriced) {
     return new PriceCheck(
         List.of(failure),
         new FreshestPerInstrument(manual.withIndexPrices(unmanuallyPriced)),
-        manual.uses(overrides.excludedIsins(), indexPrices),
+        manual.uses(checks, indexPrices),
         List.of());
   }
 
   private static PriceCheck passedOnTheCommandsDate(
       ManualPrices manual,
-      TradePrepOverrides overrides,
+      Map<String, ManualPriceDeviationCheck> checks,
       Map<String, ResolvedPrice> indexPrices,
       Map<String, ResolvedPrice> unmanuallyPriced) {
     return new PriceCheck(
         List.of(),
         new FreshestPerInstrument(manual.withIndexPrices(unmanuallyPriced)),
-        manual.uses(overrides.excludedIsins(), indexPrices),
+        manual.uses(checks, indexPrices),
         List.of());
   }
 

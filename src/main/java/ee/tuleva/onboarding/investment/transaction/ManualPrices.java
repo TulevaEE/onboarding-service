@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.jspecify.annotations.NullMarked;
 
@@ -49,19 +50,22 @@ record ManualPrices(List<PriceOverride> overrides) {
     return Map.copyOf(prices);
   }
 
-  List<UsedPriceOverride> uses(Set<String> excludedIsins, Map<String, ResolvedPrice> indexPrices) {
+  List<UsedPriceOverride> uses(
+      Map<String, ManualPriceDeviationCheck> checks, Map<String, ResolvedPrice> indexPrices) {
     return overrides.stream()
         .map(
             override -> {
               ResolvedPrice indexPrice = indexPrices.get(override.isin());
-              boolean excluded = excludedIsins.contains(override.isin());
-              boolean clearedAStop = indexPrice == null && !excluded;
+              ManualPriceDeviationCheck check =
+                  Objects.requireNonNull(
+                      checks.get(override.isin()),
+                      () -> "No deviation check for a manual price: isin=" + override.isin());
+              boolean clearedAStop =
+                  indexPrice == null && check != ManualPriceDeviationCheck.SKIPPED_EXCLUDED;
               return new UsedPriceOverride(
                   override,
                   clearedAStop ? GateNeed.CLEARED_A_STOP : GateNeed.NOT_NEEDED,
-                  excluded
-                      ? ManualPriceDeviationCheck.SKIPPED_EXCLUDED
-                      : ManualPriceDeviationCheck.MEASURED,
+                  check,
                   indexPrice);
             })
         .toList();

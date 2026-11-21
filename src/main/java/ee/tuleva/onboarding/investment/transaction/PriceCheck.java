@@ -22,7 +22,7 @@ record PriceCheck(
     return new PriceCheck(
         Stream.concat(failures.stream(), unconfirmed).toList(),
         pricing,
-        priceOverrides.stream().map(used -> used.checkedAgainst(deviations)).toList(),
+        priceOverrides,
         deviations.confirmed());
   }
 }

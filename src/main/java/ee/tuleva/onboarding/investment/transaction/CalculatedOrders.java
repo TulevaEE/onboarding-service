@@ -5,4 +5,6 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
 record CalculatedOrders(
-    List<TransactionOrder> orders, Map<String, @Nullable TradePrepPrice> priceResolutions) {}
+    List<TransactionOrder> orders,
+    Map<String, @Nullable TradePrepPrice> priceResolutions,
+    List<CalculationWarning> warnings) {}

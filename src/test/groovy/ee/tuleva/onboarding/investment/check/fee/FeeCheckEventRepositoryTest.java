@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.INFO;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CASH_SETTLEMENT_OBSERVED;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_POSITION_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.PENSIONIKESKUS_MANAGEMENT_FEE;
@@ -217,6 +218,14 @@ class FeeCheckEventRepositoryTest {
   @Test
   void aPensionikeskusFeeMismatchDoesNotWidenTheDailyWindowBecauseItHasNoHistoryToRescan() {
     saveOn(LocalDate.of(2026, 6, 1), PENSIONIKESKUS_MANAGEMENT_FEE, MANAGEMENT, FAIL);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
+        .isEmpty();
+  }
+
+  @Test
+  void anUnpaidFeeMonthDoesNotWidenTheDailyWindowBecauseItHasNoHistoryToRescan() {
+    saveOn(LocalDate.of(2026, 6, 1), CASH_SETTLEMENT_OBSERVED, MANAGEMENT, WARNING);
 
     assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
         .isEmpty();

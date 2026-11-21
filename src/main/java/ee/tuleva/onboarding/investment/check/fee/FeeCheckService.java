@@ -96,19 +96,15 @@ class FeeCheckService {
 
   @Transactional
   List<FeeCheckResult> runMonthlyChecks(
-      List<TulevaFund> funds, LocalDate settlementMonth, LocalDate cashMonth, LocalDate checkDate) {
+      List<TulevaFund> funds, List<LocalDate> feeMonths, LocalDate checkDate) {
     var saved = new ArrayList<FeeCheckEvent>();
     var results = new ArrayList<FeeCheckResult>();
-    for (var fund : funds) {
-      results.add(
-          resultFor(
-              fund,
-              checkDate,
-              settlementMonth,
-              monthlyFindings(fund, settlementMonth, checkDate),
-              saved));
-      results.add(
-          resultFor(fund, checkDate, cashMonth, cashFindings(fund, cashMonth, checkDate), saved));
+    for (var feeMonth : feeMonths) {
+      for (var fund : funds) {
+        results.add(
+            resultFor(
+                fund, checkDate, feeMonth, monthlyFindings(fund, feeMonth, checkDate), saved));
+      }
     }
     notifyAndRecordDelivery(results, saved);
     return results;
@@ -145,15 +141,6 @@ class FeeCheckService {
     var result = new FeeCheckResult(fund, checkDate, feeMonth, findings);
     saved.addAll(saveEvents(result));
     return result;
-  }
-
-  private List<FeeCheckFinding> cashFindings(
-      TulevaFund fund, LocalDate cashMonth, LocalDate checkDate) {
-    return runChecker(
-        fund,
-        CASH_SETTLEMENT_OBSERVED,
-        List.of(MANAGEMENT),
-        () -> cashSettlementChecker.check(fund, cashMonth, checkDate));
   }
 
   private List<FeeCheckFinding> dailyFindings(
@@ -197,6 +184,12 @@ class FeeCheckService {
             PENSIONIKESKUS_MANAGEMENT_FEE,
             List.of(MANAGEMENT),
             () -> pensionikeskusManagementFeeChecker.check(fund, checkDate)));
+    findings.addAll(
+        runChecker(
+            fund,
+            CASH_SETTLEMENT_OBSERVED,
+            List.of(MANAGEMENT),
+            () -> cashSettlementChecker.check(fund, checkDate)));
     return findings;
   }
 

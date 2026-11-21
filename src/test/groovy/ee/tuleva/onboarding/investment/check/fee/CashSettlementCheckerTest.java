@@ -1,30 +1,24 @@
 package ee.tuleva.onboarding.investment.check.fee;
 
-import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
-import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_SETTLEMENT;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.MANAGEMENT_FEE_PAYMENT;
-import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CASH_SETTLEMENT_OBSERVED;
+import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.tuple;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
 
-import ee.tuleva.onboarding.ledger.LedgerEntryAmount;
-import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
-import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy.Policy;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy.Resolver;
+import ee.tuleva.onboarding.investment.fees.FeeMonthBalance;
+import ee.tuleva.onboarding.investment.fees.FeeMonthPayment;
+import ee.tuleva.onboarding.investment.fees.OutstandingFees;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
+import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,174 +28,123 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class CashSettlementCheckerTest {
 
-  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
-  private static final LocalDate FEE_MONTH = LocalDate.of(2026, 4, 1);
-  private static final LocalDate WINDOW_ELAPSED = LocalDate.of(2026, 6, 3);
-  private static final LocalDate WINDOW_STILL_OPEN = LocalDate.of(2026, 5, 10);
-  private static final BigDecimal SETTLED = new BigDecimal("1234.56");
+  private static final LocalDate SEPTEMBER = LocalDate.of(2026, 9, 1);
+  private static final LocalDate OCTOBER = LocalDate.of(2026, 10, 1);
+  private static final LocalDate DUE_DATE = LocalDate.of(2026, 10, 1);
+  private static final LocalDate MORNING_AFTER_THE_DUE_DATE = LocalDate.of(2026, 10, 2);
+  private static final Resolver MANAGEMENT_POLICY =
+      new Resolver(TUK75, MANAGEMENT, List.of(new Policy(true, LocalDate.of(2017, 3, 28), null)));
 
-  @Mock private NavLedgerRepository navLedgerRepository;
+  @Mock private OutstandingFees outstandingFees;
+  @Mock private FeeChargedToFundPolicy feeChargedToFundPolicy;
 
   private CashSettlementChecker checker;
 
   @BeforeEach
   void setUp() {
-    checker = new CashSettlementChecker(navLedgerRepository, new BigDecimal("0.05"), 20);
+    checker =
+        new CashSettlementChecker(outstandingFees, feeChargedToFundPolicy, new PublicHolidays());
+    given(feeChargedToFundPolicy.resolverFor(TUK75, MANAGEMENT)).willReturn(MANAGEMENT_POLICY);
   }
 
   @Test
-  void aPensionFundsPaymentIsCheckedAgainstItsOwnSettlement() {
-    givenSettled(SETTLED);
-    givenPayments(SETTLED.subtract(new BigDecimal("50.00")));
+  void passesOnceTheDebitHasClearedEveryCompleteMonth() {
+    givenMonths(
+        DUE_DATE,
+        month(SEPTEMBER, "10000.00", "10000.01", "0", DUE_DATE),
+        month(OCTOBER, "333.33", "0", "333.33", null));
 
-    var findings = checker.check(TUK75, FEE_MONTH, WINDOW_ELAPSED);
-
-    assertThat(findings)
-        .extracting(FeeCheckFinding::fund, FeeCheckFinding::severity)
-        .containsExactly(tuple(TUK75, WARNING));
-    then(navLedgerRepository)
-        .should()
-        .findEntriesByTransactionTypeBetween(
-            eq("MANAGEMENT_FEE:TUK75"), eq(MANAGEMENT_FEE_PAYMENT), any(), any());
+    assertThat(checker.check(TUK75, MORNING_AFTER_THE_DUE_DATE))
+        .containsExactly(
+            FeeCheckFinding.pass(TUK75, CASH_SETTLEMENT_OBSERVED, FeeCheckScope.MANAGEMENT));
   }
 
   @Test
-  void aPaymentMatchingTheSettlementPasses() {
-    givenSettled(SETTLED);
-    givenPayments(SETTLED);
+  void warnsTheMorningAfterTheDueDateWhenNoDebitHasCome() {
+    givenMonths(
+        DUE_DATE,
+        month(SEPTEMBER, "10000.00", "0", "10000.00", null),
+        month(OCTOBER, "333.33", "0", "333.33", null));
 
-    assertThat(check(WINDOW_ELAPSED).getFirst().severity()).isEqualTo(PASS);
+    assertThat(checker.check(TUK75, MORNING_AFTER_THE_DUE_DATE))
+        .containsExactly(
+            new FeeCheckFinding(
+                TUK75,
+                CASH_SETTLEMENT_OBSERVED,
+                FeeCheckScope.MANAGEMENT,
+                WARNING,
+                "No debit for the 2026-09-01 management fee by 2026-10-01: 10000.00 stays owed in"
+                    + " the NAV. Ask SEB why it was not debited",
+                new BigDecimal("10000.00"),
+                List.of("2026-09-01 noDebit"),
+                Map.of("positionDate", "2026-10-01")));
   }
 
   @Test
-  void aPaymentWithinToleranceStillPasses() {
-    givenSettled(SETTLED);
-    givenPayments(SETTLED.add(new BigDecimal("0.05")));
+  void warnsWhenADebitBeyondTheThresholdLeftPartOfTheMonthOwed() {
+    givenMonths(
+        DUE_DATE,
+        month(SEPTEMBER, "10000.00", "9000.00", "1000.00", null),
+        month(OCTOBER, "333.33", "0", "333.33", null));
 
-    assertThat(check(WINDOW_ELAPSED).getFirst().severity()).isEqualTo(PASS);
+    assertThat(checker.check(TUK75, MORNING_AFTER_THE_DUE_DATE))
+        .containsExactly(
+            new FeeCheckFinding(
+                TUK75,
+                CASH_SETTLEMENT_OBSERVED,
+                FeeCheckScope.MANAGEMENT,
+                WARNING,
+                "The 2026-09-01 management fee debit was 9000.00 against 10000.00 accrued: 1000.00"
+                    + " stays owed in the NAV. Ask SEB to debit the difference",
+                new BigDecimal("1000.00"),
+                List.of("2026-09-01 debitDiffersFromAccrual"),
+                Map.of("positionDate", "2026-10-01")));
   }
 
   @Test
-  void aPaymentDifferingBeyondToleranceIsReported() {
-    givenSettled(SETTLED);
-    givenPayments(SETTLED.subtract(new BigDecimal("50.00")));
+  void warnsWhenADebitTookMoreThanTheMonthAccrued() {
+    givenMonths(
+        DUE_DATE,
+        month(SEPTEMBER, "10000.00", "10500.00", "-500.00", DUE_DATE),
+        month(OCTOBER, "333.33", "0", "333.33", null));
 
-    var finding = check(WINDOW_ELAPSED).getFirst();
-
-    assertThat(finding.severity()).isEqualTo(WARNING);
-    assertThat(finding.deviationAmount()).isEqualByComparingTo(new BigDecimal("50.00"));
+    assertThat(checker.check(TUK75, MORNING_AFTER_THE_DUE_DATE))
+        .containsExactly(
+            new FeeCheckFinding(
+                TUK75,
+                CASH_SETTLEMENT_OBSERVED,
+                FeeCheckScope.MANAGEMENT,
+                WARNING,
+                "The 2026-09-01 management fee debit was 10500.00 against 10000.00 accrued: the"
+                    + " fund is owed 500.00 back. Ask SEB to refund the excess",
+                new BigDecimal("500.00"),
+                List.of("2026-09-01 debitDiffersFromAccrual"),
+                Map.of("positionDate", "2026-10-01")));
   }
 
   @Test
-  void noPaymentOnceTheWindowHasElapsedIsReported() {
-    givenSettled(SETTLED);
-    givenPayments();
+  void doesNotAskForTheCurrentMonthsDebit() {
+    givenMonths(LocalDate.of(2026, 10, 19), month(OCTOBER, "333.33", "0", "333.33", null));
 
-    assertThat(check(WINDOW_ELAPSED).getFirst().severity()).isEqualTo(WARNING);
+    assertThat(checker.check(TUK75, LocalDate.of(2026, 10, 20)))
+        .extracting(FeeCheckFinding::severity)
+        .containsExactly(FeeCheckSeverity.PASS);
   }
 
-  @Test
-  void noPaymentWhileTheWindowIsStillOpenIsNotRun() {
-    givenSettled(SETTLED);
-    givenPayments();
-
-    var finding = check(WINDOW_STILL_OPEN).getFirst();
-
-    assertThat(finding.severity()).isEqualTo(NOT_RUN);
-    assertThat(finding.deviationAmount()).isNull();
+  private void givenMonths(LocalDate positionDate, FeeMonthBalance... months) {
+    given(outstandingFees.monthsOn(MANAGEMENT_POLICY, positionDate)).willReturn(List.of(months));
   }
 
-  // The ledger carries no fee month on a payment, so a second payment in the window cannot be
-  // attributed. Summing them would invent a match that the data does not support.
-  @Test
-  void twoPaymentsInTheWindowAreReportedEvenWhenTheySumToTheSettledAmount() {
-    givenSettled(SETTLED);
-    givenPayments(new BigDecimal("600.00"), new BigDecimal("634.56"));
-
-    var finding = check(WINDOW_ELAPSED).getFirst();
-
-    assertThat(finding.severity()).isEqualTo(WARNING);
-    assertThat(finding.message()).contains("600.00", "634.56");
-  }
-
-  // Two payments and five payments are the same severity with no amount of their own, so unless the
-  // count itself is in the identifier a third payment turning up later never reaches anyone.
-  @Test
-  void theNumberOfPaymentsIsPartOfTheIdentifier() {
-    givenSettled(SETTLED);
-    givenPayments(new BigDecimal("600.00"), new BigDecimal("634.56"));
-
-    assertThat(check(WINDOW_ELAPSED).getFirst().identifiers())
-        .containsExactly("multiplePaymentsInWindow=2");
-  }
-
-  @Test
-  void aMonthThatSettledNothingAndPaidNothingPasses() {
-    givenSettled(BigDecimal.ZERO);
-    givenPayments();
-
-    assertThat(check(WINDOW_ELAPSED).getFirst().severity()).isEqualTo(PASS);
-  }
-
-  // A month's fee is only settled on its last day, so a payment before that belongs to the
-  // previous month. Starting the window at the fee month would catch both and report two payments
-  // every single month.
-  @Test
-  void thePreviousMonthsPaymentIsNotCountedInThisMonthsWindow() {
-    givenSettled(SETTLED);
-    givenPaymentsAt(
-        payment(LocalDate.of(2026, 4, 15), SETTLED), payment(LocalDate.of(2026, 5, 15), SETTLED));
-
-    assertThat(check(WINDOW_ELAPSED).getFirst().severity()).isEqualTo(PASS);
-  }
-
-  private List<FeeCheckFinding> check(LocalDate checkDate) {
-    return checker.check(TKF100, FEE_MONTH, checkDate);
-  }
-
-  private void givenSettled(BigDecimal amount) {
-    givenEntries(FEE_SETTLEMENT, amount);
-  }
-
-  private void givenPayments(BigDecimal... amounts) {
-    givenEntries(MANAGEMENT_FEE_PAYMENT, amounts);
-  }
-
-  // Mirrors the half-open window the checker asks for, so a fixture dated before it is genuinely
-  // excluded by the query rather than by the stub.
-  private void givenPaymentsAt(LedgerEntryAmount... payments) {
-    given(
-            navLedgerRepository.findEntriesByTransactionTypeBetween(
-                anyString(), eq(MANAGEMENT_FEE_PAYMENT), any(), any()))
-        .willAnswer(
-            invocation -> {
-              Instant from = invocation.getArgument(2);
-              Instant to = invocation.getArgument(3);
-              return Arrays.stream(payments)
-                  .filter(
-                      p -> !p.transactionDate().isBefore(from) && p.transactionDate().isBefore(to))
-                  .toList();
-            });
-  }
-
-  private LedgerEntryAmount payment(LocalDate date, BigDecimal amount) {
-    return new LedgerEntryAmount(
-        UUID.randomUUID(), date.atStartOfDay(ESTONIAN_ZONE).toInstant(), amount);
-  }
-
-  private void givenEntries(TransactionType transactionType, BigDecimal... amounts) {
-    var entries =
-        Arrays.stream(amounts)
-            .filter(amount -> amount.signum() != 0)
-            .map(amount -> new LedgerEntryAmount(UUID.randomUUID(), someInstant(), amount))
-            .toList();
-    given(
-            navLedgerRepository.findEntriesByTransactionTypeBetween(
-                anyString(), eq(transactionType), any(), any()))
-        .willReturn(entries);
-  }
-
-  private Instant someInstant() {
-    return FEE_MONTH.atStartOfDay(ESTONIAN_ZONE).toInstant();
+  private static FeeMonthBalance month(
+      LocalDate feeMonth, String accrued, String paid, String owed, @Nullable LocalDate clearedOn) {
+    return new FeeMonthBalance(
+        feeMonth,
+        new BigDecimal(accrued),
+        new BigDecimal(paid),
+        new BigDecimal(owed),
+        clearedOn,
+        new BigDecimal(paid).signum() == 0
+            ? List.of()
+            : List.of(new FeeMonthPayment(DUE_DATE, new BigDecimal(owed))));
   }
 }

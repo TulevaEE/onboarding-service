@@ -15,7 +15,6 @@ import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -36,14 +35,19 @@ import org.springframework.transaction.annotation.Transactional;
 class FeeSettlementCheckIntegrationTest {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
-  private static final LocalDate APRIL = LocalDate.of(2026, 4, 1);
-  private static final LocalDate LAST_DAY_OF_APRIL = LocalDate.of(2026, 4, 30);
-  private static final LocalDate FIRST_DAY_OF_MAY = LocalDate.of(2026, 5, 1);
-  private static final LocalDate PAYMENT_DATE = LocalDate.of(2026, 5, 15);
   private static final LocalDate MAY = LocalDate.of(2026, 5, 1);
   private static final LocalDate LAST_DAY_OF_MAY = LocalDate.of(2026, 5, 31);
   private static final LocalDate FIRST_DAY_OF_JUNE = LocalDate.of(2026, 6, 1);
   private static final LocalDate THIRD_BUSINESS_DAY_OF_JUNE = LocalDate.of(2026, 6, 3);
+  private static final LocalDate NOVEMBER = LocalDate.of(2026, 11, 1);
+  private static final LocalDate NOVEMBER_30 = LocalDate.of(2026, 11, 30);
+  private static final LocalDate DECEMBER_1 = LocalDate.of(2026, 12, 1);
+  private static final LocalDate DECEMBER_2 = LocalDate.of(2026, 12, 2);
+  private static final BigDecimal NOVEMBER_FEE = new BigDecimal("6849.32");
+  private static final LocalDate OCTOBER_30 = LocalDate.of(2026, 10, 30);
+  private static final LocalDate OCTOBER_31 = LocalDate.of(2026, 10, 31);
+  private static final LocalDate NOVEMBER_2 = LocalDate.of(2026, 11, 2);
+  private static final LocalDate NOVEMBER_3 = LocalDate.of(2026, 11, 3);
   private static final BigDecimal BASE_VALUE = new BigDecimal("1000000000");
   private static final BigDecimal CORRECTION = new BigDecimal("13.32");
   private static final List<TulevaFund> PENSION_FUNDS = List.of(TUK75, TUK00, TUV100);
@@ -154,14 +158,14 @@ class FeeSettlementCheckIntegrationTest {
   }
 
   @Test
-  void everyPensionFundsPaymentMatchingWhatWasSettledPasses() {
+  void everyPensionFundsDebitMatchingItsMonthPassesTheMorningAfter() {
     PENSION_FUNDS.forEach(
         fund -> {
-          settleAprilFor(fund);
-          insertManagementFeePayment(fund, PAYMENT_DATE, settledFor(fund));
+          accrueNovember30And(fund, DECEMBER_1);
+          insertManagementFeePayment(fund, DECEMBER_1, NOVEMBER_FEE);
         });
 
-    feeCheckService.runMonthlyChecks(PENSION_FUNDS, MAY, APRIL, THIRD_BUSINESS_DAY_OF_JUNE);
+    feeCheckService.runDailyChecks(PENSION_FUNDS, DECEMBER_2);
 
     assertThat(PENSION_FUNDS)
         .extracting(fund -> severityOf(fund, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT"))
@@ -169,33 +173,83 @@ class FeeSettlementCheckIntegrationTest {
   }
 
   @Test
-  void aPensionFundsPaymentWithNoSettlementBehindItIsReported() {
-    insertSystemAccount("MANAGEMENT_FEE:TUV100", "EXPENSE");
-    insertManagementFeePayment(TUV100, PAYMENT_DATE, new BigDecimal("100.00"));
+  void noDebitByTheDueDateWarnsTheMorningAfter() {
+    accrueNovember30And(TKF100, DECEMBER_1);
 
-    runCashChecksFor(TUV100);
+    feeCheckService.runDailyChecks(List.of(TKF100), DECEMBER_2);
 
-    assertThat(severityOf(TUV100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("WARNING");
+    assertThat(severityOf(TKF100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("WARNING");
   }
 
   @Test
-  void aPaymentFiveCentsAwayFromWhatWasSettledStillPasses() {
-    settleAprilFor(TUK75);
-    insertManagementFeePayment(TUK75, PAYMENT_DATE, settledFor(TUK75).add(new BigDecimal("0.05")));
+  void aDebitTwoCentsAwayFromItsMonthStillPasses() {
+    accrueNovember30And(TKF100, DECEMBER_1);
+    insertManagementFeePayment(TKF100, DECEMBER_1, NOVEMBER_FEE.add(new BigDecimal("0.02")));
 
-    runCashChecksFor(TUK75);
+    feeCheckService.runDailyChecks(List.of(TKF100), DECEMBER_2);
 
-    assertThat(severityOf(TUK75, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("PASS");
+    assertThat(severityOf(TKF100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("PASS");
   }
 
   @Test
-  void aPaymentSixCentsAwayFromWhatWasSettledIsReported() {
-    settleAprilFor(TUK75);
-    insertManagementFeePayment(TUK75, PAYMENT_DATE, settledFor(TUK75).add(new BigDecimal("0.06")));
+  void aDebitThreeCentsAwayFromItsMonthWarns() {
+    accrueNovember30And(TKF100, DECEMBER_1);
+    insertManagementFeePayment(TKF100, DECEMBER_1, NOVEMBER_FEE.add(new BigDecimal("0.03")));
 
-    runCashChecksFor(TUK75);
+    feeCheckService.runDailyChecks(List.of(TKF100), DECEMBER_2);
 
-    assertThat(severityOf(TUK75, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("WARNING");
+    assertThat(severityOf(TKF100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("WARNING");
+  }
+
+  @Test
+  void twoDebitsThatTogetherPayTheMonthPass() {
+    accrueNovember30And(TKF100, DECEMBER_1);
+    var part = new BigDecimal("4000.00");
+    insertManagementFeePayment(TKF100, DECEMBER_1, part);
+    insertManagementFeePayment(TKF100, DECEMBER_1, NOVEMBER_FEE.subtract(part));
+
+    feeCheckService.runDailyChecks(List.of(TKF100), DECEMBER_2);
+
+    assertThat(severityOf(TKF100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("PASS");
+  }
+
+  @Test
+  void aMonthStillWaitingForItsDebitIsNotRunAndPassesOnceTheDebitSettlesIt() {
+    accrueNovember30And(TUK75, DECEMBER_1);
+
+    feeCheckService.runMonthlyChecks(List.of(TUK75), List.of(NOVEMBER), DECEMBER_1);
+    var beforeTheDebit = findEvent("SETTLEMENT_COMPLETENESS", "MANAGEMENT").get("severity");
+    insertManagementFeePayment(TUK75, DECEMBER_1, NOVEMBER_FEE);
+    accrueFor(TUK75, DECEMBER_2);
+    feeCheckService.runMonthlyChecks(List.of(TUK75), List.of(NOVEMBER), DECEMBER_2);
+
+    assertThat(beforeTheDebit).isEqualTo("NOT_RUN");
+    assertThat(findEvent("SETTLEMENT_COMPLETENESS", "MANAGEMENT").get("severity"))
+        .isEqualTo("PASS");
+  }
+
+  @Test
+  void aMonthItsDebitClearedFailsWhileTheLedgerHasNotSettledIt() {
+    accrueNovember30And(TUK75, DECEMBER_1);
+    insertManagementFeePayment(TUK75, DECEMBER_1, NOVEMBER_FEE);
+
+    feeCheckService.runMonthlyChecks(List.of(TUK75), List.of(NOVEMBER), DECEMBER_2);
+
+    assertThat(findEvent("SETTLEMENT_COMPLETENESS", "MANAGEMENT").get("severity"))
+        .isEqualTo("FAIL");
+  }
+
+  @Test
+  void aCorrectionToAMonthReleasedBeforeTheFirstHeldOneIsReleasedOnceMonthsAreHeld() {
+    accrueFor(OCTOBER_30);
+    accrueFor(NOVEMBER_2);
+    insertManagementFeeCorrection(LocalDate.of(2026, 10, 20), CORRECTION);
+
+    accrueFor(NOVEMBER_3);
+
+    assertThat(managementFeeBalanceBefore(NOVEMBER)).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(settlementsDatedOn(OCTOBER_31))
+        .containsExactlyInAnyOrder(new BigDecimal("13698.64"), CORRECTION.negate());
   }
 
   // A deviation is announced once. The second run, with identical state, must produce no transition
@@ -222,73 +276,15 @@ class FeeSettlementCheckIntegrationTest {
     verifyNoInteractions(notificationService);
   }
 
-  @Test
-  void aPaymentMatchingWhatWasSettledPasses() {
-    settleAprilFor(TKF100);
-    insertManagementFeePayment(TKF100, PAYMENT_DATE, settledFor(TKF100));
-
-    runCashChecksFor(TKF100);
-
-    assertThat(severityOf(TKF100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("PASS");
-  }
-
-  @Test
-  void aPaymentThatDoesNotMatchWhatWasSettledIsReported() {
-    settleAprilFor(TKF100);
-    insertManagementFeePayment(
-        TKF100, PAYMENT_DATE, settledFor(TKF100).add(new BigDecimal("50.00")));
-
-    runCashChecksFor(TKF100);
-
-    assertThat(severityOf(TKF100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("WARNING");
-  }
-
-  @Test
-  void aSettlementWithNoPaymentOnceTheWindowClosedIsReported() {
-    settleAprilFor(TKF100);
-
-    runCashChecksFor(TKF100);
-
-    assertThat(severityOf(TKF100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("WARNING");
-  }
-
-  // The ledger carries no fee month on a payment, so a second one in the window cannot be
-  // attributed to a month - reported rather than summed, even when the sum would have matched.
-  @Test
-  void twoPaymentsSummingToTheSettledAmountAreStillReported() {
-    settleAprilFor(TKF100);
-    var half = settledFor(TKF100).divide(new BigDecimal("2"), 2, RoundingMode.DOWN);
-    insertManagementFeePayment(TKF100, PAYMENT_DATE, half);
-    insertManagementFeePayment(TKF100, PAYMENT_DATE, settledFor(TKF100).subtract(half));
-
-    runCashChecksFor(TKF100);
-
-    assertThat(severityOf(TKF100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("WARNING");
-  }
-
-  private void settleAprilFor(TulevaFund fund) {
-    accrueFor(fund, LAST_DAY_OF_APRIL);
-    accrueFor(fund, FIRST_DAY_OF_MAY);
-    insertSystemAccount("MANAGEMENT_FEE:" + fund.name(), "EXPENSE");
-  }
-
-  private BigDecimal settledFor(TulevaFund fund) {
-    return jdbcClient
-        .sql(
-            """
-            SELECT COALESCE(SUM(e.amount), 0)
-            FROM ledger.entry e
-            JOIN ledger.account a ON e.account_id = a.id
-            JOIN ledger.transaction t ON e.transaction_id = t.id
-            WHERE a.name = :accountName
-              AND t.transaction_type = CAST('FEE_SETTLEMENT' AS ledger.transaction_type)
-            """)
-        .param("accountName", "MANAGEMENT_FEE_ACCRUAL:" + fund.name())
-        .query(BigDecimal.class)
-        .single();
+  private void accrueNovember30And(TulevaFund fund, LocalDate day) {
+    accrueFor(fund, NOVEMBER_30);
+    accrueFor(fund, day);
   }
 
   private void insertManagementFeePayment(TulevaFund fund, LocalDate date, BigDecimal amount) {
+    if (!accountExists("MANAGEMENT_FEE:" + fund.name())) {
+      insertSystemAccount("MANAGEMENT_FEE:" + fund.name(), "EXPENSE");
+    }
     var transactionId = UUID.randomUUID();
     jdbcClient
         .sql(
@@ -317,8 +313,13 @@ class FeeSettlementCheckIntegrationTest {
         .update();
   }
 
-  private void runCashChecksFor(TulevaFund fund) {
-    feeCheckService.runMonthlyChecks(List.of(fund), MAY, APRIL, THIRD_BUSINESS_DAY_OF_JUNE);
+  private boolean accountExists(String name) {
+    return jdbcClient
+            .sql("SELECT COUNT(*) FROM ledger.account WHERE name = :name")
+            .param("name", name)
+            .query(Integer.class)
+            .single()
+        > 0;
   }
 
   private String severityOf(TulevaFund fund, String checkType, String feeScope) {
@@ -338,7 +339,7 @@ class FeeSettlementCheckIntegrationTest {
   }
 
   private void runMonthlyChecks() {
-    feeCheckService.runMonthlyChecks(List.of(TUK75), MAY, APRIL, THIRD_BUSINESS_DAY_OF_JUNE);
+    feeCheckService.runMonthlyChecks(List.of(TUK75), List.of(MAY), THIRD_BUSINESS_DAY_OF_JUNE);
   }
 
   private void accrueFor(LocalDate date) {
@@ -347,6 +348,42 @@ class FeeSettlementCheckIntegrationTest {
 
   private void accrueFor(TulevaFund fund, LocalDate date) {
     feeCalculationService.calculateFeesForNav(fund, date, BASE_VALUE, null);
+  }
+
+  private BigDecimal managementFeeBalanceBefore(LocalDate date) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT COALESCE(SUM(e.amount), 0)
+            FROM ledger.entry e
+            JOIN ledger.account a ON e.account_id = a.id
+            JOIN ledger.transaction t ON e.transaction_id = t.id
+            WHERE a.name = 'MANAGEMENT_FEE_ACCRUAL:TUK75' AND t.transaction_date < :before
+            """)
+        .param("before", Timestamp.from(date.atStartOfDay(ESTONIAN_ZONE).toInstant()))
+        .query(BigDecimal.class)
+        .single();
+  }
+
+  private List<BigDecimal> settlementsDatedOn(LocalDate date) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT e.amount
+            FROM ledger.entry e
+            JOIN ledger.account a ON e.account_id = a.id
+            JOIN ledger.transaction t ON e.transaction_id = t.id
+            WHERE a.name = 'MANAGEMENT_FEE_ACCRUAL:TUK75'
+              AND t.transaction_type = CAST('FEE_SETTLEMENT' AS ledger.transaction_type)
+              AND t.transaction_date >= :from AND t.transaction_date < :to
+            """)
+        .param("from", Timestamp.from(date.atStartOfDay(ESTONIAN_ZONE).toInstant()))
+        .param("to", Timestamp.from(date.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant()))
+        .query(BigDecimal.class)
+        .list()
+        .stream()
+        .map(amount -> amount.setScale(2, java.math.RoundingMode.HALF_UP))
+        .toList();
   }
 
   private void insertManagementFeeCorrection(LocalDate date, BigDecimal amount) {

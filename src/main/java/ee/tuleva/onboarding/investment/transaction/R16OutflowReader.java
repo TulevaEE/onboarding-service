@@ -18,7 +18,7 @@ import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR16;
 import ee.tuleva.onboarding.investment.transaction.R16Reserve.Basis;
 import ee.tuleva.onboarding.investment.transaction.R16TypeForecast.Status;
 import ee.tuleva.onboarding.ledger.RegistrarCashFlowRepository;
-import ee.tuleva.onboarding.ledger.RegistrarPayout;
+import ee.tuleva.onboarding.ledger.RegistrarPayoutBooking;
 import ee.tuleva.onboarding.ledger.RegistrarPayoutReason;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -45,13 +45,13 @@ class R16OutflowReader {
   private final RegistrarCashFlowRepository registrarCashFlows;
   private final FundLimitRepository fundLimitRepository;
 
-  R16Reserve read(TulevaFund fund, LocalDate asOfDate, LocalDate bookedThrough) {
+  R16Reserve read(TulevaFund fund, LocalDate asOfDate, CashHorizon horizon) {
     if (!R16_FUNDS.contains(fund)) {
       return R16Reserve.NONE;
     }
     return r16FlowCalculationService
         .calculateThisMonthsFlows(fund, asOfDate)
-        .map(flow -> reserve(flow, asOfDate, bookedThrough))
+        .map(flow -> reserve(flow, asOfDate, horizon))
         .orElse(R16Reserve.NONE);
   }
 
@@ -68,8 +68,8 @@ class R16OutflowReader {
     return Optional.of(new MissingR16(paymentMonth, dates.paymentDeadline(), dates.sellByDate()));
   }
 
-  private R16Reserve reserve(R16FundFlow flow, LocalDate asOfDate, LocalDate bookedThrough) {
-    Set<RegistrarPayoutReason> booked = typesBooked(flow, bookedThrough);
+  private R16Reserve reserve(R16FundFlow flow, LocalDate asOfDate, CashHorizon horizon) {
+    Set<RegistrarPayoutReason> booked = typesBooked(flow, horizon);
     List<R16TypeForecast> types =
         List.of(
             forecast(FUND_PENSION, flow.fondimaksedUnits(), flow.fondimaksedEur(), booked),
@@ -101,14 +101,16 @@ class R16OutflowReader {
     return ZERO.max(stillToPay.subtract(soft.subtract(hard)));
   }
 
-  private Set<RegistrarPayoutReason> typesBooked(R16FundFlow flow, LocalDate bookedThrough) {
+  private Set<RegistrarPayoutReason> typesBooked(R16FundFlow flow, CashHorizon horizon) {
     LocalDate monthEnd = YearMonth.from(flow.paymentMonth()).atEndOfMonth();
-    LocalDate through = bookedThrough.isBefore(monthEnd) ? bookedThrough : monthEnd;
+    LocalDate lastBookingDay = horizon.lastBookingDay();
+    LocalDate through = lastBookingDay.isBefore(monthEnd) ? lastBookingDay : monthEnd;
     if (through.isBefore(flow.sellByDate())) {
       return Set.of();
     }
-    return registrarCashFlows.findPayouts(flow.fund(), flow.sellByDate(), through).stream()
-        .map(RegistrarPayout::reason)
+    return registrarCashFlows.findPayoutBookings(flow.fund(), flow.sellByDate(), through).stream()
+        .filter(payout -> horizon.holds(payout.externalReference(), payout.bookingDate()))
+        .map(RegistrarPayoutBooking::reason)
         .collect(Collectors.toUnmodifiableSet());
   }
 

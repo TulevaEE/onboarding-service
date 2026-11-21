@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.banking.statement.BankStatementParseException;
 import ee.tuleva.onboarding.banking.statement.DayClosingBalance;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -67,13 +68,17 @@ public class BookedBalanceReader implements BankStatementBalances {
 
   @Override
   public CurrentDayReport currentDayReport(BankAccount account, LocalDate day) {
-    return bankingMessageRepository
-        .findLatestProcessedCurrentDayReport(SEB, account.iban(), day)
-        .map(message -> bookedBalanceOf(message, account))
-        .orElseGet(Missing::new);
+    List<BankingMessage> reports =
+        bankingMessageRepository.findProcessedCurrentDayReportsLatestFirst(
+            SEB, account.iban(), day);
+    if (reports.isEmpty()) {
+      return new Missing();
+    }
+    return bookedBalanceOf(reports.getFirst(), reports, account);
   }
 
-  private CurrentDayReport bookedBalanceOf(BankingMessage message, BankAccount account) {
+  private CurrentDayReport bookedBalanceOf(
+      BankingMessage message, List<BankingMessage> reportsUpToIt, BankAccount account) {
     try {
       var statement = statementOf(message);
       return statement
@@ -83,7 +88,8 @@ public class BookedBalanceReader implements BankStatementBalances {
                   new Booked(
                       balance,
                       message.getReceivedAt(),
-                      pendingEntryReferences(statement, account.iban())))
+                      pendingEntryReferences(statement, account.iban()),
+                      bookedEntryReferences(reportsUpToIt, account.iban())))
           .orElseGet(NoBookedBalance::new);
     } catch (BankStatementParseException e) {
       log.error("Stored current-day report cannot be read: messageId={}", message.getId(), e);
@@ -99,6 +105,23 @@ public class BookedBalanceReader implements BankStatementBalances {
   private Optional<BankingMessage> catchUpStatementCovering(BankAccount account, LocalDate day) {
     return bankingMessageRepository.findLatestProcessedStatementCoveringAndClosingAfter(
         SEB, account.iban(), day);
+  }
+
+  private Set<UUID> bookedEntryReferences(List<BankingMessage> reports, String iban) {
+    return reports.stream()
+        .flatMap(report -> readableEntries(report).stream())
+        .filter(BankStatementEntry::booked)
+        .map(entry -> BankEntryReference.of(iban, entry.externalId()))
+        .collect(toUnmodifiableSet());
+  }
+
+  private List<BankStatementEntry> readableEntries(BankingMessage report) {
+    try {
+      return statementOf(report).getEntries();
+    } catch (BankStatementParseException e) {
+      log.error("Stored current-day report cannot be read: messageId={}", report.getId(), e);
+      return List.of();
+    }
   }
 
   private static Set<UUID> pendingEntryReferences(BankStatement statement, String iban) {

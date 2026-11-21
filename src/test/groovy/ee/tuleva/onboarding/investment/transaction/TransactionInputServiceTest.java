@@ -966,18 +966,24 @@ class TransactionInputServiceTest {
     stubEmptyBaseline(TUV100);
     var balance =
         new GatewayCash.CurrentDayBalance(
-            new BigDecimal("600000"), Instant.parse("2026-01-15T08:00:00Z"), Set.of());
+            new BigDecimal("600000"), Instant.parse("2026-01-15T08:00:00Z"), Set.of(), Set.of());
     given(
             sameDayCashReader.read(
                 TUV100, AS_OF_DATE, null, ZERO, PevaRavaCycleState.OUTSIDE_A_CYCLE))
         .willReturn(
             new CashSourceReport(
                 CashSource.GATEWAY_BALANCE, balance, ZERO, List.of(), GatewayHold.NONE));
-    given(tradeSettlementsReader.read(new NettingWindow(TUV100, AS_OF_DATE, AS_OF_DATE, Set.of())))
+    given(
+            tradeSettlementsReader.read(
+                new NettingWindow(TUV100, AS_OF_DATE, AS_OF_DATE, Set.of(), Set.of())))
         .willReturn(new TradeSettlementsInTheBalance(List.of()));
     given(r45ReportService.getRowsOn(TUV100, AS_OF_DATE)).willReturn(Optional.of(List.of()));
     given(gatewayNetting.r45(any(), any())).willReturn(new Netted<>(ZERO, ZERO));
-    given(r16OutflowReader.read(TUV100, AS_OF_DATE, AS_OF_DATE))
+    given(
+            r16OutflowReader.read(
+                TUV100,
+                AS_OF_DATE,
+                new NettingWindow(TUV100, AS_OF_DATE, AS_OF_DATE, Set.of(), Set.of())))
         .willReturn(
             new R16Reserve(
                 R16Reserve.Basis.FORECAST_NOT_YET_BOOKED,
@@ -1041,18 +1047,25 @@ class TransactionInputServiceTest {
             new CashSourceReport(
                 CashSource.GATEWAY_BALANCE,
                 new GatewayCash.CurrentDayBalance(
-                    new BigDecimal(balance), Instant.parse("2026-01-15T08:00:00Z"), Set.of()),
+                    new BigDecimal(balance),
+                    Instant.parse("2026-01-15T08:00:00Z"),
+                    Set.of(),
+                    Set.of()),
                 ZERO,
                 List.of(),
                 GatewayHold.NONE));
-    given(tradeSettlementsReader.read(new NettingWindow(fund, AS_OF_DATE, AS_OF_DATE, Set.of())))
+    given(
+            tradeSettlementsReader.read(
+                new NettingWindow(fund, AS_OF_DATE, AS_OF_DATE, Set.of(), Set.of())))
         .willReturn(new TradeSettlementsInTheBalance(List.of()));
   }
 
   @Test
   void gatherInput_reservesTheR16AmountForThePayoutTypesNotBookedByTheReportDate() {
     stubEmptyBaseline(TUV100);
-    given(r16OutflowReader.read(TUV100, AS_OF_DATE, AS_OF_DATE))
+    given(
+            r16OutflowReader.read(
+                TUV100, AS_OF_DATE, new CashHorizon.ThroughTheReportDate(AS_OF_DATE)))
         .willReturn(
             new R16Reserve(
                 R16Reserve.Basis.FORECAST_NOT_YET_BOOKED,

@@ -9,7 +9,11 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 public sealed interface CurrentDayReport {
 
-  record Booked(BigDecimal balance, Instant fetchedAt, Set<UUID> pendingEntryReferences)
+  record Booked(
+      BigDecimal balance,
+      Instant fetchedAt,
+      Set<UUID> pendingEntryReferences,
+      Set<UUID> bookedTodayEntryReferences)
       implements CurrentDayReport {}
 
   record Missing() implements CurrentDayReport {}

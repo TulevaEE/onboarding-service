@@ -33,6 +33,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -84,6 +86,7 @@ class R16ReserveIT {
   private static final LocalDate TRADE_DAY = LocalDate.of(2026, 11, 18);
   private static final LocalDate REPORT_DATE = LocalDate.of(2026, 11, 17);
   private static final LocalDate PAYOUT_DAY = LocalDate.of(2026, 11, 16);
+  private static final CashHorizon REPORT_CASH = new CashHorizon.ThroughTheReportDate(REPORT_DATE);
   private static final String FUND_PENSION = "38888888888, Fondipensioni maksete lunastamine";
   private static final String ONE_OFF = "38888888888, Ühekordsete maksete osakute lunastamine";
 
@@ -110,7 +113,7 @@ class R16ReserveIT {
     reserves("1000000", "500000");
     r16(100000, 50000);
 
-    assertThat(reader.read(TUK75, TRADE_DAY, REPORT_DATE).reserved()).isEqualByComparingTo("0");
+    assertThat(reader.read(TUK75, TRADE_DAY, REPORT_CASH).reserved()).isEqualByComparingTo("0");
   }
 
   @Test
@@ -118,7 +121,7 @@ class R16ReserveIT {
     reserves("1000000", "500000");
     r16(300000, 100000);
 
-    assertThat(reader.read(TUK75, TRADE_DAY, REPORT_DATE).reserved())
+    assertThat(reader.read(TUK75, TRADE_DAY, REPORT_CASH).reserved())
         .isEqualByComparingTo("300000");
   }
 
@@ -129,7 +132,7 @@ class R16ReserveIT {
     payout("600000.00", PAYOUT_DAY, FUND_PENSION);
     payout("200000.00", PAYOUT_DAY, ONE_OFF);
 
-    assertThat(reader.read(TUK75, TRADE_DAY, REPORT_DATE).reserved()).isEqualByComparingTo("0");
+    assertThat(reader.read(TUK75, TRADE_DAY, REPORT_CASH).reserved()).isEqualByComparingTo("0");
   }
 
   @Test
@@ -137,7 +140,7 @@ class R16ReserveIT {
     reserves("1000000", null);
     r16(100000, 50000);
 
-    assertThat(reader.read(TUK75, TRADE_DAY, REPORT_DATE).reserved())
+    assertThat(reader.read(TUK75, TRADE_DAY, REPORT_CASH).reserved())
         .isEqualByComparingTo("300000");
   }
 
@@ -145,11 +148,43 @@ class R16ReserveIT {
   void aTypeBookedAfterTheReportDateStillCountsOnTheReportCashButNotOnTodaysBalance() {
     reserves("1000000", "500000");
     r16(300000, 100000);
+    UUID inTheBalance = payout("600000.00", TRADE_DAY, FUND_PENSION);
+
+    assertThat(reader.read(TUK75, TRADE_DAY, REPORT_CASH).reserved())
+        .isEqualByComparingTo("300000");
+    assertThat(reader.read(TUK75, TRADE_DAY, balanceHolding(inTheBalance)).reserved())
+        .isEqualByComparingTo("0");
+  }
+
+  @Test
+  void aPayoutBookedTodayFromAReportProcessedAfterTheBalancesIsNotYetPaidForTheBalance() {
+    reserves("1000000", "500000");
+    r16(300000, 100000);
     payout("600000.00", TRADE_DAY, FUND_PENSION);
 
-    assertThat(reader.read(TUK75, TRADE_DAY, REPORT_DATE).reserved())
+    assertThat(reader.read(TUK75, TRADE_DAY, balanceHolding()).reserved())
         .isEqualByComparingTo("300000");
-    assertThat(reader.read(TUK75, TRADE_DAY, TRADE_DAY).reserved()).isEqualByComparingTo("0");
+  }
+
+  @Test
+  void aPayoutSebStillShowsAsPendingIsNotYetPaidForTheBalance() {
+    reserves("1000000", "500000");
+    r16(300000, 100000);
+    UUID pending = payout("600000.00", TRADE_DAY, FUND_PENSION);
+
+    assertThat(
+            reader
+                .read(
+                    TUK75,
+                    TRADE_DAY,
+                    new NettingWindow(
+                        TUK75, REPORT_DATE, TRADE_DAY, Set.of(pending), Set.of(pending)))
+                .reserved())
+        .isEqualByComparingTo("300000");
+  }
+
+  private static NettingWindow balanceHolding(UUID... bookedToday) {
+    return new NettingWindow(TUK75, REPORT_DATE, TRADE_DAY, Set.of(), Set.of(bookedToday));
   }
 
   @Test
@@ -158,21 +193,21 @@ class R16ReserveIT {
     r16(0, 400000);
     payout("800000.00", LocalDate.of(2026, 11, 6), ONE_OFF);
 
-    var reserve = reader.read(TUK75, TRADE_DAY, REPORT_DATE);
+    var reserve = reader.read(TUK75, TRADE_DAY, REPORT_CASH);
 
     assertThat(reserve.reserved()).isEqualByComparingTo("300000");
   }
 
   @Test
   void theSavingsFundHasNoR16() {
-    assertThat(reader.read(TKF100, TRADE_DAY, REPORT_DATE)).isEqualTo(R16Reserve.NONE);
+    assertThat(reader.read(TKF100, TRADE_DAY, REPORT_CASH)).isEqualTo(R16Reserve.NONE);
   }
 
   @Test
   void noR16ThisMonthReservesNothing() {
     reserves("1000000", "500000");
 
-    assertThat(reader.read(TUK75, TRADE_DAY, REPORT_DATE).reserved()).isEqualByComparingTo("0");
+    assertThat(reader.read(TUK75, TRADE_DAY, REPORT_CASH).reserved()).isEqualByComparingTo("0");
   }
 
   private void reserves(String soft, @Nullable String hard) {
@@ -218,9 +253,11 @@ class R16ReserveIT {
     entityManager.flush();
   }
 
-  private void payout(String amount, LocalDate day, String remittance) {
+  private UUID payout(String amount, LocalDate day, String remittance) {
+    UUID externalReference = randomUUID();
     fundBankLedger.recordRegistrarPayout(
-        TUK75, new BigDecimal(amount).negate(), randomUUID(), day, remittance);
+        TUK75, new BigDecimal(amount).negate(), externalReference, day, remittance);
     entityManager.flush();
+    return externalReference;
   }
 }

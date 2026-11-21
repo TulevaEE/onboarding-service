@@ -37,9 +37,14 @@ public class TradeSettlementBookings {
   @Transactional(readOnly = true)
   public List<TradeSettlementBooking> bookedFor(
       TulevaFund fund, LocalDate fromInclusive, LocalDate toInclusive) {
-    return bookedSince(fromInclusive).stream()
-        .filter(booking -> booking.fund() == fund)
-        .filter(booking -> !booking.bookingDate().isAfter(toInclusive))
+    return transactionRepository
+        .findAllByTypeBetweenTouchingAccountsStartingWith(
+            TRADE_SETTLEMENT,
+            fromInclusive.atStartOfDay(ESTONIAN_ZONE).toInstant(),
+            toInclusive.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant(),
+            TRADE_CASH_SETTLEMENT.getAccountName(fund) + ":%")
+        .stream()
+        .map(TradeSettlementBookings::booking)
         .toList();
   }
 

@@ -11,8 +11,7 @@ record NettedForecast(String name, BigDecimal before, BigDecimal after, Treatmen
 
   enum Treatment {
     NETTED_AGAINST_THE_BALANCE,
-    NOT_NETTED,
-    NOT_NETTED_R45_ROWS_UNAVAILABLE
+    NOT_NETTED
   }
 
   static List<NettedForecast> onTheGatewayBalance(
@@ -46,11 +45,6 @@ record NettedForecast(String name, BigDecimal before, BigDecimal after, Treatmen
   static NettedForecast netted(String name, Netted<BigDecimal> netted) {
     return new NettedForecast(
         name, netted.before(), netted.after(), Treatment.NETTED_AGAINST_THE_BALANCE);
-  }
-
-  static NettedForecast r45RowsUnavailable(BigDecimal reportReserve) {
-    return new NettedForecast(
-        "r45", reportReserve, reportReserve, Treatment.NOT_NETTED_R45_ROWS_UNAVAILABLE);
   }
 
   static NettedForecast notNetted(String name, BigDecimal amount) {

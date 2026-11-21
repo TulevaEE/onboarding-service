@@ -6,6 +6,7 @@ import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.epis.R45Result;
+import ee.tuleva.onboarding.investment.epis.R45Row;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeePolicyUnresolvedException;
@@ -86,15 +87,14 @@ public class TransactionInputService {
     BigDecimal reportCash = getCashBalance(fund, positionDate);
     Optional<BigDecimal> pevaRavaInAnActiveCycle =
         pevaRavaForecastReader.liquidityInAnActiveCycle(fund, asOfDate);
+    Optional<List<R45Row>> r45Rows = r45ReportService.getRowsOn(fund, asOfDate);
     CashSourceReport cashSources =
         sameDayCashReader.read(
             fund,
             asOfDate,
             cashOverride,
             reportCash,
-            pevaRavaInAnActiveCycle.isPresent()
-                ? PevaRavaCycleState.ACTIVE
-                : PevaRavaCycleState.OUTSIDE_A_CYCLE);
+            whatHoldsTheBalanceBack(pevaRavaInAnActiveCycle, r45Rows));
     Optional<CurrentDayBalance> gatewayBalance = cashSources.gatewayBalanceInUse();
     Optional<NettingWindow> netting =
         gatewayBalance.map(
@@ -161,10 +161,7 @@ public class TransactionInputService {
     Optional<NettedForecast> r45OnTheBalance =
         netting.map(
             window ->
-                r45ReportService
-                    .getRowsOn(fund, asOfDate)
-                    .map(rows -> NettedForecast.netted("r45", gatewayNetting.r45(window, rows)))
-                    .orElse(NettedForecast.r45RowsUnavailable(r45Reserved)));
+                NettedForecast.netted("r45", gatewayNetting.r45(window, r45Rows.orElseThrow())));
     BigDecimal r45Used = r45OnTheBalance.map(NettedForecast::after).orElse(r45Reserved);
     liabilities = liabilities.add(r45Used);
 
@@ -331,6 +328,14 @@ public class TransactionInputService {
 
   private BigDecimal sumOf(Collection<BigDecimal> amounts) {
     return amounts.stream().reduce(ZERO, BigDecimal::add);
+  }
+
+  private static GatewayHold whatHoldsTheBalanceBack(
+      Optional<BigDecimal> pevaRavaInAnActiveCycle, Optional<List<R45Row>> r45Rows) {
+    if (pevaRavaInAnActiveCycle.isPresent()) {
+      return GatewayHold.PEVA_RAVA_CYCLE_ACTIVE;
+    }
+    return r45Rows.isEmpty() ? GatewayHold.R45_ROWS_UNAVAILABLE : GatewayHold.NONE;
   }
 
   private static BigDecimal unitReceivableDue(CashSource source, UnitReceivable unitReceivable) {

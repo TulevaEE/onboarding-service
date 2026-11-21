@@ -74,26 +74,30 @@ public class BookedBalanceReader implements BankStatementBalances {
     if (reports.isEmpty()) {
       return new Missing();
     }
-    return bookedBalanceOf(reports.getFirst(), reports, account);
-  }
-
-  private CurrentDayReport bookedBalanceOf(
-      BankingMessage message, List<BankingMessage> reportsUpToIt, BankAccount account) {
     try {
-      var statement = statementOf(message);
-      return statement
+      List<BankStatement> statements = reports.stream().map(this::readStatement).toList();
+      BankStatement latest = statements.getFirst();
+      return latest
           .bookedBalance()
           .<CurrentDayReport>map(
               balance ->
                   new Booked(
                       balance,
-                      message.getReceivedAt(),
-                      pendingEntryReferences(statement, account.iban()),
-                      bookedEntryReferences(reportsUpToIt, account.iban())))
+                      reports.getFirst().getReceivedAt(),
+                      pendingEntryReferences(latest, account.iban()),
+                      bookedEntryReferences(statements, account.iban())))
           .orElseGet(NoBookedBalance::new);
     } catch (BankStatementParseException e) {
-      log.error("Stored current-day report cannot be read: messageId={}", message.getId(), e);
       return new Unreadable();
+    }
+  }
+
+  private BankStatement readStatement(BankingMessage report) {
+    try {
+      return statementOf(report);
+    } catch (BankStatementParseException e) {
+      log.error("Stored current-day report cannot be read: messageId={}", report.getId(), e);
+      throw e;
     }
   }
 
@@ -107,21 +111,12 @@ public class BookedBalanceReader implements BankStatementBalances {
         SEB, account.iban(), day);
   }
 
-  private Set<UUID> bookedEntryReferences(List<BankingMessage> reports, String iban) {
-    return reports.stream()
-        .flatMap(report -> readableEntries(report).stream())
+  private static Set<UUID> bookedEntryReferences(List<BankStatement> statements, String iban) {
+    return statements.stream()
+        .flatMap(statement -> statement.getEntries().stream())
         .filter(BankStatementEntry::booked)
         .map(entry -> BankEntryReference.of(iban, entry.externalId()))
         .collect(toUnmodifiableSet());
-  }
-
-  private List<BankStatementEntry> readableEntries(BankingMessage report) {
-    try {
-      return statementOf(report).getEntries();
-    } catch (BankStatementParseException e) {
-      log.error("Stored current-day report cannot be read: messageId={}", report.getId(), e);
-      return List.of();
-    }
   }
 
   private static Set<UUID> pendingEntryReferences(BankStatement statement, String iban) {

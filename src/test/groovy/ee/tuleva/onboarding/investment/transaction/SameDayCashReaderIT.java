@@ -213,6 +213,21 @@ class SameDayCashReaderIT {
   }
 
   @Test
+  void anEarlierReportOfTheDayThatCannotBeReadLeavesTheRunOnReportCashAsUnreadable() {
+    store(INTRA_DAY_REPORT, TODAY, THIS_MORNING, "<not-a-report/>");
+    store(
+        INTRA_DAY_REPORT,
+        TODAY,
+        LATER_THIS_MORNING,
+        currentDayReport(TUK75_INVESTMENT_IBAN, TODAY, "1000.00"));
+
+    var report = reader.read(TUK75, TODAY, null, new BigDecimal("900.00"), OUTSIDE_A_CYCLE);
+
+    assertThat(report.source()).isEqualTo(CashSource.POSITION_REPORT);
+    assertThat(report.gateway()).isEqualTo(new Unreadable());
+  }
+
+  @Test
   void aCurrentDayReportThatReadsButCarriesNoBookedBalanceIsSaidSoNotUnreadable() {
     store(
         INTRA_DAY_REPORT,

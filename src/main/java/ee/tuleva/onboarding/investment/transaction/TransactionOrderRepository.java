@@ -70,17 +70,18 @@ public interface TransactionOrderRepository extends JpaRepository<TransactionOrd
 
   @Query(
       """
-      SELECT MIN(COALESCE(e.executionTimestamp, o.orderTimestamp))
+      SELECT new ee.tuleva.onboarding.investment.transaction.TradePrepRunExecution(
+        e.executionTimestamp, e.reportedDate)
       FROM TransactionOrder o
         JOIN TransactionCommand c ON c.batchId = o.batch.id
-        LEFT JOIN TransactionExecution e ON e.orderId = o.id
+        JOIN TransactionExecution e ON e.orderId = o.id
       WHERE c.mode = :mode
         AND o.fund = :fund
         AND o.orderStatus IN (:statuses)
         AND o.orderTimestamp >= :from
-        AND COALESCE(e.executionTimestamp, o.orderTimestamp) < :until
+        AND o.orderTimestamp < :until
       """)
-  Optional<Instant> findFirstTradeTimestampOfATradePrepRun(
+  List<TradePrepRunExecution> findExecutionsOfATradePrepRun(
       TulevaFund fund,
       TransactionMode mode,
       Collection<OrderStatus> statuses,

@@ -658,6 +658,29 @@ class ModelRebalanceCheckIT {
   }
 
   @Test
+  void aSupersededWindowsOrderFirstReportedOnTheReplacementDate_isClosedAsReplacedNotRebalanced() {
+    givenTuv100ModelSwitchesFromWorldToNewWorld();
+    givenNav(LocalDate.of(2026, 10, 2), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 5));
+    givenExecutedWithoutATradeDate(
+        givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 10, 30)),
+        LocalDate.of(2026, 11, 3));
+    givenModel(TUV100, LocalDate.of(2026, 11, 3), Map.of(NEW_WORLD, "0.70", EMERGING, "0.30"));
+    givenNav(LocalDate.of(2026, 11, 2), Map.of(WORLD, "790000", EMERGING, "200000"));
+
+    runCheckOn(LocalDate.of(2026, 11, 4));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "⏹ TUV100 mudelportfell alates 01.10.2026: asendatud mudeliga alates 03.11.2026,"
+                + " vastavusse ei jõudnud; kontroll suletud",
+            INVESTMENT,
+            INFO);
+    then(notificationService).should(never()).sendMessage(startsWith("✅"), any(), any());
+  }
+
+  @Test
   void aLaterModelVersionWithTheSameWeights_keepsTheUnresolvedWindowAndItsDeadline() {
     givenTuv100ModelSwitchesFromWorldToNewWorld();
     givenModel(TUV100, LocalDate.of(2026, 11, 1), Map.of(NEW_WORLD, "0.8", EMERGING, "0.2"));
@@ -701,6 +724,49 @@ class ModelRebalanceCheckIT {
         .should()
         .sendMessage(startsWith("ℹ️ TUV100"), eq(INVESTMENT), eq(INFO));
     then(notificationService).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void anExecutionWithoutATradeDate_closesTheWindowOnTheDayTheCustodianFirstReportedIt() {
+    givenTuv100ModelSwitchesFromWorldToNewWorldOn(SEPTEMBER_MODEL);
+    givenNav(LocalDate.of(2026, 9, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 1));
+    givenNav(LocalDate.of(2026, 11, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    givenExecutedWithoutATradeDate(
+        givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 12, 1)),
+        LocalDate.of(2026, 12, 8));
+
+    runCheckOn(LocalDate.of(2026, 12, 9));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "✅ TUV100 mudelportfell alates 01.09.2026: tasakaalustamise tehingud tehtud"
+                + " 08.12.2026, kontroll suletud",
+            INVESTMENT,
+            INFO);
+  }
+
+  @Test
+  void anExecutionWithNeitherATradeNorAReportedDate_doesNotCloseTheWindow() {
+    givenTuv100ModelSwitchesFromWorldToNewWorldOn(SEPTEMBER_MODEL);
+    givenNav(LocalDate.of(2026, 9, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 1));
+    givenNav(LocalDate.of(2026, 11, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    givenExecutedWithNeitherATradeNorAReportedDate(
+        givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 12, 1)));
+
+    runCheckOn(LocalDate.of(2026, 12, 3));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            startsWith(
+                "🛑 TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole"
+                    + " mudeliga vastavuses"),
+            eq(INVESTMENT),
+            eq(ERROR));
+    then(notificationService).should(never()).sendMessage(startsWith("✅"), any(), any());
   }
 
   @Test
@@ -1028,16 +1094,34 @@ class ModelRebalanceCheckIT {
   }
 
   private void givenExecuted(TransactionOrder order, LocalDate tradeDate, LocalDate reportedDate) {
+    givenExecuted(
+        order,
+        anExecutionOf(order)
+            .executionTimestamp(tradeDate.atTime(17, 30).atZone(TALLINN).toInstant())
+            .reportedDate(reportedDate));
+  }
+
+  private void givenExecutedWithoutATradeDate(TransactionOrder order, LocalDate reportedDate) {
+    givenExecuted(order, anExecutionOf(order).reportedDate(reportedDate));
+  }
+
+  private void givenExecutedWithNeitherATradeNorAReportedDate(TransactionOrder order) {
+    givenExecuted(order, anExecutionOf(order));
+  }
+
+  private void givenExecuted(
+      TransactionOrder order, TransactionExecution.TransactionExecutionBuilder execution) {
     order.setOrderStatus(EXECUTED);
     orderRepository.save(order);
-    executionRepository.save(
-        TransactionExecution.builder()
-            .orderId(order.getId())
-            .executionTimestamp(tradeDate.atTime(17, 30).atZone(TALLINN).toInstant())
-            .reportedDate(reportedDate)
-            .executedQuantity(new BigDecimal("100"))
-            .source("SEB_OOTEL")
-            .build());
+    executionRepository.save(execution.build());
+  }
+
+  private static TransactionExecution.TransactionExecutionBuilder anExecutionOf(
+      TransactionOrder order) {
+    return TransactionExecution.builder()
+        .orderId(order.getId())
+        .executedQuantity(new BigDecimal("100"))
+        .source("SEB_OOTEL");
   }
 
   private TransactionOrder givenOrder(

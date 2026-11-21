@@ -13,14 +13,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.deadline.BusinessDays;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.investment.risk.RiskIndicatorProperties.ProxyReview;
-import ee.tuleva.onboarding.investment.risk.RiskIndicatorProperties.Source;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorService.PublicationSnapshot;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorService.RiskIndicatorOutcome;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorService.RiskIndicatorRun;
+import ee.tuleva.onboarding.investment.series.SeriesSegment;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -51,10 +49,8 @@ class RiskIndicatorNotifierTest {
       Mockito.mock(DisclosedRiskIndicatorRepository.class);
   private final RiskIndicatorDigestRepository digests =
       Mockito.mock(RiskIndicatorDigestRepository.class);
-  private final FundValueQueries fundValues = Mockito.mock(FundValueQueries.class);
   private final RiskIndicatorPublicationRepository publications =
       Mockito.mock(RiskIndicatorPublicationRepository.class);
-  private final Map<TulevaFund, ProxyReview> proxyReviews = new HashMap<>();
   private final Map<LocalDate, RiskIndicatorDigest> digestRows = new HashMap<>();
   private final List<DisclosedRiskIndicator> disclosureRows = new ArrayList<>();
 
@@ -76,7 +72,6 @@ class RiskIndicatorNotifierTest {
         .willAnswer(
             invocation -> Optional.ofNullable(detached(digestRows.get(invocation.getArgument(0)))));
     given(digests.save(any())).willAnswer(invocation -> merge(invocation.getArgument(0)));
-    given(fundValues.findEarliestDateForKey(any())).willReturn(Optional.empty());
     notifier = notifier(FOURTH_BUSINESS_DAY);
   }
 
@@ -127,16 +122,15 @@ class RiskIndicatorNotifierTest {
     var properties =
         new RiskIndicatorProperties(
             Map.of(
-                TKF100, List.of(new Source("MSCI_ACWI", null)),
-                TUK75, List.of(new Source(TUK75.getIsin(), null)),
-                TUK00, List.of(new Source(TUK00.getIsin(), null)),
-                TUV100, List.of(new Source(TUV100.getIsin(), null))),
-            proxyReviews);
+                TKF100, List.of(new SeriesSegment("MSCI_ACWI", null)),
+                TUK75, List.of(new SeriesSegment(TUK75.getIsin(), null)),
+                TUK00, List.of(new SeriesSegment(TUK00.getIsin(), null)),
+                TUV100, List.of(new SeriesSegment(TUV100.getIsin(), null))));
     var clock = Clock.fixed(today.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC);
     var detailFormatter =
         new IndicatorDetailFormatter(
             disclosures, clock, new IndicatorDiagnosticsFormatter(), new RiskClassRangeFormatter());
-    var formatter = new RiskIndicatorDigestFormatter(properties, fundValues, detailFormatter);
+    var formatter = new RiskIndicatorDigestFormatter(properties, detailFormatter);
     return new RiskIndicatorNotifier(
         notifications,
         digests,
@@ -537,101 +531,6 @@ class RiskIndicatorNotifierTest {
   }
 
   @Test
-  void theProxyReviewIsRaisedOnceTheFundHasEnoughOwnHistory() {
-    proxyReviews.put(TKF100, new ProxyReview(TKF100.getIsin(), 2));
-    given(fundValues.findEarliestDateForKey(TKF100.getIsin()))
-        .willReturn(Optional.of(LocalDate.of(2026, 2, 2)));
-    disclose(SRI, TKF100, 4);
-
-    notifier(FOURTH_BUSINESS_DAY).notify(run(stableSri()));
-    var beforeThreshold = notifications.lastMessage();
-
-    notifications.messages.clear();
-    var indicator = stableSri();
-    var later =
-        new PublishedRiskIndicator(
-            TKF100,
-            SRI,
-            LocalDate.of(2028, 2, 3),
-            indicator.publishedClass(),
-            indicator.rawLatestClass(),
-            null,
-            indicator.publishedSince(),
-            false,
-            indicator.rawClassSince(),
-            indicator.streakReferencePoints(),
-            indicator.rawStreakReferencePoints(),
-            indicator.windowReferencePoints(),
-            indicator.matchingReferencePoints(),
-            indicator.latestObservationCount(),
-            indicator.latestVolatility(),
-            STABLE);
-    notifier(LocalDate.of(2028, 2, 4)).notify(run(later));
-
-    assertThat(beforeThreshold).doesNotContain("proxy vajab ülevaatust");
-    assertThat(notifications.lastMessage())
-        .contains(
-            "⚠️ TKF100 SRI — võrdlusindeksi proxy vajab ülevaatust", "2,0 aastat oma NAV-ajalugu");
-  }
-
-  @Test
-  void theProxyReviewLineAppearsExactlyAtTheRequiredYearBoundary() {
-    proxyReviews.put(TKF100, new ProxyReview(TKF100.getIsin(), 4));
-    given(fundValues.findEarliestDateForKey(TKF100.getIsin()))
-        .willReturn(Optional.of(LocalDate.of(2020, 1, 10)));
-    var indicator = stableSri();
-    var atBoundary =
-        new PublishedRiskIndicator(
-            TKF100,
-            SRI,
-            LocalDate.of(2024, 1, 10),
-            indicator.publishedClass(),
-            indicator.rawLatestClass(),
-            null,
-            indicator.publishedSince(),
-            false,
-            indicator.rawClassSince(),
-            indicator.streakReferencePoints(),
-            indicator.rawStreakReferencePoints(),
-            indicator.windowReferencePoints(),
-            indicator.matchingReferencePoints(),
-            indicator.latestObservationCount(),
-            indicator.latestVolatility(),
-            STABLE);
-
-    notifier(LocalDate.of(2024, 1, 10)).notify(run(atBoundary));
-
-    assertThat(notifications.lastMessage())
-        .contains(
-            "⚠️ TKF100 SRI — võrdlusindeksi proxy vajab ülevaatust", "4,0 aastat oma NAV-ajalugu");
-  }
-
-  @Test
-  void aPendingProxyReviewKeepsTheHeaderOffGreenEvenWhenEveryFundIsStable() {
-    proxyReviews.put(TKF100, new ProxyReview(TKF100.getIsin(), 2));
-    given(fundValues.findEarliestDateForKey(TKF100.getIsin()))
-        .willReturn(Optional.of(LocalDate.of(2019, 1, 1)));
-    disclose(SRI, TKF100, 4);
-
-    notifier.notify(run(stableSri()));
-
-    assertThat(notifications.lastMessage())
-        .startsWith("⚠️ Riskiindikaatorite kuuülevaade")
-        .contains("1 korras, 1 proxy ülevaatust.");
-  }
-
-  @Test
-  void aFundWithoutAProxyReviewEntryNeverRaisesTheLine() {
-    given(fundValues.findEarliestDateForKey(any()))
-        .willReturn(Optional.of(LocalDate.of(2000, 1, 1)));
-    disclose(SRI, TKF100, 4);
-
-    notifier.notify(run(stableSri()));
-
-    assertThat(notifications.lastMessage()).doesNotContain("proxy vajab ülevaatust");
-  }
-
-  @Test
   void aRunThatEvaluatedNothingSaysSoAndFallsBackToTheRunDate() {
     notifier.notify(new RiskIndicatorRun(EVALUATION_DATE, List.of(), List.of()));
 
@@ -694,29 +593,6 @@ class RiskIndicatorNotifierTest {
             "👉 Tegevus: kontrolli, kas NAV-seeria on täielik. Kui fondi enda ajalugu ongi nõutud"
                 + " perioodist lühem, lisa investment.risk.sources alla võrdlusindeksi segment —"
                 + " klassi avaldamata jätmine ei ole lubatud variant.");
-  }
-
-  @Test
-  void theProxyReviewStopsOnceTheIndicatorAlreadyReadsTheFundsOwnHistory() {
-    proxyReviews.put(TKF100, new ProxyReview("MSCI_ACWI", 2));
-    given(fundValues.findEarliestDateForKey(any()))
-        .willReturn(Optional.of(LocalDate.of(2000, 1, 1)));
-    disclose(SRI, TKF100, 4);
-
-    notifier.notify(run(stableSri()));
-
-    assertThat(notifications.lastMessage()).doesNotContain("proxy vajab ülevaatust");
-  }
-
-  @Test
-  void theProxyReviewStaysSilentWhileTheFundHasNoOwnHistoryAtAll() {
-    proxyReviews.put(TKF100, new ProxyReview(TKF100.getIsin(), 2));
-    given(fundValues.findEarliestDateForKey(TKF100.getIsin())).willReturn(Optional.empty());
-    disclose(SRI, TKF100, 4);
-
-    notifier.notify(run(stableSri()));
-
-    assertThat(notifications.lastMessage()).doesNotContain("proxy vajab ülevaatust");
   }
 
   private PublishedRiskIndicator stableSri() {

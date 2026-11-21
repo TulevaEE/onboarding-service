@@ -7,8 +7,7 @@ import java.util.Map;
 
 record KidFunds(Map<TulevaFund, FundSettings> funds) {
 
-  static final KidFunds TULEVA_FUNDS =
-      new KidFunds(Map.of(TKF100, new FundSettings("MSCI_ACWI", 5)));
+  static final KidFunds TULEVA_FUNDS = new KidFunds(Map.of(TKF100, new FundSettings(5)));
 
   KidFunds {
     funds = Map.copyOf(funds);
@@ -17,12 +16,12 @@ record KidFunds(Map<TulevaFund, FundSettings> funds) {
   FundSettings settingsFor(TulevaFund fund) {
     var settings = funds.get(fund);
     if (settings == null) {
-      throw new KidCalculationRefusedException("No KID series configured: fund=" + fund);
+      throw new KidCalculationRefusedException("No KID settings configured: fund=" + fund);
     }
     return settings;
   }
 
-  record FundSettings(String seriesKey, int recommendedHoldingPeriodYears) {
+  record FundSettings(int recommendedHoldingPeriodYears) {
 
     private static final int ANNEX_IV_P32_INTERMEDIATE_PERIOD_YEARS = 1;
     private static final int ANNEX_IV_P6_TEN_YEAR_PERIOD_HOLDS_HOLDING_PERIODS_UP_TO_YEARS = 5;

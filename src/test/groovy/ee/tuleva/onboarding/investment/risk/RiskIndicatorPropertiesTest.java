@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ee.tuleva.onboarding.investment.risk.RiskIndicatorProperties.Source;
+import ee.tuleva.onboarding.investment.series.SeriesSegment;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -14,14 +14,14 @@ class RiskIndicatorPropertiesTest {
 
   @Test
   void aSingleSourceNeedsNoStartDate() {
-    var properties = propertiesWith(List.of(new Source("MSCI_ACWI", null)));
+    var properties = propertiesWith(List.of(new SeriesSegment("MSCI_ACWI", null)));
 
     assertThat(properties.sourcesFor(TKF100)).hasSize(1);
   }
 
   @Test
   void aFundWithNoConfiguredSourceIsARefusalRatherThanAnEmptySeries() {
-    var properties = new RiskIndicatorProperties(null, null);
+    var properties = new RiskIndicatorProperties(null);
 
     assertThatThrownBy(() -> properties.sourcesFor(TKF100))
         .isInstanceOf(IllegalStateException.class);
@@ -36,24 +36,21 @@ class RiskIndicatorPropertiesTest {
   }
 
   @Test
-  void aSplicedSourceMustSayWhereEachLaterSegmentStarts() {
-    var properties =
-        propertiesWith(List.of(new Source("MSCI_ACWI", null), new Source("EE0000003283", null)));
+  void aSplicedSourceThatDoesNotSayWhereALaterSegmentStartsFailsWhenTheConfigIsBound() {
+    var segments =
+        List.of(new SeriesSegment("MSCI_ACWI", null), new SeriesSegment("EE0000003283", null));
 
-    assertThatThrownBy(() -> properties.sourcesFor(TKF100))
-        .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> propertiesWith(segments)).isInstanceOf(IllegalStateException.class);
   }
 
   @Test
-  void splicedSegmentsMustStartInOrder() {
-    var properties =
-        propertiesWith(
-            List.of(
-                new Source("MSCI_ACWI", LocalDate.of(2026, 2, 2)),
-                new Source("EE0000003283", LocalDate.of(2020, 1, 1))));
+  void splicedSegmentsOutOfOrderFailWhenTheConfigIsBound() {
+    var segments =
+        List.of(
+            new SeriesSegment("MSCI_ACWI", LocalDate.of(2026, 2, 2)),
+            new SeriesSegment("EE0000003283", LocalDate.of(2020, 1, 1)));
 
-    assertThatThrownBy(() -> properties.sourcesFor(TKF100))
-        .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> propertiesWith(segments)).isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -61,13 +58,13 @@ class RiskIndicatorPropertiesTest {
     var properties =
         propertiesWith(
             List.of(
-                new Source("MSCI_ACWI", null),
-                new Source("EE0000003283", LocalDate.of(2026, 2, 2))));
+                new SeriesSegment("MSCI_ACWI", null),
+                new SeriesSegment("EE0000003283", LocalDate.of(2026, 2, 2))));
 
     assertThat(properties.sourcesFor(TKF100)).hasSize(2);
   }
 
-  private static RiskIndicatorProperties propertiesWith(List<Source> sources) {
-    return new RiskIndicatorProperties(Map.of(TKF100, sources), Map.of());
+  private static RiskIndicatorProperties propertiesWith(List<SeriesSegment> sources) {
+    return new RiskIndicatorProperties(Map.of(TKF100, sources));
   }
 }

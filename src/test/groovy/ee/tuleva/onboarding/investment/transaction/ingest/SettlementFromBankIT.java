@@ -30,6 +30,7 @@ import static org.mockito.Mockito.reset;
 import ee.tuleva.onboarding.banking.StoredTradeReferences;
 import ee.tuleva.onboarding.banking.seb.SebIntegrationTest;
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
+import ee.tuleva.onboarding.investment.event.RunPortfolioCostBasisRebuildFromBaselineRequested;
 import ee.tuleva.onboarding.investment.event.trigger.JobTriggerQueue;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
@@ -69,6 +70,8 @@ class SettlementFromBankIT {
 
   private static final String EJAP = "LU1291102447";
   private static final String INDEX_FUND = "IE00BD0NCM55";
+  private static final String REBUILD_FROM_BASELINE =
+      RunPortfolioCostBasisRebuildFromBaselineRequested.JOB_NAME;
   private static final LocalDate SINCE = LocalDate.of(2026, 2, 1);
   private static final BooleanSupplier LOCK_HELD = () -> true;
   private static final Clock AFTER_THE_BOOKINGS =
@@ -355,6 +358,7 @@ class SettlementFromBankIT {
                     .containsEntry("brokerReference", "DLA0553690")
                     .containsEntry("sebUnits", "12345678.91")
                     .containsEntry("bankUnits", "12345678.912"));
+    assertThat(pendingTriggers()).containsExactly(REBUILD_FROM_BASELINE);
   }
 
   @Test
@@ -419,10 +423,11 @@ class SettlementFromBankIT {
             auditEventRepository.findByOrderIdAndEventType(
                 order.getId(), EXECUTION_UNITS_FROM_BANK))
         .isEmpty();
+    assertThat(pendingTriggers()).doesNotContain(REBUILD_FROM_BASELINE);
   }
 
   @Test
-  void unitsTheBankBookedAlike_areLeftWithoutAnAuditEvent() {
+  void unitsTheBankBookedAlike_areLeftWithoutAnAuditEventOrARebuild() {
     TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
     piece(order, "DLA0553690", "11704");
     bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
@@ -433,6 +438,34 @@ class SettlementFromBankIT {
             auditEventRepository.findByOrderIdAndEventType(
                 order.getId(), EXECUTION_UNITS_FROM_BANK))
         .isEmpty();
+    assertThat(pendingTriggers()).doesNotContain(REBUILD_FROM_BASELINE);
+  }
+
+  @Test
+  void unitsTheBankBooksToFiveDecimals_areComparedWithSebsRoundingOfTheExactFigure() {
+    TransactionOrder order = orderInEuros(BUY, "209025.86");
+    TransactionExecution piece = piece(order, "DLA0553690", "12345678.91", "209025.86");
+    bankBooks("DLA0553690", INDEX_FUND, "-209025.86", "12345678.91495", LocalDate.of(2026, 2, 12));
+
+    settleFromTheBank();
+
+    assertThat(executionRepository.findById(piece.getId()).orElseThrow().getExecutedQuantity())
+        .isEqualByComparingTo("12345678.915");
+  }
+
+  @Test
+  void aBookingWithoutUnitLegs_settlesTheOrderAndLeavesItsUnits() {
+    TransactionOrder order = orderInEuros(BUY, "209025.86");
+    TransactionExecution piece = piece(order, "DLA0553690", "12345678.91", "209025.86");
+    dropTheUnitLegs(
+        bankBooks(
+            "DLA0553690", INDEX_FUND, "-209025.86", "12345678.912", LocalDate.of(2026, 2, 12)));
+
+    settleFromTheBank();
+
+    assertThat(settlementOf(order).getSource()).isEqualTo(BANK_STATEMENT);
+    assertThat(executionRepository.findById(piece.getId()).orElseThrow().getExecutedQuantity())
+        .isEqualByComparingTo("12345678.91");
   }
 
   @Test
@@ -780,6 +813,16 @@ class SettlementFromBankIT {
         .executeUpdate();
     entityManager
         .createNativeQuery("DELETE FROM ledger.transaction WHERE id = :bookingId")
+        .setParameter("bookingId", bookingId)
+        .executeUpdate();
+    entityManager.clear();
+  }
+
+  private void dropTheUnitLegs(UUID bookingId) {
+    entityManager
+        .createNativeQuery(
+            "DELETE FROM ledger.entry WHERE transaction_id = :bookingId AND account_id IN"
+                + " (SELECT id FROM ledger.account WHERE asset_type <> 'EUR')")
         .setParameter("bookingId", bookingId)
         .executeUpdate();
     entityManager.clear();

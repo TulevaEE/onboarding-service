@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.INTRA_DAY_REPORT;
 import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.currentDayReport;
+import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.currentDayReportUntil;
 import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.currentDayReportWithoutBookedBalance;
 import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.endOfDayStatement;
 import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.entry;
@@ -208,6 +209,39 @@ class SameDayCashReaderIT {
 
     assertThat(reader.read(TUK75, TODAY, null, null, GatewayHold.NONE).gateway())
         .isEqualTo(new Unreadable());
+  }
+
+  @Test
+  void theBalanceAndItsBookingsComeFromTheLatestBankSnapshotEvenWhenAnOlderOneArrivesLast() {
+    store(
+        INTRA_DAY_REPORT,
+        TODAY,
+        THIS_MORNING,
+        currentDayReportUntil(
+            TUK75_INVESTMENT_IBAN,
+            TODAY,
+            "10:00:00",
+            "800.00",
+            entry("EARLY-1", "100.00", "DBIT", "BOOK"),
+            entry("LATE-1", "100.00", "DBIT", "BOOK")));
+    store(
+        INTRA_DAY_REPORT,
+        TODAY,
+        LATER_THIS_MORNING,
+        currentDayReportUntil(
+            TUK75_INVESTMENT_IBAN,
+            TODAY,
+            "09:30:00",
+            "900.00",
+            entry("EARLY-1", "100.00", "DBIT", "BOOK")));
+
+    assertThat(reader.read(TUK75, TODAY, null, null, GatewayHold.NONE).gateway())
+        .isEqualTo(
+            new CurrentDayBalance(
+                new BigDecimal("800.00"),
+                THIS_MORNING,
+                Set.of(),
+                Set.of(reference("EARLY-1"), reference("LATE-1"))));
   }
 
   @Test

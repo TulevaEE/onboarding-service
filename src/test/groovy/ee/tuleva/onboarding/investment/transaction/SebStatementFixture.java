@@ -45,6 +45,14 @@ final class SebStatementFixture {
         .replace("</Rpt>", String.join("", entries) + "</Rpt>");
   }
 
+  static String currentDayReportUntil(
+      String iban, LocalDate day, String reportedUntil, String interimBooked, String... entries) {
+    return currentDayReport(iban, day, interimBooked, entries)
+        .replace(
+            "<ToDtTm>%sT09:00:00+02:00</ToDtTm>".formatted(day),
+            "<ToDtTm>%sT%s+02:00</ToDtTm>".formatted(day, reportedUntil));
+  }
+
   static String entry(String externalId, String amount, String creditOrDebit, String status) {
     return """
         <Ntry>

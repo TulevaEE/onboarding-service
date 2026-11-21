@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.banking.message;
 import static ee.tuleva.onboarding.banking.BankType.SEB;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.banking.statement.TransactionType.CREDIT;
+import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import ee.tuleva.onboarding.banking.BankAccount;
@@ -19,7 +20,9 @@ import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
 import ee.tuleva.onboarding.banking.statement.BankStatementParseException;
 import ee.tuleva.onboarding.banking.statement.DayClosingBalance;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -75,20 +78,41 @@ public class BookedBalanceReader implements BankStatementBalances {
       return new Missing();
     }
     try {
-      List<BankStatement> statements = reports.stream().map(this::readStatement).toList();
-      BankStatement latest = statements.getFirst();
+      List<Snapshot> latestFirst =
+          reports.stream()
+              .map(report -> new Snapshot(report, readStatement(report)))
+              .sorted(
+                  comparing(Snapshot::bankTime)
+                      .thenComparing(snapshot -> snapshot.message().getReceivedAt())
+                      .reversed())
+              .toList();
+      Snapshot latest = latestFirst.getFirst();
       return latest
+          .statement()
           .bookedBalance()
           .<CurrentDayReport>map(
               balance ->
                   new Booked(
                       balance,
-                      reports.getFirst().getReceivedAt(),
-                      pendingEntryReferences(latest, account.iban()),
-                      bookedEntryReferences(statements, account.iban())))
+                      latest.message().getReceivedAt(),
+                      pendingEntryReferences(latest.statement(), account.iban()),
+                      bookedEntryReferences(
+                          latestFirst.stream().map(Snapshot::statement).toList(), account.iban())))
           .orElseGet(NoBookedBalance::new);
     } catch (BankStatementParseException e) {
       return new Unreadable();
+    }
+  }
+
+  private record Snapshot(BankingMessage message, BankStatement statement) {
+
+    Instant bankTime() {
+      ZonedDateTime reportedUntil = statement.getReportedUntil();
+      if (reportedUntil == null) {
+        throw new BankStatementParseException(
+            "Current-day report has no reporting time: messageId=" + message.getId());
+      }
+      return reportedUntil.toInstant();
     }
   }
 

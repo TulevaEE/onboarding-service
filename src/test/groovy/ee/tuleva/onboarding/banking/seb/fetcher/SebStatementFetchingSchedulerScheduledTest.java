@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.banking.seb.fetcher;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
-import ee.tuleva.onboarding.banking.CurrentDayFetches;
 import ee.tuleva.onboarding.config.ScheduledTest;
 import java.time.Clock;
 import org.junit.jupiter.api.Test;

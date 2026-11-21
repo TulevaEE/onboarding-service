@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.banking.seb;
 
 import static org.springframework.http.MediaType.APPLICATION_XML_VALUE;
 
-import ee.tuleva.onboarding.banking.CurrentDayFetches;
 import ee.tuleva.onboarding.banking.ManagementCompanies;
+import ee.tuleva.onboarding.banking.seb.fetcher.CurrentDayFetches;
 import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetcher;
 import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler;
 import ee.tuleva.onboarding.banking.seb.fetcher.StatementCoverage;
@@ -67,6 +67,7 @@ import org.springframework.web.client.RestClient;
   SebStatementRouter.class,
   SebReconciliator.class,
   SebStatementFetcher.class,
+  CurrentDayFetches.class,
   StatementCoverage.class
 })
 public class SebGatewayConfiguration {

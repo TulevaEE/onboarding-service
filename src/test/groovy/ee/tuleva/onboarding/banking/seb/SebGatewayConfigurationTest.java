@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.mock;
 
 import com.sun.net.httpserver.HttpServer;
-import ee.tuleva.onboarding.banking.CurrentDayFetches;
+import ee.tuleva.onboarding.banking.seb.fetcher.CurrentDayFetches;
 import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler;
 import ee.tuleva.onboarding.banking.seb.fetcher.StatementCoverage;
 import ee.tuleva.onboarding.banking.seb.listener.SebReconciliationListener;
@@ -224,7 +224,7 @@ class SebGatewayConfigurationTest {
     SebStatementFetchingScheduler scheduler =
         config.sebStatementFetchingScheduler(
             eventPublisher,
-            new CurrentDayFetches(eventPublisher),
+            new CurrentDayFetches(eventPublisher, bankAccounts),
             bankAccounts,
             statementCoverage,
             Clock.systemUTC());

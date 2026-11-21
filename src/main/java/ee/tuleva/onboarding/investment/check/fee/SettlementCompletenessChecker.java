@@ -2,28 +2,26 @@ package ee.tuleva.onboarding.investment.check.fee;
 
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.SETTLEMENT_COMPLETENESS;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_ACCRUAL;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_SETTLEMENT;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.deadline.BusinessDays;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
+import ee.tuleva.onboarding.investment.fees.FeeMonthBalance;
 import ee.tuleva.onboarding.investment.fees.FeeType;
-import ee.tuleva.onboarding.ledger.LedgerEntryAmount;
-import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
-import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.investment.fees.OutstandingFees;
+import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,20 +30,26 @@ import org.springframework.stereotype.Component;
 @Component
 class SettlementCompletenessChecker {
 
-  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+  private static final BigDecimal HALF_A_CENT_PER_ROUNDED_DAILY_ACCRUAL = new BigDecimal("0.005");
 
   private final FeeAccrualRepository feeAccrualRepository;
-  private final NavLedgerRepository navLedgerRepository;
+  private final NavFeeAccrualLedger navFeeAccrualLedger;
+  private final OutstandingFees outstandingFees;
+  private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final BusinessDays businessDays;
   private final int graceBusinessDays;
 
   SettlementCompletenessChecker(
       FeeAccrualRepository feeAccrualRepository,
-      NavLedgerRepository navLedgerRepository,
+      NavFeeAccrualLedger navFeeAccrualLedger,
+      OutstandingFees outstandingFees,
+      FeeChargedToFundPolicy feeChargedToFundPolicy,
       BusinessDays businessDays,
       @Value("${investment.fee-check.settlement-grace-business-days:5}") int graceBusinessDays) {
     this.feeAccrualRepository = feeAccrualRepository;
-    this.navLedgerRepository = navLedgerRepository;
+    this.navFeeAccrualLedger = navFeeAccrualLedger;
+    this.outstandingFees = outstandingFees;
+    this.feeChargedToFundPolicy = feeChargedToFundPolicy;
     this.businessDays = businessDays;
     this.graceBusinessDays = graceBusinessDays;
   }
@@ -68,9 +72,9 @@ class SettlementCompletenessChecker {
     var stalled = !checkDate.isBefore(graceEnds);
     var message =
         stalled
-            ? "Month-end settlement has not run for "
+            ? "Fee month "
                 + feeMonth
-                + ": no "
+                + " not crossed: no "
                 + nextMonth
                 + " accrual by "
                 + graceEnds
@@ -91,125 +95,117 @@ class SettlementCompletenessChecker {
         .toList();
   }
 
-  private static boolean isExactly(BigDecimal amount, BigDecimal expected) {
-    return amount.compareTo(expected) == 0;
-  }
-
   private List<FeeCheckFinding> checkFeeType(TulevaFund fund, LocalDate feeMonth, FeeType feeType) {
-    var account = feeType.getAccrualAccount().getAccountName(fund);
-    var from = startOf(feeMonth);
-    var to = startOf(feeMonth.plusMonths(1));
-
-    var opening = navLedgerRepository.getSystemAccountBalanceBefore(account, from);
-    var closing = navLedgerRepository.getSystemAccountBalanceBefore(account, to);
-    var accrued = sum(entries(account, FEE_ACCRUAL, from, to));
-    var settlements = entries(account, FEE_SETTLEMENT, from, to);
-    var settled = sum(settlements);
-    var expectedSettlement = opening.add(accrued).negate();
-
-    var details = details(feeMonth, opening, closing, accrued, settled);
-    var scope = scopeOf(feeType);
-    var findings = new ArrayList<FeeCheckFinding>();
-
-    if (opening.signum() != 0) {
-      findings.add(
-          finding(
-              fund,
-              scope,
-              "openingBalance",
-              "Fee month "
-                  + feeMonth
-                  + " opened with a non-zero "
-                  + feeType
-                  + " accrual balance of "
-                  + opening.toPlainString()
-                  + ", so a correction to "
-                  + feeMonth.minusMonths(1)
-                  + " is being settled against this month instead",
-              opening,
-              details));
+    var feeAccount = feeType.getAccrualAccount();
+    var accrued = navFeeAccrualLedger.accruedIn(fund, feeMonth, feeAccount);
+    var settled = navFeeAccrualLedger.settlementOf(fund, feeMonth, feeAccount).amount();
+    if (outstandingFees.releasedAtMonthEnd(feeType, feeMonth)) {
+      return List.of(checkReleasedMonth(fund, feeMonth, feeType, accrued, settled));
     }
-    if (closing.signum() != 0) {
-      findings.add(
-          finding(
-              fund,
-              scope,
-              "closingResidual",
-              "Fee month "
-                  + feeMonth
-                  + " left a "
-                  + feeType
-                  + " residual of "
-                  + closing.toPlainString()
-                  + " on the accrual account after settlement",
-              closing,
-              details));
-    }
-    if (!isExactly(settled, expectedSettlement)) {
-      findings.add(
-          finding(
-              fund,
-              scope,
-              "settledAmount",
-              "Settled "
-                  + feeType
-                  + " fees for "
-                  + feeMonth
-                  + " were "
-                  + settled.toPlainString()
-                  + " but the accrued balance to settle was "
-                  + expectedSettlement.toPlainString(),
-              settled.subtract(expectedSettlement),
-              details));
-    }
-    var expectedCount = expectedSettlement.signum() != 0 ? 1 : 0;
-    var actualCount = settlements.stream().map(LedgerEntryAmount::transactionId).distinct().count();
-    if (actualCount != expectedCount) {
-      findings.add(
-          finding(
-              fund,
-              scope,
-              "settlementTransactionCount=" + expectedCount + "/" + actualCount,
-              "Expected "
-                  + expectedCount
-                  + " "
-                  + feeType
-                  + " settlement transaction(s) for "
-                  + feeMonth
-                  + " but found "
-                  + actualCount,
-              null,
-              details));
-    }
-
-    if (findings.isEmpty()) {
-      return List.of(
-          new FeeCheckFinding(
-              fund,
-              SETTLEMENT_COMPLETENESS,
-              scope,
-              FeeCheckSeverity.PASS,
-              "",
-              null,
-              List.of(),
-              details));
-    }
-    return findings;
+    return List.of(checkHeldMonth(fund, feeMonth, feeType, accrued, settled));
   }
 
-  private Map<String, Object> details(
+  private FeeCheckFinding checkReleasedMonth(
+      TulevaFund fund,
       LocalDate feeMonth,
-      BigDecimal opening,
-      BigDecimal closing,
+      FeeType feeType,
       BigDecimal accrued,
       BigDecimal settled) {
-    var details = new HashMap<String, Object>();
-    details.put("feeMonth", feeMonth.toString());
-    details.put("opening", opening.toPlainString());
-    details.put("closing", closing.toPlainString());
-    details.put("accrued", accrued.toPlainString());
-    details.put("settled", settled.toPlainString());
-    return Map.copyOf(details);
+    var details =
+        Map.<String, Object>of(
+            "feeMonth",
+            feeMonth.toString(),
+            "accrued",
+            accrued.toPlainString(),
+            "settled",
+            settled.toPlainString());
+    if (settled.compareTo(accrued) == 0) {
+      return pass(fund, feeType, details);
+    }
+    return finding(
+        fund,
+        scopeOf(feeType),
+        "settledAmount",
+        feeType
+            + " fee month "
+            + feeMonth
+            + " accrued "
+            + accrued.toPlainString()
+            + " but was released for "
+            + settled.toPlainString(),
+        accrued.subtract(settled),
+        details);
+  }
+
+  private FeeCheckFinding checkHeldMonth(
+      TulevaFund fund,
+      LocalDate feeMonth,
+      FeeType feeType,
+      BigDecimal accrued,
+      BigDecimal settled) {
+    var month = asReconciledByTheNav(fund, feeMonth, feeType);
+    var navOwes = month.map(FeeMonthBalance::owed).orElse(ZERO);
+    var ledgerOwes = accrued.subtract(settled);
+    var details =
+        Map.<String, Object>of(
+            "feeMonth",
+            feeMonth.toString(),
+            "accrued",
+            accrued.toPlainString(),
+            "settled",
+            settled.toPlainString(),
+            "ledgerOwes",
+            ledgerOwes.toPlainString(),
+            "navOwes",
+            navOwes.toPlainString());
+    var difference = ledgerOwes.subtract(navOwes);
+    if (difference.abs().compareTo(dailyRoundingAllowance(feeMonth)) > 0) {
+      return finding(
+          fund,
+          scopeOf(feeType),
+          "ledgerDiffersFromNav",
+          feeType
+              + " fee month "
+              + feeMonth
+              + ": the ledger owes "
+              + ledgerOwes.toPlainString()
+              + " but the NAV owes "
+              + navOwes.toPlainString(),
+          difference,
+          details);
+    }
+    if (month.filter(FeeMonthBalance::hasBeenPaid).isEmpty() && accrued.signum() != 0) {
+      return new FeeCheckFinding(
+          fund,
+          SETTLEMENT_COMPLETENESS,
+          scopeOf(feeType),
+          NOT_RUN,
+          "Fee month " + feeMonth + " is not settled yet: no debit has paid it",
+          null,
+          List.of("awaitingDebit"),
+          details);
+    }
+    return pass(fund, feeType, details);
+  }
+
+  private Optional<FeeMonthBalance> asReconciledByTheNav(
+      TulevaFund fund, LocalDate feeMonth, FeeType feeType) {
+    var reconciledThrough = feeAccrualRepository.findLatestAccrualDate(fund).orElseThrow();
+    return outstandingFees
+        .monthsOn(feeChargedToFundPolicy.resolverFor(fund, feeType), reconciledThrough)
+        .stream()
+        .filter(month -> month.feeMonth().equals(feeMonth))
+        .findFirst();
+  }
+
+  private static BigDecimal dailyRoundingAllowance(LocalDate feeMonth) {
+    return HALF_A_CENT_PER_ROUNDED_DAILY_ACCRUAL.multiply(
+        BigDecimal.valueOf(feeMonth.lengthOfMonth() + 1L));
+  }
+
+  private FeeCheckFinding pass(TulevaFund fund, FeeType feeType, Map<String, Object> details) {
+    return new FeeCheckFinding(
+        fund, SETTLEMENT_COMPLETENESS, scopeOf(feeType), PASS, "", null, List.of(), details);
   }
 
   private FeeCheckFinding finding(
@@ -228,20 +224,6 @@ class SettlementCompletenessChecker {
         deviation == null ? null : deviation.abs(),
         List.of(identifier),
         details);
-  }
-
-  private List<LedgerEntryAmount> entries(
-      String account, TransactionType transactionType, Instant from, Instant to) {
-    return navLedgerRepository.findEntriesByTransactionTypeBetween(
-        account, transactionType, from, to);
-  }
-
-  private BigDecimal sum(List<LedgerEntryAmount> entries) {
-    return entries.stream().map(LedgerEntryAmount::amount).reduce(ZERO, BigDecimal::add);
-  }
-
-  private Instant startOf(LocalDate month) {
-    return month.atStartOfDay(ESTONIAN_ZONE).toInstant();
   }
 
   private Stream<FeeCheckScope> scopes() {

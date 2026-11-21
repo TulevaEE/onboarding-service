@@ -4,12 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.deadline.BusinessDays;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.fees.OutstandingFees;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.lang.reflect.Method;
 import java.time.Clock;
@@ -17,6 +19,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -30,6 +33,14 @@ class FeeSettlementCheckJobTest {
   private static final LocalDate JUNE_2026 = LocalDate.of(2026, 6, 1);
 
   @Mock private FeeCheckService feeCheckService;
+
+  @Mock(strictness = Mock.Strictness.LENIENT)
+  private OutstandingFees outstandingFees;
+
+  @BeforeEach
+  void setUp() {
+    given(outstandingFees.firstFeeMonthSettledByPayment()).willReturn(LocalDate.of(2026, 11, 1));
+  }
 
   @Test
   void doesNotRunOnTheFirstBusinessDayOfTheMonth() {
@@ -56,8 +67,7 @@ class FeeSettlementCheckJobTest {
     verify(feeCheckService)
         .runMonthlyChecks(
             eq(List.of(TulevaFund.values())),
-            eq(LocalDate.of(2026, 5, 1)),
-            eq(LocalDate.of(2026, 4, 1)),
+            eq(List.of(LocalDate.of(2026, 5, 1))),
             eq(thirdBusinessDay));
   }
 
@@ -73,8 +83,7 @@ class FeeSettlementCheckJobTest {
     verify(feeCheckService)
         .runMonthlyChecks(
             eq(List.of(TulevaFund.values())),
-            eq(LocalDate.of(2026, 5, 1)),
-            eq(LocalDate.of(2026, 4, 1)),
+            eq(List.of(LocalDate.of(2026, 5, 1))),
             eq(fourthBusinessDay));
   }
 
@@ -85,26 +94,24 @@ class FeeSettlementCheckJobTest {
     jobOn(lastDayOfTheCronWindow).checkClosedMonthIfReady();
 
     verify(feeCheckService)
-        .runMonthlyChecks(
-            any(),
-            eq(LocalDate.of(2026, 5, 1)),
-            eq(LocalDate.of(2026, 4, 1)),
-            eq(lastDayOfTheCronWindow));
+        .runMonthlyChecks(any(), eq(List.of(LocalDate.of(2026, 5, 1))), eq(lastDayOfTheCronWindow));
   }
 
-  // The cash leg trails a month behind: April's payment has landed by June, May's has not.
   @Test
-  void checksTheCashLegAMonthBehindTheSettlementLeg() {
-    var thirdBusinessDay = LocalDate.of(2026, 6, 3);
+  void checksEveryMonthStillSettledByItsDebitsSoAnOlderMonthThatReopensIsSeen() {
+    var thirdBusinessDayOfFebruary = LocalDate.of(2027, 2, 3);
 
-    jobOn(thirdBusinessDay).checkClosedMonthIfReady();
+    jobOn(thirdBusinessDayOfFebruary).checkClosedMonthIfReady();
 
     verify(feeCheckService)
         .runMonthlyChecks(
             any(),
-            eq(LocalDate.of(2026, 5, 1)),
-            eq(LocalDate.of(2026, 4, 1)),
-            eq(thirdBusinessDay));
+            eq(
+                List.of(
+                    LocalDate.of(2026, 11, 1),
+                    LocalDate.of(2026, 12, 1),
+                    LocalDate.of(2027, 1, 1))),
+            eq(thirdBusinessDayOfFebruary));
   }
 
   @Test
@@ -113,10 +120,7 @@ class FeeSettlementCheckJobTest {
 
     verify(feeCheckService)
         .runMonthlyChecks(
-            any(),
-            eq(LocalDate.of(2026, 7, 1)),
-            eq(LocalDate.of(2026, 6, 1)),
-            eq(LocalDate.of(2026, 8, 5)));
+            any(), eq(List.of(LocalDate.of(2026, 7, 1))), eq(LocalDate.of(2026, 8, 5)));
   }
 
   @Test
@@ -126,11 +130,7 @@ class FeeSettlementCheckJobTest {
     jobOn(notTheThirdBusinessDay).onSettlementCheckRequested();
 
     verify(feeCheckService)
-        .runMonthlyChecks(
-            any(),
-            eq(LocalDate.of(2026, 5, 1)),
-            eq(LocalDate.of(2026, 4, 1)),
-            eq(notTheThirdBusinessDay));
+        .runMonthlyChecks(any(), eq(List.of(LocalDate.of(2026, 5, 1))), eq(notTheThirdBusinessDay));
   }
 
   // The check is alert-only, so a failure inside it must not take down the scheduled run that
@@ -140,7 +140,7 @@ class FeeSettlementCheckJobTest {
     var thirdBusinessDay = LocalDate.of(2026, 6, 3);
     doThrow(new IllegalStateException())
         .when(feeCheckService)
-        .runMonthlyChecks(any(), any(), any(), any());
+        .runMonthlyChecks(any(), any(), any());
 
     var job = jobOn(thirdBusinessDay);
 
@@ -189,8 +189,7 @@ class FeeSettlementCheckJobTest {
     jobOn(graceEnd).checkClosedMonthIfReady();
 
     verify(feeCheckService)
-        .runMonthlyChecks(
-            any(), eq(LocalDate.of(2026, 5, 1)), eq(LocalDate.of(2026, 4, 1)), eq(graceEnd));
+        .runMonthlyChecks(any(), eq(List.of(LocalDate.of(2026, 5, 1))), eq(graceEnd));
   }
 
   @Test
@@ -212,6 +211,6 @@ class FeeSettlementCheckJobTest {
   private FeeSettlementCheckJob jobOn(LocalDate today) {
     var clock = Clock.fixed(today.atStartOfDay(ESTONIAN_ZONE).toInstant(), ESTONIAN_ZONE);
     return new FeeSettlementCheckJob(
-        feeCheckService, new BusinessDays(new PublicHolidays()), clock);
+        feeCheckService, outstandingFees, new BusinessDays(new PublicHolidays()), clock);
   }
 }

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.check.fee;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.BLACKROCK_ADJUSTMENT_AFTER_REBATE;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CASH_SETTLEMENT_OBSERVED;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_POSITION_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.INSTRUMENT_RATE_COVERAGE;
@@ -91,7 +92,9 @@ class FeeCheckServiceTest {
             org.assertj.core.groups.Tuple.tuple(
                 PENSIONIKESKUS_MANAGEMENT_FEE, FeeCheckScope.MANAGEMENT),
             org.assertj.core.groups.Tuple.tuple(PENSIONIKESKUS_ONGOING_CHARGES, FeeCheckScope.ALL),
-            org.assertj.core.groups.Tuple.tuple(KID_AFTER_FEE_CHANGE, FeeCheckScope.MANAGEMENT));
+            org.assertj.core.groups.Tuple.tuple(KID_AFTER_FEE_CHANGE, FeeCheckScope.MANAGEMENT),
+            org.assertj.core.groups.Tuple.tuple(
+                CASH_SETTLEMENT_OBSERVED, FeeCheckScope.MANAGEMENT));
   }
 
   @Test
@@ -217,6 +220,8 @@ class FeeCheckServiceTest {
         .willReturn(List.of(passFinding(PENSIONIKESKUS_ONGOING_CHARGES, FeeCheckScope.ALL)));
     given(kidAfterFeeChangeChecker.check(any(), any()))
         .willReturn(List.of(passFinding(KID_AFTER_FEE_CHANGE, FeeCheckScope.MANAGEMENT)));
+    given(cashSettlementChecker.check(any(), any()))
+        .willReturn(List.of(passFinding(CASH_SETTLEMENT_OBSERVED, FeeCheckScope.MANAGEMENT)));
   }
 
   private void givenCustodianCheckerPasses() {

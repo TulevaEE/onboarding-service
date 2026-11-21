@@ -99,7 +99,12 @@ public class TransactionInputService {
     Optional<NettingWindow> netting =
         gatewayBalance.map(
             balance ->
-                new NettingWindow(fund, positionDate, asOfDate, balance.pendingEntryReferences()));
+                new NettingWindow(
+                    fund,
+                    positionDate,
+                    asOfDate,
+                    balance.pendingEntryReferences(),
+                    balance.bookedTodayEntryReferences()));
     BigDecimal appliedCash =
         gatewayBalance
             .map(CurrentDayBalance::balance)
@@ -135,7 +140,11 @@ public class TransactionInputService {
     liabilities = liabilities.add(pevaRava);
     R16Reserve r16Reserve =
         r16OutflowReader.read(
-            fund, asOfDate, netting.map(NettingWindow::today).orElse(positionDate));
+            fund,
+            asOfDate,
+            netting
+                .<CashHorizon>map(window -> window)
+                .orElse(new CashHorizon.ThroughTheReportDate(positionDate)));
     BigDecimal r16 = r16Reserve.reserved();
     liabilities = liabilities.add(r16);
 

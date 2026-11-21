@@ -11,6 +11,7 @@ import static ee.tuleva.onboarding.investment.transaction.OrderVenue.FT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.currentDayReport;
 import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.endOfDayStatement;
+import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.entry;
 import static ee.tuleva.onboarding.investment.transaction.TradePrepPricingFixture.noResolvedPrices;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
@@ -34,6 +35,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.BankEntryReference;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.PartyRef;
@@ -1084,7 +1086,12 @@ class TransactionPipelineIntegrationTest {
         "INTRA_DAY_REPORT",
         TEST_DATE,
         FIXED_INSTANT,
-        currentDayReport(investmentIban(), TEST_DATE, "520000.00"));
+        currentDayReport(
+            investmentIban(),
+            TEST_DATE,
+            "520000.00",
+            entry("SETTLEMENT-1", "120000.00", "DBIT", "BOOK"),
+            entry("SETTLEMENT-2", "15000.00", "DBIT", "BOOK")));
     jdbcClient
         .sql(
             "UPDATE investment_fund_position SET nav_date = DATE '2026-02-09'"
@@ -1111,7 +1118,7 @@ class TransactionPipelineIntegrationTest {
         TKF100,
         new BigDecimal("-120000.00"),
         new BigDecimal("1000"),
-        randomUUID(),
+        BankEntryReference.of(investmentIban(), "SETTLEMENT-1"),
         FUND_INVESTMENT_CASH_CLEARING,
         new TradeSettlementDetails(
             "SYNTHETIC-1", "IE00BFG1TM61", "TICK", "test instrument", BigDecimal.ONE),
@@ -1120,7 +1127,7 @@ class TransactionPipelineIntegrationTest {
         TKF100,
         new BigDecimal("-15000.00"),
         new BigDecimal("100"),
-        randomUUID(),
+        BankEntryReference.of(investmentIban(), "SETTLEMENT-2"),
         FUND_INVESTMENT_CASH_CLEARING,
         new TradeSettlementDetails(
             "SYNTHETIC-2", "IE00BFG1TM61", "TICK", "test instrument", BigDecimal.ONE),

@@ -13,7 +13,11 @@ sealed interface GatewayCash {
 
   Map<String, Object> payload();
 
-  record CurrentDayBalance(BigDecimal balance, Instant fetchedAt, Set<UUID> pendingEntryReferences)
+  record CurrentDayBalance(
+      BigDecimal balance,
+      Instant fetchedAt,
+      Set<UUID> pendingEntryReferences,
+      Set<UUID> bookedTodayEntryReferences)
       implements GatewayCash {
 
     @Override

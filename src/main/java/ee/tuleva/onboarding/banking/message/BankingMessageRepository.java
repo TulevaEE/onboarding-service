@@ -62,9 +62,8 @@ public interface BankingMessageRepository extends CrudRepository<BankingMessage,
         and m.processedAt is not null
         and m.failedAt is null
       order by m.receivedAt desc
-      limit 1
       """)
-  Optional<BankingMessage> findLatestProcessedCurrentDayReport(
+  List<BankingMessage> findProcessedCurrentDayReportsLatestFirst(
       BankType bankType, String accountIban, LocalDate day);
 
   @Query(

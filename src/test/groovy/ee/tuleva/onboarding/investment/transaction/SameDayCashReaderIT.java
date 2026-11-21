@@ -116,7 +116,8 @@ class SameDayCashReaderIT {
         .isEqualTo(
             new CashSourceReport(
                 CashSource.GATEWAY_BALANCE,
-                new CurrentDayBalance(new BigDecimal("1000.00"), LATER_THIS_MORNING, Set.of()),
+                new CurrentDayBalance(
+                    new BigDecimal("1000.00"), LATER_THIS_MORNING, Set.of(), Set.of()),
                 null,
                 List.of(),
                 GatewayHold.NONE));
@@ -140,9 +141,43 @@ class SameDayCashReaderIT {
             new CurrentDayBalance(
                 new BigDecimal("1000.00"),
                 THIS_MORNING,
-                Set.of(
-                    UUID.nameUUIDFromBytes(
-                        (TUK75_INVESTMENT_IBAN + ":PENDING-1").getBytes(UTF_8)))));
+                Set.of(reference("PENDING-1")),
+                Set.of(reference("BOOKED-1"))));
+  }
+
+  @Test
+  void
+      theBalanceHoldsTodaysBookedEntriesOfEveryProcessedReportUpToItsOwnButNotOfOnesNotProcessed() {
+    store(
+        INTRA_DAY_REPORT,
+        TODAY,
+        THIS_MORNING,
+        currentDayReport(
+            TUK75_INVESTMENT_IBAN, TODAY, "900.00", entry("EARLY-1", "100.00", "DBIT", "BOOK")));
+    store(
+        INTRA_DAY_REPORT,
+        TODAY,
+        LATER_THIS_MORNING,
+        currentDayReport(
+            TUK75_INVESTMENT_IBAN, TODAY, "800.00", entry("LATE-1", "100.00", "DBIT", "BOOK")));
+    storeUnprocessed(
+        INTRA_DAY_REPORT,
+        TODAY,
+        LATER_THIS_MORNING.plusSeconds(600),
+        currentDayReport(
+            TUK75_INVESTMENT_IBAN, TODAY, "700.00", entry("NOT-YET-1", "100.00", "DBIT", "BOOK")));
+
+    assertThat(reader.read(TUK75, TODAY, null, null, OUTSIDE_A_CYCLE).gateway())
+        .isEqualTo(
+            new CurrentDayBalance(
+                new BigDecimal("800.00"),
+                LATER_THIS_MORNING,
+                Set.of(),
+                Set.of(reference("EARLY-1"), reference("LATE-1"))));
+  }
+
+  private static UUID reference(String externalId) {
+    return UUID.nameUUIDFromBytes((TUK75_INVESTMENT_IBAN + ":" + externalId).getBytes(UTF_8));
   }
 
   @Test
@@ -247,7 +282,7 @@ class SameDayCashReaderIT {
         .isEqualTo(
             new CashSourceReport(
                 CashSource.OPERATOR_AMOUNT,
-                new CurrentDayBalance(new BigDecimal("1000.00"), THIS_MORNING, Set.of()),
+                new CurrentDayBalance(new BigDecimal("1000.00"), THIS_MORNING, Set.of(), Set.of()),
                 null,
                 List.of(),
                 GatewayHold.NONE));
@@ -311,6 +346,15 @@ class SameDayCashReaderIT {
         .param("navDate", TODAY.minusDays(1))
         .param("nav", new BigDecimal(nav))
         .param("calculationId", UUID.randomUUID())
+        .update();
+  }
+
+  private void storeUnprocessed(
+      BankMessageType type, LocalDate statementDate, Instant receivedAt, String rawResponse) {
+    store(type, statementDate, receivedAt, rawResponse);
+    jdbcClient
+        .sql("update banking_message set processed_at = null where received_at = :receivedAt")
+        .param("receivedAt", Timestamp.from(receivedAt))
         .update();
   }
 

@@ -26,6 +26,7 @@ import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -61,8 +62,7 @@ class GatewayNettingIT {
   private static final String ISIN = "IE00BFG1TM61";
   private static final LocalDate REPORT_DATE = LocalDate.of(2026, 11, 19);
   private static final LocalDate TODAY = LocalDate.of(2026, 11, 20);
-  private static final NettingWindow WINDOW =
-      new NettingWindow(TUK75, REPORT_DATE, TODAY, Set.of());
+  private final Set<UUID> inTodaysReports = new HashSet<>();
 
   @Autowired GatewayNetting netting;
   @Autowired TradeSettlementsInTheBalanceReader settlementsReader;
@@ -84,7 +84,7 @@ class GatewayNettingIT {
 
     var netted =
         settlementsReader
-            .read(WINDOW)
+            .read(window())
             .net(new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("200000.00")));
 
     assertThat(netted.after().payables()).isEqualByComparingTo("180000.00");
@@ -104,7 +104,7 @@ class GatewayNettingIT {
 
     var netted =
         settlementsReader
-            .read(WINDOW)
+            .read(window())
             .net(new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("0.00")));
 
     assertThat(netted.after().payables()).isEqualByComparingTo("300000.00");
@@ -119,7 +119,7 @@ class GatewayNettingIT {
 
     var netted =
         settlementsReader
-            .read(WINDOW)
+            .read(window())
             .net(new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("0.00")));
 
     assertThat(netted.after().payables()).isEqualByComparingTo("300000.00");
@@ -129,7 +129,7 @@ class GatewayNettingIT {
   void anOrderExecutedTodayWhoseSettlementTheBankBookedBeforeTheRegisterMarkedItIsCountedOnce() {
     filled(BUY, "B-TODAY", TODAY);
     bankBooks(TUK75, "B-TODAY", "-50000.00", TODAY);
-    var settlements = settlementsReader.read(WINDOW);
+    var settlements = settlementsReader.read(window());
 
     var pendingOrders =
         pendingOrderImpactService.calculate(
@@ -150,11 +150,25 @@ class GatewayNettingIT {
   }
 
   @Test
+  void aSettlementBookedTodayFromAReportProcessedAfterTheBalancesIsNotNetted() {
+    filled(BUY, "B-1", REPORT_DATE);
+    bankBooksAfterTheBalance(TUK75, "B-1", "-120000.00", TODAY);
+
+    var netted =
+        settlementsReader
+            .read(window())
+            .net(new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("0.00")));
+
+    assertThat(netted.after().payables()).isEqualByComparingTo("300000.00");
+  }
+
+  @Test
   void bookingsOnTheReportDateOrForAnotherFundOrStillPendingAreNotNetted() {
     bankBooks(TUK75, "ON-P", "-10000.00", REPORT_DATE);
     bankBooks(TUK00, "OTHER", "-20000.00", TODAY);
     UUID pending = bankBooks(TUK75, "PENDING", "-30000.00", TODAY);
-    var window = new NettingWindow(TUK75, REPORT_DATE, TODAY, Set.of(pending));
+    var window =
+        new NettingWindow(TUK75, REPORT_DATE, TODAY, Set.of(pending), Set.copyOf(inTodaysReports));
 
     var netted =
         settlementsReader
@@ -170,7 +184,7 @@ class GatewayNettingIT {
     filled(SELL, "WRONG-SIDE", REPORT_DATE);
     bankBooks(TUK75, "WRONG-SIDE", "-20000.00", TODAY);
 
-    var settlements = settlementsReader.read(WINDOW);
+    var settlements = settlementsReader.read(window());
 
     assertThat(
             settlements
@@ -192,7 +206,7 @@ class GatewayNettingIT {
 
     var netted =
         settlementsReader
-            .read(WINDOW)
+            .read(window())
             .net(new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("50000.00")));
 
     assertThat(netted.after().payables()).isEqualByComparingTo("0");
@@ -201,7 +215,7 @@ class GatewayNettingIT {
 
   @Test
   void r45RowsSettlingTodayReserveTheirWholeOutflowWhateverWasPaidTodayAndTheirInflowsDoNotCount() {
-    var window = new NettingWindow(TUV100, REPORT_DATE, TODAY, Set.of());
+    var window = new NettingWindow(TUV100, REPORT_DATE, TODAY, Set.of(), Set.of());
     payout(TUV100, "70000.00", TODAY, "38888888888, Osakute lunastamine");
     payout(TUV100, "10000.00", TODAY, "38888888888, Osakute vahetamine");
     payout(TUV100, "5000.00", REPORT_DATE, "38888888888, Osakute lunastamine");
@@ -225,7 +239,7 @@ class GatewayNettingIT {
 
   @Test
   void laterR45RowsReserveOnlyTheOutflowBeyondTheirInflow() {
-    var window = new NettingWindow(TUV100, REPORT_DATE, TODAY, Set.of());
+    var window = new NettingWindow(TUV100, REPORT_DATE, TODAY, Set.of(), Set.of());
 
     var netted =
         netting.r45(
@@ -276,7 +290,18 @@ class GatewayNettingIT {
     return order;
   }
 
+  private NettingWindow window() {
+    return new NettingWindow(TUK75, REPORT_DATE, TODAY, Set.of(), Set.copyOf(inTodaysReports));
+  }
+
   private UUID bankBooks(TulevaFund fund, String brokerReference, String cash, LocalDate day) {
+    UUID externalReference = bankBooksAfterTheBalance(fund, brokerReference, cash, day);
+    inTodaysReports.add(externalReference);
+    return externalReference;
+  }
+
+  private UUID bankBooksAfterTheBalance(
+      TulevaFund fund, String brokerReference, String cash, LocalDate day) {
     UUID externalReference = randomUUID();
     fundBankLedger.recordTradeSettlement(
         fund,

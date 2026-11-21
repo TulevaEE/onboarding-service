@@ -37,8 +37,7 @@ class TradeSettlementsInTheBalanceReader {
             .bookedFor(window.fund(), window.reportDate().plusDays(1), window.today())
             .stream()
             .filter(booking -> booking.cashAmount() != null)
-            .filter(
-                booking -> !window.pendingEntryReferences().contains(booking.externalReference()))
+            .filter(booking -> window.holds(booking.externalReference(), booking.bookingDate()))
             .toList();
     Map<String, List<Fill>> fillsByReference = fillsByReference(bookings);
     return new TradeSettlementsInTheBalance(

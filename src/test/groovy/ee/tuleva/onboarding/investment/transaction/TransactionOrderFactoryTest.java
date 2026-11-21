@@ -125,10 +125,8 @@ class TransactionOrderFactoryTest {
     var input =
         holding(
             new PositionSnapshot(
-                "IE00ETF",
-                new BigDecimal("100000"),
-                new BigDecimal("1000"),
-                new BigDecimal("100")));
+                "IE00ETF", new BigDecimal("100000"), new BigDecimal("1000"), new BigDecimal("100")),
+            new SellableUnits(new BigDecimal("1000"), BigDecimal.ZERO));
     var trades =
         List.of(
             new TradeCalculation(
@@ -149,9 +147,41 @@ class TransactionOrderFactoryTest {
         .containsExactly(
             new CalculationWarning(
                 CalculationWarningType.SELL_CAPPED_AT_HOLDING,
-                "⚠️ Sale sized above the units held, capped at the holding: fund=TUV100,"
-                    + " isin=IE00ETF, computedQuantity=1052.631579, heldQuantity=1000,"
-                    + " price=95"));
+                "⚠️ Sale sized above the units it may sell, capped: fund=TUV100, isin=IE00ETF,"
+                    + " computedQuantity=1052.631579, heldQuantity=1000, pendingSellQuantity=0,"
+                    + " allowedQuantity=1000, price=95"));
+  }
+
+  @Test
+  void createOrders_unitsAnOutstandingSaleAlreadyCommitsAreNotSoldAgain() {
+    var input =
+        holding(
+            new PositionSnapshot(
+                "IE00ETF", new BigDecimal("45400"), new BigDecimal("1000"), new BigDecimal("100")),
+            new SellableUnits(new BigDecimal("1000"), new BigDecimal("600")));
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00ETF", new BigDecimal("-45400"), BigDecimal.ZERO, LimitStatus.OK));
+    var manual =
+        new ManualPrice(new PriceOverride("IE00ETF", new BigDecimal("91"), "Issuer's NAV"));
+
+    var calculated =
+        factory.createOrders(
+            batch(),
+            resultWith(input, trades),
+            AS_OF_DATE,
+            CREATED_AT,
+            new FreshestPerInstrument(Map.of("IE00ETF", manual)));
+
+    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("400");
+    assertThat(calculated.warnings())
+        .containsExactly(
+            new CalculationWarning(
+                CalculationWarningType.SELL_CAPPED_AT_HOLDING,
+                "⚠️ Sale sized above the units it may sell, capped: fund=TUV100, isin=IE00ETF,"
+                    + " computedQuantity=498.901099, heldQuantity=1000, pendingSellQuantity=600,"
+                    + " allowedQuantity=400, price=91"));
   }
 
   @Test
@@ -159,10 +189,8 @@ class TransactionOrderFactoryTest {
     var input =
         holding(
             new PositionSnapshot(
-                "IE00ETF",
-                new BigDecimal("100000"),
-                new BigDecimal("1000"),
-                new BigDecimal("100")));
+                "IE00ETF", new BigDecimal("100000"), new BigDecimal("1000"), new BigDecimal("100")),
+            new SellableUnits(new BigDecimal("1000"), BigDecimal.ZERO));
     var trades =
         List.of(
             new TradeCalculation(
@@ -182,10 +210,11 @@ class TransactionOrderFactoryTest {
     assertThat(calculated.warnings()).isEmpty();
   }
 
-  private static FundTransactionInput holding(PositionSnapshot position) {
+  private static FundTransactionInput holding(PositionSnapshot position, SellableUnits sellable) {
     return FundTransactionInput.builder()
         .fund(TUV100)
         .positions(List.of(position))
+        .sellableUnits(Map.of("IE00ETF", sellable))
         .modelWeights(List.of())
         .grossPortfolioValue(new BigDecimal("600000"))
         .cashBuffer(new BigDecimal("10000"))

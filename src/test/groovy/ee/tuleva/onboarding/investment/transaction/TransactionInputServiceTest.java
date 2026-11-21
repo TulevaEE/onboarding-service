@@ -733,7 +733,8 @@ class TransactionInputServiceTest {
                 Map.of("IE00A", new BigDecimal("30000"), "IE00B", new BigDecimal("-10000")),
                 Map.of(),
                 ZERO,
-                ZERO));
+                ZERO,
+                Map.of()));
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
@@ -778,7 +779,8 @@ class TransactionInputServiceTest {
             .build();
     given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any(), any(), any()))
         .willReturn(
-            new PendingOrderImpact(new BigDecimal("25000"), ZERO, Map.of(), Map.of(), ZERO, ZERO));
+            new PendingOrderImpact(
+                new BigDecimal("25000"), ZERO, Map.of(), Map.of(), ZERO, ZERO, Map.of()));
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
@@ -1345,7 +1347,8 @@ class TransactionInputServiceTest {
                 Map.of("IE00A", new BigDecimal("40000")),
                 Map.of("IE00A", new BigDecimal("80")),
                 ZERO,
-                ZERO));
+                ZERO,
+                Map.of()));
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
@@ -1443,7 +1446,8 @@ class TransactionInputServiceTest {
                 Map.of("IE00A", new BigDecimal("40000")),
                 Map.of(),
                 ZERO,
-                ZERO));
+                ZERO,
+                Map.of()));
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 

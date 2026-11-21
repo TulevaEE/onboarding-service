@@ -11,9 +11,10 @@ record PendingOrderImpact(
     Map<String, BigDecimal> unreportedPositionValues,
     Map<String, BigDecimal> unreportedPositionQuantities,
     BigDecimal buysInTheBalance,
-    BigDecimal sellsInTheBalance) {
+    BigDecimal sellsInTheBalance,
+    Map<String, BigDecimal> unreportedSellQuantities) {
 
   static PendingOrderImpact none() {
-    return new PendingOrderImpact(ZERO, ZERO, Map.of(), Map.of(), ZERO, ZERO);
+    return new PendingOrderImpact(ZERO, ZERO, Map.of(), Map.of(), ZERO, ZERO, Map.of());
   }
 }

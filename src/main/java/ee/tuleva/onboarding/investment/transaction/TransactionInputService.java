@@ -209,6 +209,7 @@ public class TransactionInputService {
     return FundTransactionInput.builder()
         .fund(fund)
         .positions(positions)
+        .sellableUnits(positionAssembler.sellableUnits(fund, positionDate, pendingOrders))
         .modelWeights(parameters.modelWeights())
         .grossPortfolioValue(grossPortfolioValue)
         .cashBuffer(parameters.cashBuffer())

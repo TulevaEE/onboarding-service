@@ -6,19 +6,21 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import org.jspecify.annotations.NullMarked;
 
 @NullMarked
 final class HoldingCap {
 
   private final TulevaFund fund;
-  private final List<PositionSnapshot> positions;
+  private final Map<String, SellableUnits> sellableUnits;
   private final List<CalculationWarning> warnings = new ArrayList<>();
 
-  HoldingCap(TulevaFund fund, List<PositionSnapshot> positions) {
+  HoldingCap(TulevaFund fund, Map<String, SellableUnits> sellableUnits) {
     this.fund = fund;
-    this.positions = positions;
+    this.sellableUnits = sellableUnits;
   }
 
   OrderQuantity cap(TransactionType transactionType, String isin, OrderQuantity sized) {
@@ -27,16 +29,12 @@ final class HoldingCap {
     if (transactionType != TransactionType.SELL || quantity == null || price == null) {
       return sized;
     }
-    return positions.stream()
-        .filter(position -> isin.equals(position.isin()))
-        .map(PositionSnapshot::quantity)
-        .filter(Objects::nonNull)
-        .findFirst()
-        .filter(held -> quantity.compareTo(held) > 0)
+    return Optional.ofNullable(sellableUnits.get(isin))
+        .filter(sellable -> quantity.compareTo(sellable.allowed()) > 0)
         .map(
-            held -> {
-              warnings.add(warning(isin, quantity, held, price));
-              return new OrderQuantity(held, sized.stalePriceComment(), price);
+            sellable -> {
+              warnings.add(warning(isin, quantity, sellable, price));
+              return new OrderQuantity(sellable.allowed(), sized.stalePriceComment(), price);
             })
         .orElse(sized);
   }
@@ -46,16 +44,19 @@ final class HoldingCap {
   }
 
   private CalculationWarning warning(
-      String isin, BigDecimal computed, BigDecimal held, TradePrepPrice price) {
+      String isin, BigDecimal computed, SellableUnits sellable, TradePrepPrice price) {
     return new CalculationWarning(
         SELL_CAPPED_AT_HOLDING,
-        ("⚠️ Sale sized above the units held, capped at the holding: fund=%s, isin=%s,"
-                + " computedQuantity=%s, heldQuantity=%s, price=%s")
+        ("⚠️ Sale sized above the units it may sell, capped: fund=%s, isin=%s,"
+                + " computedQuantity=%s, heldQuantity=%s, pendingSellQuantity=%s,"
+                + " allowedQuantity=%s, price=%s")
             .formatted(
                 fund.name(),
                 isin,
                 computed.toPlainString(),
-                held.toPlainString(),
+                sellable.held().toPlainString(),
+                sellable.pendingSells().toPlainString(),
+                sellable.allowed().toPlainString(),
                 Objects.requireNonNull(price.value()).toPlainString()));
   }
 }

@@ -74,6 +74,7 @@ class PendingOrderImpactService {
     BigDecimal sellsInTheBalance = ZERO;
     Map<String, BigDecimal> unreportedValues = new HashMap<>();
     Map<String, BigDecimal> unreportedQuantities = new HashMap<>();
+    Map<String, BigDecimal> unreportedSellQuantities = new HashMap<>();
 
     for (TransactionOrder order : unsettled) {
       List<TransactionExecution> executions =
@@ -83,6 +84,12 @@ class PendingOrderImpactService {
       BigDecimal unfilledValue = unfilledValue(order, executed, asOfDate, pricing);
       addUnreportedPositions(
           order, fills, executed, unfilledValue, unreportedValues, unreportedQuantities);
+      if (order.getTransactionType() == SELL) {
+        unreportedSellQuantities.merge(
+            order.getInstrumentIsin(),
+            unreportedQuantityOf(fills).add(unfilledQuantity(order, executed)),
+            BigDecimal::add);
+      }
       List<ClassifiedFill> booked =
           fills.stream().filter(fill -> fill.bookedIn(executionIdsInTheBalance)).toList();
       List<ClassifiedFill> notYetBooked =
@@ -119,7 +126,12 @@ class PendingOrderImpactService {
         Map.copyOf(unreportedValues),
         Map.copyOf(unreportedQuantities),
         buysInTheBalance,
-        sellsInTheBalance);
+        sellsInTheBalance,
+        Map.copyOf(unreportedSellQuantities));
+  }
+
+  private static BigDecimal unreportedQuantityOf(List<ClassifiedFill> fills) {
+    return fills.stream().map(ClassifiedFill::unreportedQuantity).reduce(ZERO, BigDecimal::add);
   }
 
   private static List<ClassifiedFill> classifyAgainstPositionReport(

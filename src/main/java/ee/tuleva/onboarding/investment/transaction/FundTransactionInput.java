@@ -37,7 +37,8 @@ public record FundTransactionInput(
     @Nullable LocalDate positionDate,
     @Nullable LocalDate modelEffectiveDate,
     List<CalculationWarning> inputWarnings,
-    @Nullable CashSection cashSection) {
+    @Nullable CashSection cashSection,
+    Map<String, SellableUnits> sellableUnits) {
 
   public static FundTransactionInputBuilder builder() {
     return new FundTransactionInputBuilder();
@@ -73,7 +74,8 @@ public record FundTransactionInput(
         positionDate,
         modelEffectiveDate,
         inputWarnings,
-        cashSection);
+        cashSection,
+        sellableUnits);
   }
 
   private List<PositionSnapshot> setAside(Set<String> isins) {
@@ -176,6 +178,7 @@ public record FundTransactionInput(
     private @Nullable LocalDate modelEffectiveDate;
     private List<CalculationWarning> inputWarnings = List.of();
     private @Nullable CashSection cashSection;
+    private Map<String, SellableUnits> sellableUnits = Map.of();
 
     public FundTransactionInputBuilder fund(TulevaFund fund) {
       this.fund = fund;
@@ -280,6 +283,11 @@ public record FundTransactionInput(
       return this;
     }
 
+    public FundTransactionInputBuilder sellableUnits(Map<String, SellableUnits> sellableUnits) {
+      this.sellableUnits = sellableUnits;
+      return this;
+    }
+
     public FundTransactionInputBuilder cashSection(@Nullable CashSection cashSection) {
       this.cashSection = cashSection;
       return this;
@@ -313,7 +321,8 @@ public record FundTransactionInput(
           positionDate,
           modelEffectiveDate,
           inputWarnings,
-          cashSection);
+          cashSection,
+          sellableUnits);
     }
 
     private static <T> T requireField(@Nullable T value, String fieldName) {

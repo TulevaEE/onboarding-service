@@ -50,15 +50,14 @@ record ManualPrices(List<PriceOverride> overrides) {
     return Map.copyOf(prices);
   }
 
-  List<UsedPriceOverride> uses(
-      Map<String, ManualPriceDeviationCheck> checks, Map<String, ResolvedPrice> indexPrices) {
+  List<UsedPriceOverride> uses(PriceDeviations deviations, Map<String, ResolvedPrice> indexPrices) {
     return overrides.stream()
         .map(
             override -> {
               ResolvedPrice indexPrice = indexPrices.get(override.isin());
               ManualPriceDeviationCheck check =
                   Objects.requireNonNull(
-                      checks.get(override.isin()),
+                      deviations.checks().get(override.isin()),
                       () -> "No deviation check for a manual price: isin=" + override.isin());
               boolean clearedAStop =
                   indexPrice == null && check != ManualPriceDeviationCheck.SKIPPED_EXCLUDED;

@@ -1503,6 +1503,61 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Test
+  void aStaleConfirmationBesideOneForTheCurrentManualPriceLetsThePriceThrough() {
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(
+                    new PriceOverride(
+                        "IE000O58J820", new BigDecimal("5.00"), "Index price is stale")),
+                null,
+                null,
+                List.of(
+                    new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("10.00")),
+                    new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("5.00")))),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+  }
+
+  @Test
+  void whenNoConfirmationMatchesTheStopNamesEveryPriceThatWasConfirmed() {
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(
+                    new PriceOverride(
+                        "IE000O58J820", new BigDecimal("5.00"), "Index price is stale")),
+                null,
+                null,
+                List.of(
+                    new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("7.00")),
+                    new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("6.00")))),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            ⚠️ IE000O58J820: käsitsi hind 5, viimane indeksihind 50 (2026-02-10), erinevus -90.0%, kinnitused on hindadele 6, 7: kontrolli hinda või kinnita see (confirmedPriceDeviations)\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
   void aConfirmationForAnInstrumentWithoutAManualPriceFailsTheCommand() {
     var response =
         commandRunner.createAndProcess(

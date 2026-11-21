@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.config.InvestmentParameter.MANUAL_
 import static ee.tuleva.onboarding.investment.transaction.ManualPriceDeviationCheck.MEASURED;
 import static ee.tuleva.onboarding.investment.transaction.ManualPriceDeviationCheck.NO_INDEX_PRICE_HISTORY;
 import static ee.tuleva.onboarding.investment.transaction.ManualPriceDeviationCheck.SKIPPED_EXCLUDED;
+import static java.util.Comparator.comparing;
 import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.toMap;
 
@@ -61,7 +62,7 @@ class ManualPriceDeviations {
             .toList(),
         judged.stream()
             .filter(not(JudgedDeviation::confirmed))
-            .flatMap(deviation -> deviation.confirmation().stream())
+            .flatMap(deviation -> deviation.confirmations().stream())
             .toList(),
         judged.stream().filter(JudgedDeviation::confirmed).map(JudgedDeviation::deviation).toList(),
         checks);
@@ -98,18 +99,19 @@ class ManualPriceDeviations {
   }
 
   private record JudgedDeviation(
-      PriceDeviation deviation, Optional<PriceDeviationConfirmation> confirmation) {
+      PriceDeviation deviation, List<PriceDeviationConfirmation> confirmations) {
 
     static JudgedDeviation of(PriceDeviation deviation, TradePrepOverrides overrides) {
       return new JudgedDeviation(
           deviation,
           overrides.confirmedPriceDeviations().stream()
               .filter(confirmation -> confirmation.isin().equals(deviation.isin()))
-              .findFirst());
+              .sorted(comparing(PriceDeviationConfirmation::price))
+              .toList());
     }
 
     boolean confirmed() {
-      return confirmation.filter(given -> given.confirms(deviation)).isPresent();
+      return confirmations.stream().anyMatch(given -> given.confirms(deviation));
     }
   }
 

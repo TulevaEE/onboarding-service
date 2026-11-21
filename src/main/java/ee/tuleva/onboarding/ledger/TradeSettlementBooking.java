@@ -12,4 +12,5 @@ public record TradeSettlementBooking(
     @Nullable String brokerReference,
     @Nullable String isin,
     LocalDate bookingDate,
-    @Nullable BigDecimal cashAmount) {}
+    @Nullable BigDecimal cashAmount,
+    @Nullable BigDecimal units) {}

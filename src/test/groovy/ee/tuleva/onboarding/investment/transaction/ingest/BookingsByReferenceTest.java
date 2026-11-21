@@ -58,6 +58,7 @@ class BookingsByReferenceTest {
         brokerReference,
         "LU1291102447",
         LocalDate.of(2026, 2, 12),
-        new BigDecimal("-209025.86"));
+        new BigDecimal("-209025.86"),
+        new BigDecimal("11704"));
   }
 }

@@ -50,15 +50,11 @@ class RebalanceTrades {
                 modelEffectiveDate.atStartOfDay(TALLINN).toInstant(),
                 measuredUntil.plusDays(1).atStartOfDay(TALLINN).toInstant())
             .stream()
-            .flatMap(
+            .map(
                 order ->
-                    Optional.ofNullable(order.getOrderTimestamp())
-                        .map(
-                            sentAt ->
-                                new SentOrder(
-                                    sentAt.atZone(TALLINN).toLocalDate(),
-                                    order.getExpectedSettlementDate()))
-                        .stream())
+                    new SentOrder(
+                        order.orderTimestamp().atZone(TALLINN).toLocalDate(),
+                        order.expectedSettlementDate()))
             .toList());
   }
 }

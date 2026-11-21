@@ -89,17 +89,17 @@ public interface TransactionOrderRepository extends JpaRepository<TransactionOrd
 
   @Query(
       """
-      SELECT o
+      SELECT new ee.tuleva.onboarding.investment.transaction.TradePrepRunOrder(
+        o.orderTimestamp, o.expectedSettlementDate)
       FROM TransactionOrder o
-        JOIN FETCH o.batch b
-        JOIN TransactionCommand c ON c.batchId = b.id
+        JOIN TransactionCommand c ON c.batchId = o.batch.id
       WHERE c.mode = :mode
         AND o.fund = :fund
         AND o.orderStatus = :status
         AND o.orderTimestamp >= :from
         AND o.orderTimestamp < :until
       """)
-  List<TransactionOrder> findOrdersOfATradePrepRun(
+  List<TradePrepRunOrder> findOrdersOfATradePrepRun(
       TulevaFund fund, TransactionMode mode, OrderStatus status, Instant from, Instant until);
 
   default List<TransactionOrder> findOverdueOrders(OrderStatus... statuses) {

@@ -67,6 +67,6 @@ public class TradeSettlementBookings {
 
   private static boolean isTradeCash(LedgerEntry entry) {
     String accountName = entry.getAccount().getName();
-    return accountName != null && accountName.startsWith(TRADE_CASH_SETTLEMENT.name() + ":");
+    return accountName != null && TRADE_CASH_SETTLEMENT.owns(accountName);
   }
 }

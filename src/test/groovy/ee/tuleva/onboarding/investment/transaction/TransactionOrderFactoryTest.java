@@ -121,100 +121,109 @@ class TransactionOrderFactoryTest {
   }
 
   @Test
-  void createOrders_aSaleSizedOnAPriceBelowTheReportsIsCappedAtTheUnitsHeldAndSaysSo() {
+  void createOrders_aSaleSizedAboveTheUnitsHeldIsAStopNotACap() {
     var input =
         holding(
             new PositionSnapshot(
                 "IE00ETF", new BigDecimal("100000"), new BigDecimal("1000"), new BigDecimal("100")),
-            new SellableUnits(new BigDecimal("1000"), BigDecimal.ZERO));
-    var trades =
-        List.of(
-            new TradeCalculation(
-                "IE00ETF", new BigDecimal("-100000"), BigDecimal.ZERO, LimitStatus.OK));
+            Map.of("IE00ETF", new SellableUnits(new BigDecimal("1000"), BigDecimal.ZERO)));
     var manual =
         new ManualPrice(new PriceOverride("IE00ETF", new BigDecimal("95"), "Issuer's NAV"));
 
-    var calculated =
-        factory.createOrders(
-            batch(),
-            resultWith(input, trades),
-            AS_OF_DATE,
-            CREATED_AT,
-            new FreshestPerInstrument(Map.of("IE00ETF", manual)));
+    var calculated = sellOn(input, "-100000", manual);
 
-    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("1000");
-    assertThat(calculated.warnings())
+    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("1052.631579");
+    assertThat(calculated.unsellable())
         .containsExactly(
-            new CalculationWarning(
-                CalculationWarningType.SELL_CAPPED_AT_HOLDING,
-                "⚠️ Sale sized above the units it may sell, capped: fund=TUV100, isin=IE00ETF,"
-                    + " computedQuantity=1052.631579, heldQuantity=1000, pendingSellQuantity=0,"
-                    + " allowedQuantity=1000, price=95"));
+            new InputGateFailure.SaleBeyondSellableUnits(
+                "IE00ETF",
+                new BigDecimal("1052.631579"),
+                new BigDecimal("1000"),
+                BigDecimal.ZERO,
+                new BigDecimal("1000"),
+                new BigDecimal("95")));
   }
 
   @Test
-  void createOrders_unitsAnOutstandingSaleAlreadyCommitsAreNotSoldAgain() {
+  void createOrders_unitsAnOutstandingSaleAlreadyCommitsCannotBeSoldAgain() {
     var input =
         holding(
             new PositionSnapshot(
                 "IE00ETF", new BigDecimal("45400"), new BigDecimal("1000"), new BigDecimal("100")),
-            new SellableUnits(new BigDecimal("1000"), new BigDecimal("600")));
-    var trades =
-        List.of(
-            new TradeCalculation(
-                "IE00ETF", new BigDecimal("-45400"), BigDecimal.ZERO, LimitStatus.OK));
+            Map.of("IE00ETF", new SellableUnits(new BigDecimal("1000"), new BigDecimal("600"))));
     var manual =
         new ManualPrice(new PriceOverride("IE00ETF", new BigDecimal("91"), "Issuer's NAV"));
 
-    var calculated =
-        factory.createOrders(
-            batch(),
-            resultWith(input, trades),
-            AS_OF_DATE,
-            CREATED_AT,
-            new FreshestPerInstrument(Map.of("IE00ETF", manual)));
+    var calculated = sellOn(input, "-45400", manual);
 
-    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("400");
-    assertThat(calculated.warnings())
+    assertThat(calculated.unsellable())
         .containsExactly(
-            new CalculationWarning(
-                CalculationWarningType.SELL_CAPPED_AT_HOLDING,
-                "⚠️ Sale sized above the units it may sell, capped: fund=TUV100, isin=IE00ETF,"
-                    + " computedQuantity=498.901099, heldQuantity=1000, pendingSellQuantity=600,"
-                    + " allowedQuantity=400, price=91"));
+            new InputGateFailure.SaleBeyondSellableUnits(
+                "IE00ETF",
+                new BigDecimal("498.901099"),
+                new BigDecimal("1000"),
+                new BigDecimal("600"),
+                new BigDecimal("400"),
+                new BigDecimal("91")));
   }
 
   @Test
-  void createOrders_aPartialSaleBelowTheHoldingIsSizedAsBefore() {
+  void createOrders_aPositionTheReportDoesNotHoldHasNoUnitsToSell() {
+    var input =
+        holding(
+            new PositionSnapshot("IE00ETF", new BigDecimal("50000"), new BigDecimal("500"), null),
+            Map.of());
+    var manual =
+        new ManualPrice(new PriceOverride("IE00ETF", new BigDecimal("100"), "Issuer's NAV"));
+
+    var calculated = sellOn(input, "-50000", manual);
+
+    assertThat(calculated.unsellable())
+        .containsExactly(
+            new InputGateFailure.SaleBeyondSellableUnits(
+                "IE00ETF",
+                new BigDecimal("500.000000"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                new BigDecimal("100")));
+  }
+
+  @Test
+  void createOrders_aPartialSaleWithinTheSellableUnitsPasses() {
     var input =
         holding(
             new PositionSnapshot(
                 "IE00ETF", new BigDecimal("100000"), new BigDecimal("1000"), new BigDecimal("100")),
-            new SellableUnits(new BigDecimal("1000"), BigDecimal.ZERO));
-    var trades =
-        List.of(
-            new TradeCalculation(
-                "IE00ETF", new BigDecimal("-47500"), BigDecimal.ZERO, LimitStatus.OK));
+            Map.of("IE00ETF", new SellableUnits(new BigDecimal("1000"), BigDecimal.ZERO)));
     var manual =
         new ManualPrice(new PriceOverride("IE00ETF", new BigDecimal("95"), "Issuer's NAV"));
 
-    var calculated =
-        factory.createOrders(
-            batch(),
-            resultWith(input, trades),
-            AS_OF_DATE,
-            CREATED_AT,
-            new FreshestPerInstrument(Map.of("IE00ETF", manual)));
+    var calculated = sellOn(input, "-47500", manual);
 
     assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("500");
-    assertThat(calculated.warnings()).isEmpty();
+    assertThat(calculated.unsellable()).isEmpty();
   }
 
-  private static FundTransactionInput holding(PositionSnapshot position, SellableUnits sellable) {
+  private CalculatedOrders sellOn(FundTransactionInput input, String amount, TradePrepPrice price) {
+    return factory.createOrders(
+        batch(),
+        resultWith(
+            input,
+            List.of(
+                new TradeCalculation(
+                    "IE00ETF", new BigDecimal(amount), BigDecimal.ZERO, LimitStatus.OK))),
+        AS_OF_DATE,
+        CREATED_AT,
+        new FreshestPerInstrument(Map.of("IE00ETF", price)));
+  }
+
+  private static FundTransactionInput holding(
+      PositionSnapshot position, Map<String, SellableUnits> sellable) {
     return FundTransactionInput.builder()
         .fund(TUV100)
         .positions(List.of(position))
-        .sellableUnits(Map.of("IE00ETF", sellable))
+        .sellableUnits(sellable)
         .modelWeights(List.of())
         .grossPortfolioValue(new BigDecimal("600000"))
         .cashBuffer(new BigDecimal("10000"))

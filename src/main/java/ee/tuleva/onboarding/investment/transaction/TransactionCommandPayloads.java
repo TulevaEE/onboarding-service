@@ -113,11 +113,9 @@ final class TransactionCommandPayloads {
     payload.put(
         "calculationWarnings",
         TransactionAuditPayloads.serializeCalculationWarnings(
-            Stream.of(
+            Stream.concat(
                     result.warnings().stream(),
-                    calculated.warnings().stream(),
-                    cash == null ? Stream.<CalculationWarning>empty() : cash.warnings().stream())
-                .flatMap(warnings -> warnings)
+                    cash == null ? Stream.empty() : cash.warnings().stream())
                 .toList()));
     payload.put("modelDrift", TransactionAuditPayloads.serializeModelDrift(input, result));
     Map<String, Object> summary = new LinkedHashMap<>();

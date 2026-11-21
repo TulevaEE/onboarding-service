@@ -1341,6 +1341,11 @@ class TransactionPreparationServiceTest {
                     new PositionSnapshot("IE00ETF", new BigDecimal("300000")),
                     new PositionSnapshot("IE00ETF2", new BigDecimal("100000")),
                     new PositionSnapshot("LU00FUND", new BigDecimal("200000"))))
+            .sellableUnits(
+                Map.of(
+                    "IE00ETF", new SellableUnits(new BigDecimal("1000000"), ZERO),
+                    "IE00ETF2", new SellableUnits(new BigDecimal("1000000"), ZERO),
+                    "LU00FUND", new SellableUnits(new BigDecimal("1000000"), ZERO)))
             .modelWeights(
                 List.of(
                     new ModelWeight("IE00ETF", new BigDecimal("0.50")),
@@ -1604,6 +1609,10 @@ class TransactionPreparationServiceTest {
                 List.of(
                     new PositionSnapshot("LU00FUND", new BigDecimal("300000")),
                     new PositionSnapshot("LU00FUND2", new BigDecimal("100000"))))
+            .sellableUnits(
+                Map.of(
+                    "LU00FUND", new SellableUnits(new BigDecimal("1000000"), ZERO),
+                    "LU00FUND2", new SellableUnits(new BigDecimal("1000000"), ZERO)))
             .modelWeights(
                 List.of(
                     new ModelWeight("LU00FUND", new BigDecimal("0.60")),
@@ -1718,6 +1727,73 @@ class TransactionPreparationServiceTest {
         .filter(order -> order.getInstrumentIsin().equals(isin))
         .findFirst()
         .orElseThrow();
+  }
+
+  @Test
+  void processCommand_aSaleOfMoreUnitsThanTheFundMaySellStopsTheRunWithoutADraft() {
+    var command =
+        TransactionCommand.builder()
+            .id(4L)
+            .fund(TUV100)
+            .mode(SELL)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot(
+                        "IE00A",
+                        new BigDecimal("100000"),
+                        new BigDecimal("1000"),
+                        new BigDecimal("100"))))
+            .sellableUnits(Map.of("IE00A", new SellableUnits(new BigDecimal("1000"), ZERO)))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(new BigDecimal("50000"))
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("-100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+    given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
+        .willReturn(input);
+    given(calculationEngine.calculate(input, SELL))
+        .willReturn(
+            new FundCalculationResult(
+                TUV100,
+                SELL,
+                input,
+                List.of(
+                    new TradeCalculation("IE00A", new BigDecimal("-100000"), ZERO, LimitStatus.OK)),
+                netInvestable(input),
+                null,
+                List.of()));
+    given(positionPriceResolver.resolve("IE00A", command.getAsOfDate()))
+        .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("95")).build()));
+
+    var result = service.processCommand(command);
+
+    assertThat(result)
+        .isEqualTo(
+            new CommandOutcome.StoppedByInputGates(
+                TUV100,
+                command.getAsOfDate(),
+                List.of(
+                    new InputGateFailure.SaleBeyondSellableUnits(
+                        "IE00A",
+                        new BigDecimal("1052.631579"),
+                        new BigDecimal("1000"),
+                        ZERO,
+                        new BigDecimal("1000"),
+                        new BigDecimal("95")))));
+    assertThat(command.getStatus()).isEqualTo(FAILED);
+    verifyNoInteractions(batchRepository, orderRepository);
   }
 
   @Test

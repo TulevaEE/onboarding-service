@@ -48,7 +48,7 @@ public class TransactionPreparationService {
 
       var result = calculationEngine.calculate(input, command.getMode());
 
-      batch =
+      TransactionBatch draft =
           TransactionBatch.builder()
               .fund(command.getFund())
               .status(BatchStatus.DRAFT)
@@ -56,11 +56,12 @@ public class TransactionPreparationService {
               .createdAt(Instant.now(clock))
               .metadata(Map.of("commandId", command.getId(), "mode", command.getMode().name()))
               .build();
-      batchRepository.save(batch);
-
       CalculatedOrders calculated =
           orderFactory.createOrders(
-              batch, result, command.getAsOfDate(), Instant.now(clock), gates.pricing());
+              draft, result, command.getAsOfDate(), Instant.now(clock), gates.pricing());
+      calculated.requireSellable(command.getFund(), command.getAsOfDate());
+      batchRepository.save(draft);
+      batch = draft;
       List<TransactionOrder> orders = calculated.orders();
       orderRepository.saveAll(orders);
 

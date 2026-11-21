@@ -197,6 +197,24 @@ class GatewayNettingIT {
   }
 
   @Test
+  void twoBookingsForOneTradeAreBothUnexplainedSoNeitherClearsAPayable() {
+    filled(BUY, "A", REPORT_DATE);
+    filled(BUY, "B", REPORT_DATE);
+    bankBooks(TUK75, "A", "-50000.00", TODAY);
+    bankBooks(TUK75, "A", "-50000.00", TODAY);
+
+    var settlements = settlementsReader.read(window());
+
+    assertThat(
+            settlements
+                .net(new UnsettledTrades(new BigDecimal("100000.00"), new BigDecimal("0.00")))
+                .after()
+                .payables())
+        .isEqualByComparingTo("100000.00");
+    assertThat(settlements.unmatched()).hasSize(2);
+  }
+
+  @Test
   void eachSideStopsAtZeroWhenTheBankBookedMoreThanTheReportShowed() {
     filled(BUY, "BIG-BUY", REPORT_DATE);
     filled(SELL, "BIG-SELL", REPORT_DATE);

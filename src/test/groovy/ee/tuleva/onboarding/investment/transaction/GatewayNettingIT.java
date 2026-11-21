@@ -18,6 +18,7 @@ import static org.springframework.context.annotation.FilterType.REGEX;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.investment.epis.R45Row;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
+import ee.tuleva.onboarding.ledger.TradeSettlementBooking;
 import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
 import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -74,7 +75,7 @@ class GatewayNettingIT {
   @Autowired EntityManager entityManager;
 
   @Test
-  void theReportsUnsettledTradesDropWhatTheBankBookedForThemSinceTheReportDate() {
+  void theReportsUnsettledTradesDropOnlyWhatTheBankBookedForRegisteredTradesSinceTheReportDate() {
     filled(BUY, "B-1", REPORT_DATE);
     bankBooks(TUK75, "B-1", "-120000.00", TODAY);
     filled(SELL, "S-1", REPORT_DATE);
@@ -86,7 +87,7 @@ class GatewayNettingIT {
             .read(WINDOW)
             .net(new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("200000.00")));
 
-    assertThat(netted.after().payables()).isEqualByComparingTo("150000.00");
+    assertThat(netted.after().payables()).isEqualByComparingTo("180000.00");
     assertThat(netted.after().receivables()).isEqualByComparingTo("0.00");
     assertThat(netted.before())
         .isEqualTo(new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("200000.00")));
@@ -136,7 +137,7 @@ class GatewayNettingIT {
             TODAY,
             REPORT_DATE,
             TradePrepPricingFixture.noResolvedPrices(),
-            settlements.carriedByPendingOrders());
+            settlements.carriedByPendingFills());
 
     assertThat(pendingOrders.pendingBuys()).isEqualByComparingTo("0");
     assertThat(pendingOrders.buysInTheBalance()).isEqualByComparingTo("50000");
@@ -164,7 +165,28 @@ class GatewayNettingIT {
   }
 
   @Test
+  void aSettlementWithNoRegisteredTradeThatFitsItIsNotNettedButListed() {
+    bankBooks(TUK75, "NO-ORDER", "-30000.00", TODAY);
+    filled(SELL, "WRONG-SIDE", REPORT_DATE);
+    bankBooks(TUK75, "WRONG-SIDE", "-20000.00", TODAY);
+
+    var settlements = settlementsReader.read(WINDOW);
+
+    assertThat(
+            settlements
+                .net(new UnsettledTrades(new BigDecimal("300000.00"), new BigDecimal("0.00")))
+                .after()
+                .payables())
+        .isEqualByComparingTo("300000.00");
+    assertThat(settlements.unmatched())
+        .extracting(TradeSettlementBooking::brokerReference)
+        .containsExactlyInAnyOrder("NO-ORDER", "WRONG-SIDE");
+  }
+
+  @Test
   void eachSideStopsAtZeroWhenTheBankBookedMoreThanTheReportShowed() {
+    filled(BUY, "BIG-BUY", REPORT_DATE);
+    filled(SELL, "BIG-SELL", REPORT_DATE);
     bankBooks(TUK75, "BIG-BUY", "-500000.00", TODAY);
     bankBooks(TUK75, "BIG-SELL", "90000.00", TODAY);
 

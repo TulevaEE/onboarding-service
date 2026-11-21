@@ -41,9 +41,9 @@ class PendingOrderImpactService {
       return inPositionReport.cashToCount(order, absOrZero(execution.getTotalConsideration()));
     }
 
-    boolean bookedIn(Set<String> brokerReferencesInTheBalance) {
-      String reference = execution.getBrokerTransactionId();
-      return reference != null && brokerReferencesInTheBalance.contains(reference);
+    boolean bookedIn(Set<Long> executionIdsInTheBalance) {
+      Long id = execution.getId();
+      return id != null && executionIdsInTheBalance.contains(id);
     }
 
     private boolean notYetShown() {
@@ -60,7 +60,7 @@ class PendingOrderImpactService {
       LocalDate asOfDate,
       LocalDate positionDate,
       TradePrepPricing pricing,
-      Set<String> brokerReferencesInTheBalance) {
+      Set<Long> executionIdsInTheBalance) {
     List<TransactionOrder> unsettled = orderRepository.findUnsettledOrders(fund, asOfDate);
     if (unsettled.isEmpty()) {
       return PendingOrderImpact.none();
@@ -84,9 +84,9 @@ class PendingOrderImpactService {
       addUnreportedPositions(
           order, fills, executed, unfilledValue, unreportedValues, unreportedQuantities);
       List<ClassifiedFill> booked =
-          fills.stream().filter(fill -> fill.bookedIn(brokerReferencesInTheBalance)).toList();
+          fills.stream().filter(fill -> fill.bookedIn(executionIdsInTheBalance)).toList();
       List<ClassifiedFill> notYetBooked =
-          fills.stream().filter(fill -> !fill.bookedIn(brokerReferencesInTheBalance)).toList();
+          fills.stream().filter(fill -> !fill.bookedIn(executionIdsInTheBalance)).toList();
       BigDecimal cash =
           cashTheOrderStillCarries(
               order,

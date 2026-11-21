@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.investment.transaction.SettledInTheBalance.Carrier.PENDING_ORDER;
-import static ee.tuleva.onboarding.investment.transaction.SettledInTheBalance.Carrier.REPORT_ROWS;
 import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
+import ee.tuleva.onboarding.investment.transaction.SettledInTheBalance.AgainstTheReportRows;
+import ee.tuleva.onboarding.investment.transaction.SettledInTheBalance.CarriedByAPendingFill;
+import ee.tuleva.onboarding.investment.transaction.SettledInTheBalance.Unmatched;
+import ee.tuleva.onboarding.ledger.TradeSettlementBooking;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
@@ -18,7 +20,7 @@ record TradeSettlementsInTheBalance(List<SettledInTheBalance> settlements) {
   Netted<UnsettledTrades> net(UnsettledTrades atReportDate) {
     List<BigDecimal> againstTheReportRows =
         settlements.stream()
-            .filter(settled -> settled.carrier() == REPORT_ROWS)
+            .filter(AgainstTheReportRows.class::isInstance)
             .map(settled -> Objects.requireNonNull(settled.booking().cashAmount()))
             .toList();
     BigDecimal paid = sumOf(againstTheReportRows, amount -> amount.signum() < 0).negate();
@@ -30,15 +32,21 @@ record TradeSettlementsInTheBalance(List<SettledInTheBalance> settlements) {
             ZERO.max(atReportDate.receivables().subtract(received))));
   }
 
-  private static BigDecimal sumOf(List<BigDecimal> amounts, Predicate<BigDecimal> side) {
-    return amounts.stream().filter(side).reduce(ZERO, BigDecimal::add);
+  List<TradeSettlementBooking> unmatched() {
+    return settlements.stream()
+        .filter(Unmatched.class::isInstance)
+        .map(SettledInTheBalance::booking)
+        .toList();
   }
 
-  Set<String> carriedByPendingOrders() {
+  Set<Long> carriedByPendingFills() {
     return settlements.stream()
-        .filter(settled -> settled.carrier() == PENDING_ORDER)
-        .map(settled -> settled.booking().brokerReference())
-        .filter(Objects::nonNull)
+        .filter(CarriedByAPendingFill.class::isInstance)
+        .map(settled -> ((CarriedByAPendingFill) settled).executionId())
         .collect(toUnmodifiableSet());
+  }
+
+  private static BigDecimal sumOf(List<BigDecimal> amounts, Predicate<BigDecimal> side) {
+    return amounts.stream().filter(side).reduce(ZERO, BigDecimal::add);
   }
 }

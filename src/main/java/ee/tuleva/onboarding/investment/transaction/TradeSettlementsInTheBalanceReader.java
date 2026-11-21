@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.investment.transaction.SettledInTheBalance.Carrier.PENDING_ORDER;
-import static ee.tuleva.onboarding.investment.transaction.SettledInTheBalance.Carrier.REPORT_ROWS;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 
-import ee.tuleva.onboarding.investment.transaction.SettledInTheBalance.Carrier;
+import ee.tuleva.onboarding.investment.transaction.SettledInTheBalance.AgainstTheReportRows;
+import ee.tuleva.onboarding.investment.transaction.SettledInTheBalance.CarriedByAPendingFill;
+import ee.tuleva.onboarding.investment.transaction.SettledInTheBalance.Unmatched;
 import ee.tuleva.onboarding.ledger.TradeSettlementBooking;
 import ee.tuleva.onboarding.ledger.TradeSettlementBookings;
 import java.math.BigDecimal;
@@ -32,16 +32,19 @@ class TradeSettlementsInTheBalanceReader {
             .filter(booking -> booking.cashAmount() != null)
             .filter(
                 booking -> !window.pendingEntryReferences().contains(booking.externalReference()))
-            .map(booking -> new SettledInTheBalance(booking, carrierOf(booking, window)))
+            .map(booking -> settled(booking, window))
             .toList());
   }
 
-  private Carrier carrierOf(TradeSettlementBooking booking, NettingWindow window) {
+  private SettledInTheBalance settled(TradeSettlementBooking booking, NettingWindow window) {
     return Optional.ofNullable(booking.brokerReference())
         .flatMap(reference -> fillSettledBy(booking, reference))
-        .filter(fill -> carriedByTheOrder(fill, window))
-        .map(fill -> PENDING_ORDER)
-        .orElse(REPORT_ROWS);
+        .<SettledInTheBalance>map(
+            fill ->
+                carriedByTheOrder(fill, window)
+                    ? new CarriedByAPendingFill(booking, fill.execution().getId())
+                    : new AgainstTheReportRows(booking))
+        .orElseGet(() -> new Unmatched(booking));
   }
 
   private Optional<Fill> fillSettledBy(TradeSettlementBooking booking, String brokerReference) {

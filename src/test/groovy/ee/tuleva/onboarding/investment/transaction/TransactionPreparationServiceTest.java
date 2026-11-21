@@ -182,6 +182,7 @@ class TransactionPreparationServiceTest {
                         List.of(),
                         GatewayHold.NONE),
                     List.of(),
+                    List.of(),
                     R16Reserve.NONE))
             .build();
     var calculationResult =

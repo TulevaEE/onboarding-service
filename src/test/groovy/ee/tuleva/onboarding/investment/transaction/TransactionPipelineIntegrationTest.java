@@ -120,6 +120,7 @@ class TransactionPipelineIntegrationTest {
   @Autowired private JdbcClient jdbcClient;
   @Autowired private BankAccounts bankAccounts;
   @Autowired private FundBankLedger fundBankLedger;
+  @Autowired private TransactionExecutionRepository executionRepository;
   @MockitoBean private OperationsNotificationService notificationService;
 
   @BeforeEach
@@ -1056,6 +1057,7 @@ class TransactionPipelineIntegrationTest {
                CURRENT_TIMESTAMP)
             """)
         .update();
+    tradeShownInTheReport("SYNTHETIC-1", "IE00BFG1TM61");
     fundBankLedger.recordTradeSettlement(
         TKF100,
         new BigDecimal("-120000.00"),
@@ -1064,6 +1066,15 @@ class TransactionPipelineIntegrationTest {
         FUND_INVESTMENT_CASH_CLEARING,
         new TradeSettlementDetails(
             "SYNTHETIC-1", "IE00BFG1TM61", "TICK", "test instrument", BigDecimal.ONE),
+        TEST_DATE);
+    fundBankLedger.recordTradeSettlement(
+        TKF100,
+        new BigDecimal("-15000.00"),
+        new BigDecimal("100"),
+        randomUUID(),
+        FUND_INVESTMENT_CASH_CLEARING,
+        new TradeSettlementDetails(
+            "SYNTHETIC-2", "IE00BFG1TM61", "TICK", "test instrument", BigDecimal.ONE),
         TEST_DATE);
 
     var response =
@@ -1093,7 +1104,14 @@ class TransactionPipelineIntegrationTest {
                         "name", "unsettledTradePayables",
                         "before", "300000.00",
                         "after", "180000.00",
-                        "treatment", "NETTED_AGAINST_THE_BALANCE"))));
+                        "treatment", "NETTED_AGAINST_THE_BALANCE")),
+                "unmatchedTradeSettlements",
+                List.of(
+                    Map.of(
+                        "brokerReference", "SYNTHETIC-2",
+                        "isin", "IE00BFG1TM61",
+                        "bookingDate", "2026-02-10",
+                        "cash", "-15000.00"))));
     assertThat(response.calculationSnapshot().get("input"))
         .asInstanceOf(MAP)
         .containsEntry("appliedCash", "520000.00");
@@ -1218,6 +1236,35 @@ class TransactionPipelineIntegrationTest {
     assertThat(response.calculationSnapshot().get("cash"))
         .asInstanceOf(MAP)
         .containsEntry("source", "OPERATOR_AMOUNT");
+  }
+
+  private void tradeShownInTheReport(String brokerReference, String isin) {
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
+    TransactionOrder order =
+        orderRepository.save(
+            TransactionOrder.builder()
+                .batch(batch)
+                .fund(TKF100)
+                .instrumentIsin(isin)
+                .transactionType(TransactionType.BUY)
+                .instrumentType(InstrumentType.ETF)
+                .orderQuantity(new BigDecimal("1000"))
+                .orderVenue(OrderVenue.SEB)
+                .orderStatus(OrderStatus.SETTLED)
+                .orderTimestamp(Instant.parse("2026-02-09T09:00:00Z"))
+                .expectedSettlementDate(TEST_DATE)
+                .build());
+    executionRepository.save(
+        TransactionExecution.builder()
+            .orderId(order.getId())
+            .brokerTransactionId(brokerReference)
+            .executionTimestamp(Instant.parse("2026-02-09T10:00:00Z"))
+            .executedQuantity(new BigDecimal("1000"))
+            .totalConsideration(new BigDecimal("120000.00"))
+            .source("SEB_OOTEL")
+            .reportedDate(LocalDate.of(2026, 2, 9))
+            .build());
   }
 
   private String investmentIban() {

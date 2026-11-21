@@ -91,7 +91,7 @@ public class R45ReportParser {
     return settlementDate != null && settlementDate.isBefore(today);
   }
 
-  private static @Nullable LocalDate settlementDate(Map<String, String> row) {
+  public static @Nullable LocalDate settlementDate(Map<String, String> row) {
     String settlementValue = findValue(row, "täitmise kuupäev", "taitmise kuupaev");
     return settlementValue == null ? null : findDate(settlementValue);
   }

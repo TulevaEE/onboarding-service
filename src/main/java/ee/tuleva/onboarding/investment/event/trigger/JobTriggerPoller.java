@@ -56,7 +56,7 @@ class JobTriggerPoller {
           Map.entry("PortfolioCostBasisJob", RunPortfolioCostBasisRequested::new),
           Map.entry("PortfolioCostBasisSelfHealJob", RunPortfolioCostBasisSelfHealRequested::new),
           Map.entry(
-              "PortfolioCostBasisRebuildFromBaselineJob",
+              RunPortfolioCostBasisRebuildFromBaselineRequested.JOB_NAME,
               RunPortfolioCostBasisRebuildFromBaselineRequested::new),
           Map.entry("PortfolioReconciliationJob", RunPortfolioReconciliationRequested::new),
           Map.entry("SettlementCheckJob", RunOverdueSettlementRequested::new),

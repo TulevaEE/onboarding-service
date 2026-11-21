@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.banking.seb.fetcher;
 
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
+import static ee.tuleva.onboarding.banking.seb.fetcher.SebGatewayAvailability.isUnavailable;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccounts;
-import ee.tuleva.onboarding.banking.CurrentDayFetches;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebEodTransactionsRequested;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
 import ee.tuleva.onboarding.banking.statement.StatementPeriod;
@@ -16,8 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.ResourceAccessException;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -170,13 +168,8 @@ public class SebStatementFetchingScheduler {
       return true;
     } catch (Exception exception) {
       log.warn(failureMessage, exception);
-      return !isGatewayUnavailable(exception);
+      return !isUnavailable(exception);
     }
-  }
-
-  private static boolean isGatewayUnavailable(Exception exception) {
-    return exception instanceof HttpServerErrorException
-        || exception instanceof ResourceAccessException;
   }
 
   private LocalDate yesterday() {

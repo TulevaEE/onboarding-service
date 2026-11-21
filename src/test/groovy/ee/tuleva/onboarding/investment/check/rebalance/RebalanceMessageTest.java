@@ -140,7 +140,7 @@ class RebalanceMessageTest {
   }
 
   @Test
-  void inTheWarningPeriodWithOneOrderAwaitedAndAnotherOverdue_reportsBothAndAsksForTheTrades() {
+  void inTheWarningPeriodWithAnOrderStillInFlight_reportsBothButOnlyAsksToCheckTheExecution() {
     var window =
         window(
             LocalDate.of(2026, 11, 25),
@@ -159,8 +159,7 @@ class RebalanceMessageTest {
                 pole Rebalance-jooksu tehingute täitmist kinnitanud: IE00BFG1TM61 (saadetud \
                 13.11.2026)
                 Üle 5 pp (NAV 24.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
-                Tee tasakaalustamise tehingud või vii fond tähtajaks 5 pp piiresse; kontrolli \
-                SEB-st saadetud tehingute täitmist""",
+                Kontrolli SEB-st tehingute täitmist""",
                 WARNING));
   }
 

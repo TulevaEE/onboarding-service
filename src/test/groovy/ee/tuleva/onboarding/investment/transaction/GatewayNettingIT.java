@@ -162,6 +162,46 @@ class GatewayNettingIT {
   }
 
   @Test
+  void aSentSaleDueTodayStillReservesItsUnits() {
+    sentSale("600", TODAY);
+
+    assertThat(unitsReservedForSales()).isEqualByComparingTo("600");
+  }
+
+  @Test
+  void anOverdueSentSaleStillReservesItsUnits() {
+    sentSale("600", TODAY.minusDays(2));
+
+    assertThat(unitsReservedForSales()).isEqualByComparingTo("600");
+  }
+
+  private BigDecimal unitsReservedForSales() {
+    return pendingOrderImpactService
+        .calculate(TUK75, TODAY, REPORT_DATE, TradePrepPricingFixture.noResolvedPrices(), Set.of())
+        .unreportedSellQuantities()
+        .getOrDefault(ISIN, BigDecimal.ZERO);
+  }
+
+  private void sentSale(String quantity, LocalDate expectedSettlement) {
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TUK75).createdBy("test").build());
+    orderRepository.save(
+        TransactionOrder.builder()
+            .batch(batch)
+            .fund(TUK75)
+            .instrumentIsin(ISIN)
+            .transactionType(SELL)
+            .instrumentType(InstrumentType.FUND)
+            .orderQuantity(new BigDecimal(quantity))
+            .orderVenue(OrderVenue.SEB)
+            .orderStatus(OrderStatus.SENT)
+            .orderTimestamp(Instant.parse("2026-11-18T08:00:00Z"))
+            .expectedSettlementDate(expectedSettlement)
+            .build());
+    entityManager.flush();
+  }
+
+  @Test
   void bookingsOnTheReportDateOrForAnotherFundOrStillPendingAreNotNetted() {
     bankBooks(TUK75, "ON-P", "-10000.00", REPORT_DATE);
     bankBooks(TUK00, "OTHER", "-20000.00", TODAY);

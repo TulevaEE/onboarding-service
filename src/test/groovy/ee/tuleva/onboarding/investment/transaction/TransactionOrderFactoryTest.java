@@ -121,6 +121,85 @@ class TransactionOrderFactoryTest {
   }
 
   @Test
+  void createOrders_aSaleSizedOnAPriceBelowTheReportsIsCappedAtTheUnitsHeldAndSaysSo() {
+    var input =
+        holding(
+            new PositionSnapshot(
+                "IE00ETF",
+                new BigDecimal("100000"),
+                new BigDecimal("1000"),
+                new BigDecimal("100")));
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00ETF", new BigDecimal("-100000"), BigDecimal.ZERO, LimitStatus.OK));
+    var manual =
+        new ManualPrice(new PriceOverride("IE00ETF", new BigDecimal("95"), "Issuer's NAV"));
+
+    var calculated =
+        factory.createOrders(
+            batch(),
+            resultWith(input, trades),
+            AS_OF_DATE,
+            CREATED_AT,
+            new FreshestPerInstrument(Map.of("IE00ETF", manual)));
+
+    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("1000");
+    assertThat(calculated.warnings())
+        .containsExactly(
+            new CalculationWarning(
+                CalculationWarningType.SELL_CAPPED_AT_HOLDING,
+                "⚠️ Sale sized above the units held, capped at the holding: fund=TUV100,"
+                    + " isin=IE00ETF, computedQuantity=1052.631579, heldQuantity=1000,"
+                    + " price=95"));
+  }
+
+  @Test
+  void createOrders_aPartialSaleBelowTheHoldingIsSizedAsBefore() {
+    var input =
+        holding(
+            new PositionSnapshot(
+                "IE00ETF",
+                new BigDecimal("100000"),
+                new BigDecimal("1000"),
+                new BigDecimal("100")));
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00ETF", new BigDecimal("-47500"), BigDecimal.ZERO, LimitStatus.OK));
+    var manual =
+        new ManualPrice(new PriceOverride("IE00ETF", new BigDecimal("95"), "Issuer's NAV"));
+
+    var calculated =
+        factory.createOrders(
+            batch(),
+            resultWith(input, trades),
+            AS_OF_DATE,
+            CREATED_AT,
+            new FreshestPerInstrument(Map.of("IE00ETF", manual)));
+
+    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("500");
+    assertThat(calculated.warnings()).isEmpty();
+  }
+
+  private static FundTransactionInput holding(PositionSnapshot position) {
+    return FundTransactionInput.builder()
+        .fund(TUV100)
+        .positions(List.of(position))
+        .modelWeights(List.of())
+        .grossPortfolioValue(new BigDecimal("600000"))
+        .cashBuffer(new BigDecimal("10000"))
+        .liabilities(BigDecimal.ZERO)
+        .freeCash(new BigDecimal("90000"))
+        .minTransactionThreshold(new BigDecimal("5000"))
+        .positionLimits(Map.of())
+        .fastSellIsins(Set.of())
+        .instrumentTypes(Map.of("IE00ETF", InstrumentType.ETF))
+        .orderVenues(Map.of("IE00ETF", OrderVenue.FT))
+        .build();
+  }
+
+  @Test
   void createOrders_aPriceOnTheChosenCommonDateIsNotStaleHoweverOldThatDateIs() {
     var input = inputWith(Map.of("IE00ETF", InstrumentType.ETF), Map.of("IE00ETF", OrderVenue.FT));
     var trades =

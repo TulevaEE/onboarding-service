@@ -94,7 +94,7 @@ class TransactionInputServiceTest {
         .thenReturn(PendingOrderImpact.none());
     lenient().when(r16OutflowReader.read(any(), any(), any())).thenReturn(R16Reserve.NONE);
     lenient()
-        .when(sameDayCashReader.read(any(), any(), any(), any()))
+        .when(sameDayCashReader.read(any(), any(), any(), any(), any()))
         .thenAnswer(
             invocation ->
                 new CashSourceReport(
@@ -103,7 +103,8 @@ class TransactionInputServiceTest {
                         : CashSource.OPERATOR_AMOUNT,
                     new GatewayCash.NotTodaysRun(),
                     invocation.getArgument(3),
-                    List.of()));
+                    List.of(),
+                    GatewayHold.NONE));
     lenient()
         .when(feeChargedToFundPolicy.resolverFor(any(), any()))
         .thenAnswer(
@@ -804,6 +805,21 @@ class TransactionInputServiceTest {
   }
 
   @Test
+  void gatherInput_duringAnActivePevaRavaCycleTheCashReadKnowsSoTodaysBalanceIsNotUsed() {
+    stubEmptyBaseline(TulevaFund.TUK75);
+    given(pevaRavaPeriodService.getCurrentPeriod(AS_OF_DATE))
+        .willReturn(
+            Optional.of(
+                pevaRavaPeriod(PevaRavaPhase.ACTIVE, timeline(true, false), timeline(true, true))));
+    given(pevaRavaFlowService.calculateFlows(AS_OF_DATE)).willReturn(Map.of());
+
+    service.gatherInput(TulevaFund.TUK75, AS_OF_DATE, Map.of(), noResolvedPrices());
+
+    verify(sameDayCashReader)
+        .read(TulevaFund.TUK75, AS_OF_DATE, null, ZERO, PevaRavaCycleState.ACTIVE);
+  }
+
+  @Test
   void gatherInput_pevaRavaActiveAfterSellBy_addsBufferedLiquidityToLiabilities() {
     stubEmptyBaseline(TulevaFund.TUK00);
     given(pevaRavaPeriodService.getCurrentPeriod(AS_OF_DATE))
@@ -951,8 +967,12 @@ class TransactionInputServiceTest {
     var balance =
         new GatewayCash.CurrentDayBalance(
             new BigDecimal("600000"), Instant.parse("2026-01-15T08:00:00Z"), Set.of());
-    given(sameDayCashReader.read(TUV100, AS_OF_DATE, null, ZERO))
-        .willReturn(new CashSourceReport(CashSource.GATEWAY_BALANCE, balance, ZERO, List.of()));
+    given(
+            sameDayCashReader.read(
+                TUV100, AS_OF_DATE, null, ZERO, PevaRavaCycleState.OUTSIDE_A_CYCLE))
+        .willReturn(
+            new CashSourceReport(
+                CashSource.GATEWAY_BALANCE, balance, ZERO, List.of(), GatewayHold.NONE));
     given(tradeSettlementsReader.read(new NettingWindow(TUV100, AS_OF_DATE, AS_OF_DATE, Set.of())))
         .willReturn(new TradeSettlementsInTheBalance(List.of()));
     given(gatewayNetting.r45(any(), any())).willReturn(new Netted<>(ZERO, ZERO));

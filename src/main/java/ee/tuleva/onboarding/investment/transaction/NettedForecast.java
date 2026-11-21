@@ -17,7 +17,6 @@ record NettedForecast(String name, BigDecimal before, BigDecimal after, Treatmen
   static List<NettedForecast> onTheGatewayBalance(
       Netted<UnsettledTrades> trades,
       PendingOrderImpact pendingOrders,
-      Netted<BigDecimal> pevaRava,
       Netted<BigDecimal> r45,
       Netted<BigDecimal> unitReceivable,
       BigDecimal incomingPaymentsClearing) {
@@ -38,7 +37,6 @@ record NettedForecast(String name, BigDecimal before, BigDecimal after, Treatmen
             new Netted<>(
                 pendingOrders.pendingSells().add(pendingOrders.sellsInTheBalance()),
                 pendingOrders.pendingSells())),
-        netted("pevaRava", pevaRava),
         netted("r45", r45),
         netted("unitReceivable", unitReceivable),
         notNetted("incomingPaymentsClearing", incomingPaymentsClearing));

@@ -17,10 +17,11 @@ record CashSourceReport(
     CashSource source,
     GatewayCash gateway,
     @Nullable BigDecimal reportCash,
-    List<CalculationWarning> warnings) {
+    List<CalculationWarning> warnings,
+    GatewayHold hold) {
 
   CashSourceReport withWarnings(List<CalculationWarning> differenceWarnings) {
-    return new CashSourceReport(source, gateway, reportCash, differenceWarnings);
+    return new CashSourceReport(source, gateway, reportCash, differenceWarnings, hold);
   }
 
   Optional<CurrentDayBalance> gatewayBalanceInUse() {
@@ -49,6 +50,9 @@ record CashSourceReport(
   Map<String, Object> payload() {
     Map<String, Object> map = new LinkedHashMap<>();
     map.put("source", source.name());
+    if (hold != GatewayHold.NONE) {
+      map.put("gatewayNotUsed", hold.name());
+    }
     putIfPresent(map, "reportCash", plain(reportCash));
     map.put("gateway", gateway.payload());
     putIfPresent(map, "gatewayMinusReportCash", plain(gatewayMinusReportCash()));

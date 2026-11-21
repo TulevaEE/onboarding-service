@@ -93,7 +93,7 @@ public class PevaRavaFlowService {
     return roundUpToStep(grossOut.add(buffer), step);
   }
 
-  public BigDecimal tradeBufferedLiquidity(BigDecimal liquidityRequired, LocalDate asOfDate) {
+  private BigDecimal tradeBufferedLiquidity(BigDecimal liquidityRequired, LocalDate asOfDate) {
     BigDecimal bufferPercent =
         parameterRepository.findLatestValue(PEVA_RAVA_TRADE_BUFFER_PERCENT, asOfDate);
     BigDecimal step = parameterRepository.findLatestValue(PEVA_RAVA_TRADE_ROUNDING_STEP, asOfDate);

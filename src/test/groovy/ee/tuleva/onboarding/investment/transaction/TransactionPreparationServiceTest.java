@@ -179,7 +179,8 @@ class TransactionPreparationServiceTest {
                         CashSource.OPERATOR_AMOUNT,
                         new GatewayCash.NoCurrentDayReportToday(),
                         null,
-                        List.of()),
+                        List.of(),
+                        GatewayHold.NONE),
                     List.of(),
                     R16Reserve.NONE))
             .build();

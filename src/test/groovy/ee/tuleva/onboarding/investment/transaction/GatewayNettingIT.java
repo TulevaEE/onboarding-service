@@ -16,7 +16,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.context.annotation.FilterType.REGEX;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
-import ee.tuleva.onboarding.investment.epis.PevaRavaCycle;
 import ee.tuleva.onboarding.investment.epis.R45Row;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
@@ -61,8 +60,6 @@ class GatewayNettingIT {
   private static final String ISIN = "IE00BFG1TM61";
   private static final LocalDate REPORT_DATE = LocalDate.of(2026, 11, 19);
   private static final LocalDate TODAY = LocalDate.of(2026, 11, 20);
-  private static final PevaRavaCycle CYCLE_ENDING_1_SEPTEMBER =
-      new PevaRavaCycle(LocalDate.of(2026, 7, 31), LocalDate.of(2026, 9, 1));
   private static final NettingWindow WINDOW =
       new NettingWindow(TUK75, REPORT_DATE, TODAY, Set.of());
 
@@ -178,73 +175,6 @@ class GatewayNettingIT {
 
     assertThat(netted.after().payables()).isEqualByComparingTo("0");
     assertThat(netted.after().receivables()).isEqualByComparingTo("0");
-  }
-
-  @Test
-  void pevaRavaDropsTheSwitchPikAndExitPayoutsBookedSinceTheCycleStarted() {
-    var execDay = LocalDate.of(2026, 9, 1);
-    var window = new NettingWindow(TUK75, LocalDate.of(2026, 8, 31), execDay, Set.of());
-    payout(TUK75, "150000.00", execDay, "38888888888, Vahetamise osakute lunastamine");
-    payout(TUK75, "60000.00", execDay, "38888888888, Vahetamine PIK-i");
-    payout(TUK75, "100000.00", execDay, "38888888888, RAVA osakute lunastamine");
-    payout(TUK75, "30000.00", execDay, "38888888888, Fondipensioni maksete lunastamine");
-    payout(
-        TUK75,
-        "70000.00",
-        LocalDate.of(2026, 7, 30),
-        "38888888888, Vahetamise osakute lunastamine");
-
-    var netted =
-        netting.pevaRava(
-            window,
-            new PevaRavaForecast(
-                new BigDecimal("500000.00"),
-                new BigDecimal("500000.00"),
-                CYCLE_ENDING_1_SEPTEMBER));
-
-    assertThat(netted.after()).isEqualByComparingTo("190000.00");
-    assertThat(netted.before()).isEqualByComparingTo("500000.00");
-  }
-
-  @Test
-  void pevaRavaStopsAtZeroWhenMoreWasPaidThanForecast() {
-    var execDay = LocalDate.of(2026, 9, 1);
-    var window = new NettingWindow(TUK75, LocalDate.of(2026, 8, 31), execDay, Set.of());
-    payout(TUK75, "650000.00", execDay, "38888888888, Vahetamise osakute lunastamine");
-
-    var netted =
-        netting.pevaRava(
-            window,
-            new PevaRavaForecast(
-                new BigDecimal("500000.00"),
-                new BigDecimal("500000.00"),
-                CYCLE_ENDING_1_SEPTEMBER));
-
-    assertThat(netted.after()).isEqualByComparingTo("0");
-  }
-
-  @Test
-  void aSwitchingInflowDueTodayOrEarlierIsNotCountedBecauseTheBalanceShowsItOnceLanded() {
-    var execDay = LocalDate.of(2026, 9, 1);
-
-    var onTheExecutionDay =
-        netting.pevaRava(
-            new NettingWindow(TUK75, LocalDate.of(2026, 8, 31), execDay, Set.of()),
-            new PevaRavaForecast(
-                new BigDecimal("400000.00"),
-                new BigDecimal("500000.00"),
-                CYCLE_ENDING_1_SEPTEMBER));
-    var theDayBefore =
-        netting.pevaRava(
-            new NettingWindow(
-                TUK75, LocalDate.of(2026, 8, 28), LocalDate.of(2026, 8, 31), Set.of()),
-            new PevaRavaForecast(
-                new BigDecimal("400000.00"),
-                new BigDecimal("500000.00"),
-                CYCLE_ENDING_1_SEPTEMBER));
-
-    assertThat(onTheExecutionDay.after()).isEqualByComparingTo("500000.00");
-    assertThat(theDayBefore.after()).isEqualByComparingTo("400000.00");
   }
 
   @Test

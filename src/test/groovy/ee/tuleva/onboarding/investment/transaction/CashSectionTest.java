@@ -17,7 +17,8 @@ class CashSectionTest {
           CashSource.POSITION_REPORT,
           new GatewayCash.NotTodaysRun(),
           new BigDecimal("1000000.00"),
-          List.of());
+          List.of(),
+          GatewayHold.NONE);
 
   @Test
   void showsEachR16TypeWithItsBookingStatusBesideTheReservesAndTheAmountReserved() {

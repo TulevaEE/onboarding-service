@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.INTRA_DAY_REPORT;
+import static ee.tuleva.onboarding.investment.transaction.PevaRavaCycleState.ACTIVE;
+import static ee.tuleva.onboarding.investment.transaction.PevaRavaCycleState.OUTSIDE_A_CYCLE;
 import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.currentDayReport;
 import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.currentDayReportWithoutBookedBalance;
 import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.endOfDayStatement;
@@ -91,7 +93,7 @@ class SameDayCashReaderIT {
 
     assertThat(
             reader
-                .read(TUK75, TODAY.minusDays(1), null, new BigDecimal("900.00"))
+                .read(TUK75, TODAY.minusDays(1), null, new BigDecimal("900.00"), OUTSIDE_A_CYCLE)
                 .gateway()
                 .payload())
         .isEqualTo(java.util.Map.of("status", "NOT_TODAYS_RUN"));
@@ -110,13 +112,14 @@ class SameDayCashReaderIT {
         LATER_THIS_MORNING,
         currentDayReport(TUK75_INVESTMENT_IBAN, TODAY, "1000.00"));
 
-    assertThat(reader.read(TUK75, TODAY, null, null))
+    assertThat(reader.read(TUK75, TODAY, null, null, OUTSIDE_A_CYCLE))
         .isEqualTo(
             new CashSourceReport(
                 CashSource.GATEWAY_BALANCE,
                 new CurrentDayBalance(new BigDecimal("1000.00"), LATER_THIS_MORNING, Set.of()),
                 null,
-                List.of()));
+                List.of(),
+                GatewayHold.NONE));
   }
 
   @Test
@@ -132,7 +135,7 @@ class SameDayCashReaderIT {
             entry("BOOKED-1", "200.00", "DBIT", "BOOK"),
             entry("PENDING-1", "300.00", "DBIT", "PDNG")));
 
-    assertThat(reader.read(TUK75, TODAY, null, null).gateway())
+    assertThat(reader.read(TUK75, TODAY, null, null, OUTSIDE_A_CYCLE).gateway())
         .isEqualTo(
             new CurrentDayBalance(
                 new BigDecimal("1000.00"),
@@ -150,7 +153,7 @@ class SameDayCashReaderIT {
         THIS_MORNING,
         endOfDayStatement(TUK75_INVESTMENT_IBAN, TODAY.minusDays(1), "900.00"));
 
-    assertThat(reader.read(TUK75, TODAY, null, null).gateway())
+    assertThat(reader.read(TUK75, TODAY, null, null, OUTSIDE_A_CYCLE).gateway())
         .isEqualTo(new NoCurrentDayReportToday());
   }
 
@@ -162,7 +165,7 @@ class SameDayCashReaderIT {
         Instant.parse("2026-11-19T14:50:00Z"),
         currentDayReport(TUK75_INVESTMENT_IBAN, TODAY.minusDays(1), "900.00"));
 
-    assertThat(reader.read(TUK75, TODAY, null, null).gateway())
+    assertThat(reader.read(TUK75, TODAY, null, null, OUTSIDE_A_CYCLE).gateway())
         .isEqualTo(new NoCurrentDayReportToday());
   }
 
@@ -170,7 +173,8 @@ class SameDayCashReaderIT {
   void aCurrentDayReportThatCannotBeReadIsSaidToBeUnreadable() {
     store(INTRA_DAY_REPORT, TODAY, THIS_MORNING, "<not-a-report/>");
 
-    assertThat(reader.read(TUK75, TODAY, null, null).gateway()).isEqualTo(new Unreadable());
+    assertThat(reader.read(TUK75, TODAY, null, null, OUTSIDE_A_CYCLE).gateway())
+        .isEqualTo(new Unreadable());
   }
 
   @Test
@@ -181,7 +185,8 @@ class SameDayCashReaderIT {
         THIS_MORNING,
         currentDayReportWithoutBookedBalance(TUK75_INVESTMENT_IBAN, TODAY));
 
-    assertThat(reader.read(TUK75, TODAY, null, null).gateway()).isEqualTo(new NoBookedBalance());
+    assertThat(reader.read(TUK75, TODAY, null, null, OUTSIDE_A_CYCLE).gateway())
+        .isEqualTo(new NoBookedBalance());
   }
 
   @Test
@@ -194,8 +199,40 @@ class SameDayCashReaderIT {
         THIS_MORNING,
         currentDayReport(TUK75_INVESTMENT_IBAN, TODAY, "1000.00"));
 
-    assertThat(reader.read(TUK75, TODAY, null, null).gateway())
+    assertThat(reader.read(TUK75, TODAY, null, null, OUTSIDE_A_CYCLE).gateway())
         .isEqualTo(new NoInvestmentAccount());
+  }
+
+  @Test
+  void whileAPevaRavaCycleIsActiveTheRunStaysOnReportCashAndSaysWhy() {
+    store(
+        INTRA_DAY_REPORT,
+        TODAY,
+        THIS_MORNING,
+        currentDayReport(TUK75_INVESTMENT_IBAN, TODAY, "1050.00"));
+
+    var report = reader.read(TUK75, TODAY, null, new BigDecimal("1000.00"), ACTIVE);
+
+    assertThat(report.source()).isEqualTo(CashSource.POSITION_REPORT);
+    assertThat(report.payload())
+        .isEqualTo(
+            java.util.Map.of(
+                "source",
+                "POSITION_REPORT",
+                "gatewayNotUsed",
+                "PEVA_RAVA_CYCLE_ACTIVE",
+                "reportCash",
+                "1000.00",
+                "gateway",
+                java.util.Map.of(
+                    "status",
+                    "CURRENT_DAY_BALANCE",
+                    "balance",
+                    "1050.00",
+                    "fetchedAt",
+                    THIS_MORNING.toString()),
+                "gatewayMinusReportCash",
+                "50.00"));
   }
 
   @Test
@@ -206,13 +243,14 @@ class SameDayCashReaderIT {
         THIS_MORNING,
         currentDayReport(TUK75_INVESTMENT_IBAN, TODAY, "1000.00"));
 
-    assertThat(reader.read(TUK75, TODAY, new BigDecimal("999.00"), null))
+    assertThat(reader.read(TUK75, TODAY, new BigDecimal("999.00"), null, OUTSIDE_A_CYCLE))
         .isEqualTo(
             new CashSourceReport(
                 CashSource.OPERATOR_AMOUNT,
                 new CurrentDayBalance(new BigDecimal("1000.00"), THIS_MORNING, Set.of()),
                 null,
-                List.of()));
+                List.of(),
+                GatewayHold.NONE));
   }
 
   @Test
@@ -224,7 +262,7 @@ class SameDayCashReaderIT {
         currentDayReport(TUK75_INVESTMENT_IBAN, TODAY, "1050.00"));
     publishedNav("100000.00");
 
-    var report = reader.read(TUK75, TODAY, null, new BigDecimal("1000.00"));
+    var report = reader.read(TUK75, TODAY, null, new BigDecimal("1000.00"), OUTSIDE_A_CYCLE);
 
     assertThat(report.gatewayMinusReportCash()).isEqualByComparingTo("50.00");
     assertThat(report.warnings()).isEmpty();
@@ -239,7 +277,7 @@ class SameDayCashReaderIT {
         currentDayReport(TUK75_INVESTMENT_IBAN, TODAY, "2500.00"));
     publishedNav("100000.00");
 
-    var report = reader.read(TUK75, TODAY, null, new BigDecimal("1000.00"));
+    var report = reader.read(TUK75, TODAY, null, new BigDecimal("1000.00"), OUTSIDE_A_CYCLE);
 
     assertThat(report.warnings())
         .extracting(CalculationWarning::type)
@@ -254,7 +292,7 @@ class SameDayCashReaderIT {
         THIS_MORNING,
         currentDayReport(TUK75_INVESTMENT_IBAN, TODAY, "2500.00"));
 
-    var report = reader.read(TUK75, TODAY, null, new BigDecimal("1000.00"));
+    var report = reader.read(TUK75, TODAY, null, new BigDecimal("1000.00"), OUTSIDE_A_CYCLE);
 
     assertThat(report.gatewayMinusReportCash()).isEqualByComparingTo("1500.00");
     assertThat(report.warnings()).isEmpty();

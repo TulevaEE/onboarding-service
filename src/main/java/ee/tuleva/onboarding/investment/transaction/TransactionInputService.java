@@ -94,7 +94,7 @@ public class TransactionInputService {
             asOfDate,
             cashOverride,
             reportCash,
-            whatHoldsTheBalanceBack(pevaRavaInAnActiveCycle, r45Rows));
+            GatewayHold.whatHoldsBack(pevaRavaInAnActiveCycle, r45Rows));
     Optional<CurrentDayBalance> gatewayBalance = cashSources.gatewayBalanceInUse();
     Optional<NettingWindow> netting =
         gatewayBalance.map(
@@ -328,14 +328,6 @@ public class TransactionInputService {
 
   private BigDecimal sumOf(Collection<BigDecimal> amounts) {
     return amounts.stream().reduce(ZERO, BigDecimal::add);
-  }
-
-  private static GatewayHold whatHoldsTheBalanceBack(
-      Optional<BigDecimal> pevaRavaInAnActiveCycle, Optional<List<R45Row>> r45Rows) {
-    if (pevaRavaInAnActiveCycle.isPresent()) {
-      return GatewayHold.PEVA_RAVA_CYCLE_ACTIVE;
-    }
-    return r45Rows.isEmpty() ? GatewayHold.R45_ROWS_UNAVAILABLE : GatewayHold.NONE;
   }
 
   private static BigDecimal unitReceivableDue(CashSource source, UnitReceivable unitReceivable) {

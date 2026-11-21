@@ -4,10 +4,14 @@ import ee.tuleva.onboarding.ledger.TradeSettlementBooking;
 import org.jspecify.annotations.NullMarked;
 
 @NullMarked
-record SettledInTheBalance(TradeSettlementBooking booking, Carrier carrier) {
+sealed interface SettledInTheBalance {
 
-  enum Carrier {
-    REPORT_ROWS,
-    PENDING_ORDER
-  }
+  TradeSettlementBooking booking();
+
+  record AgainstTheReportRows(TradeSettlementBooking booking) implements SettledInTheBalance {}
+
+  record CarriedByAPendingFill(TradeSettlementBooking booking, Long executionId)
+      implements SettledInTheBalance {}
+
+  record Unmatched(TradeSettlementBooking booking) implements SettledInTheBalance {}
 }

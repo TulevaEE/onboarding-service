@@ -112,7 +112,7 @@ public class TransactionInputService {
             asOfDate,
             positionDate,
             pricing,
-            settlements.map(TradeSettlementsInTheBalance::carriedByPendingOrders).orElse(Set.of()));
+            settlements.map(TradeSettlementsInTheBalance::carriedByPendingFills).orElse(Set.of()));
     List<PositionSnapshot> positions =
         positionAssembler.assemble(fund, positionDate, pendingOrders);
     List<CalculationWarning> inputWarnings = new ArrayList<>();
@@ -220,6 +220,7 @@ public class TransactionInputService {
                         new Netted<>(unitReceivable.dueOnTopOfReportCash(), unitReceivableDue),
                         registerCash.incomingPaymentsClearing())
                     : List.of(),
+                settlements.map(TradeSettlementsInTheBalance::unmatched).orElse(List.of()),
                 r16Reserve))
         .ledgerCash(ledgerCash)
         .positionDate(positionDate)

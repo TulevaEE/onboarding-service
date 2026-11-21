@@ -26,6 +26,7 @@ class CashSectionTest {
         new CashSection(
             REPORT_CASH,
             List.of(),
+            List.of(),
             new R16Reserve(
                 R16Reserve.Basis.FORECAST_NOT_YET_BOOKED,
                 List.of(
@@ -74,6 +75,7 @@ class CashSectionTest {
         new CashSection(
             REPORT_CASH,
             List.of(NettedForecast.notNetted("incomingPaymentsClearing", BigDecimal.ZERO)),
+            List.of(),
             R16Reserve.NONE);
 
     assertThat(section.payload()).doesNotContainKeys("r16", "forecasts");

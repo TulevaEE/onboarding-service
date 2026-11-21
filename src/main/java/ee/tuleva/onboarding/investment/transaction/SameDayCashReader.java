@@ -48,13 +48,11 @@ class SameDayCashReader {
       LocalDate asOfDate,
       @Nullable BigDecimal operatorAmount,
       @Nullable BigDecimal reportCash,
-      PevaRavaCycleState pevaRavaCycle) {
+      GatewayHold heldBackBy) {
     GatewayCash gateway = isToday(asOfDate) ? gatewayCash(fund, asOfDate) : new NotTodaysRun();
     GatewayHold hold =
-        operatorAmount == null
-                && gateway instanceof CurrentDayBalance
-                && pevaRavaCycle == PevaRavaCycleState.ACTIVE
-            ? GatewayHold.PEVA_RAVA_CYCLE_ACTIVE
+        operatorAmount == null && gateway instanceof CurrentDayBalance
+            ? heldBackBy
             : GatewayHold.NONE;
     List<CalculationWarning> warnings =
         SourcesDifference.between(gateway, reportCash)

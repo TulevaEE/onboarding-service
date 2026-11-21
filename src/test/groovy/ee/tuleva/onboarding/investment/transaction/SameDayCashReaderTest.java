@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
-import static ee.tuleva.onboarding.investment.transaction.PevaRavaCycleState.OUTSIDE_A_CYCLE;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -43,7 +42,7 @@ class SameDayCashReaderTest {
     given(balances.currentDayReport(any(), any()))
         .willThrow(new DataAccessResourceFailureException("connection lost"));
 
-    assertThatThrownBy(() -> reader.read(TUK75, TODAY, null, null, OUTSIDE_A_CYCLE))
+    assertThatThrownBy(() -> reader.read(TUK75, TODAY, null, null, GatewayHold.NONE))
         .isInstanceOf(DataAccessResourceFailureException.class);
   }
 }

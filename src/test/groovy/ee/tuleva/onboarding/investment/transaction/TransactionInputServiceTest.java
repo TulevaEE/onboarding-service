@@ -816,7 +816,7 @@ class TransactionInputServiceTest {
     service.gatherInput(TulevaFund.TUK75, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     verify(sameDayCashReader)
-        .read(TulevaFund.TUK75, AS_OF_DATE, null, ZERO, PevaRavaCycleState.ACTIVE);
+        .read(TulevaFund.TUK75, AS_OF_DATE, null, ZERO, GatewayHold.PEVA_RAVA_CYCLE_ACTIVE);
   }
 
   @Test
@@ -967,9 +967,7 @@ class TransactionInputServiceTest {
     var balance =
         new GatewayCash.CurrentDayBalance(
             new BigDecimal("600000"), Instant.parse("2026-01-15T08:00:00Z"), Set.of(), Set.of());
-    given(
-            sameDayCashReader.read(
-                TUV100, AS_OF_DATE, null, ZERO, PevaRavaCycleState.OUTSIDE_A_CYCLE))
+    given(sameDayCashReader.read(TUV100, AS_OF_DATE, null, ZERO, GatewayHold.NONE))
         .willReturn(
             new CashSourceReport(
                 CashSource.GATEWAY_BALANCE, balance, ZERO, List.of(), GatewayHold.NONE));
@@ -1019,31 +1017,49 @@ class TransactionInputServiceTest {
   }
 
   @Test
-  void gatherInput_onTodaysSebBalanceWithoutStoredR45RowsTheReportsR45ReserveStandsAndSaysWhy() {
-    givenTodaysBalance(TUV100, "600000");
+  void gatherInput_withoutStoredR45RowsTheRunStaysOnReportCashSoTodaysR45InflowIsNotCountedTwice() {
+    stubEmptyBaseline(TUV100);
+    given(sameDayCashReader.read(eq(TUV100), eq(AS_OF_DATE), any(), any(), any()))
+        .willAnswer(
+            invocation ->
+                invocation.<GatewayHold>getArgument(4) == GatewayHold.NONE
+                    ? new CashSourceReport(
+                        CashSource.GATEWAY_BALANCE,
+                        new GatewayCash.CurrentDayBalance(
+                            new BigDecimal("600000"),
+                            Instant.parse("2026-01-15T08:00:00Z"),
+                            Set.of(),
+                            Set.of()),
+                        ZERO,
+                        List.of(),
+                        GatewayHold.NONE)
+                    : new CashSourceReport(
+                        CashSource.POSITION_REPORT,
+                        new GatewayCash.CurrentDayBalance(
+                            new BigDecimal("600000"),
+                            Instant.parse("2026-01-15T08:00:00Z"),
+                            Set.of(),
+                            Set.of()),
+                        ZERO,
+                        List.of(),
+                        invocation.getArgument(4)));
     given(r45ReportService.getFlowsOn(AS_OF_DATE))
         .willReturn(
             Map.of(
-                TUV100,
-                new R45Result(
-                    new BigDecimal("10000"), new BigDecimal("60000"), new BigDecimal("-50000"))));
+                TUV100, new R45Result(new BigDecimal("100000"), new BigDecimal("100000"), ZERO)));
     given(r45ReportService.getRowsOn(TUV100, AS_OF_DATE)).willReturn(Optional.empty());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
-    assertThat(result.liabilities()).isEqualByComparingTo("50000");
-    assertThat(result.cashSection().forecasts())
-        .contains(
-            new NettedForecast(
-                "r45",
-                new BigDecimal("50000"),
-                new BigDecimal("50000"),
-                NettedForecast.Treatment.NOT_NETTED_R45_ROWS_UNAVAILABLE));
+    assertThat(result.cashSection().sources().source()).isEqualTo(CashSource.POSITION_REPORT);
+    assertThat(result.cashSection().sources().hold()).isEqualTo(GatewayHold.R45_ROWS_UNAVAILABLE);
+    assertThat(result.appliedCash()).isEqualByComparingTo("0");
+    assertThat(result.liabilities()).isEqualByComparingTo("0");
   }
 
   private void givenTodaysBalance(TulevaFund fund, String balance) {
     stubEmptyBaseline(fund);
-    given(sameDayCashReader.read(fund, AS_OF_DATE, null, ZERO, PevaRavaCycleState.OUTSIDE_A_CYCLE))
+    given(sameDayCashReader.read(fund, AS_OF_DATE, null, ZERO, GatewayHold.NONE))
         .willReturn(
             new CashSourceReport(
                 CashSource.GATEWAY_BALANCE,

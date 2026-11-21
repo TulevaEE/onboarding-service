@@ -11,6 +11,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 class SavingsFundFeeSyncJobScheduledTest {
 
   @MockitoBean SavingsFundManagementFeeSync savingsFundManagementFeeSync;
+  @MockitoBean SavingsFundOngoingChargesSync savingsFundOngoingChargesSync;
   @MockitoBean Clock clock;
 
   @Test

@@ -19,6 +19,7 @@ class SavingsFundFeeSyncJob {
   private static final String TIMEZONE = "Europe/Tallinn";
 
   private final SavingsFundManagementFeeSync savingsFundManagementFeeSync;
+  private final SavingsFundOngoingChargesSync savingsFundOngoingChargesSync;
   private final Clock clock;
 
   @Scheduled(cron = "0 7 0 * * *", zone = TIMEZONE)
@@ -32,6 +33,11 @@ class SavingsFundFeeSyncJob {
       savingsFundManagementFeeSync.syncToTheRatesInForceOn(today);
     } catch (Exception e) {
       log.error("Failed to sync savings fund management fees: date={}", today, e);
+    }
+    try {
+      savingsFundOngoingChargesSync.syncToTheKidsInForceOn(today);
+    } catch (Exception e) {
+      log.error("Failed to sync savings fund ongoing charges figures: date={}", today, e);
     }
   }
 }

@@ -77,6 +77,10 @@ public class RebalanceWindows {
     var latest = navs.isEmpty() ? Optional.<NavWeights>empty() : Optional.of(navs.getLast());
     var tolerance = rules.tolerance();
     var deadline = RebalanceRules.deadlineFrom(change.effectiveDate(), estonianCalendar);
+    var stillSentOrdersReadBeforeTheExecutedTradeSoAnOrderExecutedInBetweenIsNotMissed =
+        rebalanceTrades.sentRebalanceOrders(fund, change.effectiveDate(), measuredUntil);
+    var firstExecutedRebalancingTrade =
+        rebalanceTrades.firstRebalancingTradeDate(fund, change.effectiveDate(), measuredUntil);
     return new RebalanceWindow(
         fund,
         change.effectiveDate(),
@@ -87,11 +91,9 @@ public class RebalanceWindows {
             .map(nav -> nav.outsideTolerance(change.weightsOn(nav.navDate()), tolerance))
             .orElse(List.of()),
         RebalanceClosure.whicheverFirst(
-                firstNavInLine(navs, change, tolerance),
-                rebalanceTrades.firstRebalancingTradeDate(
-                    fund, change.effectiveDate(), measuredUntil))
+                firstNavInLine(navs, change, tolerance), firstExecutedRebalancingTrade)
             .orElse(null),
-        rebalanceTrades.sentRebalanceOrders(fund, change.effectiveDate(), measuredUntil),
+        stillSentOrdersReadBeforeTheExecutedTradeSoAnOrderExecutedInBetweenIsNotMissed,
         deadline,
         rules.warningFrom(deadline));
   }

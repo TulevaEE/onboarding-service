@@ -1655,7 +1655,7 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Test
-  void sellingAFundOutBesideAnOutstandingSaleNeverCommitsMoreUnitsThanTheReportHolds() {
+  void sellingAFundOutBesideAnOutstandingSaleStopsTheRunInsteadOfCommittingMoreUnitsThanHeld() {
     jdbcClient
         .sql(
             "UPDATE investment_model_portfolio_allocation SET weight = 0"
@@ -1697,15 +1697,14 @@ class TransactionPipelineIntegrationTest {
                 List.of(new PriceDeviationConfirmation("IE00BFG1TM61", new BigDecimal("15.00")))),
             "operator");
 
-    assertThat(response.status()).isEqualTo(CALCULATED);
-    var sale =
-        response.orders().stream()
-            .filter(order -> order.instrumentIsin().equals("IE00BFG1TM61"))
-            .findFirst()
-            .orElseThrow();
-    assertThat(sale.orderQuantity().add(new BigDecimal("30000"))).isEqualByComparingTo("45000");
-    assertThat(response.calculationSnapshot().get("calculationWarnings").toString())
-        .contains("SELL_CAPPED_AT_HOLDING");
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            IE00BFG1TM61: müük 30000 osakut, lubatud 15000 (SEB raportis 45000, ootel müükides 30000), hind 15: kontrolli hinda või anna käsitsi hind (prices)\
+            """,
+            INVESTMENT);
   }
 
   @Test

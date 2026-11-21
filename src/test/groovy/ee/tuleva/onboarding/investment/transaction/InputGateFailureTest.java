@@ -164,4 +164,20 @@ class InputGateFailureTest {
             "R16 2026-11 puudub (väljamaksed 2026-11-16, arvesse alates 2026-11-09): lae R16"
                 + " EPIS-ist");
   }
+
+  @Test
+  void aSaleBeyondTheUnitsTheFundMaySellNamesTheUnitsAndThePrice() {
+    assertThat(
+            new InputGateFailure.SaleBeyondSellableUnits(
+                    "IE00BFG1TM61",
+                    new BigDecimal("1052.631579"),
+                    new BigDecimal("1000.000000"),
+                    new BigDecimal("600"),
+                    new BigDecimal("400"),
+                    new BigDecimal("95.00"))
+                .slackLine())
+        .isEqualTo(
+            "IE00BFG1TM61: müük 1052.631579 osakut, lubatud 400 (SEB raportis 1000, ootel"
+                + " müükides 600), hind 95: kontrolli hinda või anna käsitsi hind (prices)");
+  }
 }

@@ -975,6 +975,7 @@ class TransactionInputServiceTest {
                 CashSource.GATEWAY_BALANCE, balance, ZERO, List.of(), GatewayHold.NONE));
     given(tradeSettlementsReader.read(new NettingWindow(TUV100, AS_OF_DATE, AS_OF_DATE, Set.of())))
         .willReturn(new TradeSettlementsInTheBalance(List.of()));
+    given(r45ReportService.getRowsOn(TUV100, AS_OF_DATE)).willReturn(Optional.of(List.of()));
     given(gatewayNetting.r45(any(), any())).willReturn(new Netted<>(ZERO, ZERO));
     given(r16OutflowReader.read(TUV100, AS_OF_DATE, AS_OF_DATE))
         .willReturn(
@@ -989,6 +990,63 @@ class TransactionInputServiceTest {
 
     assertThat(result.appliedCash()).isEqualByComparingTo("600000");
     assertThat(result.freeCash()).isEqualByComparingTo("590000");
+  }
+
+  @Test
+  void gatherInput_onTodaysSebBalanceTheBreakdownShowsTheR45ReserveTheRowsLeave() {
+    givenTodaysBalance(TUV100, "600000");
+    given(r45ReportService.getFlowsOn(AS_OF_DATE))
+        .willReturn(
+            Map.of(
+                TUV100,
+                new R45Result(
+                    new BigDecimal("10000"), new BigDecimal("60000"), new BigDecimal("-50000"))));
+    given(r45ReportService.getRowsOn(TUV100, AS_OF_DATE)).willReturn(Optional.of(List.of()));
+    given(gatewayNetting.r45(any(), any()))
+        .willReturn(new Netted<>(new BigDecimal("50000"), new BigDecimal("20000")));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
+
+    assertThat(result.liabilities()).isEqualByComparingTo("20000");
+    assertThat(result.liabilityBreakdown().r45Net()).isEqualByComparingTo("-20000");
+  }
+
+  @Test
+  void gatherInput_onTodaysSebBalanceWithoutStoredR45RowsTheReportsR45ReserveStandsAndSaysWhy() {
+    givenTodaysBalance(TUV100, "600000");
+    given(r45ReportService.getFlowsOn(AS_OF_DATE))
+        .willReturn(
+            Map.of(
+                TUV100,
+                new R45Result(
+                    new BigDecimal("10000"), new BigDecimal("60000"), new BigDecimal("-50000"))));
+    given(r45ReportService.getRowsOn(TUV100, AS_OF_DATE)).willReturn(Optional.empty());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
+
+    assertThat(result.liabilities()).isEqualByComparingTo("50000");
+    assertThat(result.cashSection().forecasts())
+        .contains(
+            new NettedForecast(
+                "r45",
+                new BigDecimal("50000"),
+                new BigDecimal("50000"),
+                NettedForecast.Treatment.NOT_NETTED_R45_ROWS_UNAVAILABLE));
+  }
+
+  private void givenTodaysBalance(TulevaFund fund, String balance) {
+    stubEmptyBaseline(fund);
+    given(sameDayCashReader.read(fund, AS_OF_DATE, null, ZERO, PevaRavaCycleState.OUTSIDE_A_CYCLE))
+        .willReturn(
+            new CashSourceReport(
+                CashSource.GATEWAY_BALANCE,
+                new GatewayCash.CurrentDayBalance(
+                    new BigDecimal(balance), Instant.parse("2026-01-15T08:00:00Z"), Set.of()),
+                ZERO,
+                List.of(),
+                GatewayHold.NONE));
+    given(tradeSettlementsReader.read(new NettingWindow(fund, AS_OF_DATE, AS_OF_DATE, Set.of())))
+        .willReturn(new TradeSettlementsInTheBalance(List.of()));
   }
 
   @Test

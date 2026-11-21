@@ -56,10 +56,13 @@ class SameDayCashReader {
                 && pevaRavaCycle == PevaRavaCycleState.ACTIVE
             ? GatewayHold.PEVA_RAVA_CYCLE_ACTIVE
             : GatewayHold.NONE;
-    CashSourceReport report =
-        new CashSourceReport(
-            sourceOf(operatorAmount, gateway, hold), gateway, reportCash, List.of(), hold);
-    return report.withWarnings(differenceWarning(fund, asOfDate, report).stream().toList());
+    List<CalculationWarning> warnings =
+        SourcesDifference.between(gateway, reportCash)
+            .flatMap(difference -> differenceWarning(fund, asOfDate, difference))
+            .stream()
+            .toList();
+    return new CashSourceReport(
+        sourceOf(operatorAmount, gateway, hold), gateway, reportCash, warnings, hold);
   }
 
   private static CashSource sourceOf(
@@ -92,13 +95,6 @@ class SameDayCashReader {
                   case CurrentDayReport.Unreadable _ -> new Unreadable();
                 })
         .orElseGet(NoInvestmentAccount::new);
-  }
-
-  private Optional<CalculationWarning> differenceWarning(
-      TulevaFund fund, LocalDate asOfDate, CashSourceReport report) {
-    return report
-        .sourcesDifference()
-        .flatMap(difference -> differenceWarning(fund, asOfDate, difference));
   }
 
   private Optional<CalculationWarning> differenceWarning(

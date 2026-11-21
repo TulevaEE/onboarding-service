@@ -23,7 +23,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import org.apache.poi.ss.usermodel.DateUtil;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -95,6 +96,10 @@ public class TransactionExportService {
     "TULEVA MAAILMA AKTSIATE PENSIONIFOND",
     "TULEVA III SAMBA PENSIONIFOND"
   };
+
+  private static final String SHEET_NAME_OF_THE_GAS_ORDER_FILE = "Sheet1";
+  private static final short EXCEL_BUILT_IN_SHORT_DATE_AS_IN_THE_GAS_ORDER_FILE = 14;
+  private static final int FT_TOTAL_LABEL_COLUMN_AS_IN_THE_GAS_ORDER_FILE = 6;
 
   public byte[] generateOrdersExport(List<TransactionOrder> orders) {
     try (Workbook workbook = new XSSFWorkbook()) {
@@ -201,10 +206,10 @@ public class TransactionExportService {
         orders.stream().filter(order -> order.getOrderVenue() == OrderVenue.FT).toList();
 
     Map<String, AggregatedFtOrder> aggregated = aggregateFtOrders(ftOrders);
-    double tradeDateSerial = DateUtil.getExcelDate(tradeDate);
 
     try (Workbook workbook = new XSSFWorkbook()) {
-      Sheet sheet = workbook.createSheet("FT ETF");
+      Sheet sheet = workbook.createSheet(SHEET_NAME_OF_THE_GAS_ORDER_FILE);
+      CellStyle dateStyle = gasOrderFileDateStyle(workbook);
 
       createRow(sheet, 0, FT_ETF_HEADERS);
 
@@ -217,24 +222,23 @@ public class TransactionExportService {
         row.createCell(0).setCellValue(bbgByIsin.getOrDefault(aggregation.isin, ""));
         row.createCell(1).setCellValue(aggregation.transactionType.name());
         row.createCell(2).setCellValue(aggregation.totalQuantity.doubleValue());
-        row.createCell(3).setCellValue(tradeDateSerial);
+        createDateCell(row, 3, tradeDate, dateStyle);
         if (aggregation.settlementDate != null) {
-          row.createCell(4).setCellValue(DateUtil.getExcelDate(aggregation.settlementDate));
+          createDateCell(row, 4, aggregation.settlementDate, dateStyle);
         }
         row.createCell(5).setCellValue(labelsByIsin.getOrDefault(aggregation.isin, ""));
         row.createCell(6).setCellValue(aggregation.isin);
         row.createCell(7).setCellValue(aggregation.totalAmount.doubleValue());
-        row.createCell(8)
-            .setCellValue(aggregation.quantityByFund.getOrDefault(TKF100, ZERO).doubleValue());
-        row.createCell(9)
-            .setCellValue(aggregation.quantityByFund.getOrDefault(TUK75, ZERO).doubleValue());
-        row.createCell(10)
-            .setCellValue(aggregation.quantityByFund.getOrDefault(TUV100, ZERO).doubleValue());
+        createFundQuantityCell(row, 8, aggregation.quantityByFund.getOrDefault(TKF100, ZERO));
+        createFundQuantityCell(row, 9, aggregation.quantityByFund.getOrDefault(TUK75, ZERO));
+        createFundQuantityCell(row, 10, aggregation.quantityByFund.getOrDefault(TUV100, ZERO));
         grandTotal = grandTotal.add(aggregation.totalAmount);
       }
 
       Row totalRow = sheet.createRow(rowIndex);
-      totalRow.createCell(0).setCellValue("Approximate total order size:");
+      totalRow
+          .createCell(FT_TOTAL_LABEL_COLUMN_AS_IN_THE_GAS_ORDER_FILE)
+          .setCellValue("Approximate total order size:");
       totalRow.createCell(7).setCellValue(grandTotal.doubleValue());
 
       autoSizeColumns(sheet, FT_ETF_HEADERS.length);
@@ -242,6 +246,24 @@ public class TransactionExportService {
     } catch (IOException e) {
       throw new IllegalStateException("Failed to generate FT ETF export", e);
     }
+  }
+
+  private CellStyle gasOrderFileDateStyle(Workbook workbook) {
+    CellStyle style = workbook.createCellStyle();
+    style.setDataFormat(EXCEL_BUILT_IN_SHORT_DATE_AS_IN_THE_GAS_ORDER_FILE);
+    return style;
+  }
+
+  private void createFundQuantityCell(Row row, int column, BigDecimal quantity) {
+    if (quantity.signum() != 0) {
+      row.createCell(column).setCellValue(quantity.doubleValue());
+    }
+  }
+
+  private void createDateCell(Row row, int column, LocalDate date, CellStyle style) {
+    Cell cell = row.createCell(column);
+    cell.setCellValue(date);
+    cell.setCellStyle(style);
   }
 
   private Map<String, AggregatedFtOrder> aggregateFtOrders(List<TransactionOrder> ftOrders) {

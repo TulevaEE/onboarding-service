@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction.INFLOW;
+import static ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction.OUTFLOW;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.EPIS;
 import static ee.tuleva.onboarding.investment.report.ReportType.R16_FORECASTED_PAYMENTS;
@@ -37,6 +39,7 @@ import ee.tuleva.onboarding.investment.epis.PevaRavaPeriodService;
 import ee.tuleva.onboarding.investment.epis.R16FlowCalculationService;
 import ee.tuleva.onboarding.investment.epis.R16PhaseCalculator;
 import ee.tuleva.onboarding.investment.epis.R45ReportService;
+import ee.tuleva.onboarding.investment.epis.R45Row;
 import ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser;
 import ee.tuleva.onboarding.investment.epis.parser.R45ReportParser;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -66,6 +69,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -431,6 +435,23 @@ class TradePrepInputGatesIT {
 
     assertThat(r16OutflowReader.read(TUK75, thursday, thursday.minusDays(1)).reserved())
         .isEqualByComparingTo("2000");
+  }
+
+  @Test
+  void anIngestedR45KeepsItsRowsSoTodaysBalanceCanTellTodaysRowsFromLaterOnes() {
+    ingestR45(
+        WEDNESDAY,
+        "RED;EE3600001707;0.90000;0;300.00;18.11.2026",
+        "SUB;EE3600001707;0.90000;0;100.00;20.11.2026");
+
+    assertThat(r45Report.getRowsOn(TUV100, WEDNESDAY).orElseThrow())
+        .usingRecursiveFieldByFieldElementComparator(
+            RecursiveComparisonConfiguration.builder()
+                .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+                .build())
+        .containsExactly(
+            new R45Row(OUTFLOW, new BigDecimal("300.00"), WEDNESDAY),
+            new R45Row(INFLOW, new BigDecimal("100.00"), LocalDate.of(2026, 11, 20)));
   }
 
   @Test

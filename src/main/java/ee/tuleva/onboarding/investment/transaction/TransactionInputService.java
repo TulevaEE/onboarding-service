@@ -141,11 +141,15 @@ public class TransactionInputService {
 
     BigDecimal r45Net = getR45Net(fund, asOfDate);
     BigDecimal r45Reserved = ZERO.max(r45Net.negate());
-    Netted<BigDecimal> r45 =
-        netting
-            .map(window -> gatewayNetting.r45(window, r45ReportService.getRowsOn(fund, asOfDate)))
-            .orElse(new Netted<>(r45Reserved, r45Reserved));
-    liabilities = liabilities.add(r45.after());
+    Optional<NettedForecast> r45OnTheBalance =
+        netting.map(
+            window ->
+                r45ReportService
+                    .getRowsOn(fund, asOfDate)
+                    .map(rows -> NettedForecast.netted("r45", gatewayNetting.r45(window, rows)))
+                    .orElse(NettedForecast.r45RowsUnavailable(r45Reserved)));
+    BigDecimal r45Used = r45OnTheBalance.map(NettedForecast::after).orElse(r45Reserved);
+    liabilities = liabilities.add(r45Used);
 
     liabilities = liabilities.add(getAdjustment(manualAdjustments, "additionalLiabilities"));
     receivables = receivables.add(getAdjustment(manualAdjustments, "additionalReceivables"));
@@ -176,7 +180,7 @@ public class TransactionInputService {
             depotFee,
             pevaRava,
             r16,
-            r45Net,
+            r45OnTheBalance.isPresent() ? r45Used.negate() : r45Net,
             pendingOrders.pendingBuys(),
             pendingOrders.pendingSells(),
             unsettledTrades.payables(),
@@ -212,7 +216,7 @@ public class TransactionInputService {
                     ? NettedForecast.onTheGatewayBalance(
                         nettedTrades,
                         pendingOrders,
-                        r45,
+                        r45OnTheBalance.orElseThrow(),
                         new Netted<>(unitReceivable.dueOnTopOfReportCash(), unitReceivableDue),
                         registerCash.incomingPaymentsClearing())
                     : List.of(),

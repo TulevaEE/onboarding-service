@@ -1,13 +1,15 @@
 package ee.tuleva.onboarding.investment.check.rebalance;
 
+import static ee.tuleva.onboarding.investment.transaction.SettlementDateCalculator.FUND_SETTLEMENT_BUSINESS_DAYS;
+
 import ee.tuleva.onboarding.investment.calendar.TradingCalendar;
 import java.time.LocalDate;
 import org.jspecify.annotations.Nullable;
 
 public record SentRebalanceOrder(String isin, LocalDate sentOn, LocalDate awaitedThrough) {
 
-  private static final int
-      AN_ORDER_WITHOUT_A_SETTLEMENT_DATE_SETTLES_WORKING_DAYS_AFTER_IT_IS_SENT = 2;
+  private static final int AN_ORDER_WITHOUT_A_SETTLEMENT_DATE_SETTLES_AS_LATE_AS_A_FUND_ORDER =
+      FUND_SETTLEMENT_BUSINESS_DAYS;
   private static final int THE_CUSTODIANS_REPORT_FOR_A_DAY_ARRIVES_WORKING_DAYS_LATER = 1;
 
   static SentRebalanceOrder of(
@@ -19,7 +21,7 @@ public record SentRebalanceOrder(String isin, LocalDate sentOn, LocalDate awaite
         expectedSettlementDate != null
             ? expectedSettlementDate
             : calendar.addBusinessDays(
-                sentOn, AN_ORDER_WITHOUT_A_SETTLEMENT_DATE_SETTLES_WORKING_DAYS_AFTER_IT_IS_SENT);
+                sentOn, AN_ORDER_WITHOUT_A_SETTLEMENT_DATE_SETTLES_AS_LATE_AS_A_FUND_ORDER);
     return new SentRebalanceOrder(
         isin,
         sentOn,

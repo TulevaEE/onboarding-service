@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static java.math.BigDecimal.ZERO;
+import static java.util.Comparator.comparing;
+import static java.util.Comparator.naturalOrder;
+import static java.util.Comparator.nullsLast;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import ee.tuleva.onboarding.investment.transaction.SettledInTheBalance.AgainstTheReportRows;
@@ -32,11 +35,21 @@ record TradeSettlementsInTheBalance(List<SettledInTheBalance> settlements) {
             ZERO.max(atReportDate.receivables().subtract(received))));
   }
 
-  List<TradeSettlementBooking> unmatched() {
+  List<UnmatchedSettlement> unmatched() {
     return settlements.stream()
         .filter(Unmatched.class::isInstance)
         .map(SettledInTheBalance::booking)
+        .sorted(
+            comparing(TradeSettlementBooking::bookingDate)
+                .thenComparing(TradeSettlementBooking::brokerReference, nullsLast(naturalOrder())))
+        .map(UnmatchedSettlement::new)
         .toList();
+  }
+
+  BigDecimal unmatchedInflows() {
+    return unmatched().stream()
+        .map(UnmatchedSettlement::excludedFromTheBalance)
+        .reduce(ZERO, BigDecimal::add);
   }
 
   Set<Long> carriedByPendingFills() {

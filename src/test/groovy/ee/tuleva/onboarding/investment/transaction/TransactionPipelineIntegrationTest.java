@@ -1062,57 +1062,14 @@ class TransactionPipelineIntegrationTest {
 
   @Test
   void aBalanceSebReportedTodayIsTheRunsCashAndEachForecastShowsWhatItWasBeforeNetting() {
-    jdbcClient.sql("DELETE FROM banking_message").update();
-    storeInvestmentAccountMessage(
-        "INTRA_DAY_REPORT",
-        TEST_DATE,
-        FIXED_INSTANT,
-        currentDayReport(
-            investmentIban(),
-            TEST_DATE,
-            "520000.00",
-            entry("SETTLEMENT-1", "120000.00", "DBIT", "BOOK"),
-            entry("SETTLEMENT-2", "15000.00", "DBIT", "BOOK")));
-    jdbcClient
-        .sql(
-            "UPDATE investment_fund_position SET nav_date = DATE '2026-02-09'"
-                + " WHERE fund_code = 'TKF100' AND nav_date = DATE '2026-02-10'")
-        .update();
-    jdbcClient
-        .sql(
-            "UPDATE investment_portfolio_cost_basis SET as_of_date = DATE '2026-02-09'"
-                + " WHERE as_of_date = DATE '2026-02-10'")
-        .update();
-    jdbcClient
-        .sql(
-            """
-            INSERT INTO investment_fund_position
-              (nav_date, fund_code, account_type, account_name, account_id, quantity,
-               market_price, market_value, currency, created_at)
-            VALUES (DATE '2026-02-09', 'TKF100', 'LIABILITY',
-               'Total payables of unsettled transactions', 'PAYABLES', 0, 0, -300000.00, 'EUR',
-               CURRENT_TIMESTAMP)
-            """)
-        .update();
+    gatewayRunTheDayAfterTheReport(
+        entry("SETTLEMENT-1", "120000.00", "DBIT", "BOOK"),
+        entry("SETTLEMENT-2", "15000.00", "DBIT", "BOOK"),
+        entry("SETTLEMENT-3", "30000.00", "CRDT", "BOOK"));
     tradeShownInTheReport("SYNTHETIC-1", "IE00BFG1TM61");
-    fundBankLedger.recordTradeSettlement(
-        TKF100,
-        new BigDecimal("-120000.00"),
-        new BigDecimal("1000"),
-        BankEntryReference.of(investmentIban(), "SETTLEMENT-1"),
-        FUND_INVESTMENT_CASH_CLEARING,
-        new TradeSettlementDetails(
-            "SYNTHETIC-1", "IE00BFG1TM61", "TICK", "test instrument", BigDecimal.ONE),
-        TEST_DATE);
-    fundBankLedger.recordTradeSettlement(
-        TKF100,
-        new BigDecimal("-15000.00"),
-        new BigDecimal("100"),
-        BankEntryReference.of(investmentIban(), "SETTLEMENT-2"),
-        FUND_INVESTMENT_CASH_CLEARING,
-        new TradeSettlementDetails(
-            "SYNTHETIC-2", "IE00BFG1TM61", "TICK", "test instrument", BigDecimal.ONE),
-        TEST_DATE);
+    bankBooksTradeSettlement("SETTLEMENT-1", "SYNTHETIC-1", "-120000.00");
+    bankBooksTradeSettlement("SETTLEMENT-2", "SYNTHETIC-2", "-15000.00");
+    bankBooksTradeSettlement("SETTLEMENT-3", "SYNTHETIC-3", "30000.00");
 
     var response =
         commandRunner.createAndProcess(
@@ -1135,6 +1092,8 @@ class TransactionPipelineIntegrationTest {
                     "fetchedAt", "2026-02-09T23:00:00Z"),
                 "gatewayMinusReportCash",
                 "20000.00",
+                "balanceUsed",
+                "490000.00",
                 "forecasts",
                 List.of(
                     Map.of(
@@ -1148,10 +1107,99 @@ class TransactionPipelineIntegrationTest {
                         "brokerReference", "SYNTHETIC-2",
                         "isin", "IE00BFG1TM61",
                         "bookingDate", "2026-02-10",
-                        "cash", "-15000.00"))));
+                        "cash", "-15000.00",
+                        "treatment", "NOT_NETTED"),
+                    Map.of(
+                        "brokerReference", "SYNTHETIC-3",
+                        "isin", "IE00BFG1TM61",
+                        "bookingDate", "2026-02-10",
+                        "cash", "30000.00",
+                        "treatment", "EXCLUDED_FROM_THE_BALANCE"))));
+    assertThat(response.calculationSnapshot().get("input"))
+        .asInstanceOf(MAP)
+        .containsEntry("appliedCash", "490000.00");
+    assertThat(response.calculationSnapshot().get("calculationWarnings"))
+        .asInstanceOf(LIST)
+        .contains(
+            Map.of(
+                "type",
+                "UNMATCHED_TRADE_SETTLEMENT",
+                "message",
+                "⚠️ SEB booked a trade settlement no registered trade explains, its cash is left"
+                    + " out of the balance: fund=TKF100, isin=IE00BFG1TM61,"
+                    + " bookingDate=2026-02-10, amount=30000.00"));
+  }
+
+  @Test
+  void anUnexplainedTradeSettlementOutflowLeavesTheBalanceAsItIsButIsWarnedAbout() {
+    gatewayRunTheDayAfterTheReport(entry("SETTLEMENT-2", "15000.00", "DBIT", "BOOK"));
+    bankBooksTradeSettlement("SETTLEMENT-2", "SYNTHETIC-2", "-15000.00");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
     assertThat(response.calculationSnapshot().get("input"))
         .asInstanceOf(MAP)
         .containsEntry("appliedCash", "520000.00");
+    assertThat(response.calculationSnapshot().get("cash"))
+        .asInstanceOf(MAP)
+        .doesNotContainKey("balanceUsed");
+    assertThat(response.calculationSnapshot().get("calculationWarnings"))
+        .asInstanceOf(LIST)
+        .contains(
+            Map.of(
+                "type",
+                "UNMATCHED_TRADE_SETTLEMENT",
+                "message",
+                "⚠️ SEB booked a trade settlement no registered trade explains, the report's"
+                    + " payable for it stays reserved: fund=TKF100, isin=IE00BFG1TM61,"
+                    + " bookingDate=2026-02-10, amount=-15000.00"));
+  }
+
+  private void gatewayRunTheDayAfterTheReport(String... entries) {
+    jdbcClient.sql("DELETE FROM banking_message").update();
+    storeInvestmentAccountMessage(
+        "INTRA_DAY_REPORT",
+        TEST_DATE,
+        FIXED_INSTANT,
+        currentDayReport(investmentIban(), TEST_DATE, "520000.00", entries));
+    jdbcClient
+        .sql(
+            "UPDATE investment_fund_position SET nav_date = DATE '2026-02-09'"
+                + " WHERE fund_code = 'TKF100' AND nav_date = DATE '2026-02-10'")
+        .update();
+    jdbcClient
+        .sql(
+            "UPDATE investment_portfolio_cost_basis SET as_of_date = DATE '2026-02-09'"
+                + " WHERE as_of_date = DATE '2026-02-10'")
+        .update();
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fund_position
+              (nav_date, fund_code, account_type, account_name, account_id, quantity,
+               market_price, market_value, currency, created_at)
+            VALUES (DATE '2026-02-09', 'TKF100', 'LIABILITY',
+               'Total payables of unsettled transactions', 'PAYABLES', 0, 0, -300000.00, 'EUR',
+               CURRENT_TIMESTAMP)
+            """)
+        .update();
+  }
+
+  private void bankBooksTradeSettlement(String externalId, String brokerReference, String cash) {
+    fundBankLedger.recordTradeSettlement(
+        TKF100,
+        new BigDecimal(cash),
+        new BigDecimal("100"),
+        BankEntryReference.of(investmentIban(), externalId),
+        FUND_INVESTMENT_CASH_CLEARING,
+        new TradeSettlementDetails(
+            brokerReference, "IE00BFG1TM61", "TICK", "test instrument", BigDecimal.ONE),
+        TEST_DATE);
   }
 
   @Test

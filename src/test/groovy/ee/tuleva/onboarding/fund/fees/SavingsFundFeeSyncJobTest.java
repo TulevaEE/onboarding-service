@@ -15,7 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class SavingsFundManagementFeeSyncJobTest {
+class SavingsFundFeeSyncJobTest {
 
   private static final Clock SEVEN_PAST_MIDNIGHT_IN_TALLINN_ON_JUNE_4 =
       Clock.fixed(Instant.parse("2026-06-03T21:07:00Z"), UTC);
@@ -38,8 +38,8 @@ class SavingsFundManagementFeeSyncJobTest {
     assertThatCode(() -> job().sync()).doesNotThrowAnyException();
   }
 
-  private SavingsFundManagementFeeSyncJob job() {
-    return new SavingsFundManagementFeeSyncJob(
+  private SavingsFundFeeSyncJob job() {
+    return new SavingsFundFeeSyncJob(
         savingsFundManagementFeeSync, SEVEN_PAST_MIDNIGHT_IN_TALLINN_ON_JUNE_4);
   }
 }

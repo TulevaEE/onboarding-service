@@ -273,6 +273,41 @@ class ModelRebalanceCheckIT {
   }
 
   @Test
+  void aRebalanceOrderWithoutASettlementDate_isAwaitedAsLongAsAFundOrderBeforeItFails() {
+    givenTuv100ModelSwitchesFromWorldToNewWorldOn(SEPTEMBER_MODEL);
+    givenNav(LocalDate.of(2026, 9, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 1));
+    givenNav(LocalDate.of(2026, 11, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 11, 27));
+
+    runCheckOn(LocalDate.of(2026, 12, 3));
+    runCheckOn(LocalDate.of(2026, 12, 4));
+
+    then(notificationService)
+        .should(times(2))
+        .sendMessage(
+            startsWith(
+                "⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole"
+                    + " mudeliga vastavuses; Rebalance-jooksu tehingud saadetud 27.11.2026, ootavad"
+                    + " SEB täitmise kinnitust"),
+            eq(INVESTMENT),
+            eq(WARNING));
+    then(notificationService).should(never()).sendMessage(any(), any(), eq(ERROR));
+
+    runCheckOn(LocalDate.of(2026, 12, 7));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            startsWith(
+                "🛑 TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole"
+                    + " mudeliga vastavuses ja SEB pole Rebalance-jooksu tehingute täitmist"
+                    + " kinnitanud: IE000I9HGDZ3 (saadetud 27.11.2026)"),
+            eq(INVESTMENT),
+            eq(ERROR));
+  }
+
+  @Test
   void anEtfRebalanceOrderSebListsOnItsSettlementDay_closesWithoutAnEscalationInBetween() {
     var order =
         givenAWindowPastItsDeadlineWithARebalanceOrderSentOnIt(ETF, LocalDate.of(2026, 12, 3));

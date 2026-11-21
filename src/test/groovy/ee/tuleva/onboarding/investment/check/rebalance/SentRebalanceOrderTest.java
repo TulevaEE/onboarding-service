@@ -36,9 +36,11 @@ class SentRebalanceOrderTest {
   }
 
   @Test
-  void anOrderWithoutAnExpectedSettlementDate_isTakenToSettleTwoWorkingDaysAfterItWasSent() {
-    var order = SentRebalanceOrder.of(NEW_WORLD, LocalDate.of(2026, 11, 13), null, CALENDAR);
+  void anOrderWithoutAnExpectedSettlementDate_isAwaitedAsLongAsAFundOrderSettlingT4() {
+    var order = SentRebalanceOrder.of(NEW_WORLD, LocalDate.of(2026, 11, 27), null, CALENDAR);
 
-    assertThat(order.awaitedThrough()).isEqualTo(LocalDate.of(2026, 11, 18));
+    assertThat(order.confirmationOverdueOn(LocalDate.of(2026, 12, 3))).isFalse();
+    assertThat(order.confirmationOverdueOn(LocalDate.of(2026, 12, 4))).isFalse();
+    assertThat(order.confirmationOverdueOn(LocalDate.of(2026, 12, 7))).isTrue();
   }
 }

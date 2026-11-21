@@ -366,6 +366,7 @@ class NavFeeAccrualLedgerTest {
 
   @Test
   void settleFeeAccrual_reducesLiabilityAndCreditsNavEquity() {
+    LocalDate feeMonth = LocalDate.of(2026, 2, 1);
     LocalDate settlementDate = LocalDate.of(2026, 2, 28);
     Instant expectedTimestamp = settlementDate.atTime(12, 0).atZone(ESTONIAN_ZONE).toInstant();
     setupAccountMocks();
@@ -385,7 +386,7 @@ class NavFeeAccrualLedgerTest {
         .thenReturn(transaction);
 
     navFeeAccrualLedger.settleFeeAccrual(
-        TKF100, settlementDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("1500.00"));
+        TKF100, feeMonth, settlementDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("1500.00"), 0);
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -401,6 +402,79 @@ class NavFeeAccrualLedgerTest {
     assertThat(entries[0].amount()).isEqualByComparingTo("1500.00");
     assertThat(entries[1].account()).isEqualTo(navEquityAccount);
     assertThat(entries[1].amount()).isEqualByComparingTo("-1500.00");
+  }
+
+  @Test
+  void settleFeeAccrual_datesASettlementOnTheDebitDayAndKeysItToTheFeeMonth() {
+    LocalDate feeMonth = LocalDate.of(2026, 2, 1);
+    LocalDate debitDay = LocalDate.of(2026, 3, 2);
+    setupAccountMocks();
+    UUID feeMonthReference =
+        UUID.nameUUIDFromBytes("TKF100:2026-02-28:MANAGEMENT_FEE_ACCRUAL:SETTLEMENT".getBytes());
+    when(ledgerTransactionService.createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
+        .thenReturn(transaction);
+
+    navFeeAccrualLedger.settleFeeAccrual(
+        TKF100, feeMonth, debitDay, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("1500.00"), 0);
+
+    verify(ledgerTransactionService)
+        .createTransaction(
+            eq(FEE_SETTLEMENT),
+            eq(debitDay.atTime(12, 0).atZone(ESTONIAN_ZONE).toInstant()),
+            eq(feeMonthReference),
+            any(),
+            any(LedgerEntryDto[].class));
+  }
+
+  @Test
+  void settleFeeAccrual_keysALaterRevisionToTheFeeMonthAndItsNumber() {
+    LocalDate feeMonth = LocalDate.of(2026, 2, 1);
+    LocalDate navDate = LocalDate.of(2026, 3, 9);
+    setupAccountMocks();
+    UUID secondRevision =
+        UUID.nameUUIDFromBytes("TKF100:2026-02-28:MANAGEMENT_FEE_ACCRUAL:SETTLEMENT:2".getBytes());
+    when(ledgerTransactionService.createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
+        .thenReturn(transaction);
+
+    navFeeAccrualLedger.settleFeeAccrual(
+        TKF100, feeMonth, navDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("-50.00"), 2);
+
+    verify(ledgerTransactionService)
+        .createTransaction(
+            eq(FEE_SETTLEMENT),
+            eq(navDate.atTime(12, 0).atZone(ESTONIAN_ZONE).toInstant()),
+            eq(secondRevision),
+            any(),
+            any(LedgerEntryDto[].class));
+  }
+
+  @Test
+  void settleFeeAccrual_leavesARevisionPastTheLimitToTheSettlementCheckRatherThanStopTheNav() {
+    navFeeAccrualLedger.settleFeeAccrual(
+        TKF100,
+        LocalDate.of(2026, 2, 1),
+        LocalDate.of(2026, 3, 9),
+        MANAGEMENT_FEE_ACCRUAL,
+        new BigDecimal("1.00"),
+        50);
+
+    verify(ledgerTransactionService, never())
+        .createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class));
   }
 
   @Test

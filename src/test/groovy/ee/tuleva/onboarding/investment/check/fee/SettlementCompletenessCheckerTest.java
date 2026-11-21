@@ -4,29 +4,33 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_ACCRUAL;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_SETTLEMENT;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.SETTLEMENT_COMPLETENESS;
+import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
+import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
+import static ee.tuleva.onboarding.ledger.SystemAccount.DEPOT_FEE_ACCRUAL;
+import static ee.tuleva.onboarding.ledger.SystemAccount.MANAGEMENT_FEE_ACCRUAL;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.deadline.BusinessDays;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
-import ee.tuleva.onboarding.investment.fees.FeeType;
-import ee.tuleva.onboarding.ledger.LedgerEntryAmount;
-import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
-import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy.Policy;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy.Resolver;
+import ee.tuleva.onboarding.investment.fees.FeeMonthBalance;
+import ee.tuleva.onboarding.investment.fees.FeeMonthPayment;
+import ee.tuleva.onboarding.investment.fees.OutstandingFees;
+import ee.tuleva.onboarding.ledger.FeeMonthSettlement;
+import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
+import ee.tuleva.onboarding.ledger.SystemAccount;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,14 +40,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class SettlementCompletenessCheckerTest {
 
-  private static final LocalDate FEE_MONTH = LocalDate.of(2026, 5, 1);
-  private static final LocalDate THIRD_BUSINESS_DAY_OF_JUNE = LocalDate.of(2026, 6, 3);
-  private static final LocalDate PAST_THE_GRACE_WINDOW = LocalDate.of(2026, 6, 9);
-  private static final BigDecimal ACCRUED = new BigDecimal("-1234.56");
-  private static final BigDecimal SETTLED = new BigDecimal("1234.56");
+  private static final LocalDate FEE_MONTH = LocalDate.of(2026, 11, 1);
+  private static final LocalDate RECONCILED_THROUGH = LocalDate.of(2026, 12, 2);
+  private static final LocalDate THIRD_BUSINESS_DAY_OF_DECEMBER = LocalDate.of(2026, 12, 3);
+  private static final LocalDate PAST_THE_GRACE_WINDOW = LocalDate.of(2026, 12, 9);
+  private static final Resolver MANAGEMENT_POLICY =
+      new Resolver(TUK75, MANAGEMENT, List.of(new Policy(true, LocalDate.of(2017, 3, 28), null)));
 
   @Mock private FeeAccrualRepository feeAccrualRepository;
-  @Mock private NavLedgerRepository navLedgerRepository;
+  @Mock private NavFeeAccrualLedger navFeeAccrualLedger;
+  @Mock private OutstandingFees outstandingFees;
+  @Mock private FeeChargedToFundPolicy feeChargedToFundPolicy;
 
   private SettlementCompletenessChecker checker;
 
@@ -51,110 +58,137 @@ class SettlementCompletenessCheckerTest {
   void setUp() {
     checker =
         new SettlementCompletenessChecker(
-            feeAccrualRepository, navLedgerRepository, new BusinessDays(new PublicHolidays()), 5);
+            feeAccrualRepository,
+            navFeeAccrualLedger,
+            outstandingFees,
+            feeChargedToFundPolicy,
+            new BusinessDays(new PublicHolidays()),
+            5);
   }
 
   @Test
-  void aFullySettledMonthPasses() {
+  void aMonthReleasedAtItsEndPassesWhenReleasedForWhatItAccrued() {
     givenMonthCrossed();
-    givenBalances(ZERO, ZERO);
-    givenEntries(FEE_ACCRUAL, ACCRUED);
-    givenEntries(FEE_SETTLEMENT, SETTLED);
+    givenReleasedAtMonthEnd("1234.56", "1234.56");
+    givenNothingInTheDepotFee();
 
-    assertThat(check(THIRD_BUSINESS_DAY_OF_JUNE))
+    assertThat(check(THIRD_BUSINESS_DAY_OF_DECEMBER))
         .extracting(FeeCheckFinding::severity)
         .containsOnly(PASS);
   }
 
   @Test
-  void aResidualLeftOnTheAccrualAccountIsDetected() {
-    var residual = new BigDecimal("13.32");
+  void aMonthEndReleaseThatNeverHappenedFails() {
     givenMonthCrossed();
-    givenBalances(ZERO, residual);
-    givenEntries(FEE_ACCRUAL, ACCRUED);
-    givenEntries(FEE_SETTLEMENT, SETTLED.add(residual));
+    givenReleasedAtMonthEnd("1234.56", "0");
+    givenNothingInTheDepotFee();
 
-    assertThat(failures()).anyMatch(finding -> finding.deviationAmount().compareTo(residual) == 0);
+    assertThat(management(check(THIRD_BUSINESS_DAY_OF_DECEMBER)))
+        .extracting(FeeCheckFinding::severity, FeeCheckFinding::deviationAmount)
+        .containsExactly(FAIL, new BigDecimal("1234.56"));
   }
 
   @Test
-  void aCorrectionIntoAnAlreadySettledMonthNamesTheSourceMonth() {
-    var misattributed = new BigDecimal("13.32");
+  void aCorrectionBookedAfterTheReleaseFailsWithWhatItLeftOnTheAccrualAccount() {
     givenMonthCrossed();
-    givenBalances(misattributed, ZERO);
-    givenEntries(FEE_ACCRUAL, ACCRUED);
-    givenEntries(FEE_SETTLEMENT, SETTLED.subtract(misattributed));
+    givenReleasedAtMonthEnd("1221.24", "1234.56");
+    givenNothingInTheDepotFee();
 
-    assertThat(failures())
-        .anyMatch(
-            finding ->
-                finding.message().contains(FEE_MONTH.minusMonths(1).toString())
-                    && finding.deviationAmount().compareTo(misattributed) == 0);
+    assertThat(management(check(THIRD_BUSINESS_DAY_OF_DECEMBER)))
+        .isEqualTo(
+            new FeeCheckFinding(
+                TUK75,
+                SETTLEMENT_COMPLETENESS,
+                FeeCheckScope.MANAGEMENT,
+                FAIL,
+                "MANAGEMENT fee month 2026-11-01 accrued 1221.24 but was released for 1234.56",
+                new BigDecimal("13.32"),
+                List.of("settledAmount"),
+                Map.of("feeMonth", "2026-11-01", "accrued", "1221.24", "settled", "1234.56")));
   }
 
   @Test
-  void anOrphanSettlementLeftAfterAccrualsWereDeletedIsDetected() {
+  void aMonthStillWaitingForItsDebitIsNotRunWhenTheLedgerOwesWhatTheNavOwesToTheRounding() {
     givenMonthCrossed();
-    givenBalances(ZERO, SETTLED);
-    givenEntries(FEE_ACCRUAL);
-    givenEntries(FEE_SETTLEMENT, SETTLED);
+    givenHeldUntilPaid("1234.57", "0", unpaid("1234.56"));
+    givenNothingInTheDepotFee();
 
-    assertThat(failures()).isNotEmpty();
+    assertThat(management(check(THIRD_BUSINESS_DAY_OF_DECEMBER)))
+        .extracting(FeeCheckFinding::severity, FeeCheckFinding::identifiers)
+        .containsExactly(NOT_RUN, List.of("awaitingDebit"));
   }
 
   @Test
-  void aMonthThatAccruedNothingExpectsNoSettlementAndPasses() {
+  void aCorrectionBookedOnlyToTheLedgerOfAnUnpaidMonthFails() {
     givenMonthCrossed();
-    givenBalances(ZERO, ZERO);
-    givenEntries(FEE_ACCRUAL);
-    givenEntries(FEE_SETTLEMENT);
+    givenHeldUntilPaid("900.00", "0", unpaid("1000.00"));
+    givenNothingInTheDepotFee();
 
-    assertThat(check(THIRD_BUSINESS_DAY_OF_JUNE))
+    assertThat(management(check(THIRD_BUSINESS_DAY_OF_DECEMBER)))
+        .isEqualTo(
+            new FeeCheckFinding(
+                TUK75,
+                SETTLEMENT_COMPLETENESS,
+                FeeCheckScope.MANAGEMENT,
+                FAIL,
+                "MANAGEMENT fee month 2026-11-01: the ledger owes 900.00 but the NAV owes 1000.00",
+                new BigDecimal("100.00"),
+                List.of("ledgerDiffersFromNav"),
+                Map.of(
+                    "feeMonth", "2026-11-01",
+                    "accrued", "900.00",
+                    "settled", "0",
+                    "ledgerOwes", "900.00",
+                    "navOwes", "1000.00")));
+  }
+
+  @Test
+  void aMonthItsDebitPaidPassesOnceTheLedgerSettledIt() {
+    givenMonthCrossed();
+    givenHeldUntilPaid("1234.57", "1234.57", cleared("1234.56"));
+    givenNothingInTheDepotFee();
+
+    assertThat(check(THIRD_BUSINESS_DAY_OF_DECEMBER))
         .extracting(FeeCheckFinding::severity)
         .containsOnly(PASS);
   }
 
   @Test
-  void twoSettlementsForOneMonthAreDetected() {
+  void aMonthItsDebitPaidFailsWhileTheLedgerHasNotSettledIt() {
     givenMonthCrossed();
-    givenBalances(ZERO, ZERO);
-    givenEntries(FEE_ACCRUAL, ACCRUED);
-    givenEntries(FEE_SETTLEMENT, new BigDecimal("600.00"), new BigDecimal("634.56"));
+    givenHeldUntilPaid("1234.57", "0", cleared("1234.56"));
+    givenNothingInTheDepotFee();
 
-    assertThat(failures()).isNotEmpty();
-  }
-
-  // "found 2" and "found 3" are the same severity with no amount of their own, so unless the count
-  // itself is in the identifier a duplicate settlement appearing later never reaches anyone.
-  @Test
-  void theSettlementTransactionCountIsPartOfTheIdentifier() {
-    givenMonthCrossed();
-    givenBalances(ZERO, ZERO);
-    givenEntries(FEE_ACCRUAL, ACCRUED);
-    givenEntries(FEE_SETTLEMENT, new BigDecimal("600.00"), new BigDecimal("634.56"));
-
-    assertThat(failures())
-        .flatExtracting(FeeCheckFinding::identifiers)
-        .contains("settlementTransactionCount=1/2");
+    assertThat(management(check(THIRD_BUSINESS_DAY_OF_DECEMBER)))
+        .extracting(FeeCheckFinding::severity, FeeCheckFinding::deviationAmount)
+        .containsExactly(FAIL, new BigDecimal("1234.57"));
   }
 
   @Test
-  void aRefundSettlementOfAnOverSettledMonthCountsAsTheMonthsSettlement() {
-    var overSettled = new BigDecimal("33.30");
+  void aPartlyPaidMonthPassesWhenTheLedgerReleasedWhatWasPaid() {
     givenMonthCrossed();
-    givenBalances(overSettled, ZERO);
-    givenEntries(FEE_ACCRUAL);
-    givenEntries(FEE_SETTLEMENT, overSettled.negate());
+    givenHeldUntilPaid(
+        "1234.57",
+        "1000.00",
+        new FeeMonthBalance(
+            FEE_MONTH,
+            new BigDecimal("1234.56"),
+            new BigDecimal("1000.00"),
+            new BigDecimal("234.56"),
+            null,
+            List.of(new FeeMonthPayment(RECONCILED_THROUGH, new BigDecimal("234.56")))));
+    givenNothingInTheDepotFee();
 
-    assertThat(failures())
-        .noneMatch(finding -> finding.message().contains("settlement transaction(s)"));
+    assertThat(check(THIRD_BUSINESS_DAY_OF_DECEMBER))
+        .extracting(FeeCheckFinding::severity)
+        .containsOnly(PASS);
   }
 
   @Test
   void aMonthNotYetCrossedIsNotRunRatherThanAFailure() {
     givenMonthNotCrossed();
 
-    assertThat(check(THIRD_BUSINESS_DAY_OF_JUNE))
+    assertThat(check(THIRD_BUSINESS_DAY_OF_DECEMBER))
         .extracting(FeeCheckFinding::severity)
         .containsOnly(NOT_RUN);
   }
@@ -168,34 +202,15 @@ class SettlementCompletenessCheckerTest {
         .containsOnly(WARNING);
   }
 
-  @Test
-  void theDepotAccrualIsRecordedWithoutRaisingAFinding() {
-    givenMonthCrossed();
-    givenBalances(ZERO, ZERO);
-    givenEntries(FEE_ACCRUAL, ACCRUED);
-    givenEntries(FEE_SETTLEMENT, SETTLED);
-
-    var depot =
-        check(THIRD_BUSINESS_DAY_OF_JUNE).stream()
-            .filter(finding -> finding.scope() == FeeCheckScope.DEPOT)
-            .findFirst()
-            .orElseThrow();
-
-    assertThat(depot.severity()).isEqualTo(PASS);
-    assertThat(depot.details())
-        .containsEntry("accrued", ACCRUED.toPlainString())
-        .containsEntry("settled", SETTLED.toPlainString())
-        .doesNotContainKey("grossAccrued");
-  }
-
   private List<FeeCheckFinding> check(LocalDate checkDate) {
     return checker.check(TUK75, FEE_MONTH, checkDate);
   }
 
-  private List<FeeCheckFinding> failures() {
-    return check(THIRD_BUSINESS_DAY_OF_JUNE).stream()
-        .filter(finding -> finding.severity() == FAIL)
-        .toList();
+  private static FeeCheckFinding management(List<FeeCheckFinding> findings) {
+    return findings.stream()
+        .filter(finding -> finding.scope() == FeeCheckScope.MANAGEMENT)
+        .findFirst()
+        .orElseThrow();
   }
 
   private void givenMonthCrossed() {
@@ -208,38 +223,51 @@ class SettlementCompletenessCheckerTest {
         .willReturn(false);
   }
 
-  private void givenBalances(BigDecimal opening, BigDecimal closing) {
-    Arrays.stream(FeeType.values())
-        .forEach(
-            feeType -> {
-              var account = feeType.getAccrualAccount().getAccountName(TUK75);
-              given(
-                      navLedgerRepository.getSystemAccountBalanceBefore(
-                          eq(account), eq(startOfMonth())))
-                  .willReturn(opening);
-              given(
-                      navLedgerRepository.getSystemAccountBalanceBefore(
-                          eq(account), eq(endOfMonth())))
-                  .willReturn(closing);
-            });
+  private void givenReleasedAtMonthEnd(String accrued, String settled) {
+    given(outstandingFees.releasedAtMonthEnd(MANAGEMENT, FEE_MONTH)).willReturn(true);
+    givenLedger(MANAGEMENT_FEE_ACCRUAL, accrued, settled);
   }
 
-  private void givenEntries(TransactionType transactionType, BigDecimal... amounts) {
-    var entries =
-        Arrays.stream(amounts)
-            .map(amount -> new LedgerEntryAmount(UUID.randomUUID(), startOfMonth(), amount))
-            .toList();
-    given(
-            navLedgerRepository.findEntriesByTransactionTypeBetween(
-                anyString(), eq(transactionType), any(), any()))
-        .willReturn(entries);
+  private void givenHeldUntilPaid(String accrued, String settled, FeeMonthBalance month) {
+    given(outstandingFees.releasedAtMonthEnd(MANAGEMENT, FEE_MONTH)).willReturn(false);
+    givenLedger(MANAGEMENT_FEE_ACCRUAL, accrued, settled);
+    given(feeAccrualRepository.findLatestAccrualDate(TUK75))
+        .willReturn(Optional.of(RECONCILED_THROUGH));
+    given(feeChargedToFundPolicy.resolverFor(TUK75, MANAGEMENT)).willReturn(MANAGEMENT_POLICY);
+    given(outstandingFees.monthsOn(MANAGEMENT_POLICY, RECONCILED_THROUGH))
+        .willReturn(List.of(month));
   }
 
-  private Instant startOfMonth() {
-    return FEE_MONTH.atStartOfDay(java.time.ZoneId.of("Europe/Tallinn")).toInstant();
+  private void givenNothingInTheDepotFee() {
+    given(outstandingFees.releasedAtMonthEnd(DEPOT, FEE_MONTH)).willReturn(true);
+    givenLedger(DEPOT_FEE_ACCRUAL, "0", "0");
   }
 
-  private Instant endOfMonth() {
-    return FEE_MONTH.plusMonths(1).atStartOfDay(java.time.ZoneId.of("Europe/Tallinn")).toInstant();
+  private void givenLedger(SystemAccount account, String accrued, String settled) {
+    given(navFeeAccrualLedger.accruedIn(TUK75, FEE_MONTH, account))
+        .willReturn(new BigDecimal(accrued));
+    given(navFeeAccrualLedger.settlementOf(TUK75, FEE_MONTH, account))
+        .willReturn(
+            new FeeMonthSettlement(
+                settled.equals("0")
+                    ? List.of()
+                    : List.of(
+                        new FeeMonthSettlement.Revision(
+                            RECONCILED_THROUGH, new BigDecimal(settled)))));
+  }
+
+  private static FeeMonthBalance unpaid(String accrued) {
+    return new FeeMonthBalance(
+        FEE_MONTH, new BigDecimal(accrued), ZERO, new BigDecimal(accrued), null, List.of());
+  }
+
+  private static FeeMonthBalance cleared(String accrued) {
+    return new FeeMonthBalance(
+        FEE_MONTH,
+        new BigDecimal(accrued),
+        new BigDecimal(accrued),
+        ZERO,
+        RECONCILED_THROUGH,
+        List.of(new FeeMonthPayment(RECONCILED_THROUGH, ZERO)));
   }
 }

@@ -10,6 +10,7 @@ import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.ledger.FeeMonthSettlement;
 import ee.tuleva.onboarding.ledger.LedgerEntryAmount;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
@@ -24,6 +25,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,27 +41,122 @@ public class FeeCalculationService {
 
   private final List<FeeCalculator> feeCalculators;
   private final FeeAccrualRepository feeAccrualRepository;
+  private final OutstandingFees outstandingFees;
   private final NavFeeAccrualLedger navFeeAccrualLedger;
   private final NavLedgerRepository navLedgerRepository;
   private final FeeMonthResolver feeMonthResolver;
   private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final PublicHolidays publicHolidays;
 
-  private void settleMonthlyFeesIfNeeded(TulevaFund fund, LocalDate month) {
-    Instant cutoff = month.plusMonths(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
+  private void releaseAtMonthEndIfNeeded(TulevaFund fund, LocalDate month) {
+    Instant cutoff = startOfDay(month.plusMonths(1));
     LocalDate settlementDate = month.plusMonths(1).minusDays(1);
 
     for (FeeType feeType : FeeType.values()) {
+      if (!outstandingFees.releasedAtMonthEnd(feeType, month)) {
+        continue;
+      }
       SystemAccount feeAccount = feeType.getAccrualAccount();
       BigDecimal balance =
           navLedgerRepository.getSystemAccountBalanceBefore(
               feeAccount.getAccountName(fund), cutoff);
       BigDecimal settlementAmount = balance.negate();
       if (settlementAmount.signum() != 0) {
-        navFeeAccrualLedger.settleFeeAccrual(fund, settlementDate, feeAccount, settlementAmount);
+        navFeeAccrualLedger.settleFeeAccrual(
+            fund, month, settlementDate, feeAccount, settlementAmount, 0);
       }
     }
   }
+
+  private void settleWhatTheDebitsCleared(
+      TulevaFund fund,
+      FeeType feeType,
+      List<FeeMonthBalance> months,
+      LocalDate positionReportDate) {
+    if (outstandingFees.releasedAtMonthEnd(feeType, positionReportDate.withDayOfMonth(1))) {
+      return;
+    }
+    SystemAccount feeAccount = feeType.getAccrualAccount();
+    releaseWhatIsLeftFromBeforeTheFirstHeldMonth(fund, feeAccount);
+    months.forEach(month -> settleToWhatTheDebitsPaid(fund, feeAccount, month, positionReportDate));
+  }
+
+  private void releaseWhatIsLeftFromBeforeTheFirstHeldMonth(
+      TulevaFund fund, SystemAccount feeAccount) {
+    LocalDate firstHeldMonth = outstandingFees.firstFeeMonthSettledByPayment();
+    BigDecimal left =
+        navLedgerRepository.getSystemAccountBalanceBefore(
+            feeAccount.getAccountName(fund), startOfDay(firstHeldMonth));
+    if (left.signum() == 0) {
+      return;
+    }
+    LocalDate lastReleasedMonth = firstHeldMonth.minusMonths(1);
+    navFeeAccrualLedger.settleFeeAccrual(
+        fund,
+        lastReleasedMonth,
+        firstHeldMonth.minusDays(1),
+        feeAccount,
+        left.negate(),
+        navFeeAccrualLedger.settlementOf(fund, lastReleasedMonth, feeAccount).revisions().size());
+  }
+
+  private void settleToWhatTheDebitsPaid(
+      TulevaFund fund,
+      SystemAccount feeAccount,
+      FeeMonthBalance month,
+      LocalDate positionReportDate) {
+    FeeMonthSettlement settlement =
+        navFeeAccrualLedger.settlementOf(fund, month.feeMonth(), feeAccount);
+    int revision = settlement.revisions().size();
+    BigDecimal postedNow = BigDecimal.ZERO;
+    for (SettlementTarget target :
+        settlementTargets(fund, feeAccount, month, settlement, positionReportDate)) {
+      BigDecimal delta =
+          target.amount().subtract(settlement.settledThrough(target.date())).subtract(postedNow);
+      if (delta.signum() != 0) {
+        navFeeAccrualLedger.settleFeeAccrual(
+            fund, month.feeMonth(), target.date(), feeAccount, delta, revision++);
+        postedNow = postedNow.add(delta);
+      }
+    }
+  }
+
+  private List<SettlementTarget> settlementTargets(
+      TulevaFund fund,
+      SystemAccount feeAccount,
+      FeeMonthBalance month,
+      FeeMonthSettlement settlement,
+      LocalDate positionReportDate) {
+    TreeMap<LocalDate, BigDecimal> owedAfterEachDebitDay =
+        month.payments().stream()
+            .collect(
+                toMap(
+                    FeeMonthPayment::bookedOn,
+                    FeeMonthPayment::owedAfter,
+                    (earlier, later) -> later,
+                    TreeMap::new));
+    BigDecimal accrued =
+        month.hasBeenPaid()
+            ? navFeeAccrualLedger.accruedIn(fund, month.feeMonth(), feeAccount)
+            : BigDecimal.ZERO;
+    TreeSet<LocalDate> dates = new TreeSet<>(owedAfterEachDebitDay.keySet());
+    settlement.revisions().stream()
+        .map(FeeMonthSettlement.Revision::settledOn)
+        .filter(settledOn -> !settledOn.isAfter(positionReportDate))
+        .forEach(dates::add);
+    dates.add(positionReportDate);
+    return dates.stream()
+        .map(
+            date -> {
+              Map.Entry<LocalDate, BigDecimal> owedAfter = owedAfterEachDebitDay.floorEntry(date);
+              return new SettlementTarget(
+                  date,
+                  owedAfter == null ? BigDecimal.ZERO : accrued.subtract(owedAfter.getValue()));
+            })
+        .toList();
+  }
+
+  private record SettlementTarget(LocalDate date, BigDecimal amount) {}
 
   private BigDecimal roundForLedger(BigDecimal amount) {
     return amount.setScale(2, HALF_UP);
@@ -111,7 +209,7 @@ public class FeeCalculationService {
     for (LocalDate day = startDate; !day.isAfter(positionReportDate); day = day.plusDays(1)) {
       LocalDate feeMonth = feeMonthResolver.resolveFeeMonth(day);
       if (!feeMonth.equals(previousFeeMonth)) {
-        settleMonthlyFeesIfNeeded(fund, feeMonth.minusMonths(1));
+        releaseAtMonthEndIfNeeded(fund, feeMonth.minusMonths(1));
       }
       BigDecimal dayBaseValue = day.isBefore(positionReportDate) ? previousBaseValue : baseValue;
       reconcileDay(fund, day, dayBaseValue, chargedPolicies, securityPrices);
@@ -120,25 +218,18 @@ public class FeeCalculationService {
     reconcileNonWorkingDaysAfter(
         fund, positionReportDate, baseValue, chargedPolicies, securityPrices);
 
-    BigDecimal mgmtFee = chargedAccrual(chargedPolicies, fund, MANAGEMENT, positionReportDate);
-    BigDecimal depotFee = chargedAccrual(chargedPolicies, fund, DEPOT, positionReportDate);
-    return new FeeResult(mgmtFee, depotFee);
+    List<FeeMonthBalance> managementMonths =
+        outstandingFees.monthsOn(policyFor(chargedPolicies, MANAGEMENT), positionReportDate);
+    List<FeeMonthBalance> depotMonths =
+        outstandingFees.monthsOn(policyFor(chargedPolicies, DEPOT), positionReportDate);
+    settleWhatTheDebitsCleared(fund, MANAGEMENT, managementMonths, positionReportDate);
+    settleWhatTheDebitsCleared(fund, DEPOT, depotMonths, positionReportDate);
+    return new FeeResult(OutstandingFees.owed(managementMonths), OutstandingFees.owed(depotMonths));
   }
 
-  private BigDecimal chargedAccrual(
-      Map<FeeType, FeeChargedToFundPolicy.Resolver> policies,
-      TulevaFund fund,
-      FeeType feeType,
-      LocalDate positionReportDate) {
-    Map<LocalDate, BigDecimal> byDate =
-        feeAccrualRepository.getUnsettledAccrualByDate(fund, feeType, positionReportDate);
-    FeeChargedToFundPolicy.Resolver resolver =
-        requireNonNull(policies.get(feeType), "No fee policy resolver: feeType=" + feeType);
-    return roundedToCents(resolver.sumChargedDays(byDate));
-  }
-
-  private static BigDecimal roundedToCents(BigDecimal amount) {
-    return amount.signum() == 0 ? BigDecimal.ZERO : amount.setScale(2, HALF_UP);
+  private static FeeChargedToFundPolicy.Resolver policyFor(
+      Map<FeeType, FeeChargedToFundPolicy.Resolver> policies, FeeType feeType) {
+    return requireNonNull(policies.get(feeType), "No fee policy resolver: feeType=" + feeType);
   }
 
   private void reconcileNonWorkingDaysAfter(
@@ -174,10 +265,7 @@ public class FeeCalculationService {
       if (existing.filter(accrual::sameValuesAs).isEmpty()) {
         feeAccrualRepository.save(accrual);
       }
-      FeeChargedToFundPolicy.Resolver resolver =
-          requireNonNull(
-              chargedPolicies.get(accrual.feeType()),
-              "No fee policy resolver: feeType=" + accrual.feeType());
+      FeeChargedToFundPolicy.Resolver resolver = policyFor(chargedPolicies, accrual.feeType());
       reconcileLedger(fund, date, accrual, resolver.chargedOn(date), securityPrices);
     }
   }

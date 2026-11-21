@@ -41,8 +41,8 @@ public class FeeAccrualRepository {
         .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
-  public Map<LocalDate, BigDecimal> getUnsettledAccrualByDate(
-      TulevaFund fund, FeeType feeType, LocalDate asOfDate) {
+  public Map<LocalDate, BigDecimal> getAccrualByDateBetween(
+      TulevaFund fund, FeeType feeType, LocalDate from, LocalDate to) {
     return jdbcClient
         .sql(
             """
@@ -50,14 +50,13 @@ public class FeeAccrualRepository {
             FROM investment_fee_accrual
             WHERE fund_code = :fundCode
               AND fee_type = :feeType
-              AND fee_month = :feeMonth
-              AND accrual_date <= :asOfDate
+              AND accrual_date BETWEEN :from AND :to
             GROUP BY accrual_date
             """)
         .param("fundCode", fund.name())
         .param("feeType", feeType.name())
-        .param("feeMonth", asOfDate.withDayOfMonth(1))
-        .param("asOfDate", asOfDate)
+        .param("from", from)
+        .param("to", to)
         .query((rs, rowNum) -> Map.entry(rs.getDate(1).toLocalDate(), rs.getBigDecimal(2)))
         .list()
         .stream()

@@ -190,6 +190,59 @@ class TransactionOrderFactoryTest {
   }
 
   @Test
+  void createOrders_aFullSaleOverByLessThanTheCentItsValueWasRoundedToSellsExactlyTheUnitsHeld() {
+    var input =
+        holding(
+            new PositionSnapshot(
+                "IE00ETF",
+                new BigDecimal("4601.75"),
+                new BigDecimal("123"),
+                new BigDecimal("37.41253")),
+            Map.of("IE00ETF", new SellableUnits(new BigDecimal("123"), BigDecimal.ZERO)));
+    var price =
+        new IndexPrice(
+            ResolvedPrice.builder()
+                .usedPrice(new BigDecimal("37.41253"))
+                .priceDate(AS_OF_DATE)
+                .build());
+
+    var calculated = sellOn(input, "-4601.75", price);
+
+    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("123");
+    assertThat(calculated.unsellable()).isEmpty();
+  }
+
+  @Test
+  void createOrders_aSaleOverByMoreThanACentStillStops() {
+    var input =
+        holding(
+            new PositionSnapshot(
+                "IE00ETF",
+                new BigDecimal("4601.75"),
+                new BigDecimal("123"),
+                new BigDecimal("37.41253")),
+            Map.of("IE00ETF", new SellableUnits(new BigDecimal("123"), BigDecimal.ZERO)));
+    var price =
+        new IndexPrice(
+            ResolvedPrice.builder()
+                .usedPrice(new BigDecimal("37.41253"))
+                .priceDate(AS_OF_DATE)
+                .build());
+
+    var calculated = sellOn(input, "-4601.7512", price);
+
+    assertThat(calculated.unsellable())
+        .containsExactly(
+            new InputGateFailure.SaleBeyondSellableUnits(
+                "IE00ETF",
+                new BigDecimal("123.000268"),
+                new BigDecimal("123"),
+                BigDecimal.ZERO,
+                new BigDecimal("123"),
+                new BigDecimal("37.41253")));
+  }
+
+  @Test
   void createOrders_aPartialSaleWithinTheSellableUnitsPasses() {
     var input =
         holding(

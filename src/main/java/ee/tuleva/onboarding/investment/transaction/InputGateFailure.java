@@ -105,13 +105,16 @@ sealed interface InputGateFailure {
     }
 
     private String confirmedPriceOf(PriceDeviation deviation) {
-      return confirmationsAtAnotherPrice.stream()
-          .filter(confirmation -> confirmation.isin().equals(deviation.isin()))
-          .map(
-              confirmation ->
-                  ", kinnitus on hinnale "
-                      + confirmation.price().stripTrailingZeros().toPlainString())
-          .collect(joining());
+      List<String> prices =
+          confirmationsAtAnotherPrice.stream()
+              .filter(confirmation -> confirmation.isin().equals(deviation.isin()))
+              .map(confirmation -> confirmation.price().stripTrailingZeros().toPlainString())
+              .toList();
+      return switch (prices.size()) {
+        case 0 -> "";
+        case 1 -> ", kinnitus on hinnale " + prices.getFirst();
+        default -> ", kinnitused on hindadele " + String.join(", ", prices);
+      };
     }
   }
 

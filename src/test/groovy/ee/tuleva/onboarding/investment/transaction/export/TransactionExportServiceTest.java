@@ -21,12 +21,13 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.jupiter.api.Test;
 
 class TransactionExportServiceTest {
+
+  private static final short EXCEL_BUILT_IN_SHORT_DATE = 14;
 
   private final FundAccounts fundAccounts = testFundAccounts();
   private final TransactionExportService service = new TransactionExportService(fundAccounts);
@@ -282,7 +283,7 @@ class TransactionExportServiceTest {
 
     try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(xlsx))) {
       var sheet = workbook.getSheetAt(0);
-      assertThat(sheet.getSheetName()).isEqualTo("FT ETF");
+      assertThat(sheet.getSheetName()).isEqualTo("Sheet1");
 
       var headerRow = sheet.getRow(0);
       assertThat(headerRow.getCell(0).getStringCellValue()).isEqualTo("Symbol");
@@ -311,10 +312,9 @@ class TransactionExportServiceTest {
           .isEqualTo(DateUtil.getExcelDate(settlementDate));
       assertThat(
               List.of(
-                  dataRow.getCell(3).getCellStyle().getDataFormatString(),
-                  new DataFormatter().formatCellValue(dataRow.getCell(3)),
-                  new DataFormatter().formatCellValue(dataRow.getCell(4))))
-          .containsExactly("m/d/yyyy", "1/15/2026", "1/20/2026");
+                  dataRow.getCell(3).getCellStyle().getDataFormat(),
+                  dataRow.getCell(4).getCellStyle().getDataFormat()))
+          .containsExactly(EXCEL_BUILT_IN_SHORT_DATE, EXCEL_BUILT_IN_SHORT_DATE);
       assertThat(dataRow.getCell(5).getStringCellValue()).isEqualTo("iShares ESG MSCI");
       assertThat(dataRow.getCell(6).getStringCellValue()).isEqualTo("IE00FT");
       assertThat(dataRow.getCell(7).getNumericCellValue()).isEqualTo(450000.0);
@@ -323,11 +323,33 @@ class TransactionExportServiceTest {
       assertThat((long) dataRow.getCell(10).getNumericCellValue()).isEqualTo(600L);
 
       var totalRow = sheet.getRow(2);
-      assertThat(totalRow.getCell(0).getStringCellValue())
+      assertThat(totalRow.getCell(0)).isNull();
+      assertThat(totalRow.getCell(6).getStringCellValue())
           .isEqualTo("Approximate total order size:");
       assertThat(totalRow.getCell(7).getNumericCellValue()).isEqualTo(450000.0);
 
       assertThat(sheet.getPhysicalNumberOfRows()).isEqualTo(3);
+    }
+  }
+
+  @Test
+  void generateFtEtfExport_leavesTheQuantityOfAFundWithoutAnOrderEmptyLikeTheGasFile()
+      throws Exception {
+    var batch = buildBatch();
+    var order = buildOrder(batch, TUK75, "IE00FT", BUY, ETF, FT, new BigDecimal("200000"), 800L);
+
+    byte[] xlsx =
+        service.generateFtEtfExport(
+            List.of(order),
+            Map.of("IE00FT", "iShares ESG MSCI"),
+            Map.of("IE00FT", "ESGM GY"),
+            LocalDate.of(2026, 11, 17));
+
+    try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(xlsx))) {
+      var dataRow = workbook.getSheetAt(0).getRow(1);
+      assertThat(dataRow.getCell(8)).isNull();
+      assertThat(dataRow.getCell(9).getNumericCellValue()).isEqualTo(800.0);
+      assertThat(dataRow.getCell(10)).isNull();
     }
   }
 

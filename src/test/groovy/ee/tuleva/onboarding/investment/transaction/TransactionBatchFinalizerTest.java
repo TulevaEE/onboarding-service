@@ -95,6 +95,7 @@ class TransactionBatchFinalizerTest {
             .fund(TUV100)
             .status(CONFIRMED)
             .createdBy("system")
+            .createdAt(Instant.parse("2026-01-15T07:00:00Z"))
             .metadata(new HashMap<>(Map.of("commandId", 1L)))
             .build();
 
@@ -106,7 +107,7 @@ class TransactionBatchFinalizerTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
+            .orderQuantity(new BigDecimal("9876"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.DRAFT)
             .build();
@@ -158,6 +159,59 @@ class TransactionBatchFinalizerTest {
   }
 
   @Test
+  void finalizeConfirmedBatch_aBatchPreparedOnAnEarlierDay_isRefusedAndNothingIsSent() {
+    given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
+    var batch =
+        TransactionBatch.builder()
+            .id(1L)
+            .fund(TUV100)
+            .status(CONFIRMED)
+            .createdBy("system")
+            .createdAt(Instant.parse("2026-01-14T15:00:00Z"))
+            .metadata(new HashMap<>(Map.of("commandId", 1L)))
+            .build();
+
+    assertThatThrownBy(() -> finalizer.finalizeConfirmedBatch(batch))
+        .isInstanceOf(TransactionBatchRefusedException.class);
+
+    verifyNoInteractions(orderRepository, exportService, batchRepository, eventPublisher);
+    assertThat(batch.getStatus()).isEqualTo(CONFIRMED);
+  }
+
+  @Test
+  void finalizeConfirmedBatch_aBatchPreparedLateTheEveningBeforeInTallinn_isRefused() {
+    given(clock.instant()).willReturn(Instant.parse("2026-01-15T07:00:00Z"));
+    var batch =
+        TransactionBatch.builder()
+            .id(1L)
+            .fund(TUV100)
+            .status(CONFIRMED)
+            .createdBy("system")
+            .createdAt(Instant.parse("2026-01-14T21:30:00Z"))
+            .metadata(new HashMap<>(Map.of("commandId", 1L)))
+            .build();
+
+    assertThatThrownBy(() -> finalizer.finalizeConfirmedBatch(batch))
+        .isInstanceOf(TransactionBatchRefusedException.class);
+  }
+
+  @Test
+  void finalizeConfirmedBatch_aBatchWithoutAPreparationTime_isRefused() {
+    given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
+    var batch =
+        TransactionBatch.builder()
+            .id(1L)
+            .fund(TUV100)
+            .status(CONFIRMED)
+            .createdBy("system")
+            .metadata(new HashMap<>(Map.of("commandId", 1L)))
+            .build();
+
+    assertThatThrownBy(() -> finalizer.finalizeConfirmedBatch(batch))
+        .isInstanceOf(TransactionBatchRefusedException.class);
+  }
+
+  @Test
   void finalizeConfirmedBatch_usesBatchConfirmedByAsAuditActorWhenPresent() {
     when(clock.instant()).thenReturn(Instant.parse("2026-01-15T10:00:00Z"));
 
@@ -167,6 +221,7 @@ class TransactionBatchFinalizerTest {
             .fund(TUV100)
             .status(CONFIRMED)
             .createdBy("system")
+            .createdAt(Instant.parse("2026-01-15T07:00:00Z"))
             .confirmedBy("approver-3")
             .metadata(new HashMap<>(Map.of("commandId", 1L)))
             .build();
@@ -179,7 +234,7 @@ class TransactionBatchFinalizerTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
+            .orderQuantity(new BigDecimal("9876"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.DRAFT)
             .build();
@@ -208,6 +263,7 @@ class TransactionBatchFinalizerTest {
             .fund(TUV100)
             .status(CONFIRMED)
             .createdBy("system")
+            .createdAt(Instant.parse("2026-01-15T07:00:00Z"))
             .metadata(new HashMap<>(Map.of("commandId", 1L)))
             .build();
     var order =
@@ -218,7 +274,7 @@ class TransactionBatchFinalizerTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
+            .orderQuantity(new BigDecimal("9876"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.DRAFT)
             .build();
@@ -274,6 +330,7 @@ class TransactionBatchFinalizerTest {
             .fund(TUV100)
             .status(CONFIRMED)
             .createdBy("system")
+            .createdAt(Instant.parse("2026-01-15T07:00:00Z"))
             .metadata(new HashMap<>(Map.of("commandId", 1L)))
             .build();
     var order =
@@ -284,7 +341,7 @@ class TransactionBatchFinalizerTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
+            .orderQuantity(new BigDecimal("9876"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.DRAFT)
             .build();
@@ -340,6 +397,7 @@ class TransactionBatchFinalizerTest {
             .fund(TUV100)
             .status(CONFIRMED)
             .createdBy("system")
+            .createdAt(Instant.parse("2026-01-15T22:30:00Z"))
             .metadata(new HashMap<>(Map.of("commandId", 1L)))
             .build();
 
@@ -351,7 +409,7 @@ class TransactionBatchFinalizerTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
+            .orderQuantity(new BigDecimal("9876"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.DRAFT)
             .build();
@@ -383,6 +441,7 @@ class TransactionBatchFinalizerTest {
             .fund(TUV100)
             .status(CONFIRMED)
             .createdBy("system")
+            .createdAt(Instant.parse("2026-01-15T07:00:00Z"))
             .metadata(new HashMap<>(Map.of("commandId", 1L)))
             .build();
     var etfOrderWithoutQuantity =
@@ -401,7 +460,7 @@ class TransactionBatchFinalizerTest {
         .willReturn(List.of(etfOrderWithoutQuantity));
 
     assertThatThrownBy(() -> finalizer.finalizeConfirmedBatch(batch))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(TransactionBatchRefusedException.class);
 
     assertThat(batch.getStatus()).isEqualTo(CONFIRMED);
     verifyNoInteractions(exportService);
@@ -416,6 +475,7 @@ class TransactionBatchFinalizerTest {
             .fund(TUV100)
             .status(SENT)
             .createdBy("system")
+            .createdAt(Instant.parse("2026-01-15T07:00:00Z"))
             .metadata(new HashMap<>(Map.of("commandId", 1L)))
             .build();
 
@@ -436,6 +496,7 @@ class TransactionBatchFinalizerTest {
             .fund(TUV100)
             .status(CONFIRMED)
             .createdBy("system")
+            .createdAt(Instant.parse("2026-01-15T07:00:00Z"))
             .metadata(new HashMap<>(Map.of("commandId", 1L)))
             .build();
 
@@ -447,7 +508,7 @@ class TransactionBatchFinalizerTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
+            .orderQuantity(new BigDecimal("9876"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.DRAFT)
             .build();
@@ -492,6 +553,7 @@ class TransactionBatchFinalizerTest {
             .fund(TUV100)
             .status(CONFIRMED)
             .createdBy("system")
+            .createdAt(Instant.parse("2026-01-15T07:00:00Z"))
             .metadata(new HashMap<>(Map.of("commandId", 1L)))
             .build();
 
@@ -527,6 +589,7 @@ class TransactionBatchFinalizerTest {
             .fund(TUV100)
             .status(CONFIRMED)
             .createdBy("system")
+            .createdAt(Instant.parse("2026-01-15T07:00:00Z"))
             .metadata(new HashMap<>(Map.of("commandId", 1L)))
             .build();
 
@@ -538,7 +601,7 @@ class TransactionBatchFinalizerTest {
             .transactionType(TransactionType.BUY)
             .instrumentType(InstrumentType.ETF)
             .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
+            .orderQuantity(new BigDecimal("9876"))
             .orderVenue(OrderVenue.SEB)
             .orderStatus(OrderStatus.DRAFT)
             .build();

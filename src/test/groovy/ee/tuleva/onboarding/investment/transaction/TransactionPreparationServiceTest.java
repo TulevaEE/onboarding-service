@@ -629,7 +629,7 @@ class TransactionPreparationServiceTest {
                   return "BUY".equals(trade.get("side"))
                       && "SEB".equals(trade.get("venue"))
                       && "ETF".equals(trade.get("instrumentType"))
-                      && "50000.000000".equals(trade.get("quantity"));
+                      && "50000".equals(trade.get("quantity"));
                 }));
   }
 
@@ -1215,7 +1215,11 @@ class TransactionPreparationServiceTest {
             .positions(
                 List.of(
                     new PositionSnapshot("IE00ETF", new BigDecimal("300000")),
-                    new PositionSnapshot("IE00ETF2", new BigDecimal("100000")),
+                    new PositionSnapshot(
+                        "IE00ETF2",
+                        new BigDecimal("100000"),
+                        new BigDecimal("12500"),
+                        new BigDecimal("8")),
                     new PositionSnapshot("LU00FUND", new BigDecimal("200000"))))
             .modelWeights(
                 List.of(
@@ -1267,10 +1271,10 @@ class TransactionPreparationServiceTest {
     var result = service.processCommand(command);
 
     var etfBuyOrder = orderByIsin(result, "IE00ETF");
-    assertThat(etfBuyOrder.getOrderQuantity()).isEqualTo(new BigDecimal("16666.666667"));
+    assertThat(etfBuyOrder.getOrderQuantity()).isEqualTo(new BigDecimal("16666"));
 
     var etfSellOrder = orderByIsin(result, "IE00ETF2");
-    assertThat(etfSellOrder.getOrderQuantity()).isEqualTo(new BigDecimal("3750.000000"));
+    assertThat(etfSellOrder.getOrderQuantity()).isEqualTo(new BigDecimal("3750"));
 
     var fundOrder = orderByIsin(result, "LU00FUND");
     assertThat(fundOrder.getOrderQuantity()).isNull();

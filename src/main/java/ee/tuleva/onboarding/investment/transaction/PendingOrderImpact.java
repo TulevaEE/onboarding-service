@@ -22,7 +22,7 @@ record PendingOrderImpact(
         unreportedPositionQuantities,
         buysInTheBalance,
         sellsInTheBalance,
-        quantities);
+        Map.copyOf(quantities));
   }
 
   static PendingOrderImpact none() {

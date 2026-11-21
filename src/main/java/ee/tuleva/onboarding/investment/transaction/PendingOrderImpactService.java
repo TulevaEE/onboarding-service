@@ -134,22 +134,24 @@ class PendingOrderImpactService {
       return Map.of();
     }
     Map<Long, List<TransactionExecution>> executionsByOrder = executionsByOrderId(sales);
-    return sales.stream()
-        .collect(
-            toMap(
-                TransactionOrder::getInstrumentIsin,
-                sale -> {
-                  List<TransactionExecution> executions =
-                      executionsByOrder.getOrDefault(sale.getId(), List.of());
-                  BigDecimal unreportedFills =
-                      classifyAgainstPositionReport(sale, executions, positionDate).stream()
-                          .map(ClassifiedFill::unreportedQuantity)
-                          .reduce(ZERO, BigDecimal::add);
-                  return sale.getOrderStatus() == OrderStatus.SENT
-                      ? unreportedFills.add(unfilledQuantity(sale, ExecutedTotals.of(executions)))
-                      : unreportedFills;
-                },
-                BigDecimal::add));
+    return Map.copyOf(
+        sales.stream()
+            .collect(
+                toMap(
+                    TransactionOrder::getInstrumentIsin,
+                    sale -> {
+                      List<TransactionExecution> executions =
+                          executionsByOrder.getOrDefault(sale.getId(), List.of());
+                      BigDecimal unreportedFills =
+                          classifyAgainstPositionReport(sale, executions, positionDate).stream()
+                              .map(ClassifiedFill::unreportedQuantity)
+                              .reduce(ZERO, BigDecimal::add);
+                      return sale.getOrderStatus() == OrderStatus.SENT
+                          ? unreportedFills.add(
+                              unfilledQuantity(sale, ExecutedTotals.of(executions)))
+                          : unreportedFills;
+                    },
+                    BigDecimal::add)));
   }
 
   private static List<ClassifiedFill> classifyAgainstPositionReport(

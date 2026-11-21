@@ -175,6 +175,58 @@ class GatewayNettingIT {
     assertThat(unitsReservedForSales()).isEqualByComparingTo("600");
   }
 
+  @Test
+  void anExecutedSaleWhoseFillTheReportDoesNotShowYetReservesTheFill() {
+    saleWithFill(OrderStatus.EXECUTED, "600", "300", TODAY);
+
+    assertThat(unitsReservedForSales()).isEqualByComparingTo("300");
+  }
+
+  @Test
+  void anExecutedSaleWhoseFillTheReportShowsReservesNothing() {
+    saleWithFill(OrderStatus.EXECUTED, "600", "300", REPORT_DATE);
+
+    assertThat(unitsReservedForSales()).isEqualByComparingTo("0");
+  }
+
+  @Test
+  void aCancelledSaleReservesOnlyTheFillTheReportDoesNotShowYet() {
+    saleWithFill(OrderStatus.CANCELLED, "600", "200", TODAY);
+
+    assertThat(unitsReservedForSales()).isEqualByComparingTo("200");
+  }
+
+  private void saleWithFill(
+      OrderStatus status, String orderQuantity, String fillQuantity, LocalDate reported) {
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TUK75).createdBy("test").build());
+    TransactionOrder order =
+        orderRepository.save(
+            TransactionOrder.builder()
+                .batch(batch)
+                .fund(TUK75)
+                .instrumentIsin(ISIN)
+                .transactionType(SELL)
+                .instrumentType(InstrumentType.FUND)
+                .orderQuantity(new BigDecimal(orderQuantity))
+                .orderVenue(OrderVenue.SEB)
+                .orderStatus(status)
+                .orderTimestamp(Instant.parse("2026-11-18T08:00:00Z"))
+                .expectedSettlementDate(REPORT_DATE)
+                .build());
+    executionRepository.save(
+        TransactionExecution.builder()
+            .orderId(order.getId())
+            .brokerTransactionId("FILL-" + status)
+            .executionTimestamp(Instant.parse("2026-11-18T10:00:00Z"))
+            .executedQuantity(new BigDecimal(fillQuantity))
+            .totalConsideration(new BigDecimal("10000"))
+            .source("SEB_OOTEL")
+            .reportedDate(reported)
+            .build());
+    entityManager.flush();
+  }
+
   private BigDecimal unitsReservedForSales() {
     return pendingOrderImpactService
         .calculate(TUK75, TODAY, REPORT_DATE, TradePrepPricingFixture.noResolvedPrices(), Set.of())

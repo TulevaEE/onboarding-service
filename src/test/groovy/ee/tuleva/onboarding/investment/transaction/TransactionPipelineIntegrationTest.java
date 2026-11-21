@@ -1655,6 +1655,60 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Test
+  void sellingAFundOutBesideAnOutstandingSaleNeverCommitsMoreUnitsThanTheReportHolds() {
+    jdbcClient
+        .sql(
+            "UPDATE investment_model_portfolio_allocation SET weight = 0"
+                + " WHERE fund_code = 'TKF100' AND isin = 'IE00BFG1TM61'")
+        .update();
+    jdbcClient
+        .sql(
+            "UPDATE investment_model_portfolio_allocation SET weight = 0.29000000"
+                + " WHERE fund_code = 'TKF100' AND isin = 'IE00BMDBMY19'")
+        .update();
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
+    orderRepository.save(
+        TransactionOrder.builder()
+            .batch(batch)
+            .fund(TKF100)
+            .instrumentIsin("IE00BFG1TM61")
+            .transactionType(TransactionType.SELL)
+            .instrumentType(InstrumentType.FUND)
+            .orderQuantity(new BigDecimal("30000"))
+            .orderVenue(OrderVenue.SEB)
+            .orderStatus(OrderStatus.SENT)
+            .orderTimestamp(Instant.parse("2026-02-10T08:00:00Z"))
+            .expectedSettlementDate(LocalDate.of(2026, 2, 12))
+            .build());
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(new PriceOverride("IE00BFG1TM61", new BigDecimal("15.00"), "Issuer's NAV")),
+                null,
+                null,
+                List.of(new PriceDeviationConfirmation("IE00BFG1TM61", new BigDecimal("15.00")))),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    var sale =
+        response.orders().stream()
+            .filter(order -> order.instrumentIsin().equals("IE00BFG1TM61"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(sale.orderQuantity().add(new BigDecimal("30000"))).isEqualByComparingTo("45000");
+    assertThat(response.calculationSnapshot().get("calculationWarnings").toString())
+        .contains("SELL_CAPPED_AT_HOLDING");
+  }
+
+  @Test
   void aConfirmationForAnInstrumentWithoutAManualPriceFailsTheCommand() {
     var response =
         commandRunner.createAndProcess(

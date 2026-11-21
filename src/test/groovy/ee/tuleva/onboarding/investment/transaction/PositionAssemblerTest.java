@@ -78,7 +78,8 @@ class PositionAssemblerTest {
             Map.of("IE00A", new BigDecimal("40000")),
             Map.of(),
             ZERO,
-            ZERO);
+            ZERO,
+            Map.of());
 
     var result = assembler.assemble(TUV100, POSITION_DATE, pendingOrders);
 
@@ -109,7 +110,8 @@ class PositionAssemblerTest {
             Map.of("IE00B", new BigDecimal("-1000")),
             Map.of("IE00B", new BigDecimal("-20")),
             ZERO,
-            ZERO);
+            ZERO,
+            Map.of());
 
     var result = assembler.assemble(TUV100, POSITION_DATE, pendingOrders);
 
@@ -146,7 +148,8 @@ class PositionAssemblerTest {
             Map.of("IE00A", new BigDecimal("40000")),
             Map.of("IE00A", new BigDecimal("80")),
             ZERO,
-            ZERO);
+            ZERO,
+            Map.of());
 
     var result = assembler.assemble(TUV100, POSITION_DATE, pendingOrders);
 
@@ -173,7 +176,8 @@ class PositionAssemblerTest {
             Map.of("IE00NEW", new BigDecimal("25000")),
             Map.of(),
             ZERO,
-            ZERO);
+            ZERO,
+            Map.of());
 
     var result = assembler.assemble(TUV100, POSITION_DATE, pendingOrders);
 

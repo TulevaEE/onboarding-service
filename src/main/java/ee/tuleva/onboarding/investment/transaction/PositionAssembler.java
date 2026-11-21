@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ZERO;
+import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -32,6 +33,22 @@ class PositionAssembler {
       TulevaFund fund, LocalDate positionDate, PendingOrderImpact pendingOrders) {
     List<PositionSnapshot> positions = getPositions(fund, positionDate);
     return applyUnreportedPositions(positions, pendingOrders);
+  }
+
+  Map<String, SellableUnits> sellableUnits(
+      TulevaFund fund, LocalDate positionDate, PendingOrderImpact pendingOrders) {
+    return getPositions(fund, positionDate).stream()
+        .filter(position -> position.isin() != null && position.quantity() != null)
+        .collect(
+            toMap(
+                position -> Objects.requireNonNull(position.isin()),
+                position ->
+                    new SellableUnits(
+                        Objects.requireNonNull(position.quantity()),
+                        pendingOrders
+                            .unreportedSellQuantities()
+                            .getOrDefault(position.isin(), ZERO)),
+                (first, second) -> first));
   }
 
   private List<PositionSnapshot> getPositions(TulevaFund fund, LocalDate date) {

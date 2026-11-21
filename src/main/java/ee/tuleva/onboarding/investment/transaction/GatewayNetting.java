@@ -2,47 +2,34 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction.INFLOW;
 import static ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction.OUTFLOW;
-import static ee.tuleva.onboarding.ledger.RegistrarPayoutReason.THIRD_PILLAR_REDEMPTION;
-import static ee.tuleva.onboarding.ledger.RegistrarPayoutReason.THIRD_PILLAR_SWITCH;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.investment.epis.R45Row;
 import ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction;
-import ee.tuleva.onboarding.ledger.RegistrarCashFlowRepository;
-import ee.tuleva.onboarding.ledger.RegistrarPayout;
-import ee.tuleva.onboarding.ledger.RegistrarPayoutReason;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
-import lombok.RequiredArgsConstructor;
+import java.util.function.Predicate;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 @NullMarked
 class GatewayNetting {
-
-  private static final Set<RegistrarPayoutReason> R45_PAYOUTS =
-      Set.of(THIRD_PILLAR_REDEMPTION, THIRD_PILLAR_SWITCH);
-
-  private final RegistrarCashFlowRepository registrarCashFlows;
 
   Netted<BigDecimal> r45(NettingWindow window, List<R45Row> rows) {
     LocalDate today = window.today();
     List<R45Row> notYetSettled = rows.stream().filter(row -> !settlesBefore(row, today)).toList();
-    List<R45Row> later = rows.stream().filter(row -> settlesAfter(row, today)).toList();
-    BigDecimal outflowDueToday =
-        valueOf(rows.stream().filter(row -> today.equals(row.settlementDate())).toList(), OUTFLOW);
-    BigDecimal paidToday =
-        registrarCashFlows.findPayouts(window.fund(), today, today).stream()
-            .filter(payout -> R45_PAYOUTS.contains(payout.reason()))
-            .map(RegistrarPayout::amount)
-            .reduce(ZERO, BigDecimal::add);
+    BigDecimal outflowDueTodayOrUndated =
+        valueOf(
+            rows.stream()
+                .filter(row -> row.settlementDate() == null || today.equals(row.settlementDate()))
+                .toList(),
+            OUTFLOW);
+    List<R45Row> later = rows.stream().filter(settlesAfter(today)).toList();
     return new Netted<>(
         outflowBeyondInflow(notYetSettled),
-        ZERO.max(outflowDueToday.subtract(paidToday)).add(outflowBeyondInflow(later)));
+        outflowDueTodayOrUndated.add(outflowBeyondInflow(later)));
   }
 
   private static boolean settlesBefore(R45Row row, LocalDate day) {
@@ -50,9 +37,11 @@ class GatewayNetting {
     return settlementDate != null && settlementDate.isBefore(day);
   }
 
-  private static boolean settlesAfter(R45Row row, LocalDate day) {
-    LocalDate settlementDate = row.settlementDate();
-    return settlementDate == null || settlementDate.isAfter(day);
+  private static Predicate<R45Row> settlesAfter(LocalDate day) {
+    return row -> {
+      LocalDate settlementDate = row.settlementDate();
+      return settlementDate != null && settlementDate.isAfter(day);
+    };
   }
 
   private static BigDecimal outflowBeyondInflow(List<R45Row> rows) {

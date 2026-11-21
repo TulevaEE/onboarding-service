@@ -178,7 +178,7 @@ class GatewayNettingIT {
   }
 
   @Test
-  void r45RowsSettlingTodayDropTheThirdPillarPayoutsBookedTodayAndTheirInflowsAreNotCounted() {
+  void r45RowsSettlingTodayReserveTheirWholeOutflowWhateverWasPaidTodayAndTheirInflowsDoNotCount() {
     var window = new NettingWindow(TUV100, REPORT_DATE, TODAY, Set.of());
     payout(TUV100, "70000.00", TODAY, "38888888888, Osakute lunastamine");
     payout(TUV100, "10000.00", TODAY, "38888888888, Osakute vahetamine");
@@ -194,10 +194,11 @@ class GatewayNettingIT {
                 new R45Row(OUTFLOW, new BigDecimal("30000.00"), TODAY.plusDays(3)),
                 new R45Row(INFLOW, new BigDecimal("25000.00"), TODAY.plusDays(3)),
                 new R45Row(OUTFLOW, new BigDecimal("8000.00"), null),
+                new R45Row(INFLOW, new BigDecimal("6000.00"), null),
                 new R45Row(OUTFLOW, new BigDecimal("50000.00"), REPORT_DATE)));
 
-    assertThat(netted.before()).isEqualByComparingTo("73000.00");
-    assertThat(netted.after()).isEqualByComparingTo("33000.00");
+    assertThat(netted.before()).isEqualByComparingTo("67000.00");
+    assertThat(netted.after()).isEqualByComparingTo("113000.00");
   }
 
   @Test

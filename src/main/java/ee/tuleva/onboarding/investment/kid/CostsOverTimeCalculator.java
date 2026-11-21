@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 @Component
 class CostsOverTimeCalculator {
 
-  private static final int ANNEX_VI_P78_PERCENT_TO_ONE_DECIMAL_AS_A_FRACTION_SCALE = 3;
+  private static final int ANNEX_VI_P88_PERCENT_TO_TWO_DECIMALS_AS_A_FRACTION_SCALE = 4;
   private static final int ANNEX_VI_P78_WHOLE_EUROS_SCALE = 0;
 
   KidCost firstYearAtZeroNetReturn(double ongoingCharges) {
@@ -42,6 +42,6 @@ class CostsOverTimeCalculator {
 
   private static BigDecimal rate(double value) {
     return BigDecimal.valueOf(value)
-        .setScale(ANNEX_VI_P78_PERCENT_TO_ONE_DECIMAL_AS_A_FRACTION_SCALE, HALF_UP);
+        .setScale(ANNEX_VI_P88_PERCENT_TO_TWO_DECIMALS_AS_A_FRACTION_SCALE, HALF_UP);
   }
 }

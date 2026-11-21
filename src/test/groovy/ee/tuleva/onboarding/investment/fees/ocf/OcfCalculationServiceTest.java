@@ -96,9 +96,7 @@ class OcfCalculationServiceTest {
   void noKidIsRecordedByDefault() {
     given(kidComparisons.atTheMonthEndOf(any(), any()))
         .willAnswer(
-            invocation ->
-                new KidComparison(
-                    PublishedPrecision.of(invocation.getArgument(0)), null, null, false));
+            invocation -> new KidComparison(PublishedPrecision.forANewKid(), null, null, false));
   }
 
   @BeforeEach

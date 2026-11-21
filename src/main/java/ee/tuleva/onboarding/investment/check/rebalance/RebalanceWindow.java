@@ -22,17 +22,16 @@ public record RebalanceWindow(
     @Nullable LocalDate latestNavDate,
     List<Deviation> outsideToleranceAtLatestNav,
     @Nullable RebalanceClosure closure,
-    @Nullable LocalDate rebalanceOrdersSentOn,
+    List<SentRebalanceOrder> sentRebalanceOrders,
     LocalDate deadline,
-    LocalDate warningFrom,
-    @Nullable LocalDate awaitingExecutionUntil) {
+    LocalDate warningFrom) {
 
   public RebalanceState state() {
     if (closed()) {
       return OK;
     }
     if (deadlinePassed()) {
-      return ordersSentByTheDeadlineStillAwaitExecution() ? AWAITING_EXECUTION : FAIL;
+      return anOrderSentByTheDeadlineStillAwaitsConfirmation() ? AWAITING_EXECUTION : FAIL;
     }
     if (!checkDate.isBefore(warningFrom)) {
       return WARNING;
@@ -52,8 +51,22 @@ public record RebalanceWindow(
     return checkDate.isAfter(deadline);
   }
 
-  private boolean ordersSentByTheDeadlineStillAwaitExecution() {
-    return awaitingExecutionUntil != null && !checkDate.isAfter(awaitingExecutionUntil);
+  public List<SentRebalanceOrder> ordersAwaitingConfirmation() {
+    return sentRebalanceOrders.stream()
+        .filter(order -> !order.confirmationOverdueOn(checkDate))
+        .toList();
+  }
+
+  public List<SentRebalanceOrder> ordersOverdueForConfirmation() {
+    return sentRebalanceOrders.stream()
+        .filter(order -> order.confirmationOverdueOn(checkDate))
+        .toList();
+  }
+
+  private boolean anOrderSentByTheDeadlineStillAwaitsConfirmation() {
+    return ordersAwaitingConfirmation().stream()
+        .map(SentRebalanceOrder::sentOn)
+        .anyMatch(sentOn -> !sentOn.isAfter(deadline));
   }
 
   public long daysUntilDeadline() {

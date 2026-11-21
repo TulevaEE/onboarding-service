@@ -6,13 +6,14 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 
-import ee.tuleva.onboarding.investment.check.rebalance.RebalanceOrdersAwaitingExecution.SentOrder;
+import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ class RebalanceTrades {
   private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
 
   private final TransactionOrderRepository orderRepository;
+  private final EstonianCalendar estonianCalendar;
 
   Optional<LocalDate> firstRebalancingTradeDate(
       TulevaFund fund, LocalDate modelEffectiveDate, LocalDate measuredUntil) {
@@ -39,22 +41,23 @@ class RebalanceTrades {
         .map(tradeTimestamp -> tradeTimestamp.atZone(TALLINN).toLocalDate());
   }
 
-  RebalanceOrdersAwaitingExecution rebalanceOrdersAwaitingExecution(
+  List<SentRebalanceOrder> sentRebalanceOrders(
       TulevaFund fund, LocalDate modelEffectiveDate, LocalDate measuredUntil) {
-    return new RebalanceOrdersAwaitingExecution(
-        orderRepository
-            .findOrdersOfATradePrepRun(
-                fund,
-                REBALANCE,
-                SENT,
-                modelEffectiveDate.atStartOfDay(TALLINN).toInstant(),
-                measuredUntil.plusDays(1).atStartOfDay(TALLINN).toInstant())
-            .stream()
-            .map(
-                order ->
-                    new SentOrder(
-                        order.orderTimestamp().atZone(TALLINN).toLocalDate(),
-                        order.expectedSettlementDate()))
-            .toList());
+    return orderRepository
+        .findOrdersOfATradePrepRun(
+            fund,
+            REBALANCE,
+            SENT,
+            modelEffectiveDate.atStartOfDay(TALLINN).toInstant(),
+            measuredUntil.plusDays(1).atStartOfDay(TALLINN).toInstant())
+        .stream()
+        .map(
+            order ->
+                SentRebalanceOrder.of(
+                    order.instrumentIsin(),
+                    order.orderTimestamp().atZone(TALLINN).toLocalDate(),
+                    order.expectedSettlementDate(),
+                    estonianCalendar))
+        .toList();
   }
 }

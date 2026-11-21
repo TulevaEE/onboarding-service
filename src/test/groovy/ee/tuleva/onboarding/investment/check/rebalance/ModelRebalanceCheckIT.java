@@ -234,8 +234,8 @@ class ModelRebalanceCheckIT {
         .sendMessage(
             """
             🛑 TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole mudeliga \
-            vastavuses ja Rebalance-jooksu tehingud saadetud 01.12.2026, SEB pole täitmist \
-            kinnitanud
+            vastavuses ja SEB pole Rebalance-jooksu tehingute täitmist kinnitanud: IE000I9HGDZ3 \
+            (saadetud 01.12.2026)
             Üle 5 pp (NAV 30.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
             Vii fond 5 pp piiresse (sisekord 4 p 2.6.1)""",
             INVESTMENT,
@@ -266,8 +266,8 @@ class ModelRebalanceCheckIT {
         .sendMessage(
             startsWith(
                 "🛑 TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole"
-                    + " mudeliga vastavuses ja Rebalance-jooksu tehingud saadetud 01.12.2026, SEB"
-                    + " pole täitmist kinnitanud"),
+                    + " mudeliga vastavuses ja SEB pole Rebalance-jooksu tehingute täitmist"
+                    + " kinnitanud: IE000I9HGDZ3 (saadetud 01.12.2026)"),
             eq(INVESTMENT),
             eq(ERROR));
   }
@@ -298,26 +298,84 @@ class ModelRebalanceCheckIT {
   }
 
   @Test
-  void aRebalanceOrderSentOnlyAfterTheDeadline_stillFailsAndSaysWhenItWasSent() {
+  void
+      aRebalanceOrderSentOnlyAfterTheDeadline_failsAwaitingSebWithinItsGraceThenListsItAsUnconfirmed() {
     givenTuv100ModelSwitchesFromWorldToNewWorldOn(SEPTEMBER_MODEL);
     givenNav(LocalDate.of(2026, 9, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
     runCheckOn(LocalDate.of(2026, 10, 1));
     givenNav(LocalDate.of(2026, 11, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
-    givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 12, 2));
+    givenSettlingOn(
+        givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 12, 2)),
+        LocalDate.of(2026, 12, 4));
 
     runCheckOn(LocalDate.of(2026, 12, 3));
+    runCheckOn(LocalDate.of(2026, 12, 7));
+
+    then(notificationService)
+        .should(times(2))
+        .sendMessage(
+            """
+            🛑 TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole mudeliga \
+            vastavuses ja Rebalance-jooksu tehingud saadetud 02.12.2026, ootavad SEB täitmise \
+            kinnitust
+            Üle 5 pp (NAV 30.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
+            Vii fond 5 pp piiresse (sisekord 4 p 2.6.1)""",
+            INVESTMENT,
+            ERROR);
+
+    runCheckOn(LocalDate.of(2026, 12, 8));
 
     then(notificationService)
         .should()
         .sendMessage(
             """
             🛑 TUV100 mudelportfell alates 01.09.2026: tähtaeg oli 01.12.2026, fond pole mudeliga \
-            vastavuses ja Rebalance-jooksu tehingud saadetud 02.12.2026, SEB pole täitmist \
-            kinnitanud
+            vastavuses ja SEB pole Rebalance-jooksu tehingute täitmist kinnitanud: IE000I9HGDZ3 \
+            (saadetud 02.12.2026)
             Üle 5 pp (NAV 30.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
             Vii fond 5 pp piiresse (sisekord 4 p 2.6.1)""",
             INVESTMENT,
             ERROR);
+  }
+
+  @Test
+  void aRebalanceOrderStillSentPastItsGrace_isListedAsUnconfirmedAlreadyBeforeTheDeadline() {
+    givenTuv100ModelSwitchesFromWorldToNewWorldOn(SEPTEMBER_MODEL);
+    givenNav(LocalDate.of(2026, 9, 30), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 10, 1));
+    givenNav(LocalDate.of(2026, 11, 17), Map.of(WORLD, "790000", EMERGING, "200000"));
+    givenSettlingOn(
+        givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 11, 13)),
+        LocalDate.of(2026, 11, 17));
+
+    runCheckOn(LocalDate.of(2026, 11, 18));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026, jäänud 13 päeva; \
+            Rebalance-jooksu tehingud saadetud 13.11.2026, ootavad SEB täitmise kinnitust
+            Üle 5 pp (NAV 17.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
+            Kontrolli SEB-st tehingute täitmist""",
+            INVESTMENT,
+            WARNING);
+
+    givenNav(LocalDate.of(2026, 11, 24), Map.of(WORLD, "790000", EMERGING, "200000"));
+    runCheckOn(LocalDate.of(2026, 11, 25));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ TUV100 mudelportfell alates 01.09.2026: tähtaeg 01.12.2026, jäänud 6 päeva; SEB \
+            pole Rebalance-jooksu tehingute täitmist kinnitanud: IE000I9HGDZ3 (saadetud \
+            13.11.2026)
+            Üle 5 pp (NAV 24.11.2026): IE000I9HGDZ3 -80,00 pp, IE00BFG1TM61 +79,00 pp
+            Tee tasakaalustamise tehingud või vii fond tähtajaks 5 pp piiresse; kontrolli SEB-st \
+            saadetud tehingute täitmist""",
+            INVESTMENT,
+            WARNING);
   }
 
   @Test
@@ -894,6 +952,11 @@ class ModelRebalanceCheckIT {
     var order =
         givenOrderFromATradePrepRun(REBALANCE, NEW_WORLD, BUY, SENT, LocalDate.of(2026, 12, 1));
     order.setInstrumentType(instrumentType);
+    return givenSettlingOn(order, expectedSettlementDate);
+  }
+
+  private TransactionOrder givenSettlingOn(
+      TransactionOrder order, LocalDate expectedSettlementDate) {
     order.setExpectedSettlementDate(expectedSettlementDate);
     return orderRepository.save(order);
   }

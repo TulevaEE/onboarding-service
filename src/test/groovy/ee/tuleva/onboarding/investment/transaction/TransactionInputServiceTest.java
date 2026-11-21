@@ -92,7 +92,7 @@ class TransactionInputServiceTest {
     lenient()
         .when(pendingOrderImpactService.calculate(any(), any(), any(), any(), any()))
         .thenReturn(PendingOrderImpact.none());
-    lenient().when(r16OutflowReader.read(any(), any(), any())).thenReturn(R16Reserve.NONE);
+    lenient().when(r16OutflowReader.read(any(), any(), any(), any())).thenReturn(R16Reserve.NONE);
     lenient()
         .when(sameDayCashReader.read(any(), any(), any(), any(), any()))
         .thenAnswer(
@@ -983,7 +983,8 @@ class TransactionInputServiceTest {
             r16OutflowReader.read(
                 TUV100,
                 AS_OF_DATE,
-                new NettingWindow(TUV100, AS_OF_DATE, AS_OF_DATE, Set.of(), Set.of())))
+                new NettingWindow(TUV100, AS_OF_DATE, AS_OF_DATE, Set.of(), Set.of()),
+                new R16Reserves(ZERO, null)))
         .willReturn(
             new R16Reserve(
                 R16Reserve.Basis.FORECAST_NOT_YET_BOOKED,
@@ -1065,7 +1066,10 @@ class TransactionInputServiceTest {
     stubEmptyBaseline(TUV100);
     given(
             r16OutflowReader.read(
-                TUV100, AS_OF_DATE, new CashHorizon.ThroughTheReportDate(AS_OF_DATE)))
+                TUV100,
+                AS_OF_DATE,
+                new CashHorizon.ThroughTheReportDate(AS_OF_DATE),
+                new R16Reserves(ZERO, null)))
         .willReturn(
             new R16Reserve(
                 R16Reserve.Basis.FORECAST_NOT_YET_BOOKED,

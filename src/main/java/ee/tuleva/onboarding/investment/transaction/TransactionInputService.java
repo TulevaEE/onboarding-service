@@ -144,7 +144,8 @@ public class TransactionInputService {
             asOfDate,
             netting
                 .<CashHorizon>map(window -> window)
-                .orElse(new CashHorizon.ThroughTheReportDate(positionDate)));
+                .orElse(new CashHorizon.ThroughTheReportDate(positionDate)),
+            parameters.r16Reserves());
     BigDecimal r16 = r16Reserve.reserved();
     liabilities = liabilities.add(r16);
 

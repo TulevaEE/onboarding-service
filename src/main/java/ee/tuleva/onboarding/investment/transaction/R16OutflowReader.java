@@ -12,8 +12,6 @@ import ee.tuleva.onboarding.investment.epis.R16FundFlow;
 import ee.tuleva.onboarding.investment.epis.R16PaymentDates;
 import ee.tuleva.onboarding.investment.epis.R16Phase;
 import ee.tuleva.onboarding.investment.epis.R16PhaseCalculator;
-import ee.tuleva.onboarding.investment.portfolio.FundLimit;
-import ee.tuleva.onboarding.investment.portfolio.FundLimitRepository;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR16;
 import ee.tuleva.onboarding.investment.transaction.R16Reserve.Basis;
 import ee.tuleva.onboarding.investment.transaction.R16TypeForecast.Status;
@@ -30,7 +28,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -43,15 +40,14 @@ class R16OutflowReader {
   private final R16FlowCalculationService r16FlowCalculationService;
   private final R16PhaseCalculator r16PhaseCalculator;
   private final RegistrarCashFlowRepository registrarCashFlows;
-  private final FundLimitRepository fundLimitRepository;
 
-  R16Reserve read(TulevaFund fund, LocalDate asOfDate, CashHorizon horizon) {
+  R16Reserve read(TulevaFund fund, LocalDate asOfDate, CashHorizon horizon, R16Reserves reserves) {
     if (!R16_FUNDS.contains(fund)) {
       return R16Reserve.NONE;
     }
     return r16FlowCalculationService
         .calculateThisMonthsFlows(fund, asOfDate)
-        .map(flow -> reserve(flow, asOfDate, horizon))
+        .map(flow -> reserve(flow, asOfDate, horizon, reserves))
         .orElse(R16Reserve.NONE);
   }
 
@@ -68,18 +64,17 @@ class R16OutflowReader {
     return Optional.of(new MissingR16(paymentMonth, dates.paymentDeadline(), dates.sellByDate()));
   }
 
-  private R16Reserve reserve(R16FundFlow flow, LocalDate asOfDate, CashHorizon horizon) {
+  private R16Reserve reserve(
+      R16FundFlow flow, LocalDate asOfDate, CashHorizon horizon, R16Reserves reserves) {
+    if (r16PhaseCalculator.isCoveredByTheTradeDaysR45(flow.fund(), flow.paymentDates(), asOfDate)) {
+      return new R16Reserve(
+          Basis.COVERED_BY_R45, List.of(), reserves.soft(), reserves.hard(), ZERO);
+    }
     Set<RegistrarPayoutReason> booked = typesBooked(flow, horizon);
     List<R16TypeForecast> types =
         List.of(
             forecast(FUND_PENSION, flow.fondimaksedUnits(), flow.fondimaksedEur(), booked),
             forecast(ONE_OFF_WITHDRAWAL, flow.uhekordsedUnits(), flow.uhekordsedEur(), booked));
-    Optional<FundLimit> limit = fundLimitRepository.findLatestByFundAsOf(flow.fund(), asOfDate);
-    BigDecimal soft = limit.map(FundLimit::getReserveSoft).orElse(null);
-    BigDecimal hard = limit.map(FundLimit::getReserveHard).orElse(null);
-    if (r16PhaseCalculator.isCoveredByTheTradeDaysR45(flow.fund(), flow.paymentDates(), asOfDate)) {
-      return new R16Reserve(Basis.COVERED_BY_R45, types, soft, hard, ZERO);
-    }
     BigDecimal stillToPay =
         types.stream()
             .filter(R16TypeForecast::stillToPay)
@@ -88,17 +83,17 @@ class R16OutflowReader {
     return new R16Reserve(
         Basis.FORECAST_NOT_YET_BOOKED,
         types,
-        soft,
-        hard,
-        belowTheHardReserve(stillToPay, soft, hard));
+        reserves.soft(),
+        reserves.hard(),
+        belowTheHardReserve(stillToPay, reserves));
   }
 
-  private static BigDecimal belowTheHardReserve(
-      BigDecimal stillToPay, @Nullable BigDecimal soft, @Nullable BigDecimal hard) {
-    if (soft == null || hard == null) {
+  private static BigDecimal belowTheHardReserve(BigDecimal stillToPay, R16Reserves reserves) {
+    BigDecimal hard = reserves.hard();
+    if (hard == null) {
       return stillToPay;
     }
-    return ZERO.max(stillToPay.subtract(soft.subtract(hard)));
+    return ZERO.max(stillToPay.subtract(reserves.soft().subtract(hard)));
   }
 
   private Set<RegistrarPayoutReason> typesBooked(R16FundFlow flow, CashHorizon horizon) {

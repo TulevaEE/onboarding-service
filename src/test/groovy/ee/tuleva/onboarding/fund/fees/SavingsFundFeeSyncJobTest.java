@@ -4,6 +4,7 @@ import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 
 import java.time.Clock;
@@ -19,27 +20,43 @@ class SavingsFundFeeSyncJobTest {
 
   private static final Clock SEVEN_PAST_MIDNIGHT_IN_TALLINN_ON_JUNE_4 =
       Clock.fixed(Instant.parse("2026-06-03T21:07:00Z"), UTC);
+  private static final LocalDate JUNE_4 = LocalDate.parse("2026-06-04");
 
   @Mock private SavingsFundManagementFeeSync savingsFundManagementFeeSync;
+  @Mock private SavingsFundOngoingChargesSync savingsFundOngoingChargesSync;
 
   @Test
-  void syncsToTheRatesInForceOnTodaysDateInTallinnNotInUtc() {
+  void syncsTheManagementFeeAndThenTheKidFigureOnTodaysDateInTallinnNotInUtc() {
     job().sync();
 
-    verify(savingsFundManagementFeeSync).syncToTheRatesInForceOn(LocalDate.parse("2026-06-04"));
+    var inOrder = inOrder(savingsFundManagementFeeSync, savingsFundOngoingChargesSync);
+    inOrder.verify(savingsFundManagementFeeSync).syncToTheRatesInForceOn(JUNE_4);
+    inOrder.verify(savingsFundOngoingChargesSync).syncToTheKidsInForceOn(JUNE_4);
   }
 
   @Test
-  void aFailingSyncIsLoggedRatherThanThrownIntoTheScheduler() {
+  void aFailingManagementFeeSyncIsLoggedAndTheOngoingChargesSyncStillRuns() {
     willThrow(new RuntimeException("boom"))
         .given(savingsFundManagementFeeSync)
         .syncToTheRatesInForceOn(any());
+
+    assertThatCode(() -> job().sync()).doesNotThrowAnyException();
+    verify(savingsFundOngoingChargesSync).syncToTheKidsInForceOn(JUNE_4);
+  }
+
+  @Test
+  void aFailingOngoingChargesSyncIsLoggedRatherThanThrownIntoTheScheduler() {
+    willThrow(new RuntimeException("boom"))
+        .given(savingsFundOngoingChargesSync)
+        .syncToTheKidsInForceOn(any());
 
     assertThatCode(() -> job().sync()).doesNotThrowAnyException();
   }
 
   private SavingsFundFeeSyncJob job() {
     return new SavingsFundFeeSyncJob(
-        savingsFundManagementFeeSync, SEVEN_PAST_MIDNIGHT_IN_TALLINN_ON_JUNE_4);
+        savingsFundManagementFeeSync,
+        savingsFundOngoingChargesSync,
+        SEVEN_PAST_MIDNIGHT_IN_TALLINN_ON_JUNE_4);
   }
 }

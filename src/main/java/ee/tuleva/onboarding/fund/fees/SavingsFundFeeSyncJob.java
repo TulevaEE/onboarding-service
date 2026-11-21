@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Profile({"production", "staging"})
-class SavingsFundManagementFeeSyncJob {
+class SavingsFundFeeSyncJob {
 
   private static final String TIMEZONE = "Europe/Tallinn";
 

@@ -9,7 +9,6 @@ import static java.util.Comparator.naturalOrder;
 
 import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
-import ee.tuleva.onboarding.investment.transaction.TradePrepRunExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
@@ -41,17 +40,10 @@ class RebalanceTrades {
             modelEffectiveDate.atStartOfDay(TALLINN).toInstant(),
             measuredUntil.plusDays(1).atStartOfDay(TALLINN).toInstant())
         .stream()
-        .flatMap(execution -> tradeDateOrTheDayTheCustodianFirstReportedIt(execution).stream())
+        .flatMap(
+            execution -> execution.tradeDateOrTheDayTheCustodianFirstReportedIt(TALLINN).stream())
         .filter(tradeDate -> !tradeDate.isAfter(measuredUntil))
         .min(naturalOrder());
-  }
-
-  private static Optional<LocalDate> tradeDateOrTheDayTheCustodianFirstReportedIt(
-      TradePrepRunExecution execution) {
-    var executedAt = execution.executionTimestamp();
-    return executedAt != null
-        ? Optional.of(executedAt.atZone(TALLINN).toLocalDate())
-        : Optional.ofNullable(execution.reportedDate());
   }
 
   List<SentRebalanceOrder> sentRebalanceOrders(

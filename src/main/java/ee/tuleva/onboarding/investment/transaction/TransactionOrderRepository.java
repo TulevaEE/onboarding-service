@@ -80,6 +80,7 @@ public interface TransactionOrderRepository extends JpaRepository<TransactionOrd
         AND o.orderStatus IN (:statuses)
         AND o.orderTimestamp >= :from
         AND o.orderTimestamp < :until
+        AND (e.executionTimestamp IS NOT NULL OR e.reportedDate IS NOT NULL)
       """)
   List<TradePrepRunExecution> findExecutionsOfATradePrepRun(
       TulevaFund fund,

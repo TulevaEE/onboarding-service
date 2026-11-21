@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.jupiter.api.Test;
@@ -308,6 +309,12 @@ class TransactionExportServiceTest {
           .isEqualTo(DateUtil.getExcelDate(tradeDate));
       assertThat(dataRow.getCell(4).getNumericCellValue())
           .isEqualTo(DateUtil.getExcelDate(settlementDate));
+      assertThat(
+              List.of(
+                  dataRow.getCell(3).getCellStyle().getDataFormatString(),
+                  new DataFormatter().formatCellValue(dataRow.getCell(3)),
+                  new DataFormatter().formatCellValue(dataRow.getCell(4))))
+          .containsExactly("m/d/yyyy", "1/15/2026", "1/20/2026");
       assertThat(dataRow.getCell(5).getStringCellValue()).isEqualTo("iShares ESG MSCI");
       assertThat(dataRow.getCell(6).getStringCellValue()).isEqualTo("IE00FT");
       assertThat(dataRow.getCell(7).getNumericCellValue()).isEqualTo(450000.0);

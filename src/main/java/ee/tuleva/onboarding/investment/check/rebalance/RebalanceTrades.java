@@ -5,9 +5,11 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
+import static java.util.Comparator.naturalOrder;
 
 import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
+import ee.tuleva.onboarding.investment.transaction.TradePrepRunExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
@@ -32,13 +34,24 @@ class RebalanceTrades {
   Optional<LocalDate> firstRebalancingTradeDate(
       TulevaFund fund, LocalDate modelEffectiveDate, LocalDate measuredUntil) {
     return orderRepository
-        .findFirstTradeTimestampOfATradePrepRun(
+        .findExecutionsOfATradePrepRun(
             fund,
             REBALANCE,
             EXECUTED_BY_THE_BROKER,
             modelEffectiveDate.atStartOfDay(TALLINN).toInstant(),
             measuredUntil.plusDays(1).atStartOfDay(TALLINN).toInstant())
-        .map(tradeTimestamp -> tradeTimestamp.atZone(TALLINN).toLocalDate());
+        .stream()
+        .flatMap(execution -> tradeDateOrTheDayTheCustodianFirstReportedIt(execution).stream())
+        .filter(tradeDate -> !tradeDate.isAfter(measuredUntil))
+        .min(naturalOrder());
+  }
+
+  private static Optional<LocalDate> tradeDateOrTheDayTheCustodianFirstReportedIt(
+      TradePrepRunExecution execution) {
+    var executedAt = execution.executionTimestamp();
+    return executedAt != null
+        ? Optional.of(executedAt.atZone(TALLINN).toLocalDate())
+        : Optional.ofNullable(execution.reportedDate());
   }
 
   List<SentRebalanceOrder> sentRebalanceOrders(

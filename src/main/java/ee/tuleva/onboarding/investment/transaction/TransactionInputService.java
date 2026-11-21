@@ -94,12 +94,15 @@ public class TransactionInputService {
         gatewayBalance
             .map(CurrentDayBalance::balance)
             .orElse(cashOverride == null ? reportCash : cashOverride);
-    TradeSettlementsInTheBalance settlements =
-        netting.map(tradeSettlementsReader::read).orElse(TradeSettlementsInTheBalance.NONE);
+    Optional<TradeSettlementsInTheBalance> settlements = netting.map(tradeSettlementsReader::read);
 
     PendingOrderImpact pendingOrders =
         pendingOrderImpactService.calculate(
-            fund, asOfDate, positionDate, pricing, settlements.carriedByPendingOrders());
+            fund,
+            asOfDate,
+            positionDate,
+            pricing,
+            settlements.map(TradeSettlementsInTheBalance::carriedByPendingOrders).orElse(Set.of()));
     List<PositionSnapshot> positions =
         positionAssembler.assemble(fund, positionDate, pendingOrders);
     List<CalculationWarning> inputWarnings = new ArrayList<>();
@@ -145,8 +148,11 @@ public class TransactionInputService {
     liabilities = liabilities.add(getAdjustment(manualAdjustments, "additionalLiabilities"));
     receivables = receivables.add(getAdjustment(manualAdjustments, "additionalReceivables"));
 
+    UnsettledTrades reportedTrades = unsettledTradeReader.read(fund, positionDate);
     Netted<UnsettledTrades> nettedTrades =
-        settlements.net(unsettledTradeReader.read(fund, positionDate));
+        settlements
+            .map(inTheBalance -> inTheBalance.net(reportedTrades))
+            .orElse(new Netted<>(reportedTrades, reportedTrades));
     UnsettledTrades unsettledTrades = nettedTrades.after();
     liabilities = liabilities.add(pendingOrders.pendingBuys()).add(unsettledTrades.payables());
     receivables = receivables.add(pendingOrders.pendingSells()).add(unsettledTrades.receivables());

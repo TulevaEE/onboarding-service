@@ -954,7 +954,7 @@ class TransactionInputServiceTest {
     given(sameDayCashReader.read(TUV100, AS_OF_DATE, null, ZERO))
         .willReturn(new CashSourceReport(CashSource.GATEWAY_BALANCE, balance, ZERO, List.of()));
     given(tradeSettlementsReader.read(new NettingWindow(TUV100, AS_OF_DATE, AS_OF_DATE, Set.of())))
-        .willReturn(TradeSettlementsInTheBalance.NONE);
+        .willReturn(new TradeSettlementsInTheBalance(List.of()));
     given(gatewayNetting.r45(any(), any())).willReturn(new Netted<>(ZERO, ZERO));
     given(r16OutflowReader.read(TUV100, AS_OF_DATE, AS_OF_DATE))
         .willReturn(
@@ -1005,6 +1005,28 @@ class TransactionInputServiceTest {
         .isEqualByComparingTo(new BigDecimal("30000"));
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("30000"));
     assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("-30000"));
+  }
+
+  @Test
+  void gatherInput_onReportCashTakesTheReportsUnsettledTradesAsTheyAreEvenBelowZero() {
+    stubEmptyBaseline(TUV100);
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF_DATE, TUV100, LIABILITY))
+        .willReturn(
+            List.of(custodianRow(LIABILITY, "Total payables of unsettled transactions", "4000")));
+    given(
+            fundPositionRepository.findByNavDateAndFundAndAccountType(
+                AS_OF_DATE, TUV100, RECEIVABLES))
+        .willReturn(
+            List.of(
+                custodianRow(RECEIVABLES, "Total receivables of unsettled transactions", "-5000")));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
+
+    assertThat(result.liabilityBreakdown().unsettledTradePayables())
+        .isEqualByComparingTo(new BigDecimal("-4000"));
+    assertThat(result.liabilityBreakdown().unsettledTradeReceivables())
+        .isEqualByComparingTo(new BigDecimal("-5000"));
+    assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("-1000"));
   }
 
   @Test

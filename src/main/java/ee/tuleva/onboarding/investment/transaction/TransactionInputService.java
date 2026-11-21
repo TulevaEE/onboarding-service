@@ -84,7 +84,17 @@ public class TransactionInputService {
         positionDate);
 
     BigDecimal reportCash = getCashBalance(fund, positionDate);
-    CashSourceReport cashSources = sameDayCashReader.read(fund, asOfDate, cashOverride, reportCash);
+    Optional<BigDecimal> pevaRavaInAnActiveCycle =
+        pevaRavaForecastReader.liquidityInAnActiveCycle(fund, asOfDate);
+    CashSourceReport cashSources =
+        sameDayCashReader.read(
+            fund,
+            asOfDate,
+            cashOverride,
+            reportCash,
+            pevaRavaInAnActiveCycle.isPresent()
+                ? PevaRavaCycleState.ACTIVE
+                : PevaRavaCycleState.OUTSIDE_A_CYCLE);
     Optional<CurrentDayBalance> gatewayBalance = cashSources.gatewayBalanceInUse();
     Optional<NettingWindow> netting =
         gatewayBalance.map(
@@ -121,16 +131,8 @@ public class TransactionInputService {
     BigDecimal liabilities = managementFee.add(depotFee).add(registerCash.liabilities());
     BigDecimal receivables = registerCash.incomingPaymentsClearing();
 
-    Netted<BigDecimal> pevaRava =
-        pevaRavaForecastReader
-            .read(fund, asOfDate)
-            .map(
-                forecast ->
-                    netting
-                        .map(window -> gatewayNetting.pevaRava(window, forecast))
-                        .orElse(new Netted<>(forecast.inForce(), forecast.inForce())))
-            .orElse(new Netted<>(ZERO, ZERO));
-    liabilities = liabilities.add(pevaRava.after());
+    BigDecimal pevaRava = pevaRavaInAnActiveCycle.orElse(ZERO);
+    liabilities = liabilities.add(pevaRava);
     R16Reserve r16Reserve =
         r16OutflowReader.read(
             fund, asOfDate, netting.map(NettingWindow::today).orElse(positionDate));
@@ -172,7 +174,7 @@ public class TransactionInputService {
         new LiabilityBreakdown(
             managementFee,
             depotFee,
-            pevaRava.after(),
+            pevaRava,
             r16,
             r45Net,
             pendingOrders.pendingBuys(),
@@ -210,7 +212,6 @@ public class TransactionInputService {
                     ? NettedForecast.onTheGatewayBalance(
                         nettedTrades,
                         pendingOrders,
-                        pevaRava,
                         r45,
                         new Netted<>(unitReceivable.dueOnTopOfReportCash(), unitReceivableDue),
                         registerCash.incomingPaymentsClearing())

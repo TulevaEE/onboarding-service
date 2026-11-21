@@ -47,18 +47,27 @@ class SameDayCashReader {
       TulevaFund fund,
       LocalDate asOfDate,
       @Nullable BigDecimal operatorAmount,
-      @Nullable BigDecimal reportCash) {
+      @Nullable BigDecimal reportCash,
+      PevaRavaCycleState pevaRavaCycle) {
     GatewayCash gateway = isToday(asOfDate) ? gatewayCash(fund, asOfDate) : new NotTodaysRun();
+    GatewayHold hold =
+        operatorAmount == null
+                && gateway instanceof CurrentDayBalance
+                && pevaRavaCycle == PevaRavaCycleState.ACTIVE
+            ? GatewayHold.PEVA_RAVA_CYCLE_ACTIVE
+            : GatewayHold.NONE;
     CashSourceReport report =
-        new CashSourceReport(sourceOf(operatorAmount, gateway), gateway, reportCash, List.of());
+        new CashSourceReport(
+            sourceOf(operatorAmount, gateway, hold), gateway, reportCash, List.of(), hold);
     return report.withWarnings(differenceWarning(fund, asOfDate, report).stream().toList());
   }
 
-  private static CashSource sourceOf(@Nullable BigDecimal operatorAmount, GatewayCash gateway) {
+  private static CashSource sourceOf(
+      @Nullable BigDecimal operatorAmount, GatewayCash gateway, GatewayHold hold) {
     if (operatorAmount != null) {
       return CashSource.OPERATOR_AMOUNT;
     }
-    return gateway instanceof CurrentDayBalance
+    return gateway instanceof CurrentDayBalance && hold == GatewayHold.NONE
         ? CashSource.GATEWAY_BALANCE
         : CashSource.POSITION_REPORT;
   }

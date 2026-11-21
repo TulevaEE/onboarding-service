@@ -2,9 +2,6 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction.INFLOW;
 import static ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction.OUTFLOW;
-import static ee.tuleva.onboarding.ledger.RegistrarPayoutReason.FUND_SWITCH;
-import static ee.tuleva.onboarding.ledger.RegistrarPayoutReason.SECOND_PILLAR_EXIT;
-import static ee.tuleva.onboarding.ledger.RegistrarPayoutReason.SWITCH_TO_PENSION_INVESTMENT_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.RegistrarPayoutReason.THIRD_PILLAR_REDEMPTION;
 import static ee.tuleva.onboarding.ledger.RegistrarPayoutReason.THIRD_PILLAR_SWITCH;
 import static java.math.BigDecimal.ZERO;
@@ -29,25 +26,8 @@ class GatewayNetting {
 
   private static final Set<RegistrarPayoutReason> R45_PAYOUTS =
       Set.of(THIRD_PILLAR_REDEMPTION, THIRD_PILLAR_SWITCH);
-  private static final Set<RegistrarPayoutReason> PEVA_RAVA_PAYOUTS =
-      Set.of(FUND_SWITCH, SWITCH_TO_PENSION_INVESTMENT_ACCOUNT, SECOND_PILLAR_EXIT);
 
   private final RegistrarCashFlowRepository registrarCashFlows;
-
-  Netted<BigDecimal> pevaRava(NettingWindow window, PevaRavaForecast forecast) {
-    BigDecimal stillCounted =
-        forecast.cycle().execDate().isAfter(window.today())
-            ? forecast.inForce()
-            : forecast.inForceWithoutSwitchingInflow();
-    BigDecimal paid =
-        registrarCashFlows
-            .findPayouts(window.fund(), forecast.cycle().lockDate(), window.today())
-            .stream()
-            .filter(payout -> PEVA_RAVA_PAYOUTS.contains(payout.reason()))
-            .map(RegistrarPayout::amount)
-            .reduce(ZERO, BigDecimal::add);
-    return new Netted<>(forecast.inForce(), ZERO.max(stillCounted.subtract(paid)));
-  }
 
   Netted<BigDecimal> r45(NettingWindow window, List<R45Row> rows) {
     LocalDate today = window.today();

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import ee.tuleva.onboarding.investment.transaction.PreviousSettlement;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEvent;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlement;
 import java.math.BigDecimal;
@@ -27,6 +28,7 @@ class ReconciliationAuditRecorder {
   static final String SETTLEMENT_REAPPEARED = "SETTLEMENT_REAPPEARED";
   static final String SETTLEMENT_REDATED = "SETTLEMENT_REDATED";
   static final String SETTLEMENT_FROM_BANK = "SETTLEMENT_FROM_BANK";
+  static final String EXECUTION_UNITS_FROM_BANK = "EXECUTION_UNITS_FROM_BANK";
   static final String INCONSISTENT_MATCHED_ROW = "INCONSISTENT_MATCHED_ROW";
   static final String POSSIBLE_REPORT_TRUNCATION = "POSSIBLE_REPORT_TRUNCATION";
 
@@ -131,6 +133,19 @@ class ReconciliationAuditRecorder {
     payload.put("previousReportDate", previous.reportDate().toString());
     payload.put("previousSource", previous.source().name());
     save(SETTLEMENT_FROM_BANK, order, payload);
+  }
+
+  void recordUnitsFromBank(
+      TransactionOrder order,
+      TransactionExecution execution,
+      LocalDate bookingDate,
+      BigDecimal sebUnits,
+      BigDecimal bankUnits) {
+    Map<String, Object> payload = orderPayload(order, bookingDate);
+    putIfNotNull(payload, "brokerReference", execution.getBrokerTransactionId());
+    payload.put("sebUnits", sebUnits.stripTrailingZeros().toPlainString());
+    payload.put("bankUnits", bankUnits.stripTrailingZeros().toPlainString());
+    save(EXECUTION_UNITS_FROM_BANK, order, payload);
   }
 
   void recordSettlementReappeared(

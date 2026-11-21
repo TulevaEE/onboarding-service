@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.ledger;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRADE_SETTLEMENT;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.BROKER_REFERENCE;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.INSTRUMENT;
+import static ee.tuleva.onboarding.ledger.SystemAccount.SECURITIES_CUSTODY;
 import static ee.tuleva.onboarding.ledger.SystemAccount.TRADE_CASH_SETTLEMENT;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -41,7 +42,16 @@ public class TradeSettlementBookings {
         (String) transaction.getMetadata().get(BROKER_REFERENCE.getKey()),
         (String) transaction.getMetadata().get(INSTRUMENT.getKey()),
         transaction.getTransactionDate().atZone(ESTONIAN_ZONE).toLocalDate(),
-        cashAmount(transaction));
+        cashAmount(transaction),
+        units(transaction));
+  }
+
+  private static @Nullable BigDecimal units(LedgerTransaction transaction) {
+    return transaction.getEntries().stream()
+        .filter(TradeSettlementBookings::isCustody)
+        .map(LedgerEntry::getAmount)
+        .reduce(BigDecimal::add)
+        .orElse(null);
   }
 
   private static @Nullable BigDecimal cashAmount(LedgerTransaction transaction) {
@@ -66,7 +76,15 @@ public class TradeSettlementBookings {
   }
 
   private static boolean isTradeCash(LedgerEntry entry) {
+    return isOn(entry, TRADE_CASH_SETTLEMENT);
+  }
+
+  private static boolean isCustody(LedgerEntry entry) {
+    return isOn(entry, SECURITIES_CUSTODY);
+  }
+
+  private static boolean isOn(LedgerEntry entry, SystemAccount systemAccount) {
     String accountName = entry.getAccount().getName();
-    return accountName != null && accountName.startsWith(TRADE_CASH_SETTLEMENT.name() + ":");
+    return accountName != null && systemAccount.owns(accountName);
   }
 }

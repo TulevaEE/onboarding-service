@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.BROKER_R
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.INSTRUMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.SECURITIES_CUSTODY;
+import static ee.tuleva.onboarding.ledger.SystemAccount.TRADE_CASH_SETTLEMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.TRADE_UNIT_SETTLEMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.util.UUID.randomUUID;
@@ -43,7 +44,7 @@ class TradeSettlementBookingsTest {
   @Autowired LedgerAccountService ledgerAccountService;
 
   @Test
-  void bookedSince_givesEachTradeItsSebReferenceIsinBookingDateAndCash() {
+  void bookedSince_givesEachTradeItsSebReferenceIsinBookingDateCashAndUnits() {
     UUID externalReference = randomUUID();
     bookTrade(
         "DLA0553690", new BigDecimal("-209025.86"), LocalDate.of(2026, 5, 28), externalReference);
@@ -56,6 +57,7 @@ class TradeSettlementBookingsTest {
               assertThat(booking.isin()).isEqualTo(EJAP);
               assertThat(booking.bookingDate()).isEqualTo(LocalDate.of(2026, 5, 28));
               assertThat(booking.cashAmount()).isEqualByComparingTo("-209025.86");
+              assertThat(booking.units()).isEqualByComparingTo("11704");
               assertThat(booking.externalReference()).isEqualTo(externalReference);
               assertThat(booking.fund()).isEqualTo(TKF100);
             });
@@ -94,6 +96,41 @@ class TradeSettlementBookingsTest {
         .satisfies(booking -> assertThat(booking.cashAmount()).isNull());
   }
 
+  @Test
+  void bookedSince_aSale_givesTheUnitsThatLeftCustodyAsNegative() {
+    bookTrade(
+        "DLA0553690",
+        new BigDecimal("209025.86"),
+        new BigDecimal("-12345678.912"),
+        LocalDate.of(2026, 5, 28),
+        randomUUID());
+
+    assertThat(tradeSettlementBookings.bookedSince(LocalDate.of(2026, 5, 1)))
+        .singleElement()
+        .satisfies(booking -> assertThat(booking.units()).isEqualByComparingTo("-12345678.912"));
+  }
+
+  @Test
+  void bookedSince_aTradeBookedWithoutUnitLegs_hasNoUnitsRatherThanZero() {
+    LedgerAccount cashClearing =
+        ledgerAccountService.createSystemAccount(
+            FUND_INVESTMENT_CASH_CLEARING.getAccountName(TKF100),
+            FUND_INVESTMENT_CASH_CLEARING.getAccountType(),
+            FUND_INVESTMENT_CASH_CLEARING.getAssetType());
+    LedgerAccount tradeCash = instrumentAccount(TRADE_CASH_SETTLEMENT);
+    ledgerTransactionService.createTransaction(
+        TRADE_SETTLEMENT,
+        LocalDate.of(2026, 5, 28).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant(),
+        randomUUID(),
+        Map.of(BROKER_REFERENCE.getKey(), "DLA0553690", INSTRUMENT.getKey(), EJAP),
+        new LedgerEntryDto(cashClearing, new BigDecimal("-209025.86")),
+        new LedgerEntryDto(tradeCash, new BigDecimal("209025.86")));
+
+    assertThat(tradeSettlementBookings.bookedSince(LocalDate.of(2026, 5, 1)))
+        .singleElement()
+        .satisfies(booking -> assertThat(booking.units()).isNull());
+  }
+
   private LedgerAccount instrumentAccount(SystemAccount systemAccount) {
     return ledgerAccountService.createSystemAccount(
         systemAccount.getAccountName(TKF100, EJAP),
@@ -103,10 +140,19 @@ class TradeSettlementBookingsTest {
 
   private void bookTrade(
       String brokerReference, BigDecimal cash, LocalDate bookingDate, UUID externalReference) {
+    bookTrade(brokerReference, cash, new BigDecimal("11704.00000"), bookingDate, externalReference);
+  }
+
+  private void bookTrade(
+      String brokerReference,
+      BigDecimal cash,
+      BigDecimal units,
+      LocalDate bookingDate,
+      UUID externalReference) {
     fundBankLedger.recordTradeSettlement(
         TKF100,
         cash,
-        new BigDecimal("11704.00000"),
+        units,
         externalReference,
         FUND_INVESTMENT_CASH_CLEARING,
         new TradeSettlementDetails(

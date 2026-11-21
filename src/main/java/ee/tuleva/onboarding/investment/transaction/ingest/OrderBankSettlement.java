@@ -1,8 +1,13 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebReportedPrecision.asSebReportsIt;
+import static java.math.RoundingMode.HALF_UP;
 import static java.util.Comparator.naturalOrder;
+import static java.util.Objects.requireNonNull;
 
+import ee.tuleva.onboarding.investment.event.RunPortfolioCostBasisRebuildFromBaselineRequested;
+import ee.tuleva.onboarding.investment.event.trigger.JobTriggerQueue;
 import ee.tuleva.onboarding.investment.transaction.BankDating;
 import ee.tuleva.onboarding.investment.transaction.PreviousSettlement;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
@@ -17,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,11 +31,15 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class OrderBankSettlement {
 
+  static final String MODIFIED_BY_BANK_SETTLEMENT = "system:bank-settlement";
+  private static final int EXECUTED_QUANTITY_COLUMN_SCALE = 4;
+
   private final TransactionOrderRepository orderRepository;
   private final TransactionExecutionRepository executionRepository;
   private final TransactionSettlementService settlementService;
   private final QuantityAmountValidator quantityAmountValidator;
   private final ReconciliationAuditRecorder auditRecorder;
+  private final JobTriggerQueue jobTriggerQueue;
 
   @Transactional
   BankSettlementOutcome settle(
@@ -63,6 +73,7 @@ class OrderBankSettlement {
         });
     return switch (settlementService.settleFromTheBank(order, bookingDate)) {
       case BankDating.Settled() -> {
+        takeTheBanksUnitsWhereSebRoundedThem(order, bookedPieces);
         auditRecorder.recordSettlementFromBank(order, bookingDate);
         yield BankSettlementOutcome.SETTLED;
       }
@@ -74,6 +85,30 @@ class OrderBankSettlement {
             : BankSettlementOutcome.NEW_DATE;
       }
     };
+  }
+
+  private void takeTheBanksUnitsWhereSebRoundedThem(
+      TransactionOrder order, List<BookedPiece> pieces) {
+    if (!pieces.stream().allMatch(BookedPiece::unitsAgreeWithTheBanksToSebsPrecision)) {
+      return;
+    }
+    List<BookedPiece> roundedBySeb =
+        pieces.stream().filter(BookedPiece::unitsDifferFromTheBanks).toList();
+    if (roundedBySeb.isEmpty()) {
+      return;
+    }
+    roundedBySeb.forEach(piece -> takeTheBanksUnits(order, piece));
+    jobTriggerQueue.defer(RunPortfolioCostBasisRebuildFromBaselineRequested.JOB_NAME);
+  }
+
+  private void takeTheBanksUnits(TransactionOrder order, BookedPiece piece) {
+    BigDecimal sebUnits = requireNonNull(piece.execution().getExecutedQuantity());
+    BigDecimal bankUnits = requireNonNull(piece.bankUnits());
+    piece.execution().setExecutedQuantity(bankUnits);
+    piece.execution().setModifiedBy(MODIFIED_BY_BANK_SETTLEMENT);
+    executionRepository.save(piece.execution());
+    auditRecorder.recordUnitsFromBank(
+        order, piece.execution(), piece.bookingDate(), sebUnits, bankUnits);
   }
 
   private static Optional<BookedPiece> bookedPiece(
@@ -107,7 +142,7 @@ class OrderBankSettlement {
           cash);
       return Optional.empty();
     }
-    return Optional.of(new BookedPiece(execution, booking.bookingDate(), cash));
+    return Optional.of(new BookedPiece(execution, booking.bookingDate(), cash, booking.units()));
   }
 
   private static boolean cashLeftTheFund(BigDecimal cash) {
@@ -115,5 +150,35 @@ class OrderBankSettlement {
   }
 
   private record BookedPiece(
-      TransactionExecution execution, LocalDate bookingDate, BigDecimal cash) {}
+      TransactionExecution execution,
+      LocalDate bookingDate,
+      BigDecimal cash,
+      @Nullable BigDecimal units) {
+
+    @Nullable BigDecimal bankUnits() {
+      BigDecimal custodyUnits = units;
+      return custodyUnits == null ? null : atTheRegistrysScale(custodyUnits.abs());
+    }
+
+    boolean unitsAgreeWithTheBanksToSebsPrecision() {
+      BigDecimal sebUnits = execution.getExecutedQuantity();
+      BigDecimal custodyUnits = units;
+      if (sebUnits == null || custodyUnits == null) {
+        return false;
+      }
+      BigDecimal exactUnits = custodyUnits.abs();
+      return sebUnits.compareTo(atTheRegistrysScale(exactUnits)) == 0
+          || sebUnits.compareTo(asSebReportsIt(exactUnits)) == 0;
+    }
+
+    boolean unitsDifferFromTheBanks() {
+      BigDecimal sebUnits = execution.getExecutedQuantity();
+      BigDecimal bankUnits = bankUnits();
+      return sebUnits != null && bankUnits != null && sebUnits.compareTo(bankUnits) != 0;
+    }
+
+    private static BigDecimal atTheRegistrysScale(BigDecimal quantity) {
+      return quantity.setScale(EXECUTED_QUANTITY_COLUMN_SCALE, HALF_UP);
+    }
+  }
 }

@@ -53,9 +53,11 @@ public class TransactionOrderFactory {
           trade.tradeAmount().compareTo(ZERO) > 0 ? TransactionType.BUY : TransactionType.SELL;
       var orderAmount = trade.tradeAmount().abs();
       var orderQuantity =
-          resolveOrderQuantity(
-              instrumentType, transactionType, isin, orderAmount, asOfDate, pricing);
-      sellableUnits.check(transactionType, isin, orderQuantity);
+          sellableUnits.fit(
+              transactionType,
+              isin,
+              resolveOrderQuantity(
+                  instrumentType, transactionType, isin, orderAmount, asOfDate, pricing));
       BigDecimal quantity =
           withinTheSoldHolding(input, index, trade, instrumentType, orderQuantity.quantity());
       if (quantity != null && quantity.signum() == 0) {

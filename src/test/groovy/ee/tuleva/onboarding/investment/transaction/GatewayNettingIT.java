@@ -18,7 +18,6 @@ import static org.springframework.context.annotation.FilterType.REGEX;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.investment.epis.R45Row;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
-import ee.tuleva.onboarding.ledger.TradeSettlementBooking;
 import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
 import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -193,7 +192,7 @@ class GatewayNettingIT {
                 .payables())
         .isEqualByComparingTo("300000.00");
     assertThat(settlements.unmatched())
-        .extracting(TradeSettlementBooking::brokerReference)
+        .extracting(unmatched -> unmatched.booking().brokerReference())
         .containsExactlyInAnyOrder("NO-ORDER", "WRONG-SIDE");
   }
 

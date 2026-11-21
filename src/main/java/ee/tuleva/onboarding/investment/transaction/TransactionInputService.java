@@ -105,11 +105,18 @@ public class TransactionInputService {
                     asOfDate,
                     balance.pendingEntryReferences(),
                     balance.bookedTodayEntryReferences()));
+    Optional<TradeSettlementsInTheBalance> settlements = netting.map(tradeSettlementsReader::read);
     BigDecimal appliedCash =
         gatewayBalance
-            .map(CurrentDayBalance::balance)
+            .map(
+                balance ->
+                    balance
+                        .balance()
+                        .subtract(
+                            settlements
+                                .map(TradeSettlementsInTheBalance::unmatchedInflows)
+                                .orElse(ZERO)))
             .orElse(cashOverride == null ? reportCash : cashOverride);
-    Optional<TradeSettlementsInTheBalance> settlements = netting.map(tradeSettlementsReader::read);
 
     PendingOrderImpact pendingOrders =
         pendingOrderImpactService.calculate(

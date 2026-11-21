@@ -171,6 +171,21 @@ class JobRunScheduleTest {
             });
   }
 
+  @Test
+  void modelRebalanceCheck_firesOncePerWeekdayMorningBeforeTheTradingDay() {
+    ZonedDateTime weekStart = LocalDateTime.parse("2026-11-16T00:00:00").atZone(TALLINN);
+    List<ZonedDateTime> fires =
+        firesBetween(JobRunSchedule.MODEL_REBALANCE_CHECK, weekStart, weekStart.plusDays(7));
+
+    assertThat(fires).hasSize(5);
+    assertThat(fires)
+        .allSatisfy(
+            fire -> {
+              assertThat(fire.toLocalTime()).isEqualTo(LocalTime.of(9, 15));
+              assertThat(fire.getDayOfWeek().getValue()).isLessThanOrEqualTo(5);
+            });
+  }
+
   private enum ScheduledSlot {
     IMPORT_BUSINESS_HOURS(JobRunSchedule.IMPORT_BUSINESS_HOURS, RUNS_THE_IMPORT),
     TRANSACTION_COMMAND(JobRunSchedule.TRANSACTION_COMMAND, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
@@ -193,6 +208,8 @@ class JobRunScheduleTest {
     R16_FLOW_RECALC(JobRunSchedule.R16_FLOW_RECALC, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
     RISK_INDICATOR_DAILY(
         JobRunSchedule.RISK_INDICATOR_DAILY, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
+    MODEL_REBALANCE_CHECK(
+        JobRunSchedule.MODEL_REBALANCE_CHECK, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
     INVESTMENT_REPORT_PUBLICATION_CHECK(
         JobRunSchedule.INVESTMENT_REPORT_PUBLICATION_CHECK, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
     FUND_PAGE_DISCLOSURE_CHECK(

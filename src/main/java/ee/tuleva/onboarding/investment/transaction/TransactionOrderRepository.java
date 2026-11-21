@@ -65,6 +65,42 @@ public interface TransactionOrderRepository extends JpaRepository<TransactionOrd
   List<TransactionOrder> findByOrderStatusInAndOrderTimestampSince(
       Collection<OrderStatus> statuses, Instant since);
 
+  @Query(
+      """
+      SELECT new ee.tuleva.onboarding.investment.transaction.TradePrepRunExecution(
+        e.executionTimestamp, e.reportedDate)
+      FROM TransactionOrder o
+        JOIN TransactionCommand c ON c.batchId = o.batch.id
+        JOIN TransactionExecution e ON e.orderId = o.id
+      WHERE c.mode = :mode
+        AND o.fund = :fund
+        AND o.orderStatus IN (:statuses)
+        AND o.orderTimestamp >= :from
+        AND o.orderTimestamp < :until
+        AND (e.executionTimestamp IS NOT NULL OR e.reportedDate IS NOT NULL)
+      """)
+  List<TradePrepRunExecution> findExecutionsOfATradePrepRun(
+      TulevaFund fund,
+      TransactionMode mode,
+      Collection<OrderStatus> statuses,
+      Instant from,
+      Instant until);
+
+  @Query(
+      """
+      SELECT new ee.tuleva.onboarding.investment.transaction.TradePrepRunOrder(
+        o.instrumentIsin, o.orderTimestamp, o.expectedSettlementDate)
+      FROM TransactionOrder o
+        JOIN TransactionCommand c ON c.batchId = o.batch.id
+      WHERE c.mode = :mode
+        AND o.fund = :fund
+        AND o.orderStatus = :status
+        AND o.orderTimestamp >= :from
+        AND o.orderTimestamp < :until
+      """)
+  List<TradePrepRunOrder> findOrdersOfATradePrepRun(
+      TulevaFund fund, TransactionMode mode, OrderStatus status, Instant from, Instant until);
+
   default List<TransactionOrder> findOverdueOrders(OrderStatus... statuses) {
     return findByOrderStatusIn(Arrays.asList(statuses));
   }

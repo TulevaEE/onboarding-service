@@ -25,6 +25,8 @@ public final class JobRunSchedule {
 
   public static final String RISK_INDICATOR_DAILY = "0 30 9 * * MON-FRI";
 
+  public static final String MODEL_REBALANCE_CHECK = "0 15 9 * * MON-FRI";
+
   public static final String INVESTMENT_REPORT_PUBLICATION_CHECK = "0 0 9 * * *";
   public static final String FUND_PAGE_DISCLOSURE_CHECK = "0 5 9 * * *";
 

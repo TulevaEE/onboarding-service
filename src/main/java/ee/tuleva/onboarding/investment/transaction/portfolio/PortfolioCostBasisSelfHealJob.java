@@ -39,7 +39,8 @@ public class PortfolioCostBasisSelfHealJob {
   static final String LOCK_AT_MOST_FOR = "PT6H";
   static final List<String> LOCKS_OF_THE_JOBS_WRITING_COST_BASIS_ROWS =
       List.of(LOCK_NAME, "PortfolioCostBasisJob");
-  private static final Duration A_STOPPED_REBUILD_HOLDS_THE_LOCKS_AT_MOST = Duration.ofHours(3);
+  private static final Duration A_STOPPED_REBUILD_HOLDS_THE_LOCKS_AT_MOST =
+      Duration.parse(LOCK_AT_MOST_FOR);
 
   private enum Rebuild {
     REBUILT,

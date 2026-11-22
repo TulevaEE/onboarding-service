@@ -252,21 +252,28 @@ class PortfolioCostBasisSelfHealIT {
   }
 
   @Test
+  @Transactional(propagation = NOT_SUPPORTED)
   void
       rebuildFromBaselineFailsTheTriggerAndPostsTheOversellWhileTheHistoryLacksTheBuyBehindASell() {
-    seedBaseline();
-    seedExecutionOnDate(
-        ISIN_BOUGHT_AFTER_THE_BASELINE, SELL, LocalDate.of(2026, 6, 10), "5279.0000");
-    RecordingNotificationService notifications = new RecordingNotificationService();
+    LocalDate sellDate = LocalDate.of(2026, 6, 10);
+    LocalDate today = LocalDate.of(2026, 6, 15);
+    try {
+      seedBaseline();
+      seedExecutionOnDate(ISIN_BOUGHT_AFTER_THE_BASELINE, SELL, sellDate, "5279.0000");
+      RecordingNotificationService notifications = new RecordingNotificationService();
 
-    assertThatThrownBy(() -> jobOn(LocalDate.of(2026, 6, 15), notifications).rebuildFromBaseline())
-        .isInstanceOf(IllegalStateException.class);
+      assertThatThrownBy(() -> jobOn(today, notifications).rebuildFromBaseline())
+          .isInstanceOf(IllegalStateException.class);
 
-    assertThat(notifications.sent())
-        .extracting(Sent::message)
-        .singleElement()
-        .satisfies(
-            message -> assertThat(message).startsWith("🔴 TUK75 soetusmaksumus 10.06.2026:"));
+      assertThat(costBasisRepository.findByFundIsinAndAsOfDate(FUND_ISIN, sellDate)).isEmpty();
+      assertThat(notifications.sent())
+          .extracting(Sent::message)
+          .singleElement()
+          .satisfies(
+              message -> assertThat(message).startsWith("🔴 TUK75 soetusmaksumus 10.06.2026:"));
+    } finally {
+      deleteCommittedRows(today);
+    }
   }
 
   private PortfolioCostBasisSelfHealJob jobOn(

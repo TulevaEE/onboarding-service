@@ -39,7 +39,7 @@ public record FundTransactionInput(
     List<CalculationWarning> inputWarnings,
     @Nullable CashSection cashSection,
     Map<String, SellableUnits> sellableUnits,
-    List<DeductedSale> deductedSales) {
+    PositionAdjustments positionAdjustments) {
 
   public static FundTransactionInputBuilder builder() {
     return new FundTransactionInputBuilder();
@@ -77,7 +77,7 @@ public record FundTransactionInput(
         inputWarnings,
         cashSection,
         sellableUnits,
-        deductedSales);
+        positionAdjustments);
   }
 
   private List<PositionSnapshot> setAside(Set<String> isins) {
@@ -181,7 +181,7 @@ public record FundTransactionInput(
     private List<CalculationWarning> inputWarnings = List.of();
     private @Nullable CashSection cashSection;
     private Map<String, SellableUnits> sellableUnits = Map.of();
-    private List<DeductedSale> deductedSales = List.of();
+    private PositionAdjustments positionAdjustments = PositionAdjustments.NONE;
 
     public FundTransactionInputBuilder fund(TulevaFund fund) {
       this.fund = fund;
@@ -291,8 +291,9 @@ public record FundTransactionInput(
       return this;
     }
 
-    public FundTransactionInputBuilder deductedSales(List<DeductedSale> deductedSales) {
-      this.deductedSales = deductedSales;
+    public FundTransactionInputBuilder positionAdjustments(
+        PositionAdjustments positionAdjustments) {
+      this.positionAdjustments = positionAdjustments;
       return this;
     }
 
@@ -331,7 +332,7 @@ public record FundTransactionInput(
           inputWarnings,
           cashSection,
           sellableUnits,
-          deductedSales);
+          positionAdjustments);
     }
   }
 

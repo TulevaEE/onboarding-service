@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
+import static ee.tuleva.onboarding.investment.transaction.TradePrepPricingFixture.noResolvedPrices;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.toMap;
@@ -12,6 +13,7 @@ import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
@@ -46,7 +48,10 @@ class PositionAssemblerTest {
                 POSITION_DATE, TUV100, SECURITY))
         .willReturn(List.of(position));
 
-    var result = assembler.assemble(TUV100, POSITION_DATE, PendingOrderImpact.none()).positions();
+    var result =
+        assembler
+            .assemble(TUV100, POSITION_DATE, PendingOrderImpact.none(), noResolvedPrices())
+            .positions();
 
     assertThat(result)
         .containsExactly(
@@ -68,7 +73,10 @@ class PositionAssemblerTest {
                 POSITION_DATE, TUV100, SECURITY))
         .willReturn(List.of(position));
 
-    assertThat(assembler.assemble(TUV100, POSITION_DATE, PendingOrderImpact.none()).sellableUnits())
+    assertThat(
+            assembler
+                .assemble(TUV100, POSITION_DATE, PendingOrderImpact.none(), noResolvedPrices())
+                .sellableUnits())
         .isEqualTo(Map.of("IE00A", new SellableUnits(null, ZERO)));
   }
 
@@ -78,7 +86,10 @@ class PositionAssemblerTest {
 
     var assembled =
         assembler.assemble(
-            TUV100, POSITION_DATE, sales(Map.of("IE00A", "600"), Map.of("IE00A", "54600")));
+            TUV100,
+            POSITION_DATE,
+            sales(Map.of("IE00A", "600"), Map.of("IE00A", "54600")),
+            noResolvedPrices());
 
     assertThat(assembled.positions())
         .usingRecursiveComparison(byValue())
@@ -86,7 +97,7 @@ class PositionAssemblerTest {
             List.of(
                 new PositionSnapshot(
                     "IE00A", new BigDecimal("40000"), new BigDecimal("400"), null)));
-    assertThat(assembled.deductedSales())
+    assertThat(assembled.adjustments().deductedSales())
         .usingRecursiveComparison(byValue())
         .isEqualTo(
             List.of(
@@ -104,7 +115,8 @@ class PositionAssemblerTest {
     givenReport(row("IE00A", "1000", "100000"));
 
     var assembled =
-        assembler.assemble(TUV100, POSITION_DATE, sales(Map.of("IE00A", "1200"), Map.of()));
+        assembler.assemble(
+            TUV100, POSITION_DATE, sales(Map.of("IE00A", "1200"), Map.of()), noResolvedPrices());
 
     assertThat(assembled.positions())
         .singleElement()
@@ -116,17 +128,20 @@ class PositionAssemblerTest {
   }
 
   @Test
-  void assemble_aReportRowWithoutUnitsLosesTheValueOfSalesInTheirSettlementWindowAndSaysSo() {
+  void assemble_aReportRowWithoutUnitsLosesTheValueOfTheSalesTheReportDoesNotShowAndSaysSo() {
     givenReport(row("IE00A", null, "100000"));
 
     var assembled =
         assembler.assemble(
-            TUV100, POSITION_DATE, sales(Map.of("IE00A", "600"), Map.of("IE00A", "54600")));
+            TUV100,
+            POSITION_DATE,
+            sales(Map.of("IE00A", "600"), Map.of("IE00A", "54600")),
+            noResolvedPrices());
 
     assertThat(assembled.positions())
         .usingRecursiveComparison(byValue())
         .isEqualTo(List.of(new PositionSnapshot("IE00A", new BigDecimal("45400"), null, null)));
-    assertThat(assembled.deductedSales())
+    assertThat(assembled.adjustments().deductedSales())
         .usingRecursiveComparison(byValue())
         .isEqualTo(
             List.of(
@@ -153,7 +168,7 @@ class PositionAssemblerTest {
             Map.of("IE00A", new BigDecimal("600")),
             Map.of());
 
-    var assembled = assembler.assemble(TUV100, POSITION_DATE, pendingOrders);
+    var assembled = assembler.assemble(TUV100, POSITION_DATE, pendingOrders, noResolvedPrices());
 
     assertThat(assembled.positions())
         .usingRecursiveComparison(byValue())
@@ -168,7 +183,8 @@ class PositionAssemblerTest {
     givenReport(row("IE00A", "600", "60000"), row("IE00A", "400", "40000"));
 
     var assembled =
-        assembler.assemble(TUV100, POSITION_DATE, sales(Map.of("IE00A", "700"), Map.of()));
+        assembler.assemble(
+            TUV100, POSITION_DATE, sales(Map.of("IE00A", "700"), Map.of()), noResolvedPrices());
 
     assertThat(assembled.sellableUnits())
         .isEqualTo(
@@ -183,7 +199,7 @@ class PositionAssemblerTest {
               assertThat(second.quantity()).isEqualByComparingTo("300");
               assertThat(second.marketValue()).isEqualByComparingTo("30000");
             });
-    assertThat(assembled.deductedSales())
+    assertThat(assembled.adjustments().deductedSales())
         .singleElement()
         .satisfies(
             deducted -> {
@@ -197,17 +213,127 @@ class PositionAssemblerTest {
   void assemble_withoutSalesTheReportDoesNotShowNothingIsDeducted() {
     givenReport(row("IE00A", "1000", "100000"));
 
-    var assembled = assembler.assemble(TUV100, POSITION_DATE, PendingOrderImpact.none());
+    var assembled =
+        assembler.assemble(TUV100, POSITION_DATE, PendingOrderImpact.none(), noResolvedPrices());
 
     assertThat(assembled.positions())
         .containsExactly(
             new PositionSnapshot("IE00A", new BigDecimal("100000"), new BigDecimal("1000"), null));
-    assertThat(assembled.deductedSales()).isEmpty();
+    assertThat(assembled.adjustments().deductedSales()).isEmpty();
+  }
+
+  @Test
+  void assemble_aReportRowWithoutUnitsAndNoSaleValueToDeductIsNotListed() {
+    givenReport(row("IE00A", null, "100000"));
+
+    var assembled =
+        assembler.assemble(
+            TUV100, POSITION_DATE, sales(Map.of("IE00A", "600"), Map.of()), noResolvedPrices());
+
+    assertThat(assembled.adjustments().deductedSales()).isEmpty();
+  }
+
+  @Test
+  void assemble_aPositionWithNoUnitsLeftHasNothingToDeductAndIsNotListed() {
+    givenReport(row("IE00A", "0", "0"));
+
+    var assembled =
+        assembler.assemble(
+            TUV100, POSITION_DATE, sales(Map.of("IE00A", "600"), Map.of()), noResolvedPrices());
+
+    assertThat(assembled.adjustments().deductedSales()).isEmpty();
+  }
+
+  @Test
+  void assemble_aManualPriceValuesTheUnitsLeftAfterTheSalesAtThatPriceAndSaysSo() {
+    givenReport(row("IE00A", "45000", "900000"));
+
+    var assembled =
+        assembler.assemble(
+            TUV100,
+            POSITION_DATE,
+            sales(Map.of("IE00A", "30000"), Map.of()),
+            manualPrices(Map.of("IE00A", "15")));
+
+    assertThat(assembled.positions())
+        .usingRecursiveComparison(byValue())
+        .isEqualTo(
+            List.of(
+                new PositionSnapshot(
+                    "IE00A",
+                    new BigDecimal("225000"),
+                    new BigDecimal("15000"),
+                    new BigDecimal("15"))));
+    assertThat(assembled.adjustments().manualPriceValuations())
+        .usingRecursiveComparison(byValue())
+        .isEqualTo(
+            List.of(
+                new ManualPriceValuation(
+                    "IE00A",
+                    new BigDecimal("15000"),
+                    new BigDecimal("300000"),
+                    new BigDecimal("15"),
+                    new BigDecimal("225000"))));
+  }
+
+  @Test
+  void assemble_aPositionWithoutAManualPriceKeepsItsReportValue() {
+    givenReport(row("IE00A", "1000", "100000"), row("IE00B", "200", "100000"));
+
+    var assembled =
+        assembler.assemble(
+            TUV100, POSITION_DATE, PendingOrderImpact.none(), manualPrices(Map.of("IE00B", "400")));
+
+    assertThat(assembled.positions())
+        .satisfiesExactly(
+            first -> assertThat(first.marketValue()).isEqualByComparingTo("100000"),
+            second -> assertThat(second.marketValue()).isEqualByComparingTo("80000"));
+    assertThat(assembled.adjustments().manualPriceValuations())
+        .extracting(ManualPriceValuation::isin)
+        .containsExactly("IE00B");
+  }
+
+  @Test
+  void assemble_aReportRowWithoutUnitsKeepsItsReportValueUnderAManualPriceAndSaysSo() {
+    givenReport(row("IE00A", null, "100000"));
+
+    var assembled =
+        assembler.assemble(
+            TUV100, POSITION_DATE, PendingOrderImpact.none(), manualPrices(Map.of("IE00A", "15")));
+
+    assertThat(assembled.positions())
+        .usingRecursiveComparison(byValue())
+        .isEqualTo(List.of(new PositionSnapshot("IE00A", new BigDecimal("100000"), null, null)));
+    assertThat(assembled.adjustments().manualPriceValuations())
+        .usingRecursiveComparison(byValue())
+        .isEqualTo(
+            List.of(
+                new ManualPriceValuation(
+                    "IE00A",
+                    null,
+                    new BigDecimal("100000"),
+                    new BigDecimal("15"),
+                    new BigDecimal("100000"))));
+  }
+
+  private static TradePrepPricing manualPrices(Map<String, String> prices) {
+    return new TradePrepPricing.FreshestPerInstrument(
+        prices.entrySet().stream()
+            .collect(
+                toMap(
+                    Map.Entry::getKey,
+                    entry ->
+                        new TradePrepPrice.ManualPrice(
+                            new PriceOverride(
+                                entry.getKey(),
+                                new BigDecimal(entry.getValue()),
+                                "Issuer's NAV")))));
   }
 
   private static RecursiveComparisonConfiguration byValue() {
     return RecursiveComparisonConfiguration.builder()
-        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .withComparatorForType(
+            Comparator.nullsFirst(Comparator.<BigDecimal>naturalOrder()), BigDecimal.class)
         .build();
   }
 
@@ -276,7 +402,8 @@ class PositionAssemblerTest {
             Map.of(),
             Map.of());
 
-    var result = assembler.assemble(TUV100, POSITION_DATE, pendingOrders).positions();
+    var result =
+        assembler.assemble(TUV100, POSITION_DATE, pendingOrders, noResolvedPrices()).positions();
 
     assertThat(result)
         .extracting(PositionSnapshot::isin, PositionSnapshot::marketValue)
@@ -309,7 +436,8 @@ class PositionAssemblerTest {
             Map.of("IE00B", new BigDecimal("20")),
             Map.of("IE00B", new BigDecimal("1000")));
 
-    var result = assembler.assemble(TUV100, POSITION_DATE, pendingOrders).positions();
+    var result =
+        assembler.assemble(TUV100, POSITION_DATE, pendingOrders, noResolvedPrices()).positions();
 
     assertThat(result)
         .singleElement()
@@ -348,7 +476,8 @@ class PositionAssemblerTest {
             Map.of(),
             Map.of());
 
-    var result = assembler.assemble(TUV100, POSITION_DATE, pendingOrders).positions();
+    var result =
+        assembler.assemble(TUV100, POSITION_DATE, pendingOrders, noResolvedPrices()).positions();
 
     assertThat(result)
         .filteredOn(position -> position.isin().equals("IE00B"))
@@ -377,7 +506,8 @@ class PositionAssemblerTest {
             Map.of(),
             Map.of());
 
-    var result = assembler.assemble(TUV100, POSITION_DATE, pendingOrders).positions();
+    var result =
+        assembler.assemble(TUV100, POSITION_DATE, pendingOrders, noResolvedPrices()).positions();
 
     assertThat(result)
         .singleElement()

@@ -19,23 +19,23 @@ final class UnreportedSaleDeduction {
   record Deducted(List<PositionSnapshot> positions, List<DeductedSale> deductedSales) {}
 
   private final Map<String, SellableUnits> sellableUnits;
-  private final Map<String, BigDecimal> saleValuesInTheSettlementWindow;
+  private final Map<String, BigDecimal> saleValuesTheReportDoesNotShow;
   private final Map<String, BigDecimal> leftToDeduct = new HashMap<>();
   private final Map<String, BigDecimal> valueDeducted = new HashMap<>();
 
   private UnreportedSaleDeduction(
       Map<String, SellableUnits> sellableUnits,
-      Map<String, BigDecimal> saleValuesInTheSettlementWindow) {
+      Map<String, BigDecimal> saleValuesTheReportDoesNotShow) {
     this.sellableUnits = sellableUnits;
-    this.saleValuesInTheSettlementWindow = saleValuesInTheSettlementWindow;
+    this.saleValuesTheReportDoesNotShow = saleValuesTheReportDoesNotShow;
   }
 
   static Deducted deduct(
       List<PositionSnapshot> report,
       Map<String, SellableUnits> sellableUnits,
-      Map<String, BigDecimal> saleValuesInTheSettlementWindow) {
+      Map<String, BigDecimal> saleValuesTheReportDoesNotShow) {
     UnreportedSaleDeduction deduction =
-        new UnreportedSaleDeduction(sellableUnits, saleValuesInTheSettlementWindow);
+        new UnreportedSaleDeduction(sellableUnits, saleValuesTheReportDoesNotShow);
     List<PositionSnapshot> positions = report.stream().map(deduction::deductFrom).toList();
     return new Deducted(positions, deduction.deductedSales(report));
   }
@@ -67,7 +67,7 @@ final class UnreportedSaleDeduction {
 
   private PositionSnapshot byValue(String isin, PositionSnapshot row) {
     BigDecimal left =
-        leftToDeduct.getOrDefault(isin, saleValuesInTheSettlementWindow.getOrDefault(isin, ZERO));
+        leftToDeduct.getOrDefault(isin, saleValuesTheReportDoesNotShow.getOrDefault(isin, ZERO));
     BigDecimal deducted = left.min(row.marketValue());
     if (deducted.signum() <= 0) {
       return row;
@@ -83,16 +83,9 @@ final class UnreportedSaleDeduction {
         .map(PositionSnapshot::isin)
         .filter(Objects::nonNull)
         .distinct()
-        .filter(this::hasSalesToDeduct)
+        .filter(isin -> valueDeducted.getOrDefault(isin, ZERO).signum() > 0)
         .map(isin -> deductedSale(isin, report))
         .toList();
-  }
-
-  private boolean hasSalesToDeduct(String isin) {
-    SellableUnits units = Objects.requireNonNull(sellableUnits.get(isin));
-    return units.pendingSells().signum() > 0
-        || units.held() == null
-            && saleValuesInTheSettlementWindow.getOrDefault(isin, ZERO).signum() > 0;
   }
 
   private DeductedSale deductedSale(String isin, List<PositionSnapshot> report) {

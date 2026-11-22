@@ -32,18 +32,24 @@ class PositionAssembler {
   record Assembled(
       List<PositionSnapshot> positions,
       Map<String, SellableUnits> sellableUnits,
-      List<DeductedSale> deductedSales) {}
+      PositionAdjustments adjustments) {}
 
-  Assembled assemble(TulevaFund fund, LocalDate positionDate, PendingOrderImpact pendingOrders) {
+  Assembled assemble(
+      TulevaFund fund,
+      LocalDate positionDate,
+      PendingOrderImpact pendingOrders,
+      TradePrepPricing pricing) {
     List<PositionSnapshot> report = reportPositions(fund, positionDate);
     Map<String, SellableUnits> sellableUnits =
         sellableUnits(report, pendingOrders.unreportedSellQuantities());
     UnreportedSaleDeduction.Deducted deducted =
         UnreportedSaleDeduction.deduct(report, sellableUnits, pendingOrders.unreportedSellValues());
+    ManualPriceRevaluation.Revalued revalued =
+        ManualPriceRevaluation.revalue(deducted.positions(), pricing.manualPrices());
     return new Assembled(
-        applyUnreportedPurchases(deducted.positions(), pendingOrders),
+        applyUnreportedPurchases(revalued.positions(), pendingOrders),
         sellableUnits,
-        deducted.deductedSales());
+        new PositionAdjustments(deducted.deductedSales(), revalued.valuations()));
   }
 
   private static Map<String, SellableUnits> sellableUnits(

@@ -1678,7 +1678,7 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Test
-  void aSentSaleInItsSettlementWindowIsTakenOffAtTheReportsUnitValueNotAtTheRunsPrice() {
+  void aSentSaleInItsWindowComesOffAtTheReportsUnitValueAndTheRestIsValuedAtTheManualPrice() {
     sellTheFundInstrumentOut();
     sentSaleOfTheFundInstrument(LocalDate.of(2026, 2, 12));
 
@@ -1699,14 +1699,25 @@ class TransactionPipelineIntegrationTest {
 
     assertThat(response.status()).isEqualTo(CALCULATED);
     assertThat(engineTradeAmount(response.calculationSnapshot(), "IE00BFG1TM61"))
-        .isEqualByComparingTo("-300000");
+        .isEqualByComparingTo("-225000");
     var sale = saleOfTheFundInstrument(response);
     assertThat(sale.orderQuantity()).isEqualByComparingTo("15000");
     assertThat(sale.orderAmount()).isEqualByComparingTo("225000");
     assertThat(((Map<?, ?>) response.calculationSnapshot().get("input")).get("deductedSales"))
         .isEqualTo(deductedSaleOfTheFundInstrument());
+    assertThat(
+            ((Map<?, ?>) response.calculationSnapshot().get("input")).get("manualPriceValuations"))
+        .isEqualTo(
+            List.of(
+                Map.of(
+                    "isin", "IE00BFG1TM61",
+                    "units", "15000",
+                    "reportValue", "300000",
+                    "manualPrice", "15",
+                    "valueUsed", "225000",
+                    "valuedAt", "MANUAL_PRICE")));
     assertThat(response.calculationSnapshot().get("sizedSales"))
-        .isEqualTo(List.of(sizedSaleOfTheFundInstrument("15", "300000", "225000")));
+        .isEqualTo(List.of(sizedSaleOfTheFundInstrument("15", "225000", "225000")));
   }
 
   private void sellTheFundInstrumentOut() {

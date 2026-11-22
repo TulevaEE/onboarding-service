@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static java.math.BigDecimal.ZERO;
-import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -61,11 +60,12 @@ class PendingOrderImpactService {
       LocalDate positionDate,
       TradePrepPricing pricing,
       Set<Long> executionIdsInTheBalance) {
-    Map<String, BigDecimal> unreportedSellQuantities =
-        unitsOfSalesTheReportDoesNotShow(fund, positionDate);
+    UnreportedSales unreportedSales =
+        salesTheReportDoesNotShow(fund, asOfDate, positionDate, pricing);
     List<TransactionOrder> unsettled = orderRepository.findUnsettledOrders(fund, asOfDate);
     if (unsettled.isEmpty()) {
-      return PendingOrderImpact.none().withUnreportedSellQuantities(unreportedSellQuantities);
+      return PendingOrderImpact.none()
+          .withUnreportedSales(unreportedSales.units(), unreportedSales.values());
     }
 
     Map<Long, List<TransactionExecution>> executionsByOrder = executionsByOrderId(unsettled);
@@ -76,7 +76,6 @@ class PendingOrderImpactService {
     BigDecimal sellsInTheBalance = ZERO;
     Map<String, BigDecimal> unreportedBuyValues = new HashMap<>();
     Map<String, BigDecimal> unreportedBuyQuantities = new HashMap<>();
-    Map<String, BigDecimal> unreportedSellValues = new HashMap<>();
 
     for (TransactionOrder order : unsettled) {
       List<TransactionExecution> executions =
@@ -101,7 +100,6 @@ class PendingOrderImpactService {
         pendingBuys = pendingBuys.add(cash);
         buysInTheBalance = buysInTheBalance.add(inTheBalance);
       } else {
-        addUnreportedSale(order, fills, unfilledValue, unreportedSellValues);
         pendingSells = pendingSells.add(cash);
         sellsInTheBalance = sellsInTheBalance.add(inTheBalance);
       }
@@ -116,7 +114,7 @@ class PendingOrderImpactService {
         pendingBuys.toPlainString(),
         pendingSells.toPlainString(),
         unreportedBuyValues.keySet(),
-        unreportedSellValues.keySet());
+        unreportedSales.units().keySet());
 
     return new PendingOrderImpact(
         pendingBuys,
@@ -125,36 +123,47 @@ class PendingOrderImpactService {
         Map.copyOf(unreportedBuyQuantities),
         buysInTheBalance,
         sellsInTheBalance,
-        unreportedSellQuantities,
-        Map.copyOf(unreportedSellValues));
+        unreportedSales.units(),
+        unreportedSales.values());
   }
 
-  private Map<String, BigDecimal> unitsOfSalesTheReportDoesNotShow(
-      TulevaFund fund, LocalDate positionDate) {
+  private record UnreportedSales(Map<String, BigDecimal> units, Map<String, BigDecimal> values) {
+
+    static final UnreportedSales NONE = new UnreportedSales(Map.of(), Map.of());
+  }
+
+  private UnreportedSales salesTheReportDoesNotShow(
+      TulevaFund fund, LocalDate asOfDate, LocalDate positionDate, TradePrepPricing pricing) {
     List<TransactionOrder> sales =
         orderRepository.findSalesTheReportMayNotShowYet(fund, positionDate);
     if (sales.isEmpty()) {
-      return Map.of();
+      return UnreportedSales.NONE;
     }
     Map<Long, List<TransactionExecution>> executionsByOrder = executionsByOrderId(sales);
-    return Map.copyOf(
-        sales.stream()
-            .collect(
-                toMap(
-                    TransactionOrder::getInstrumentIsin,
-                    sale -> {
-                      List<TransactionExecution> executions =
-                          executionsByOrder.getOrDefault(sale.getId(), List.of());
-                      BigDecimal unreportedFills =
-                          classifyAgainstPositionReport(sale, executions, positionDate).stream()
-                              .map(ClassifiedFill::unreportedQuantity)
-                              .reduce(ZERO, BigDecimal::add);
-                      return sale.getOrderStatus() == OrderStatus.SENT
-                          ? unreportedFills.add(
-                              unfilledQuantity(sale, ExecutedTotals.of(executions)))
-                          : unreportedFills;
-                    },
-                    BigDecimal::add)));
+    Map<String, BigDecimal> units = new HashMap<>();
+    Map<String, BigDecimal> values = new HashMap<>();
+    for (TransactionOrder sale : sales) {
+      List<TransactionExecution> executions =
+          executionsByOrder.getOrDefault(sale.getId(), List.of());
+      List<ClassifiedFill> fills = classifyAgainstPositionReport(sale, executions, positionDate);
+      ExecutedTotals executed = ExecutedTotals.of(executions);
+      boolean stillOpen = sale.getOrderStatus() == OrderStatus.SENT;
+      units.merge(
+          sale.getInstrumentIsin(),
+          fills.stream()
+              .map(ClassifiedFill::unreportedQuantity)
+              .reduce(stillOpen ? unfilledQuantity(sale, executed) : ZERO, BigDecimal::add),
+          BigDecimal::add);
+      values.merge(
+          sale.getInstrumentIsin(),
+          fills.stream()
+              .map(ClassifiedFill::unreportedConsideration)
+              .reduce(
+                  stillOpen ? unfilledValue(sale, executed, asOfDate, pricing) : ZERO,
+                  BigDecimal::add),
+          BigDecimal::add);
+    }
+    return new UnreportedSales(Map.copyOf(units), Map.copyOf(values));
   }
 
   private static List<ClassifiedFill> classifyAgainstPositionReport(
@@ -180,14 +189,6 @@ class PendingOrderImpactService {
     if (order.getInstrumentType() == ETF && quantity.signum() != 0) {
       unreportedQuantities.merge(isin, quantity, BigDecimal::add);
     }
-  }
-
-  private static void addUnreportedSale(
-      TransactionOrder order,
-      List<ClassifiedFill> fills,
-      BigDecimal unfilledValue,
-      Map<String, BigDecimal> unreportedSellValues) {
-    addUnreportedValue(order.getInstrumentIsin(), fills, unfilledValue, unreportedSellValues);
   }
 
   private static void addUnreportedValue(

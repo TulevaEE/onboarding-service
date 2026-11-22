@@ -27,10 +27,7 @@ final class TransactionInputPayloads {
               .map(position -> serializePosition(position, input.grossPortfolioValue()))
               .toList());
     }
-    if (!input.deductedSales().isEmpty()) {
-      result.put(
-          "deductedSales", input.deductedSales().stream().map(DeductedSale::payload).toList());
-    }
+    result.putAll(input.positionAdjustments().payload());
     putIfPresent(
         result,
         "modelWeights",

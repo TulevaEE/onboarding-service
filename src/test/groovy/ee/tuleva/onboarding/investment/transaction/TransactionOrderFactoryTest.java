@@ -277,6 +277,27 @@ class TransactionOrderFactoryTest {
                 null));
   }
 
+  @Test
+  void createOrders_aSaleOfARowWithoutUnitsTooSmallForAnyUnitWritesNoOrder() {
+    var input =
+        holding(
+            List.of(new PositionSnapshot("IE00ETF", new BigDecimal("100000"), null, null)),
+            Map.of("IE00ETF", new SellableUnits(null, BigDecimal.ZERO)));
+
+    var calculated = sellOn(input, "-0.00004", manual("100"));
+
+    assertThat(calculated.orders()).isEmpty();
+    assertThat(calculated.droppedSales()).containsExactly("IE00ETF");
+  }
+
+  @Test
+  void createOrders_aPartialSaleTooSmallForAnyUnitWritesNoOrder() {
+    var calculated = sellOn(thousandUnits(BigDecimal.ZERO), "-0.00004", manual("100"));
+
+    assertThat(calculated.orders()).isEmpty();
+    assertThat(calculated.droppedSales()).containsExactly("IE00ETF");
+  }
+
   private static FundTransactionInput thousandUnits(BigDecimal inSentSales) {
     return holding(
         List.of(

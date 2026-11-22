@@ -158,17 +158,15 @@ class PendingOrderImpactServiceTest {
 
   @Test
   void recordsASentSellAsAnUnreportedSaleValueAndAnIncomingReceipt() {
-    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
-        .willReturn(
-            List.of(
-                order(
-                    1L,
-                    "IE00A",
-                    TransactionType.SELL,
-                    InstrumentType.ETF,
-                    OrderStatus.SENT,
-                    new BigDecimal("20"),
-                    new BigDecimal("1000"))));
+    givenASaleInBothQueries(
+        order(
+            1L,
+            "IE00A",
+            TransactionType.SELL,
+            InstrumentType.ETF,
+            OrderStatus.SENT,
+            new BigDecimal("20"),
+            new BigDecimal("1000")));
     given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
     given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
         .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
@@ -634,17 +632,15 @@ class PendingOrderImpactServiceTest {
 
   @Test
   void aSellPlacedInEurosIsAnUnreportedSaleValue() {
-    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
-        .willReturn(
-            List.of(
-                order(
-                    1L,
-                    "IE00A",
-                    TransactionType.SELL,
-                    InstrumentType.ETF,
-                    OrderStatus.SENT,
-                    null,
-                    new BigDecimal("4000"))));
+    givenASaleInBothQueries(
+        order(
+            1L,
+            "IE00A",
+            TransactionType.SELL,
+            InstrumentType.ETF,
+            OrderStatus.SENT,
+            null,
+            new BigDecimal("4000")));
     given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
 
     var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices(), Set.of());
@@ -658,17 +654,15 @@ class PendingOrderImpactServiceTest {
 
   @Test
   void anUnfilledFundSellIsAnUnreportedSaleValue() {
-    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
-        .willReturn(
-            List.of(
-                order(
-                    1L,
-                    "IE00B",
-                    TransactionType.SELL,
-                    InstrumentType.FUND,
-                    OrderStatus.SENT,
-                    new BigDecimal("20"),
-                    new BigDecimal("1000"))));
+    givenASaleInBothQueries(
+        order(
+            1L,
+            "IE00B",
+            TransactionType.SELL,
+            InstrumentType.FUND,
+            OrderStatus.SENT,
+            new BigDecimal("20"),
+            new BigDecimal("1000")));
     given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
 
     var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices(), Set.of());
@@ -854,18 +848,16 @@ class PendingOrderImpactServiceTest {
 
   @Test
   void anUnfilledSalePlacedByTheReportDateIsAnUnreportedSaleValueButNotIncomingCash() {
-    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
-        .willReturn(
-            List.of(
-                order(
-                    1L,
-                    "IE00A",
-                    TransactionType.SELL,
-                    InstrumentType.ETF,
-                    OrderStatus.SENT,
-                    new BigDecimal("20"),
-                    new BigDecimal("1000"),
-                    POSITION_DATE)));
+    givenASaleInBothQueries(
+        order(
+            1L,
+            "IE00A",
+            TransactionType.SELL,
+            InstrumentType.ETF,
+            OrderStatus.SENT,
+            new BigDecimal("20"),
+            new BigDecimal("1000"),
+            POSITION_DATE));
     given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
     given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
         .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
@@ -877,6 +869,52 @@ class PendingOrderImpactServiceTest {
     assertThat(impact.unreportedBuyValues()).isEmpty();
     assertThat(impact.unreportedBuyQuantities()).isEmpty();
     assertThat(impact.pendingSells()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void anOverdueSentSaleIsValuedLikeAnUnfilledSaleOnTheCashSide() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE)).willReturn(List.of());
+    given(orderRepository.findSalesTheReportMayNotShowYet(TUV100, POSITION_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.SELL,
+                    InstrumentType.ETF,
+                    OrderStatus.SENT,
+                    new BigDecimal("20"),
+                    new BigDecimal("1000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
+    given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
+        .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("45")).build()));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices(), Set.of());
+
+    assertThat(impact.unreportedSellValues())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("900")));
+    assertThat(impact.unreportedSellQuantities())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("20")));
+  }
+
+  @Test
+  void anExecutedSaleIsValuedAtTheConsiderationOfTheFillTheReportDoesNotShowYet() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE)).willReturn(List.of());
+    given(orderRepository.findSalesTheReportMayNotShowYet(TUV100, POSITION_DATE))
+        .willReturn(List.of(executedSell()));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(List.of(execution(1L, "12", "540", AS_OF_DATE)));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE, noResolvedPrices(), Set.of());
+
+    assertThat(impact.unreportedSellValues())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("540")));
+  }
+
+  private void givenASaleInBothQueries(TransactionOrder sale) {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE)).willReturn(List.of(sale));
+    given(orderRepository.findSalesTheReportMayNotShowYet(TUV100, POSITION_DATE))
+        .willReturn(List.of(sale));
   }
 
   private TransactionOrder executedSell() {

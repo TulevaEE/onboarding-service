@@ -15,7 +15,8 @@ record PendingOrderImpact(
     Map<String, BigDecimal> unreportedSellQuantities,
     Map<String, BigDecimal> unreportedSellValues) {
 
-  PendingOrderImpact withUnreportedSellQuantities(Map<String, BigDecimal> quantities) {
+  PendingOrderImpact withUnreportedSales(
+      Map<String, BigDecimal> quantities, Map<String, BigDecimal> values) {
     return new PendingOrderImpact(
         pendingBuys,
         pendingSells,
@@ -24,7 +25,7 @@ record PendingOrderImpact(
         buysInTheBalance,
         sellsInTheBalance,
         Map.copyOf(quantities),
-        unreportedSellValues);
+        Map.copyOf(values));
   }
 
   static PendingOrderImpact none() {

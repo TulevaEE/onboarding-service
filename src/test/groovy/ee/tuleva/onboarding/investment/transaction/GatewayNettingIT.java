@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -173,6 +174,27 @@ class GatewayNettingIT {
     sentSale("600", TODAY.minusDays(2));
 
     assertThat(unitsReservedForSales()).isEqualByComparingTo("600");
+  }
+
+  @Test
+  void anOverdueSentSaleIsValuedAtTheRunsPriceForARowWithoutUnits() {
+    sentSale("600", TODAY.minusDays(2));
+
+    assertThat(
+            pendingOrderImpactService
+                .calculate(
+                    TUK75,
+                    TODAY,
+                    REPORT_DATE,
+                    new TradePrepPricing.FreshestPerInstrument(
+                        Map.of(
+                            ISIN,
+                            new TradePrepPrice.ManualPrice(
+                                new PriceOverride(ISIN, new BigDecimal("50"), "Issuer's NAV")))),
+                    Set.of())
+                .unreportedSellValues()
+                .get(ISIN))
+        .isEqualByComparingTo("30000");
   }
 
   @Test

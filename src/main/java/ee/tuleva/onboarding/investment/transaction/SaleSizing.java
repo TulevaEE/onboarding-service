@@ -62,12 +62,12 @@ final class SaleSizing {
       sizedSales.add(
           new SizedSale(
               isin, null, sellable.pendingSells(), quantity, price, amount, amount, null));
-      return Optional.of(new SizedOrder(amount, sized));
+      return quantity.signum() == 0 ? Optional.empty() : Optional.of(new SizedOrder(amount, sized));
     }
     BigDecimal left = unitsLeft.getOrDefault(isin, sellable.allowed());
     BigDecimal units = kind == FULL ? left : quantity.min(left);
     unitsLeft.put(isin, left.subtract(units));
-    if (kind == PARTIAL && units.compareTo(quantity) == 0) {
+    if (kind == PARTIAL && units.compareTo(quantity) == 0 && units.signum() > 0) {
       return Optional.of(new SizedOrder(amount, sized));
     }
     BigDecimal orderAmount = units.multiply(price).setScale(CENTS, HALF_UP);

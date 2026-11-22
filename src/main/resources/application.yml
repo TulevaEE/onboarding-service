@@ -371,6 +371,9 @@ investment:
         - key: EE3600109443
       TUV100:
         - key: EE3600001707
+  kid:
+    digest:
+      enabled: false
 
 ledger:
   unit-balance-guard:
@@ -625,3 +628,8 @@ third-pillar-payment-arrived:
 transaction-registry:
   ft-confirmation:
     registry-authoritative: ${TRANSACTION_REGISTRY_FT_CONFIRMATION_REGISTRY_AUTHORITATIVE:true}
+
+investment:
+  kid:
+    digest:
+      enabled: true

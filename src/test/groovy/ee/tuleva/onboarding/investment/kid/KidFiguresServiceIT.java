@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +64,7 @@ class KidFiguresServiceIT {
                 List.of(new SeriesSegment("MSCI_ACWI", null)),
                 LocalDate.of(2016, 9, 30),
                 LocalDate.of(2026, 9, 30),
+                LocalDate.of(2026, 9, 30),
                 ONGOING_CHARGES,
                 5,
                 new BigDecimal("10000"),
@@ -75,7 +77,9 @@ class KidFiguresServiceIT {
                         LocalDate.of(2022, 4, 22),
                         LocalDate.of(2022, 5, 20),
                         STRESSED_VOLATILITY,
-                        null),
+                        null,
+                        new BigDecimal("6616.95942582"),
+                        new BigDecimal("-0.3383")),
                     new KidScenario(
                         1,
                         UNFAVOURABLE,
@@ -84,7 +88,9 @@ class KidFiguresServiceIT {
                         LocalDate.of(2019, 8, 31),
                         LocalDate.of(2020, 8, 31),
                         FULL_LENGTH,
-                        12),
+                        12,
+                        new BigDecimal("6938.35653769"),
+                        new BigDecimal("-0.3062")),
                     new KidScenario(
                         1,
                         MODERATE,
@@ -93,7 +99,9 @@ class KidFiguresServiceIT {
                         LocalDate.of(2023, 12, 31),
                         LocalDate.of(2024, 12, 31),
                         FULL_LENGTH,
-                        12),
+                        12,
+                        new BigDecimal("11002.40619403"),
+                        new BigDecimal("0.1002")),
                     new KidScenario(
                         1,
                         FAVOURABLE,
@@ -102,7 +110,9 @@ class KidFiguresServiceIT {
                         LocalDate.of(2017, 4, 30),
                         LocalDate.of(2018, 4, 30),
                         FULL_LENGTH,
-                        12),
+                        12,
+                        new BigDecimal("14539.69337607"),
+                        new BigDecimal("0.4540")),
                     new KidScenario(
                         5,
                         STRESS,
@@ -111,7 +121,9 @@ class KidFiguresServiceIT {
                         LocalDate.of(2022, 8, 1),
                         LocalDate.of(2022, 10, 26),
                         STRESSED_VOLATILITY,
-                        null),
+                        null,
+                        new BigDecimal("5290.79941950"),
+                        new BigDecimal("-0.1196")),
                     new KidScenario(
                         5,
                         UNFAVOURABLE,
@@ -120,7 +132,9 @@ class KidFiguresServiceIT {
                         LocalDate.of(2025, 9, 30),
                         LocalDate.of(2026, 9, 30),
                         SHORTER,
-                        12),
+                        12,
+                        new BigDecimal("8618.55797059"),
+                        new BigDecimal("-0.0293")),
                     new KidScenario(
                         5,
                         MODERATE,
@@ -129,7 +143,9 @@ class KidFiguresServiceIT {
                         LocalDate.of(2019, 1, 31),
                         LocalDate.of(2024, 1, 31),
                         FULL_LENGTH,
-                        60),
+                        60,
+                        new BigDecimal("11484.81952883"),
+                        new BigDecimal("0.0281")),
                     new KidScenario(
                         5,
                         FAVOURABLE,
@@ -138,20 +154,76 @@ class KidFiguresServiceIT {
                         LocalDate.of(2017, 9, 30),
                         LocalDate.of(2022, 9, 30),
                         FULL_LENGTH,
-                        60)),
+                        60,
+                        new BigDecimal("19246.23030566"),
+                        new BigDecimal("0.1399"))),
                 List.of(
                     new KidCost(
                         1,
                         new BigDecimal("50"),
                         new BigDecimal("0.0050"),
                         new BigDecimal("0.0050"),
-                        new BigDecimal("0.0000")),
+                        new BigDecimal("0.0000"),
+                        new BigDecimal("50.25125628"),
+                        new BigDecimal("0.00502513"),
+                        new BigDecimal("0.00502513"),
+                        new BigDecimal("0.00000000")),
                     new KidCost(
                         5,
                         new BigDecimal("273"),
                         new BigDecimal("0.0052"),
                         new BigDecimal("0.0332"),
-                        new BigDecimal("0.0281")))));
+                        new BigDecimal("0.0281"),
+                        new BigDecimal("273.22744679"),
+                        new BigDecimal("0.00516621"),
+                        new BigDecimal("0.03324129"),
+                        new BigDecimal("0.02807509")))));
+  }
+
+  @Test
+  void theLatestMonthsFiguresAreTheOnesServedOnRequest() {
+    fundValues.saveAll(SyntheticIndexSeries.weekdayCloses("MSCI_ACWI"));
+
+    assertThat(service.latestCloseDate(TKF100)).contains(LocalDate.of(2026, 10, 21));
+    assertThat(service.figures(TKF100, YearMonth.of(2026, 9), ONGOING_CHARGES))
+        .isEqualTo(service.figures(TKF100, ONGOING_CHARGES));
+  }
+
+  @Test
+  void calculatesAPastMonthWithCompleteDataWhileTheFeedHasStoppedToday() {
+    fundValues.saveAll(
+        SyntheticIndexSeries.weekdayCloses("MSCI_ACWI").stream()
+            .filter(close -> close.date().isBefore(LocalDate.of(2026, 10, 9)))
+            .toList());
+
+    assertThat(service.figures(TKF100, YearMonth.of(2026, 9), ONGOING_CHARGES).periodEnd())
+        .isEqualTo(LocalDate.of(2026, 9, 30));
+    assertThatThrownBy(() -> service.figures(TKF100, ONGOING_CHARGES))
+        .isInstanceOf(KidCalculationRefusedException.class);
+  }
+
+  @Test
+  void hasNoLatestCloseForASeriesWithNoPrices() {
+    assertThat(service.latestCloseDate(TKF100)).isEmpty();
+  }
+
+  @Test
+  void calculatesAnEarlierMonthOnTheTenYearsEndingWithIt() {
+    fundValues.saveAll(SyntheticIndexSeries.weekdayCloses("MSCI_ACWI"));
+
+    var figures = service.figures(TKF100, YearMonth.of(2026, 5), ONGOING_CHARGES);
+
+    assertThat(figures.periodStart()).isEqualTo(LocalDate.of(2016, 5, 31));
+    assertThat(figures.periodEnd()).isEqualTo(LocalDate.of(2026, 5, 31));
+    assertThat(figures.lastPriceDate()).isEqualTo(LocalDate.of(2026, 5, 29));
+  }
+
+  @Test
+  void refusesAMonthWhoseMonthEndCloseIsNotIn() {
+    fundValues.saveAll(SyntheticIndexSeries.weekdayCloses("MSCI_ACWI"));
+
+    assertThatThrownBy(() -> service.figures(TKF100, YearMonth.of(2026, 10), ONGOING_CHARGES))
+        .isInstanceOf(KidCalculationRefusedException.class);
   }
 
   @Test

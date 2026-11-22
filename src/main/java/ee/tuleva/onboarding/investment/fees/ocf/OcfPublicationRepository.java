@@ -73,6 +73,19 @@ class OcfPublicationRepository {
         .optional();
   }
 
+  Optional<OcfSnapshot> findCalculationOf(long publicationId) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT s.* FROM investment_ocf_snapshot s
+            JOIN investment_ocf_publication p ON p.snapshot_id = s.id
+            WHERE p.id = :publicationId
+            """)
+        .param("publicationId", publicationId)
+        .query(OcfSnapshot::fromResultSet)
+        .optional();
+  }
+
   private boolean markPublished(OcfSnapshot snapshot, String publishedIn) {
     return jdbcClient
             .sql(

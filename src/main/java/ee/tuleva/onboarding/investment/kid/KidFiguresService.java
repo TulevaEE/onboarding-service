@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.kid;
 
 import static ee.tuleva.onboarding.investment.kid.ScenarioPresentation.ANNEX_VI_P90_EXAMPLE_INVESTMENT_EUR;
+import static java.util.Comparator.naturalOrder;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorProperties;
@@ -11,8 +12,9 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.YearMonth;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,7 +24,6 @@ import org.springframework.stereotype.Service;
 class KidFiguresService {
 
   private static final int FIRST_YEAR = 1;
-  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final KidFunds kidFunds;
   private final RiskIndicatorProperties riskIndicatorSeries;
@@ -34,13 +35,34 @@ class KidFiguresService {
   private final CostsOverTimeCalculator costsOverTimeCalculator;
 
   KidFigures figures(TulevaFund fund, BigDecimal ongoingCharges) {
+    return figures(
+        fund,
+        ScenarioPeriod.endingWithLastCompleteMonth(
+            latestCloseDate(fund)
+                .orElseThrow(
+                    () -> new KidCalculationRefusedException(MonthEndPrices.noPrices(fund))),
+            KidCalendar.today(clock)),
+        ongoingCharges);
+  }
+
+  KidFigures figures(TulevaFund fund, YearMonth month, BigDecimal ongoingCharges) {
+    return figures(fund, ScenarioPeriod.endingWith(month), ongoingCharges);
+  }
+
+  Optional<LocalDate> latestCloseDate(TulevaFund fund) {
+    return priceSeries.lastCloseDate(seriesOfAKidFund(fund));
+  }
+
+  private List<SeriesSegment> seriesOfAKidFund(TulevaFund fund) {
+    kidFunds.settingsFor(fund);
+    return riskIndicatorSeries.sourcesFor(fund);
+  }
+
+  private KidFigures figures(TulevaFund fund, ScenarioPeriod period, BigDecimal ongoingCharges) {
     var holdingPeriodYears = kidFunds.settingsFor(fund).recommendedHoldingPeriodYears();
-    var series = riskIndicatorSeries.sourcesFor(fund);
+    var series = inEffectBy(riskIndicatorSeries.sourcesFor(fund), period.end());
     var charges = ongoingCharges.doubleValue();
 
-    var period =
-        ScenarioPeriod.endingWithLastCompleteMonth(
-            lastPriceDate(series), LocalDate.now(clock.withZone(ESTONIAN_ZONE)));
     var prices = positive(spliced(series, period));
     var monthEndPrices =
         OwnNavMonthEnds.of(fund, series).grossedUp(period.monthEndPrices(prices), charges);
@@ -64,6 +86,7 @@ class KidFiguresService {
         series,
         period.start(),
         period.end(),
+        lastClose(prices),
         ongoingCharges,
         holdingPeriodYears,
         ANNEX_VI_P90_EXAMPLE_INVESTMENT_EUR,
@@ -87,16 +110,10 @@ class KidFiguresService {
         charges);
   }
 
-  private static List<FundValue> positive(List<FundValue> prices) {
-    prices.stream()
-        .filter(price -> price.value().signum() <= 0)
-        .findFirst()
-        .ifPresent(
-            price -> {
-              throw new KidCalculationRefusedException(
-                  "Price not positive: key=%s, date=%s".formatted(price.key(), price.date()));
-            });
-    return prices;
+  private static List<SeriesSegment> inEffectBy(List<SeriesSegment> series, LocalDate periodEnd) {
+    return series.stream()
+        .filter(segment -> segment.from() == null || !segment.from().isAfter(periodEnd))
+        .toList();
   }
 
   private List<FundValue> spliced(List<SeriesSegment> series, ScenarioPeriod period) {
@@ -107,12 +124,19 @@ class KidFiguresService {
     }
   }
 
-  private LocalDate lastPriceDate(List<SeriesSegment> series) {
-    return priceSeries
-        .lastCloseDate(series)
-        .orElseThrow(
-            () ->
-                new KidCalculationRefusedException(
-                    "No prices for the KID series: key=" + SplicedPriceSeries.key(series)));
+  private static LocalDate lastClose(List<FundValue> prices) {
+    return prices.stream().map(FundValue::date).max(naturalOrder()).orElseThrow();
+  }
+
+  private static List<FundValue> positive(List<FundValue> prices) {
+    prices.stream()
+        .filter(price -> price.value().signum() <= 0)
+        .findFirst()
+        .ifPresent(
+            price -> {
+              throw new KidCalculationRefusedException(
+                  "Price not positive: key=%s, date=%s".formatted(price.key(), price.date()));
+            });
+    return prices;
   }
 }

@@ -154,6 +154,26 @@ class JobRunScheduleTest {
   }
 
   @Test
+  void kidCalculation_firesOncePerWorkingDayAnHourAfterTheRiskIndicatorReadsTheSameSeries() {
+    ZonedDateTime weekStart = LocalDateTime.parse("2026-11-30T00:00:00").atZone(TALLINN);
+    List<ZonedDateTime> fires =
+        firesBetween(
+            JobRunSchedule.KID_CALCULATION_EACH_WORKING_DAY, weekStart, weekStart.plusDays(7));
+
+    assertThat(fires).hasSize(5);
+    assertThat(fires)
+        .allSatisfy(
+            fire -> {
+              assertThat(fire.getDayOfWeek().getValue()).isLessThanOrEqualTo(5);
+              assertThat(fire)
+                  .isEqualTo(
+                      CronExpression.parse(JobRunSchedule.RISK_INDICATOR_DAILY)
+                          .next(fire.toLocalDate().atStartOfDay(TALLINN))
+                          .plusHours(1));
+            });
+  }
+
+  @Test
   void tdAttributionSelfHeal_firesOncePerBusinessDayAfterTheInstrumentRetirement() {
     ZonedDateTime weekStart = LocalDateTime.parse("2026-04-13T00:00:00").atZone(TALLINN);
     List<ZonedDateTime> fires =
@@ -210,6 +230,8 @@ class JobRunScheduleTest {
         JobRunSchedule.RISK_INDICATOR_DAILY, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
     MODEL_REBALANCE_CHECK(
         JobRunSchedule.MODEL_REBALANCE_CHECK, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
+    KID_CALCULATION_EACH_WORKING_DAY(
+        JobRunSchedule.KID_CALCULATION_EACH_WORKING_DAY, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
     INVESTMENT_REPORT_PUBLICATION_CHECK(
         JobRunSchedule.INVESTMENT_REPORT_PUBLICATION_CHECK, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
     FUND_PAGE_DISCLOSURE_CHECK(

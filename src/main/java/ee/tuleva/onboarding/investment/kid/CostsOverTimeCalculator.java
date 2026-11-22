@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.kid;
 
 import static ee.tuleva.onboarding.investment.kid.ScenarioPresentation.ANNEX_VI_P90_EXAMPLE_INVESTMENT_EUR;
+import static ee.tuleva.onboarding.investment.kid.ScenarioPresentation.STORED_UNROUNDED_SCALE;
 import static java.math.RoundingMode.HALF_UP;
 
 import java.math.BigDecimal;
@@ -32,16 +33,27 @@ class CostsOverTimeCalculator {
                         * Math.pow(1 - ongoingCharges, year - 1)
                         * ongoingCharges)
             .sum();
+    var costImpact = grossYearlyFactor * ongoingCharges;
+    var returnBeforeCosts = grossYearlyFactor - 1;
+    var returnAfterCosts = grossYearlyFactor * (1 - ongoingCharges) - 1;
     return new KidCost(
         years,
         BigDecimal.valueOf(totalCosts).setScale(ANNEX_VI_P78_WHOLE_EUROS_SCALE, HALF_UP),
-        rate(grossYearlyFactor * ongoingCharges),
-        rate(grossYearlyFactor - 1),
-        rate(grossYearlyFactor * (1 - ongoingCharges) - 1));
+        rate(costImpact),
+        rate(returnBeforeCosts),
+        rate(returnAfterCosts),
+        unrounded(totalCosts),
+        unrounded(costImpact),
+        unrounded(returnBeforeCosts),
+        unrounded(returnAfterCosts));
   }
 
   private static BigDecimal rate(double value) {
     return BigDecimal.valueOf(value)
         .setScale(ANNEX_VI_P88_PERCENT_TO_TWO_DECIMALS_AS_A_FRACTION_SCALE, HALF_UP);
+  }
+
+  private static BigDecimal unrounded(double value) {
+    return BigDecimal.valueOf(value).setScale(STORED_UNROUNDED_SCALE, HALF_UP);
   }
 }

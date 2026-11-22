@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -33,6 +34,33 @@ class ScenarioPeriodTest {
 
     assertThat(period)
         .isEqualTo(new ScenarioPeriod(LocalDate.of(2016, 9, 30), LocalDate.of(2026, 9, 30)));
+  }
+
+  @Test
+  void aGivenMonthEndsOnItsLastCalendarDayAndReachesBackTenYears() {
+    assertThat(ScenarioPeriod.endingWith(YearMonth.of(2026, 1)))
+        .isEqualTo(new ScenarioPeriod(LocalDate.of(2016, 1, 31), LocalDate.of(2026, 1, 31)));
+  }
+
+  @Test
+  void theLastClosedMonthIgnoresHowOldTheLastPriceIs() {
+    assertThat(
+            ScenarioPeriod.lastClosedMonth(LocalDate.of(2026, 10, 8), LocalDate.of(2026, 11, 22)))
+        .isEqualTo(YearMonth.of(2026, 9));
+    assertThat(
+            ScenarioPeriod.lastClosedMonth(LocalDate.of(2026, 10, 30), LocalDate.of(2026, 11, 2)))
+        .isEqualTo(YearMonth.of(2026, 10));
+    assertThat(
+            ScenarioPeriod.lastClosedMonth(LocalDate.of(2026, 11, 20), LocalDate.of(2026, 11, 22)))
+        .isEqualTo(YearMonth.of(2026, 10));
+  }
+
+  @Test
+  void aSeriesHasStoppedOnceItsLastPriceIsMoreThanTenDaysOld() {
+    assertThat(ScenarioPeriod.seriesStopped(LocalDate.of(2026, 10, 12), LocalDate.of(2026, 10, 22)))
+        .isFalse();
+    assertThat(ScenarioPeriod.seriesStopped(LocalDate.of(2026, 10, 11), LocalDate.of(2026, 10, 22)))
+        .isTrue();
   }
 
   @Test

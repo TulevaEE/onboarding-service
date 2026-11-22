@@ -4,5 +4,14 @@ enum ScenarioKind {
   STRESS,
   UNFAVOURABLE,
   MODERATE,
-  FAVOURABLE
+  FAVOURABLE;
+
+  String asTheKidNamesIt() {
+    return switch (this) {
+      case STRESS -> "Stress";
+      case UNFAVOURABLE -> "Ebasoodne";
+      case MODERATE -> "Mõõdukas";
+      case FAVOURABLE -> "Soodne";
+    };
+  }
 }

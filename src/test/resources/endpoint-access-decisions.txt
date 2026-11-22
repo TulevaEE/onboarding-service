@@ -10,6 +10,7 @@ ANYONE DELETE /v1/smart-id/login/remembered-account
 ADMIN_TOKEN_HOLDER GET /admin/dashboard/daily-summary
 ADMIN_TOKEN_HOLDER GET /admin/dashboard/settlement-warnings
 ADMIN_TOKEN_HOLDER GET /admin/kid/{fund}
+ADMIN_TOKEN_HOLDER GET /admin/kid/{fund}/calculations
 ADMIN_TOKEN_HOLDER GET /admin/kid/{fund}/past-performance
 ADMIN_TOKEN_HOLDER GET /admin/missed-mandate-batch-emails
 ADMIN_TOKEN_HOLDER GET /admin/preview-investment-report
@@ -36,6 +37,7 @@ LOGGED_IN_CALLER GET /v1/contributions
 ANYONE GET /v1/funds
 ANYONE GET /v1/funds/nav
 ANYONE GET /v1/funds/{isin}/nav
+ANYONE GET /v1/funds/{isin}/kid-scenarios
 ANYONE GET /v1/gift-links/{token}
 LOGGED_IN_CALLER GET /v1/hackathon-ideas
 LOGGED_IN_CALLER GET /v1/hackathon-registration
@@ -110,6 +112,8 @@ ADMIN_TOKEN_HOLDER POST /admin/child-aml-backfill
 ADMIN_TOKEN_HOLDER POST /admin/fetch-seb-history
 ADMIN_TOKEN_HOLDER POST /admin/general-ledger/sync
 ADMIN_TOKEN_HOLDER POST /admin/guardian-link
+ADMIN_TOKEN_HOLDER POST /admin/kid/{fund}/calculations
+ADMIN_TOKEN_HOLDER POST /admin/kid/{fund}/publications
 ADMIN_TOKEN_HOLDER POST /admin/missed-mandate-batch-emails/resend
 ADMIN_TOKEN_HOLDER POST /admin/ocf
 ADMIN_TOKEN_HOLDER POST /admin/ocf-backfill

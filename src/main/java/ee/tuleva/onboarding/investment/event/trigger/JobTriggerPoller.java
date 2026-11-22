@@ -71,7 +71,8 @@ class JobTriggerPoller {
           Map.entry("OwnershipLimitCheckJob", RunOwnershipLimitCheckRequested::new),
           Map.entry("InstrumentFeeRateJob", RunInstrumentFeeRateResolveRequested::new),
           Map.entry("RiskIndicatorJob", () -> new RunRiskIndicatorRequested(28)),
-          Map.entry("RiskIndicatorBackfillJob", () -> new RunRiskIndicatorRequested(120)));
+          Map.entry("RiskIndicatorBackfillJob", () -> new RunRiskIndicatorRequested(120)),
+          Map.entry("KidCalculationJob", RunKidCalculationRequested::new));
 
   static final Map<String, Function<LocalDate, Object>> TAKING_A_DATE =
       Map.of(

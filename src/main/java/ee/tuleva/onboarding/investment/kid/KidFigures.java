@@ -11,6 +11,7 @@ record KidFigures(
     List<SeriesSegment> series,
     LocalDate periodStart,
     LocalDate periodEnd,
+    LocalDate lastPriceDate,
     BigDecimal ongoingCharges,
     int recommendedHoldingPeriodYears,
     BigDecimal exampleInvestmentEur,

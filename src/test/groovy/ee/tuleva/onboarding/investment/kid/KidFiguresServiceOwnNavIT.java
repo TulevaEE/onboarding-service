@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +66,7 @@ class KidFiguresServiceOwnNavIT {
                 INDEX_THEN_OWN_NAV,
                 LocalDate.of(2016, 9, 30),
                 LocalDate.of(2026, 9, 30),
+                LocalDate.of(2026, 9, 30),
                 ONGOING_CHARGES,
                 5,
                 new BigDecimal("10000"),
@@ -77,7 +79,9 @@ class KidFiguresServiceOwnNavIT {
                         LocalDate.of(2022, 4, 22),
                         LocalDate.of(2022, 5, 20),
                         STRESSED_VOLATILITY,
-                        null),
+                        null,
+                        new BigDecimal("6643.50447400"),
+                        new BigDecimal("-0.3356")),
                     new KidScenario(
                         1,
                         UNFAVOURABLE,
@@ -86,7 +90,9 @@ class KidFiguresServiceOwnNavIT {
                         LocalDate.of(2019, 8, 31),
                         LocalDate.of(2020, 8, 31),
                         FULL_LENGTH,
-                        12),
+                        12,
+                        new BigDecimal("6938.35653769"),
+                        new BigDecimal("-0.3062")),
                     new KidScenario(
                         1,
                         MODERATE,
@@ -95,7 +101,9 @@ class KidFiguresServiceOwnNavIT {
                         LocalDate.of(2023, 12, 31),
                         LocalDate.of(2024, 12, 31),
                         FULL_LENGTH,
-                        12),
+                        12,
+                        new BigDecimal("11002.40619403"),
+                        new BigDecimal("0.1002")),
                     new KidScenario(
                         1,
                         FAVOURABLE,
@@ -104,7 +112,9 @@ class KidFiguresServiceOwnNavIT {
                         LocalDate.of(2017, 4, 30),
                         LocalDate.of(2018, 4, 30),
                         FULL_LENGTH,
-                        12),
+                        12,
+                        new BigDecimal("14539.69337607"),
+                        new BigDecimal("0.4540")),
                     new KidScenario(
                         5,
                         STRESS,
@@ -113,7 +123,9 @@ class KidFiguresServiceOwnNavIT {
                         LocalDate.of(2022, 8, 1),
                         LocalDate.of(2022, 10, 26),
                         STRESSED_VOLATILITY,
-                        null),
+                        null,
+                        new BigDecimal("5297.48736487"),
+                        new BigDecimal("-0.1193")),
                     new KidScenario(
                         5,
                         UNFAVOURABLE,
@@ -122,7 +134,9 @@ class KidFiguresServiceOwnNavIT {
                         LocalDate.of(2019, 8, 31),
                         LocalDate.of(2024, 8, 31),
                         FULL_LENGTH,
-                        60),
+                        60,
+                        new BigDecimal("9283.70998333"),
+                        new BigDecimal("-0.0148")),
                     new KidScenario(
                         5,
                         MODERATE,
@@ -131,7 +145,9 @@ class KidFiguresServiceOwnNavIT {
                         LocalDate.of(2021, 8, 31),
                         LocalDate.of(2026, 8, 31),
                         FULL_LENGTH,
-                        60),
+                        60,
+                        new BigDecimal("11646.74007288"),
+                        new BigDecimal("0.0310")),
                     new KidScenario(
                         5,
                         FAVOURABLE,
@@ -140,20 +156,41 @@ class KidFiguresServiceOwnNavIT {
                         LocalDate.of(2017, 9, 30),
                         LocalDate.of(2022, 9, 30),
                         FULL_LENGTH,
-                        60)),
+                        60,
+                        new BigDecimal("19246.23030566"),
+                        new BigDecimal("0.1399"))),
                 List.of(
                     new KidCost(
                         1,
                         new BigDecimal("50"),
                         new BigDecimal("0.0050"),
                         new BigDecimal("0.0050"),
-                        new BigDecimal("0.0000")),
+                        new BigDecimal("0.0000"),
+                        new BigDecimal("50.25125628"),
+                        new BigDecimal("0.00502513"),
+                        new BigDecimal("0.00502513"),
+                        new BigDecimal("0.00000000")),
                     new KidCost(
                         5,
                         new BigDecimal("276"),
                         new BigDecimal("0.0052"),
                         new BigDecimal("0.0361"),
-                        new BigDecimal("0.0310")))));
+                        new BigDecimal("0.0310"),
+                        new BigDecimal("275.57712669"),
+                        new BigDecimal("0.00518069"),
+                        new BigDecimal("0.03613846"),
+                        new BigDecimal("0.03095777")))));
+  }
+
+  @Test
+  void aMonthEndingBeforeTheOwnNavStartsNamesTheIndexAloneAsItsSeries() {
+    fundValues.saveAll(SyntheticIndexSeries.weekdayCloses("MSCI_ACWI"));
+    fundValues.saveAll(SyntheticIndexSeries.ownNavCloses(TKF100.getIsin()));
+
+    assertThat(service.figures(TKF100, YearMonth.of(2026, 2), ONGOING_CHARGES).series())
+        .containsExactly(new SeriesSegment("MSCI_ACWI", null));
+    assertThat(service.figures(TKF100, YearMonth.of(2026, 3), ONGOING_CHARGES).series())
+        .isEqualTo(INDEX_THEN_OWN_NAV);
   }
 
   @Test

@@ -51,6 +51,7 @@ class SchedulerLockAnnotationTest {
           ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.class,
           ee.tuleva.onboarding.investment.check.limit.LimitCheckJob.class,
           ee.tuleva.onboarding.investment.risk.RiskIndicatorJob.class,
+          ee.tuleva.onboarding.investment.kid.KidCalculationJob.class,
           ee.tuleva.onboarding.fund.fees.FundFeeSyncJob.class,
           ee.tuleva.onboarding.accounting.GeneralLedgerSyncJob.class,
         };

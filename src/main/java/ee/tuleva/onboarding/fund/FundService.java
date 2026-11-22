@@ -163,7 +163,7 @@ class FundService {
   }
 
   byte[] getNavHistoryCsv(String isin, LocalDate startDate, LocalDate endDate) {
-    return new NavHistoryCsv(isin, getNavHistory(isin, startDate, endDate)).toBytes();
+    return new NavHistoryCsv(getNavHistory(isin, startDate, endDate)).toBytes();
   }
 
   private Iterable<Fund> fundsBy(Optional<String> fundManagerName) {

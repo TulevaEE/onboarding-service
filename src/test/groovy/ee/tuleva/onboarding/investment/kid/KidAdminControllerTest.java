@@ -60,6 +60,7 @@ class KidAdminControllerTest {
                       "series": [{ "key": "MSCI_ACWI", "from": null }],
                       "periodStart": "2016-09-30",
                       "periodEnd": "2026-09-30",
+                      "lastPriceDate": "2026-09-30",
                       "ongoingCharges": 0.005,
                       "recommendedHoldingPeriodYears": 5,
                       "exampleInvestmentEur": 10000,
@@ -72,7 +73,9 @@ class KidAdminControllerTest {
                           "periodStart": "2025-09-30",
                           "periodEnd": "2026-09-30",
                           "window": "SHORTER",
-                          "windowMonths": 12
+                          "windowMonths": 12,
+                          "unroundedAmountEur": 8618.55797059,
+                          "printedAverageReturnPerYear": -0.0293
                         }
                       ],
                       "costs": [
@@ -81,7 +84,11 @@ class KidAdminControllerTest {
                           "totalCostsEur": 50,
                           "annualCostImpact": 0.0050,
                           "returnPerYearBeforeCosts": 0.0050,
-                          "returnPerYearAfterCosts": 0.0000
+                          "returnPerYearAfterCosts": 0.0000,
+                          "unroundedTotalCostsEur": 50.25125628,
+                          "unroundedAnnualCostImpact": 0.00502513,
+                          "unroundedReturnPerYearBeforeCosts": 0.00502513,
+                          "unroundedReturnPerYearAfterCosts": 0.00000000
                         }
                       ]
                     }
@@ -159,6 +166,7 @@ class KidAdminControllerTest {
         List.of(new SeriesSegment("MSCI_ACWI", null)),
         LocalDate.of(2016, 9, 30),
         LocalDate.of(2026, 9, 30),
+        LocalDate.of(2026, 9, 30),
         ONGOING_CHARGES,
         5,
         new BigDecimal("10000"),
@@ -171,13 +179,19 @@ class KidAdminControllerTest {
                 LocalDate.of(2025, 9, 30),
                 LocalDate.of(2026, 9, 30),
                 SHORTER,
-                12)),
+                12,
+                new BigDecimal("8618.55797059"),
+                new BigDecimal("-0.0293"))),
         List.of(
             new KidCost(
                 1,
                 new BigDecimal("50"),
                 new BigDecimal("0.0050"),
                 new BigDecimal("0.0050"),
-                new BigDecimal("0.0000"))));
+                new BigDecimal("0.0000"),
+                new BigDecimal("50.25125628"),
+                new BigDecimal("0.00502513"),
+                new BigDecimal("0.00502513"),
+                new BigDecimal("0.00000000"))));
   }
 }

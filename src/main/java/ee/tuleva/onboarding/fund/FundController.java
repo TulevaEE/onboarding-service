@@ -1,13 +1,12 @@
 package ee.tuleva.onboarding.fund;
 
+import ee.tuleva.onboarding.config.http.CsvDownload;
 import ee.tuleva.onboarding.config.http.NoCache;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -55,13 +54,8 @@ public class FundController {
       @RequestParam(required = false) LocalDate endDate,
       @RequestParam(required = false) String format) {
     if ("csv".equalsIgnoreCase(format)) {
-      byte[] csv = fundService.getNavHistoryCsv(isin, startDate, endDate);
-      return ResponseEntity.ok()
-          .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
-          .header(
-              HttpHeaders.CONTENT_DISPOSITION,
-              "attachment; filename=\"nav-" + isin.replaceAll("[^A-Za-z0-9]", "") + ".csv\"")
-          .body(csv);
+      return CsvDownload.attachment(
+          "nav", isin, fundService.getNavHistoryCsv(isin, startDate, endDate));
     }
     return ResponseEntity.ok(fundService.getNavHistory(isin, startDate, endDate));
   }

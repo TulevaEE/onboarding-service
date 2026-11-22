@@ -125,8 +125,8 @@ public class TransactionInputService {
             positionDate,
             pricing,
             settlements.map(TradeSettlementsInTheBalance::carriedByPendingFills).orElse(Set.of()));
-    List<PositionSnapshot> positions =
-        positionAssembler.assemble(fund, positionDate, pendingOrders);
+    var assembled = positionAssembler.assemble(fund, positionDate, pendingOrders);
+    List<PositionSnapshot> positions = assembled.positions();
     List<CalculationWarning> inputWarnings = new ArrayList<>();
     BigDecimal managementFee = getAccruedFees(fund, asOfDate, FeeType.MANAGEMENT, inputWarnings);
     BigDecimal depotFee = getAccruedFees(fund, asOfDate, FeeType.DEPOT, inputWarnings);
@@ -209,7 +209,8 @@ public class TransactionInputService {
     return FundTransactionInput.builder()
         .fund(fund)
         .positions(positions)
-        .sellableUnits(positionAssembler.sellableUnits(fund, positionDate, pendingOrders))
+        .sellableUnits(assembled.sellableUnits())
+        .deductedSales(assembled.deductedSales())
         .modelWeights(parameters.modelWeights())
         .grossPortfolioValue(grossPortfolioValue)
         .cashBuffer(parameters.cashBuffer())

@@ -863,7 +863,7 @@ class TransactionPreparationServiceTest {
             new TradeCalculation(
                 "IE00A", new BigDecimal("100000"), new BigDecimal("0.60"), LimitStatus.OK));
 
-    var result = TransactionAuditPayloads.serializeTrades(trades, Map.of(), Map.of());
+    var result = TransactionAuditPayloads.serializeTrades(trades, Map.of(), Map.of(), List.of());
 
     assertThat(result)
         .singleElement()
@@ -895,7 +895,8 @@ class TransactionPreparationServiceTest {
             .build();
 
     var result =
-        TransactionAuditPayloads.serializeTrades(trades, Map.of("IE00ETF", order), Map.of());
+        TransactionAuditPayloads.serializeTrades(
+            trades, Map.of("IE00ETF", order), Map.of(), List.of());
 
     assertThat(result.get(0))
         .containsEntry("isin", "IE00ETF")
@@ -1806,8 +1807,89 @@ class TransactionPreparationServiceTest {
                                     "unitsInSentSales", "0",
                                     "quantitySold", "1000",
                                     "price", "95",
+                                    "engineAmount", "100000",
+                                    "orderAmount", "95000",
                                     "fullSale", true))
                             .equals(event.getPayload().get("sizedSales"))));
+  }
+
+  @Test
+  void processCommand_aRunWhoseOnlySaleHasNoUnitsLeftToSellWritesNoOrderAndSaysWhy() {
+    var command =
+        TransactionCommand.builder()
+            .id(5L)
+            .fund(TUV100)
+            .mode(SELL)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot(
+                        "IE00A",
+                        new BigDecimal("100000"),
+                        new BigDecimal("1000"),
+                        new BigDecimal("100"))))
+            .sellableUnits(
+                Map.of("IE00A", new SellableUnits(new BigDecimal("1000"), new BigDecimal("1000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(new BigDecimal("50000"))
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("-100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+    given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of(), noResolvedPrices()))
+        .willReturn(input);
+    given(calculationEngine.calculate(input, SELL))
+        .willReturn(
+            new FundCalculationResult(
+                TUV100,
+                SELL,
+                input,
+                List.of(
+                    new TradeCalculation("IE00A", new BigDecimal("-100000"), ZERO, LimitStatus.OK)),
+                netInvestable(input),
+                null,
+                List.of()));
+    given(positionPriceResolver.resolve("IE00A", command.getAsOfDate()))
+        .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("95")).build()));
+    given(batchRepository.save(any(TransactionBatch.class)))
+        .willAnswer(
+            invocation -> {
+              TransactionBatch batch = invocation.getArgument(0);
+              batch.setId(1L);
+              return batch;
+            });
+
+    var result = (ProcessCommandResult) service.processCommand(command);
+
+    assertThat(result.orders()).isEmpty();
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                event ->
+                    "CALCULATION_COMPLETED".equals(event.getEventType())
+                        && droppedOutput(event.getPayload())
+                        && "No trades: mode=SELL, reason=noUnitsTheFundMaySell, isins=[IE00A]"
+                            .equals(
+                                ((Map<?, ?>) event.getPayload().get("summary"))
+                                    .get("noTradeReason"))));
+  }
+
+  private static boolean droppedOutput(Map<String, Object> payload) {
+    return payload.get("output") instanceof List<?> output
+        && output.size() == 1
+        && output.get(0) instanceof Map<?, ?> trade
+        && Boolean.TRUE.equals(trade.get("dropped"))
+        && "noUnitsTheFundMaySell".equals(trade.get("droppedReason"));
   }
 
   @Test
@@ -1882,7 +1964,10 @@ class TransactionPreparationServiceTest {
 
     var result =
         TransactionAuditPayloads.serializeTrades(
-            trades, Map.of(), Map.of("IE00ETF", new TradePrepPrice.IndexPrice(resolvedPrice)));
+            trades,
+            Map.of(),
+            Map.of("IE00ETF", new TradePrepPrice.IndexPrice(resolvedPrice)),
+            List.of());
 
     assertThat(result)
         .singleElement()

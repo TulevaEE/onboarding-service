@@ -184,9 +184,7 @@ class TradePrepPriceGate {
 
   private Stream<String> heldIsins(TulevaFund fund, LocalDate asOfDate) {
     return fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOfDate).stream()
-        .flatMap(
-            positionDate ->
-                positionAssembler.assemble(fund, positionDate, PendingOrderImpact.none()).stream())
+        .flatMap(positionDate -> positionAssembler.reportPositions(fund, positionDate).stream())
         .filter(TradePrepPriceGate::isNotSoldOut)
         .map(PositionSnapshot::isin)
         .filter(Objects::nonNull);

@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
-import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.toMap;
 
@@ -75,8 +74,9 @@ class PendingOrderImpactService {
     BigDecimal pendingSells = ZERO;
     BigDecimal buysInTheBalance = ZERO;
     BigDecimal sellsInTheBalance = ZERO;
-    Map<String, BigDecimal> unreportedValues = new HashMap<>();
-    Map<String, BigDecimal> unreportedQuantities = new HashMap<>();
+    Map<String, BigDecimal> unreportedBuyValues = new HashMap<>();
+    Map<String, BigDecimal> unreportedBuyQuantities = new HashMap<>();
+    Map<String, BigDecimal> unreportedSellValues = new HashMap<>();
 
     for (TransactionOrder order : unsettled) {
       List<TransactionExecution> executions =
@@ -84,8 +84,6 @@ class PendingOrderImpactService {
       ExecutedTotals executed = ExecutedTotals.of(executions);
       List<ClassifiedFill> fills = classifyAgainstPositionReport(order, executions, positionDate);
       BigDecimal unfilledValue = unfilledValue(order, executed, asOfDate, pricing);
-      addUnreportedPositions(
-          order, fills, executed, unfilledValue, unreportedValues, unreportedQuantities);
       List<ClassifiedFill> booked =
           fills.stream().filter(fill -> fill.bookedIn(executionIdsInTheBalance)).toList();
       List<ClassifiedFill> notYetBooked =
@@ -98,9 +96,12 @@ class PendingOrderImpactService {
               InPositionReport.ofUnfilledRemainder(order, positionDate));
       BigDecimal inTheBalance = cashOfFills(order, booked);
       if (order.getTransactionType() == BUY) {
+        addUnreportedPurchase(
+            order, fills, unfilledValue, unreportedBuyValues, unreportedBuyQuantities);
         pendingBuys = pendingBuys.add(cash);
         buysInTheBalance = buysInTheBalance.add(inTheBalance);
       } else {
+        addUnreportedSale(order, fills, unfilledValue, unreportedSellValues);
         pendingSells = pendingSells.add(cash);
         sellsInTheBalance = sellsInTheBalance.add(inTheBalance);
       }
@@ -108,22 +109,24 @@ class PendingOrderImpactService {
 
     log.info(
         "Pending order impact: fund={}, asOfDate={}, orderCount={}, pendingBuys={},"
-            + " pendingSells={}, unreportedIsins={}",
+            + " pendingSells={}, unreportedBuyIsins={}, unreportedSellIsins={}",
         fund,
         asOfDate,
         unsettled.size(),
         pendingBuys.toPlainString(),
         pendingSells.toPlainString(),
-        unreportedValues.keySet());
+        unreportedBuyValues.keySet(),
+        unreportedSellValues.keySet());
 
     return new PendingOrderImpact(
         pendingBuys,
         pendingSells,
-        Map.copyOf(unreportedValues),
-        Map.copyOf(unreportedQuantities),
+        Map.copyOf(unreportedBuyValues),
+        Map.copyOf(unreportedBuyQuantities),
         buysInTheBalance,
         sellsInTheBalance,
-        unreportedSellQuantities);
+        unreportedSellQuantities,
+        Map.copyOf(unreportedSellValues));
   }
 
   private Map<String, BigDecimal> unitsOfSalesTheReportDoesNotShow(
@@ -164,31 +167,40 @@ class PendingOrderImpactService {
         .toList();
   }
 
-  private static void addUnreportedPositions(
+  private static void addUnreportedPurchase(
       TransactionOrder order,
       List<ClassifiedFill> fills,
-      ExecutedTotals executed,
       BigDecimal unfilledValue,
       Map<String, BigDecimal> unreportedValues,
       Map<String, BigDecimal> unreportedQuantities) {
     String isin = order.getInstrumentIsin();
-    for (ClassifiedFill fill : fills) {
-      BigDecimal consideration = fill.unreportedConsideration();
-      if (consideration.signum() != 0) {
-        unreportedValues.merge(isin, signed(order, consideration), BigDecimal::add);
-      }
-      BigDecimal quantity = fill.unreportedQuantity();
-      if (order.getInstrumentType() == ETF && quantity.signum() != 0) {
-        unreportedQuantities.merge(isin, signed(order, quantity), BigDecimal::add);
-      }
+    addUnreportedValue(isin, fills, unfilledValue, unreportedValues);
+    BigDecimal quantity =
+        fills.stream().map(ClassifiedFill::unreportedQuantity).reduce(ZERO, BigDecimal::add);
+    if (order.getInstrumentType() == ETF && quantity.signum() != 0) {
+      unreportedQuantities.merge(isin, quantity, BigDecimal::add);
     }
+  }
 
-    if (unfilledValue.signum() == 0) {
-      return;
-    }
-    unreportedValues.merge(isin, signed(order, unfilledValue), BigDecimal::add);
-    if (order.getTransactionType() == SELL) {
-      addUnfilledQuantity(order, executed, isin, unreportedQuantities);
+  private static void addUnreportedSale(
+      TransactionOrder order,
+      List<ClassifiedFill> fills,
+      BigDecimal unfilledValue,
+      Map<String, BigDecimal> unreportedSellValues) {
+    addUnreportedValue(order.getInstrumentIsin(), fills, unfilledValue, unreportedSellValues);
+  }
+
+  private static void addUnreportedValue(
+      String isin,
+      List<ClassifiedFill> fills,
+      BigDecimal unfilledValue,
+      Map<String, BigDecimal> values) {
+    BigDecimal value =
+        fills.stream()
+            .map(ClassifiedFill::unreportedConsideration)
+            .reduce(unfilledValue, BigDecimal::add);
+    if (value.signum() != 0) {
+      values.merge(isin, value, BigDecimal::add);
     }
   }
 
@@ -205,17 +217,6 @@ class PendingOrderImpactService {
     return fills.stream()
         .map(fill -> fill.cashTheOrderCarries(order))
         .reduce(ZERO, BigDecimal::add);
-  }
-
-  private static void addUnfilledQuantity(
-      TransactionOrder order,
-      ExecutedTotals executed,
-      String isin,
-      Map<String, BigDecimal> unreportedQuantities) {
-    BigDecimal unfilledQuantity = unfilledQuantity(order, executed);
-    if (order.getInstrumentType() == ETF && unfilledQuantity.signum() != 0) {
-      unreportedQuantities.merge(isin, signed(order, unfilledQuantity), BigDecimal::add);
-    }
   }
 
   private static BigDecimal unfilledQuantity(TransactionOrder order, ExecutedTotals executed) {
@@ -286,9 +287,5 @@ class PendingOrderImpactService {
         .map(TradePrepPrice::value)
         .filter(price -> price != null && price.signum() > 0)
         .orElse(null);
-  }
-
-  private static BigDecimal signed(TransactionOrder order, BigDecimal value) {
-    return order.getTransactionType() == BUY ? value.abs() : value.abs().negate();
   }
 }

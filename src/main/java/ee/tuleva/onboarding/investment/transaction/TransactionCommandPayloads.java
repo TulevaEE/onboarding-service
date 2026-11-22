@@ -105,7 +105,10 @@ final class TransactionCommandPayloads {
     payload.put(
         "output",
         TransactionAuditPayloads.serializeTrades(
-            result.trades(), ordersByIsin(orders), calculated.priceResolutions()));
+            result.trades(),
+            ordersByIsin(orders),
+            calculated.priceResolutions(),
+            calculated.droppedSales()));
     if (!calculated.sizedSales().isEmpty()) {
       payload.put("sizedSales", calculated.sizedSales().stream().map(SizedSale::payload).toList());
     }
@@ -126,9 +129,21 @@ final class TransactionCommandPayloads {
     summary.put("mode", command.getMode().name());
     summary.put("tradeCount", orders.size());
     putIfPresent(summary, "netInvestable", plain(result.netInvestable()));
-    putIfPresent(summary, "noTradeReason", result.noTradeReason());
+    putIfPresent(summary, "noTradeReason", noTradeReason(command, result, calculated));
     payload.put("summary", summary);
     return payload;
+  }
+
+  private static @Nullable String noTradeReason(
+      TransactionCommand command, FundCalculationResult result, CalculatedOrders calculated) {
+    if (!calculated.orders().isEmpty() || calculated.droppedSales().isEmpty()) {
+      return result.noTradeReason();
+    }
+    return "No trades: mode=%s, reason=%s, isins=%s"
+        .formatted(
+            command.getMode().name(),
+            TransactionAuditPayloads.NO_UNITS_THE_FUND_MAY_SELL,
+            calculated.droppedSales().stream().sorted().toList());
   }
 
   private static Map<String, TransactionOrder> ordersByIsin(List<TransactionOrder> orders) {

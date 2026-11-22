@@ -1655,32 +1655,32 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Test
-  void sellingAFundOutBesideAnOutstandingSaleSellsExactlyTheUnitsNotAlreadySold() {
-    jdbcClient
-        .sql(
-            "UPDATE investment_model_portfolio_allocation SET weight = 0"
-                + " WHERE fund_code = 'TKF100' AND isin = 'IE00BFG1TM61'")
-        .update();
-    jdbcClient
-        .sql(
-            "UPDATE investment_model_portfolio_allocation SET weight = 0.29000000"
-                + " WHERE fund_code = 'TKF100' AND isin = 'IE00BMDBMY19'")
-        .update();
-    TransactionBatch batch =
-        batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
-    orderRepository.save(
-        TransactionOrder.builder()
-            .batch(batch)
-            .fund(TKF100)
-            .instrumentIsin("IE00BFG1TM61")
-            .transactionType(TransactionType.SELL)
-            .instrumentType(InstrumentType.FUND)
-            .orderQuantity(new BigDecimal("30000"))
-            .orderVenue(OrderVenue.SEB)
-            .orderStatus(OrderStatus.SENT)
-            .orderTimestamp(Instant.parse("2026-02-10T08:00:00Z"))
-            .expectedSettlementDate(LocalDate.of(2026, 2, 12))
-            .build());
+  void anOverdueSentSaleIsTakenOffThePositionBeforeTheCalculationSoTheEngineSellsOnlyWhatIsLeft() {
+    sellTheFundInstrumentOut();
+    sentSaleOfTheFundInstrument(LocalDate.of(2026, 2, 9));
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(engineTradeAmount(response.calculationSnapshot(), "IE00BFG1TM61"))
+        .isEqualByComparingTo("-300000");
+    var sale = saleOfTheFundInstrument(response);
+    assertThat(sale.orderQuantity()).isEqualByComparingTo("15000");
+    assertThat(sale.orderAmount()).isEqualByComparingTo("300000");
+    assertThat(((Map<?, ?>) response.calculationSnapshot().get("input")).get("deductedSales"))
+        .isEqualTo(deductedSaleOfTheFundInstrument());
+    assertThat(response.calculationSnapshot().get("sizedSales"))
+        .isEqualTo(List.of(sizedSaleOfTheFundInstrument("20", "300000", "300000")));
+  }
+
+  @Test
+  void aSentSaleInItsSettlementWindowIsTakenOffAtTheReportsUnitValueNotAtTheRunsPrice() {
+    sellTheFundInstrumentOut();
+    sentSaleOfTheFundInstrument(LocalDate.of(2026, 2, 12));
 
     var response =
         commandRunner.createAndProcess(
@@ -1698,22 +1698,96 @@ class TransactionPipelineIntegrationTest {
             "operator");
 
     assertThat(response.status()).isEqualTo(CALCULATED);
-    var sale =
-        response.orders().stream()
-            .filter(order -> order.instrumentIsin().equals("IE00BFG1TM61"))
+    assertThat(engineTradeAmount(response.calculationSnapshot(), "IE00BFG1TM61"))
+        .isEqualByComparingTo("-300000");
+    var sale = saleOfTheFundInstrument(response);
+    assertThat(sale.orderQuantity()).isEqualByComparingTo("15000");
+    assertThat(sale.orderAmount()).isEqualByComparingTo("225000");
+    assertThat(((Map<?, ?>) response.calculationSnapshot().get("input")).get("deductedSales"))
+        .isEqualTo(deductedSaleOfTheFundInstrument());
+    assertThat(response.calculationSnapshot().get("sizedSales"))
+        .isEqualTo(List.of(sizedSaleOfTheFundInstrument("15", "300000", "225000")));
+  }
+
+  private void sellTheFundInstrumentOut() {
+    jdbcClient
+        .sql(
+            "UPDATE investment_model_portfolio_allocation SET weight = 0"
+                + " WHERE fund_code = 'TKF100' AND isin = 'IE00BFG1TM61'")
+        .update();
+    jdbcClient
+        .sql(
+            "UPDATE investment_model_portfolio_allocation SET weight = 0.29000000"
+                + " WHERE fund_code = 'TKF100' AND isin = 'IE00BMDBMY19'")
+        .update();
+  }
+
+  private void sentSaleOfTheFundInstrument(LocalDate expectedSettlementDate) {
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
+    orderRepository.save(
+        TransactionOrder.builder()
+            .batch(batch)
+            .fund(TKF100)
+            .instrumentIsin("IE00BFG1TM61")
+            .transactionType(TransactionType.SELL)
+            .instrumentType(InstrumentType.FUND)
+            .orderQuantity(new BigDecimal("30000"))
+            .orderVenue(OrderVenue.SEB)
+            .orderStatus(OrderStatus.SENT)
+            .orderTimestamp(Instant.parse("2026-02-06T08:00:00Z"))
+            .expectedSettlementDate(expectedSettlementDate)
+            .build());
+  }
+
+  private static BigDecimal engineTradeAmount(Map<String, Object> snapshot, String isin) {
+    return ((List<?>) snapshot.get("output"))
+        .stream()
+            .map(Map.class::cast)
+            .filter(trade -> isin.equals(trade.get("isin")))
+            .map(trade -> new BigDecimal((String) trade.get("tradeAmount")))
             .findFirst()
             .orElseThrow();
-    assertThat(sale.orderQuantity()).isEqualByComparingTo("15000");
-    assertThat(response.calculationSnapshot().get("sizedSales"))
-        .isEqualTo(
-            List.of(
-                Map.of(
-                    "isin", "IE00BFG1TM61",
-                    "reportUnits", "45000",
-                    "unitsInSentSales", "30000",
-                    "quantitySold", "15000",
-                    "price", "15",
-                    "fullSale", true)));
+  }
+
+  private static TransactionOrderResponse saleOfTheFundInstrument(
+      TransactionCommandResponse response) {
+    return response.orders().stream()
+        .filter(order -> order.instrumentIsin().equals("IE00BFG1TM61"))
+        .findFirst()
+        .orElseThrow();
+  }
+
+  private static List<Map<String, Object>> deductedSaleOfTheFundInstrument() {
+    return List.of(
+        Map.of(
+            "isin", "IE00BFG1TM61",
+            "reportUnits", "45000",
+            "reportValue", "900000",
+            "unitsInSentSales", "30000",
+            "valueDeducted", "600000",
+            "deductedBy", "UNITS"));
+  }
+
+  private static Map<String, Object> sizedSaleOfTheFundInstrument(
+      String price, String engineAmount, String orderAmount) {
+    return Map.of(
+        "isin",
+        "IE00BFG1TM61",
+        "reportUnits",
+        "45000",
+        "unitsInSentSales",
+        "30000",
+        "quantitySold",
+        "15000",
+        "price",
+        price,
+        "engineAmount",
+        engineAmount,
+        "orderAmount",
+        orderAmount,
+        "fullSale",
+        true);
   }
 
   @Test

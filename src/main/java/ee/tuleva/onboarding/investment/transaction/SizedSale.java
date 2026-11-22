@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.transaction.TransactionAuditPayloads.normalised;
 import static ee.tuleva.onboarding.investment.transaction.TransactionAuditPayloads.putIfPresent;
 
 import java.math.BigDecimal;
@@ -15,11 +16,17 @@ record SizedSale(
     BigDecimal unitsInSentSales,
     BigDecimal quantitySold,
     BigDecimal price,
-    Kind kind) {
+    BigDecimal engineAmount,
+    BigDecimal orderAmount,
+    @Nullable Kind kind) {
 
   enum Kind {
     FULL,
     PARTIAL
+  }
+
+  boolean dropped() {
+    return quantitySold.signum() == 0;
   }
 
   Map<String, Object> payload() {
@@ -29,11 +36,11 @@ record SizedSale(
     map.put("unitsInSentSales", normalised(unitsInSentSales));
     map.put("quantitySold", normalised(quantitySold));
     map.put("price", normalised(price));
-    map.put("fullSale", kind == Kind.FULL);
+    map.put("engineAmount", normalised(engineAmount));
+    map.put("orderAmount", normalised(orderAmount));
+    if (kind != null) {
+      map.put("fullSale", kind == Kind.FULL);
+    }
     return map;
-  }
-
-  private static String normalised(BigDecimal value) {
-    return value.stripTrailingZeros().toPlainString();
   }
 }

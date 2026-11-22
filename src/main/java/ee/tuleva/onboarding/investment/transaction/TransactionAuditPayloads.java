@@ -13,6 +13,8 @@ import org.jspecify.annotations.Nullable;
 
 class TransactionAuditPayloads {
 
+  static final String NO_UNITS_THE_FUND_MAY_SELL = "noUnitsTheFundMaySell";
+
   private TransactionAuditPayloads() {}
 
   static List<Map<String, Object>> serializeCalculationWarnings(List<CalculationWarning> warnings) {
@@ -105,12 +107,20 @@ class TransactionAuditPayloads {
   static List<Map<String, Object>> serializeTrades(
       List<TradeCalculation> trades,
       Map<String, TransactionOrder> ordersByIsin,
-      Map<String, @Nullable TradePrepPrice> priceResolutions) {
+      Map<String, @Nullable TradePrepPrice> priceResolutions,
+      List<String> droppedSales) {
     return trades.stream()
         .map(
-            trade ->
-                serializeTrade(
-                    trade, ordersByIsin.get(trade.isin()), priceResolutions.get(trade.isin())))
+            trade -> {
+              TransactionOrder order = ordersByIsin.get(trade.isin());
+              Map<String, Object> map =
+                  serializeTrade(trade, order, priceResolutions.get(trade.isin()));
+              if (order == null && droppedSales.contains(trade.isin())) {
+                map.put("dropped", true);
+                map.put("droppedReason", NO_UNITS_THE_FUND_MAY_SELL);
+              }
+              return map;
+            })
         .toList();
   }
 
@@ -192,5 +202,9 @@ class TransactionAuditPayloads {
   @Nullable
   static String plain(@Nullable BigDecimal value) {
     return value == null ? null : value.toPlainString();
+  }
+
+  static String normalised(BigDecimal value) {
+    return value.stripTrailingZeros().toPlainString();
   }
 }

@@ -38,7 +38,8 @@ public record FundTransactionInput(
     @Nullable LocalDate modelEffectiveDate,
     List<CalculationWarning> inputWarnings,
     @Nullable CashSection cashSection,
-    Map<String, SellableUnits> sellableUnits) {
+    Map<String, SellableUnits> sellableUnits,
+    List<DeductedSale> deductedSales) {
 
   public static FundTransactionInputBuilder builder() {
     return new FundTransactionInputBuilder();
@@ -75,7 +76,8 @@ public record FundTransactionInput(
         modelEffectiveDate,
         inputWarnings,
         cashSection,
-        sellableUnits);
+        sellableUnits,
+        deductedSales);
   }
 
   private List<PositionSnapshot> setAside(Set<String> isins) {
@@ -179,6 +181,7 @@ public record FundTransactionInput(
     private List<CalculationWarning> inputWarnings = List.of();
     private @Nullable CashSection cashSection;
     private Map<String, SellableUnits> sellableUnits = Map.of();
+    private List<DeductedSale> deductedSales = List.of();
 
     public FundTransactionInputBuilder fund(TulevaFund fund) {
       this.fund = fund;
@@ -288,6 +291,11 @@ public record FundTransactionInput(
       return this;
     }
 
+    public FundTransactionInputBuilder deductedSales(List<DeductedSale> deductedSales) {
+      this.deductedSales = deductedSales;
+      return this;
+    }
+
     public FundTransactionInputBuilder cashSection(@Nullable CashSection cashSection) {
       this.cashSection = cashSection;
       return this;
@@ -322,14 +330,15 @@ public record FundTransactionInput(
           modelEffectiveDate,
           inputWarnings,
           cashSection,
-          sellableUnits);
+          sellableUnits,
+          deductedSales);
     }
+  }
 
-    private static <T> T requireField(@Nullable T value, String fieldName) {
-      if (value == null) {
-        throw new IllegalStateException("Missing required field: field=" + fieldName);
-      }
-      return value;
+  private static <T> T requireField(@Nullable T value, String fieldName) {
+    if (value == null) {
+      throw new IllegalStateException("Missing required field: field=" + fieldName);
     }
+    return value;
   }
 }

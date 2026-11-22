@@ -51,18 +51,19 @@ public class TransactionOrderFactory {
       var instrumentType = input.instrumentTypes().getOrDefault(isin, InstrumentType.ETF);
       var transactionType =
           trade.tradeAmount().compareTo(ZERO) > 0 ? TransactionType.BUY : TransactionType.SELL;
-      var orderAmount = trade.tradeAmount().abs();
+      var engineAmount = trade.tradeAmount().abs();
       var sized =
           saleSizing.size(
               transactionType,
               isin,
-              orderAmount,
+              engineAmount,
               resolveOrderQuantity(
-                  instrumentType, transactionType, isin, orderAmount, asOfDate, pricing));
+                  instrumentType, transactionType, isin, engineAmount, asOfDate, pricing));
       if (sized.isEmpty()) {
         continue;
       }
-      var orderQuantity = sized.get();
+      var orderAmount = sized.get().amount();
+      var orderQuantity = sized.get().quantity();
       BigDecimal quantity =
           withinTheSoldHolding(input, index, trade, instrumentType, orderQuantity.quantity());
       if (quantity != null && quantity.signum() == 0) {

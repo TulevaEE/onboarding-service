@@ -128,11 +128,11 @@ class TransactionOrderFactoryTest {
   }
 
   @Test
-  void createOrders_aFullSaleAtALowerPriceSellsExactlyTheUnitsHeld() {
+  void createOrders_aFullSaleAtALowerPriceSellsExactlyTheUnitsHeldForWhatTheyFetch() {
     var calculated = sellOn(thousandUnits(BigDecimal.ZERO), "-100000", manual("95"));
 
     assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("1000");
-    assertThat(calculated.orders().get(0).getOrderAmount()).isEqualByComparingTo("100000");
+    assertThat(calculated.orders().get(0).getOrderAmount()).isEqualTo(new BigDecimal("95000.00"));
     assertThat(calculated.sizedSales())
         .containsExactly(
             new SizedSale(
@@ -141,6 +141,8 @@ class TransactionOrderFactoryTest {
                 BigDecimal.ZERO,
                 new BigDecimal("1000"),
                 new BigDecimal("95"),
+                new BigDecimal("100000"),
+                new BigDecimal("95000.00"),
                 SizedSale.Kind.FULL));
   }
 
@@ -149,19 +151,32 @@ class TransactionOrderFactoryTest {
     var calculated = sellOn(thousandUnits(BigDecimal.ZERO), "-100000", manual("105"));
 
     assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("1000");
+    assertThat(calculated.orders().get(0).getOrderAmount()).isEqualTo(new BigDecimal("105000.00"));
+  }
+
+  @Test
+  void createOrders_aSaleWithinACentOfAPositionValueCarryingMoreDecimalsIsStillAFullSale() {
+    var input =
+        holding(
+            List.of(
+                new PositionSnapshot(
+                    "IE00ETF",
+                    new BigDecimal("100000.0049"),
+                    new BigDecimal("1000"),
+                    new BigDecimal("100"))),
+            Map.of("IE00ETF", new SellableUnits(new BigDecimal("1000"), BigDecimal.ZERO)));
+
+    var calculated = sellOn(input, "-100000.00", manual("105"));
+
+    assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("1000");
   }
 
   @Test
   void createOrders_aFullSaleSellsOnlyTheUnitsNotAlreadyInASentSale() {
-    var input =
-        holding(
-            new PositionSnapshot(
-                "IE00ETF", new BigDecimal("45400"), new BigDecimal("1000"), new BigDecimal("100")),
-            Map.of("IE00ETF", new SellableUnits(new BigDecimal("1000"), new BigDecimal("600"))));
-
-    var calculated = sellOn(input, "-45400", manual("91"));
+    var calculated = sellOn(fourHundredLeftOfAThousand(), "-40000", manual("91"));
 
     assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("400");
+    assertThat(calculated.orders().get(0).getOrderAmount()).isEqualTo(new BigDecimal("36400.00"));
   }
 
   @Test
@@ -169,14 +184,16 @@ class TransactionOrderFactoryTest {
     var calculated = sellOn(thousandUnits(BigDecimal.ZERO), "-47500", manual("95"));
 
     assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("500");
+    assertThat(calculated.orders().get(0).getOrderAmount()).isEqualByComparingTo("47500");
     assertThat(calculated.sizedSales()).isEmpty();
   }
 
   @Test
-  void createOrders_aPartialSaleBeyondTheUnitsTheFundMaySellTakesWhatIsLeft() {
-    var calculated = sellOn(thousandUnits(new BigDecimal("600")), "-45500", manual("100"));
+  void createOrders_aPartialSaleBeyondTheUnitsTheFundMaySellTakesWhatIsLeftForWhatItFetches() {
+    var calculated = sellOn(fourHundredLeftOfAThousand(), "-39000", manual("90"));
 
     assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("400");
+    assertThat(calculated.orders().get(0).getOrderAmount()).isEqualTo(new BigDecimal("36000.00"));
     assertThat(calculated.sizedSales())
         .containsExactly(
             new SizedSale(
@@ -184,15 +201,39 @@ class TransactionOrderFactoryTest {
                 new BigDecimal("1000"),
                 new BigDecimal("600"),
                 new BigDecimal("400"),
-                new BigDecimal("100"),
+                new BigDecimal("90"),
+                new BigDecimal("39000"),
+                new BigDecimal("36000.00"),
                 SizedSale.Kind.PARTIAL));
+  }
+
+  @Test
+  void createOrders_twoSalesOfOneInstrumentNeverSellMoreUnitsTogetherThanTheFundMaySell() {
+    var input =
+        holding(
+            List.of(
+                new PositionSnapshot(
+                    "IE00ETF", new BigDecimal("60000"), new BigDecimal("600"), null),
+                new PositionSnapshot(
+                    "IE00ETF", new BigDecimal("40000"), new BigDecimal("400"), null)),
+            Map.of("IE00ETF", new SellableUnits(new BigDecimal("1000"), BigDecimal.ZERO)));
+
+    var calculated = sellOn(input, List.of("-60000", "-40000"), manual("90"));
+
+    assertThat(
+            calculated.orders().stream()
+                .map(TransactionOrder::getOrderQuantity)
+                .reduce(BigDecimal.ZERO, BigDecimal::add))
+        .isEqualByComparingTo("1000");
   }
 
   @Test
   void createOrders_aSaleOfAPositionTheReportDoesNotHoldWritesNoOrder() {
     var input =
         holding(
-            new PositionSnapshot("IE00ETF", new BigDecimal("50000"), new BigDecimal("500"), null),
+            List.of(
+                new PositionSnapshot(
+                    "IE00ETF", new BigDecimal("50000"), new BigDecimal("500"), null)),
             Map.of());
 
     var calculated = sellOn(input, "-50000", manual("100"));
@@ -206,19 +247,23 @@ class TransactionOrderFactoryTest {
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 new BigDecimal("100"),
+                new BigDecimal("50000"),
+                new BigDecimal("0.00"),
                 SizedSale.Kind.FULL));
+    assertThat(calculated.droppedSales()).containsExactly("IE00ETF");
   }
 
   @Test
-  void createOrders_aReportRowWithoutUnitsIsSizedOnItsAmountAndNoted() {
+  void createOrders_aReportRowWithoutUnitsIsSizedOnItsAmountAndNotedWithoutSayingWhetherItIsFull() {
     var input =
         holding(
-            new PositionSnapshot("IE00ETF", new BigDecimal("100000"), null, null),
+            List.of(new PositionSnapshot("IE00ETF", new BigDecimal("100000"), null, null)),
             Map.of("IE00ETF", new SellableUnits(null, BigDecimal.ZERO)));
 
     var calculated = sellOn(input, "-100000", manual("95"));
 
     assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("1052.631579");
+    assertThat(calculated.orders().get(0).getOrderAmount()).isEqualByComparingTo("100000");
     assertThat(calculated.sizedSales())
         .containsExactly(
             new SizedSale(
@@ -227,14 +272,28 @@ class TransactionOrderFactoryTest {
                 BigDecimal.ZERO,
                 new BigDecimal("1052.631579"),
                 new BigDecimal("95"),
-                SizedSale.Kind.FULL));
+                new BigDecimal("100000"),
+                new BigDecimal("100000"),
+                null));
   }
 
   private static FundTransactionInput thousandUnits(BigDecimal inSentSales) {
     return holding(
-        new PositionSnapshot(
-            "IE00ETF", new BigDecimal("100000"), new BigDecimal("1000"), new BigDecimal("100")),
+        List.of(
+            new PositionSnapshot(
+                "IE00ETF",
+                new BigDecimal("100000"),
+                new BigDecimal("1000"),
+                new BigDecimal("100"))),
         Map.of("IE00ETF", new SellableUnits(new BigDecimal("1000"), inSentSales)));
+  }
+
+  private static FundTransactionInput fourHundredLeftOfAThousand() {
+    return holding(
+        List.of(
+            new PositionSnapshot(
+                "IE00ETF", new BigDecimal("40000"), new BigDecimal("400"), new BigDecimal("100"))),
+        Map.of("IE00ETF", new SellableUnits(new BigDecimal("1000"), new BigDecimal("600"))));
   }
 
   private static ManualPrice manual(String price) {
@@ -242,23 +301,31 @@ class TransactionOrderFactoryTest {
   }
 
   private CalculatedOrders sellOn(FundTransactionInput input, String amount, TradePrepPrice price) {
+    return sellOn(input, List.of(amount), price);
+  }
+
+  private CalculatedOrders sellOn(
+      FundTransactionInput input, List<String> amounts, TradePrepPrice price) {
     return factory.createOrders(
         batch(),
         resultWith(
             input,
-            List.of(
-                new TradeCalculation(
-                    "IE00ETF", new BigDecimal(amount), BigDecimal.ZERO, LimitStatus.OK))),
+            amounts.stream()
+                .map(
+                    amount ->
+                        new TradeCalculation(
+                            "IE00ETF", new BigDecimal(amount), BigDecimal.ZERO, LimitStatus.OK))
+                .toList()),
         AS_OF_DATE,
         CREATED_AT,
         new FreshestPerInstrument(Map.of("IE00ETF", price)));
   }
 
   private static FundTransactionInput holding(
-      PositionSnapshot position, Map<String, SellableUnits> sellable) {
+      List<PositionSnapshot> positions, Map<String, SellableUnits> sellable) {
     return FundTransactionInput.builder()
         .fund(TUV100)
-        .positions(List.of(position))
+        .positions(positions)
         .sellableUnits(sellable)
         .modelWeights(List.of())
         .grossPortfolioValue(new BigDecimal("600000"))

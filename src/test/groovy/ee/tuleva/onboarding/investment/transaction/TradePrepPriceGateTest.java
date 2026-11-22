@@ -126,7 +126,7 @@ class TradePrepPriceGateTest {
   void aHoldingTheSebReportListsAtZeroNeedsNoPrice() {
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, TRADE_DATE))
         .willReturn(Optional.of(POSITION_DATE));
-    given(positionAssembler.assemble(TKF100, POSITION_DATE, PendingOrderImpact.none()))
+    given(positionAssembler.reportPositions(TKF100, POSITION_DATE))
         .willReturn(
             List.of(new PositionSnapshot("SOLD_OUT", ZERO, new BigDecimal("0.000000"), null)));
     givenModel();
@@ -397,7 +397,7 @@ class TradePrepPriceGateTest {
   private void givenHeld(String... isins) {
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, TRADE_DATE))
         .willReturn(Optional.of(POSITION_DATE));
-    given(positionAssembler.assemble(TKF100, POSITION_DATE, PendingOrderImpact.none()))
+    given(positionAssembler.reportPositions(TKF100, POSITION_DATE))
         .willReturn(
             List.of(isins).stream()
                 .map(isin -> new PositionSnapshot(isin, new BigDecimal("1000")))

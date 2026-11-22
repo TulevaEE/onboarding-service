@@ -8,24 +8,26 @@ import java.util.Map;
 record PendingOrderImpact(
     BigDecimal pendingBuys,
     BigDecimal pendingSells,
-    Map<String, BigDecimal> unreportedPositionValues,
-    Map<String, BigDecimal> unreportedPositionQuantities,
+    Map<String, BigDecimal> unreportedBuyValues,
+    Map<String, BigDecimal> unreportedBuyQuantities,
     BigDecimal buysInTheBalance,
     BigDecimal sellsInTheBalance,
-    Map<String, BigDecimal> unreportedSellQuantities) {
+    Map<String, BigDecimal> unreportedSellQuantities,
+    Map<String, BigDecimal> unreportedSellValues) {
 
   PendingOrderImpact withUnreportedSellQuantities(Map<String, BigDecimal> quantities) {
     return new PendingOrderImpact(
         pendingBuys,
         pendingSells,
-        unreportedPositionValues,
-        unreportedPositionQuantities,
+        unreportedBuyValues,
+        unreportedBuyQuantities,
         buysInTheBalance,
         sellsInTheBalance,
-        Map.copyOf(quantities));
+        Map.copyOf(quantities),
+        unreportedSellValues);
   }
 
   static PendingOrderImpact none() {
-    return new PendingOrderImpact(ZERO, ZERO, Map.of(), Map.of(), ZERO, ZERO, Map.of());
+    return new PendingOrderImpact(ZERO, ZERO, Map.of(), Map.of(), ZERO, ZERO, Map.of(), Map.of());
   }
 }

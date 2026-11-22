@@ -13,12 +13,15 @@ import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
 import static ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails.PaymentRate.SIX;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.WITHDRAWALS;
+import static ee.tuleva.onboarding.notification.email.EmailType.BATCH_FAILED;
+import static ee.tuleva.onboarding.notification.email.EmailType.CONTACT_DETAILS_CHANGED;
 import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_REJOIN;
 import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_REJOIN_CANCELLATION;
 import static ee.tuleva.onboarding.notification.email.EmailType.WITHDRAWAL_BATCH;
 import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION;
 import static ee.tuleva.onboarding.user.UserContactDetailsTestFixture.withContactDetails;
 import static java.time.ZoneOffset.UTC;
+import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
@@ -27,14 +30,23 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.BDDMockito.willReturn;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
+import static org.springframework.http.HttpHeaders.ACCEPT_LANGUAGE;
 
+import com.microtripit.mandrillapp.lutung.model.LutungGsonUtils;
+import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.aml.AmlAutoChecker;
 import ee.tuleva.onboarding.applicationtype.ApplicationType;
+import ee.tuleva.onboarding.auth.SecurityContextRunner;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.CashFlowStatement;
 import ee.tuleva.onboarding.epis.ContactDetails;
@@ -62,10 +74,12 @@ import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.mandate.processor.MandateProcess;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.time.ClockHolder;
+import ee.tuleva.onboarding.user.RecentlyReplacedEmails;
 import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
@@ -75,13 +89,18 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatcher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.util.Streamable;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
@@ -94,6 +113,10 @@ import tools.jackson.databind.json.JsonMapper;
 @AutoConfigureRestTestClient
 class MandateBatchIntegrationTest {
 
+  private static final String OLD_EMAIL = "old-address@example.com";
+  private static final String NEW_EMAIL = "new-address@example.com";
+  private static final Instant EMAIL_CHANGED_AT = Instant.parse("2026-03-02T10:00:00Z");
+
   @Autowired private RestTestClient restTestClient;
 
   @Autowired private JsonMapper mapper;
@@ -101,11 +124,14 @@ class MandateBatchIntegrationTest {
   @Autowired private MandateBatchRepository mandateBatchRepository;
   @Autowired private MandateRepository mandateRepository;
   @Autowired private UserRepository userRepository;
-  @Autowired private MandateBatchProcessingPoller mandateBatchProcessingPoller;
   @Autowired private MandateBatchService mandateBatchService;
   @Autowired private MandateProcessRepository mandateProcessRepository;
   @Autowired private MandateService mandateService;
   @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired private MandateBatchCompletion mandateBatchCompletion;
+  @Autowired private SecurityContextRunner securityContextRunner;
+  @Autowired private EmailPersistenceService emailPersistenceService;
+  @Autowired private JdbcClient jdbcClient;
 
   @MockitoBean private EpisService episService;
   @MockitoBean private AmlAutoChecker amlAutoChecker;
@@ -113,6 +139,8 @@ class MandateBatchIntegrationTest {
   @MockitoBean private OperationsNotificationService notificationService;
   @MockitoSpyBean private EmailService emailService;
   @MockitoBean private SignatureService signatureService;
+  @MockitoSpyBean private RecentlyReplacedEmails recentlyReplacedEmails;
+  @MockitoSpyBean private MandateBatchProcessingPoller mandateBatchProcessingPoller;
 
   // The JWT authenticates samplePerson, and the auth filter creates that user on the server
   // thread, which no test-side transaction can roll back. It outlives the test in the shared
@@ -123,9 +151,22 @@ class MandateBatchIntegrationTest {
     mandateProcessRepository.deleteAll();
     mandateRepository.deleteAll();
     mandateBatchRepository.deleteAll();
+    jdbcClient
+        .sql(
+            "DELETE FROM email WHERE personal_code = :personalCode"
+                + " AND type IN ('CONTACT_DETAILS_CHANGED', 'PREVIOUS_CONTACT_ACTIVITY')")
+        .param("personalCode", samplePerson().getPersonalCode())
+        .update();
     userRepository
         .findByPersonalCode(samplePerson().getPersonalCode())
-        .ifPresent(userRepository::delete);
+        .ifPresent(
+            user -> {
+              jdbcClient
+                  .sql("DELETE FROM user_contact_change WHERE user_id = :userId")
+                  .param("userId", user.getId())
+                  .update();
+              userRepository.delete(user);
+            });
   }
 
   void assertCorrectResponse(byte[] responseBody) throws Exception {
@@ -801,6 +842,286 @@ class MandateBatchIntegrationTest {
         .isBadRequest();
 
     then(signatureService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void changingTheEmailThroughTheApiTellsOnlyTheAddressItReplacedAndRecordsTheNotice() {
+    willReturn(Optional.of(acceptedFor(OLD_EMAIL)))
+        .given(emailService)
+        .send(any(), argThat(addressedTo(OLD_EMAIL)), eq("contact_details_changed_en"));
+
+    changeEmailThroughTheApi(OLD_EMAIL);
+    changeEmailThroughTheApi(NEW_EMAIL);
+
+    then(emailService)
+        .should()
+        .send(
+            argThat(person -> person.getPersonalCode().equals(samplePerson().getPersonalCode())),
+            argThat(addressedTo(OLD_EMAIL)),
+            eq("contact_details_changed_en"));
+    then(emailService).should(times(1)).send(any(), any(), eq("contact_details_changed_en"));
+    assertThat(
+            emailPersistenceService.hasPendingOrSentEmail(samplePerson(), CONTACT_DETAILS_CHANGED))
+        .isTrue();
+  }
+
+  @Test
+  void
+      aLetterCaseEditOfTheEmailWithANewPhoneNumberThroughTheApiTellsTheCurrentAddressThePhoneChanged() {
+    changeEmailThroughTheApi(NEW_EMAIL);
+
+    changeContactDetailsThroughTheApi("New-Address@example.com", "+37255555555");
+
+    then(emailService)
+        .should()
+        .newMandrillMessage(
+            eq("New-Address@example.com"),
+            eq("contact_details_changed_en"),
+            argThat(
+                mergeVars ->
+                    Boolean.FALSE.equals(mergeVars.get("emailChanged"))
+                        && Boolean.TRUE.equals(mergeVars.get("phoneChanged"))
+                        && Boolean.FALSE.equals(mergeVars.get("previousAddress"))),
+            any());
+    then(emailService)
+        .should()
+        .send(
+            any(),
+            argThat(addressedTo("New-Address@example.com")),
+            eq("contact_details_changed_en"));
+    then(emailService).should(times(1)).send(any(), any(), eq("contact_details_changed_en"));
+  }
+
+  @Test
+  void
+      aWithdrawalSignedWithinTheWindowAfterAnEmailChangeIsNoticedAtTheReplacedAddressOnSigningAndStillConfirmedAtTheNewOne() {
+    changeEmailOn(EMAIL_CHANGED_AT);
+    ClockHolder.setClock(Clock.fixed(EMAIL_CHANGED_AT.plus(Duration.ofDays(27)), UTC));
+    willReturn(Optional.of(acceptedFor(OLD_EMAIL)))
+        .given(emailService)
+        .send(any(), argThat(addressedTo(OLD_EMAIL)), eq("previous_contact_activity_en"));
+
+    var batch = signedWithdrawalBatchPensionikeskusRejects(Set.of());
+
+    then(emailService)
+        .should()
+        .send(
+            argThat(person -> person.getPersonalCode().equals(samplePerson().getPersonalCode())),
+            argThat(addressedTo(OLD_EMAIL)),
+            eq("previous_contact_activity_en"));
+    completeAsOwner(batch);
+    then(emailService)
+        .should()
+        .send(
+            argThat(person -> person.getPersonalCode().equals(samplePerson().getPersonalCode())),
+            argThat(addressedTo(NEW_EMAIL)),
+            eq("withdrawal_batch_en"));
+    then(emailService).should(times(1)).send(any(), any(), eq("previous_contact_activity_en"));
+  }
+
+  @Test
+  void aWithdrawalSignedOnTheLastDayOfTheWindowIsNoticedEvenWhenItsSubmissionRunsPastIt() {
+    changeEmailOn(EMAIL_CHANGED_AT);
+    ClockHolder.setClock(Clock.fixed(EMAIL_CHANGED_AT.plus(Duration.ofDays(28)), UTC));
+
+    signedWithdrawalBatchSubmittedTo(
+        command -> {
+          ClockHolder.setClock(Clock.fixed(EMAIL_CHANGED_AT.plus(Duration.ofDays(29)), UTC));
+          return acceptance(command);
+        });
+
+    then(emailService)
+        .should()
+        .send(any(), argThat(addressedTo(OLD_EMAIL)), eq("previous_contact_activity_en"));
+  }
+
+  @Test
+  void aWithdrawalSignedAfterTheWindowAfterAnEmailChangeIsOnlyConfirmedAtTheNewAddress() {
+    changeEmailOn(EMAIL_CHANGED_AT);
+    ClockHolder.setClock(Clock.fixed(EMAIL_CHANGED_AT.plus(Duration.ofDays(29)), UTC));
+
+    completeAsOwner(signedWithdrawalBatchPensionikeskusRejects(Set.of()));
+
+    then(emailService)
+        .should()
+        .send(any(), argThat(addressedTo(NEW_EMAIL)), eq("withdrawal_batch_en"));
+    then(emailService).should(never()).send(any(), any(), eq("previous_contact_activity_en"));
+  }
+
+  @Test
+  void aWithdrawalPensionikeskusPartlyRejectsIsStillNoticedAtTheReplacedAddress() {
+    changeEmailOn(EMAIL_CHANGED_AT);
+    willReturn(Optional.of(acceptedFor(OLD_EMAIL)))
+        .given(emailService)
+        .send(any(), argThat(addressedTo(OLD_EMAIL)), eq("previous_contact_activity_en"));
+    var batch = signedWithdrawalBatchPensionikeskusRejects(Set.of(PARTIAL_WITHDRAWAL));
+
+    assertThatThrownBy(() -> completeAsOwner(batch)).isInstanceOf(MandateProcessingException.class);
+
+    then(emailService)
+        .should(times(1))
+        .send(any(), argThat(addressedTo(OLD_EMAIL)), eq("previous_contact_activity_en"));
+    then(emailService)
+        .should()
+        .send(any(), argThat(addressedTo(NEW_EMAIL)), eq(BATCH_FAILED.getTemplateName(ENGLISH)));
+    then(emailService).should(never()).send(any(), any(), eq("withdrawal_batch_en"));
+  }
+
+  @Test
+  void aWithdrawalPensionikeskusRejectsEntirelyIsStillNoticedAtTheReplacedAddress() {
+    changeEmailOn(EMAIL_CHANGED_AT);
+    var batch =
+        signedWithdrawalBatchPensionikeskusRejects(
+            Set.of(PARTIAL_WITHDRAWAL, FUND_PENSION_OPENING));
+
+    assertThatThrownBy(() -> completeAsOwner(batch)).isInstanceOf(MandateProcessingException.class);
+
+    then(emailService)
+        .should(times(1))
+        .send(any(), argThat(addressedTo(OLD_EMAIL)), eq("previous_contact_activity_en"));
+    then(emailService).should(never()).send(any(), any(), eq("withdrawal_batch_en"));
+  }
+
+  @Test
+  void aWithdrawalWhoseCompletionFailsAtEpisAfterSigningIsStillNoticedAtTheReplacedAddress() {
+    changeEmailOn(EMAIL_CHANGED_AT);
+    var batch = signedWithdrawalBatchPensionikeskusRejects(Set.of());
+    given(episService.getContactDetails(any())).willThrow(new IllegalStateException());
+
+    assertThatThrownBy(() -> completeAsOwner(batch)).isInstanceOf(IllegalStateException.class);
+
+    then(emailService)
+        .should(times(1))
+        .send(any(), argThat(addressedTo(OLD_EMAIL)), eq("previous_contact_activity_en"));
+    then(emailService).should(never()).send(any(), any(), eq("withdrawal_batch_en"));
+  }
+
+  @Test
+  void aFailingLookupOfReplacedEmailsFailsNeitherTheSigningNorTheSubmissionToPensionikeskus() {
+    changeEmailOn(EMAIL_CHANGED_AT);
+    willThrow(new IllegalStateException()).given(recentlyReplacedEmails).of(any(), any());
+
+    signedWithdrawalBatchPensionikeskusRejects(Set.of());
+
+    then(episService).should(times(2)).sendMandateV2(any());
+  }
+
+  private void changeEmailOn(Instant changedAt) {
+    ClockHolder.setClock(Clock.fixed(changedAt, UTC));
+    changeEmailThroughTheApi(OLD_EMAIL);
+    changeEmailThroughTheApi(NEW_EMAIL);
+  }
+
+  private void changeEmailThroughTheApi(String email) {
+    changeContactDetailsThroughTheApi(Map.of("email", email));
+  }
+
+  private void changeContactDetailsThroughTheApi(String email, String phoneNumber) {
+    changeContactDetailsThroughTheApi(Map.of("email", email, "phoneNumber", phoneNumber));
+  }
+
+  private void changeContactDetailsThroughTheApi(Map<String, String> contactDetails) {
+    restTestClient
+        .patch()
+        .uri("/v1/me")
+        .headers(
+            headers -> {
+              headers.addAll(getHeaders());
+              headers.set(ACCEPT_LANGUAGE, "en");
+            })
+        .body(contactDetails)
+        .exchange()
+        .expectStatus()
+        .isOk();
+  }
+
+  private MandateBatch signedWithdrawalBatchPensionikeskusRejects(Set<MandateType> rejected) {
+    return signedWithdrawalBatchSubmittedTo(
+        command ->
+            rejected.contains(command.submission().getMandateType())
+                ? rejection(command)
+                : acceptance(command));
+  }
+
+  private static MandateProcessResult acceptance(MandateSubmissionCommand<?> command) {
+    return new MandateProcessResult(
+        List.of(new MandateProcessOutcome(command.processId(), true, null)));
+  }
+
+  private static MandateProcessResult rejection(MandateSubmissionCommand<?> command) {
+    return new MandateProcessResult(
+        List.of(new MandateProcessOutcome(command.processId(), false, 40551)));
+  }
+
+  private MandateBatch signedWithdrawalBatchSubmittedTo(
+      Function<MandateSubmissionCommand<?>, MandateProcessResult> pensionikeskus) {
+    given(withdrawalEligibilityService.getWithdrawalEligibility(any()))
+        .willReturn(
+            WithdrawalEligibilityDto.builder()
+                .hasReachedEarlyRetirementAge(true)
+                .canWithdrawThirdPillarWithReducedTax(true)
+                .age(65)
+                .recommendedDurationYears(20)
+                .arrestsOrBankruptciesPresent(false)
+                .build());
+    given(episService.getCashFlowStatement(any(), any(), any()))
+        .willReturn(new CashFlowStatement());
+    given(episService.getContactDetails(any())).willReturn(contactDetailsFixture());
+    given(episService.updateContactDetails(any(), any()))
+        .willAnswer(invocation -> invocation.getArgument(1));
+    given(episService.sendMandateV2(any()))
+        .willAnswer(invocation -> pensionikeskus.apply(invocation.getArgument(0)));
+    restTestClient
+        .post()
+        .uri("/v1/mandate-batches")
+        .headers(headers -> headers.addAll(getHeaders()))
+        .body(
+            MandateBatchDto.builder()
+                .mandates(
+                    List.of(
+                        MandateDto.builder()
+                            .details(MandateFixture.aFundPensionOpeningMandateDetails)
+                            .build(),
+                        MandateDto.builder()
+                            .details(MandateFixture.aPartialWithdrawalMandateDetails)
+                            .build()))
+                .build())
+        .exchange()
+        .expectStatus()
+        .isOk();
+    var batch = Streamable.of(mandateBatchRepository.findAll()).toList().getFirst();
+    var signer = userRepository.findByPersonalCode(samplePerson().getPersonalCode()).orElseThrow();
+    given(signatureService.getSignedFile(any(MobileIdSignatureSession.class), any()))
+        .willReturn(new byte[] {1, 2, 3});
+    willDoNothing()
+        .given(mandateBatchProcessingPoller)
+        .startPollingForBatchProcessingFinished(any(), any());
+
+    mandateBatchService.finalizeMobileSignature(
+        signer.getId(), batch.getId(), mock(MobileIdSignatureSession.class), ENGLISH);
+
+    return mandateBatchRepository.findById(batch.getId()).orElseThrow();
+  }
+
+  private void completeAsOwner(MandateBatch batch) {
+    securityContextRunner.runAs(
+        batch.getMandates().getFirst().getUser(),
+        () -> mandateBatchCompletion.complete(batch, ENGLISH));
+  }
+
+  private static ArgumentMatcher<MandrillMessage> addressedTo(String email) {
+    return message -> email.equals(message.getTo().getFirst().getEmail());
+  }
+
+  private static MandrillMessageStatus acceptedFor(String email) {
+    return LutungGsonUtils.getGson()
+        .fromJson(
+            "{\"_id\": \"accepted-"
+                + email
+                + "\", \"email\": \""
+                + email
+                + "\", \"status\": \"sent\"}",
+            MandrillMessageStatus.class);
   }
 
   private void stubEpisAcceptingTheCancellation() {

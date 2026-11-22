@@ -8,9 +8,13 @@ import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
 import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION;
 import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture;
@@ -20,6 +24,7 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateFileService;
 import ee.tuleva.onboarding.mandate.WithdrawalReadiness;
 import ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller;
+import ee.tuleva.onboarding.mandate.event.MandateBatchSignatureStored;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
@@ -34,6 +39,8 @@ import ee.tuleva.onboarding.signature.SignatureStatus;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
@@ -52,6 +59,8 @@ import org.springframework.context.ApplicationEventPublisher;
 @ExtendWith(MockitoExtension.class)
 public class MandateBatchServiceTest {
 
+  private static final Instant SIGNED_AT = Instant.parse("2026-11-21T09:00:00Z");
+
   @Mock private MandateBatchRepository mandateBatchRepository;
 
   @Mock private MandateFileService mandateFileService;
@@ -63,6 +72,7 @@ public class MandateBatchServiceTest {
   @Mock private ApplicationEventPublisher applicationEventPublisher;
 
   @Mock private SignatureService signService;
+  @Mock private Clock clock;
 
   @InjectMocks private MandateBatchService mandateBatchService;
 
@@ -519,6 +529,7 @@ public class MandateBatchServiceTest {
       mandateBatch.setStatus(INITIALIZED);
 
       var user = mockUser();
+      given(clock.instant()).willReturn(SIGNED_AT);
       SmartIdSignatureSession session = mock(SmartIdSignatureSession.class);
 
       when(mandateBatchRepository.findById(mandateBatch.getId()))
@@ -542,7 +553,10 @@ public class MandateBatchServiceTest {
       verify(mandateProcessor, times(1)).start(user, mandate2);
       verify(mandateBatchProcessingPoller, times(1))
           .startPollingForBatchProcessingFinished(mandateBatch, Locale.ENGLISH);
-      verify(applicationEventPublisher, never()).publishEvent(any());
+      verify(applicationEventPublisher)
+          .publishEvent(
+              new MandateBatchSignatureStored(user, mandateBatch, Locale.ENGLISH, SIGNED_AT));
+      verifyNoMoreInteractions(applicationEventPublisher);
     }
 
     @Test
@@ -695,6 +709,7 @@ public class MandateBatchServiceTest {
       mandateBatch.setStatus(INITIALIZED);
 
       var user = mockUser();
+      given(clock.instant()).willReturn(SIGNED_AT);
       MobileIdSignatureSession session = mock(MobileIdSignatureSession.class);
 
       when(mandateBatchRepository.findById(mandateBatch.getId()))
@@ -718,7 +733,10 @@ public class MandateBatchServiceTest {
       verify(mandateProcessor, times(1)).start(user, mandate2);
       verify(mandateBatchProcessingPoller, times(1))
           .startPollingForBatchProcessingFinished(mandateBatch, Locale.ENGLISH);
-      verify(applicationEventPublisher, never()).publishEvent(any());
+      verify(applicationEventPublisher)
+          .publishEvent(
+              new MandateBatchSignatureStored(user, mandateBatch, Locale.ENGLISH, SIGNED_AT));
+      verifyNoMoreInteractions(applicationEventPublisher);
     }
 
     @Test
@@ -857,6 +875,7 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(INITIALIZED);
       var user = mockUser();
+      given(clock.instant()).willReturn(SIGNED_AT);
       IdCardSignatureSession session = IdCardSignatureSession.builder().build();
 
       when(mandateBatchRepository.findById(mandateBatch.getId()))
@@ -877,7 +896,68 @@ public class MandateBatchServiceTest {
       verify(mandateProcessor, times(1)).start(user, mandate2);
       verify(mandateBatchProcessingPoller, times(1))
           .startPollingForBatchProcessingFinished(mandateBatch, Locale.ENGLISH);
-      verify(applicationEventPublisher, never()).publishEvent(any());
+      verify(applicationEventPublisher)
+          .publishEvent(
+              new MandateBatchSignatureStored(user, mandateBatch, Locale.ENGLISH, SIGNED_AT));
+      verifyNoMoreInteractions(applicationEventPublisher);
+    }
+
+    @Test
+    void aSignedBatchIsSubmittedToPensionikeskusBeforeItIsAnnouncedSoASlowNoticeCannotHoldItUp() {
+      Mandate mandate = samplePartialWithdrawalMandate();
+      MandateBatch mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate));
+      mandateBatch.setStatus(INITIALIZED);
+      var user = mockUser();
+      given(clock.instant()).willReturn(SIGNED_AT);
+      IdCardSignatureSession session = IdCardSignatureSession.builder().build();
+      given(mandateBatchRepository.findById(mandateBatch.getId()))
+          .willReturn(Optional.of(mandateBatch));
+      given(
+              signService.getSignedFile(
+                  session, new SignableEntity("Mandate batch", mandateBatch.getId()), "signature"))
+          .willReturn("signedFileBytes".getBytes());
+
+      mandateBatchService.persistIdCardSignature(
+          user.getId(), mandateBatch.getId(), session, "signature", Locale.ENGLISH);
+
+      var inOrder =
+          inOrder(mandateProcessor, mandateBatchProcessingPoller, applicationEventPublisher);
+      then(mandateProcessor).should(inOrder).start(user, mandate);
+      then(mandateBatchProcessingPoller)
+          .should(inOrder)
+          .startPollingForBatchProcessingFinished(mandateBatch, Locale.ENGLISH);
+      then(applicationEventPublisher)
+          .should(inOrder)
+          .publishEvent(
+              new MandateBatchSignatureStored(user, mandateBatch, Locale.ENGLISH, SIGNED_AT));
+    }
+
+    @Test
+    void aSignedBatchIsAnnouncedEvenWhenSubmittingItsApplicationsFails() {
+      Mandate mandate = samplePartialWithdrawalMandate();
+      MandateBatch mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate));
+      mandateBatch.setStatus(INITIALIZED);
+      var user = mockUser();
+      given(clock.instant()).willReturn(SIGNED_AT);
+      IdCardSignatureSession session = IdCardSignatureSession.builder().build();
+      given(mandateBatchRepository.findById(mandateBatch.getId()))
+          .willReturn(Optional.of(mandateBatch));
+      given(
+              signService.getSignedFile(
+                  session, new SignableEntity("Mandate batch", mandateBatch.getId()), "signature"))
+          .willReturn("signedFileBytes".getBytes());
+      willThrow(new IllegalStateException()).given(mandateProcessor).start(user, mandate);
+
+      assertThatThrownBy(
+              () ->
+                  mandateBatchService.persistIdCardSignature(
+                      user.getId(), mandateBatch.getId(), session, "signature", Locale.ENGLISH))
+          .isInstanceOf(IllegalStateException.class);
+
+      then(applicationEventPublisher)
+          .should()
+          .publishEvent(
+              new MandateBatchSignatureStored(user, mandateBatch, Locale.ENGLISH, SIGNED_AT));
     }
 
     @Test

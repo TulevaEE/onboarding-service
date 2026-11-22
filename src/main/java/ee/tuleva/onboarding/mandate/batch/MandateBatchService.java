@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.MandateFileService;
 import ee.tuleva.onboarding.mandate.WithdrawalReadiness;
 import ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller;
+import ee.tuleva.onboarding.mandate.event.MandateBatchSignatureStored;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
@@ -27,6 +28,8 @@ import ee.tuleva.onboarding.signature.SignatureStatus;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +51,7 @@ public class MandateBatchService {
   private final SignatureService signService;
   private final MandateProcessorService mandateProcessor;
   private final MandateBatchProcessingPoller mandateBatchProcessingPoller;
+  private final Clock clock;
 
   public Optional<MandateBatch> getByIdAndUser(Long id, User user) {
     var batch =
@@ -243,8 +247,14 @@ public class MandateBatchService {
   private SignatureStatus persistSignedFileAndStartProcessing(
       User user, MandateBatch mandateBatch, byte[] signedFile, Locale locale) {
     persistSignedFile(mandateBatch, signedFile);
-    startProcessingBatch(user, mandateBatch);
-    mandateBatchProcessingPoller.startPollingForBatchProcessingFinished(mandateBatch, locale);
+    Instant signedAt = clock.instant();
+    try {
+      startProcessingBatch(user, mandateBatch);
+      mandateBatchProcessingPoller.startPollingForBatchProcessingFinished(mandateBatch, locale);
+    } finally {
+      applicationEventPublisher.publishEvent(
+          new MandateBatchSignatureStored(user, mandateBatch, locale, signedAt));
+    }
 
     return OUTSTANDING_TRANSACTION;
   }

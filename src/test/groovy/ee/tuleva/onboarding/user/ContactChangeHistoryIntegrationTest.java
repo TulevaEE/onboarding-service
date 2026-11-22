@@ -1,18 +1,30 @@
 package ee.tuleva.onboarding.user;
 
+import static ee.tuleva.onboarding.notification.email.EmailType.CONTACT_DETAILS_CHANGED;
 import static ee.tuleva.onboarding.user.ContactChangeSource.SELF_SERVICE;
 import static ee.tuleva.onboarding.user.ContactField.EMAIL;
 import static ee.tuleva.onboarding.user.ContactField.PHONE;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
 
+import com.microtripit.mandrillapp.lutung.model.LutungGsonUtils;
+import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.auth.ClientConnection;
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.event.TrackableEventLogger;
 import ee.tuleva.onboarding.event.broadcasting.ContactDetailsChangedBroadcaster;
+import ee.tuleva.onboarding.locale.LocaleService;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
+import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.email.PreviousContactNotices;
 import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.contact.ContactChangeRecorder;
@@ -26,7 +38,9 @@ import ee.tuleva.onboarding.user.name.NameChangeRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,7 +48,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.transaction.TransactionSystemException;
@@ -52,7 +68,12 @@ import org.springframework.transaction.annotation.Transactional;
   ContactDetailsChangedBroadcaster.class,
   ClientConnection.class,
   TrackableEventLogger.class,
-  ClockConfig.class
+  ClockConfig.class,
+  PreviousContactNotices.class,
+  RecentlyReplacedEmails.class,
+  ContactChangeConfiguration.class,
+  EmailPersistenceService.class,
+  LocaleService.class
 })
 class ContactChangeHistoryIntegrationTest {
 
@@ -65,6 +86,9 @@ class ContactChangeHistoryIntegrationTest {
   @Autowired ApplicationEvents applicationEvents;
   @Autowired EventLogRepository eventLogRepository;
   @Autowired MemberRepository memberRepository;
+  @Autowired EmailPersistenceService emailPersistenceService;
+
+  @MockitoBean EmailService emailService;
 
   ContactChangeRows contactChanges;
   User user;
@@ -89,6 +113,11 @@ class ContactChangeHistoryIntegrationTest {
   @AfterEach
   void cleanUp() {
     ClockHolder.setDefaultClock();
+    LocaleContextHolder.resetLocaleContext();
+    jdbcClient
+        .sql("DELETE FROM email WHERE personal_code = :personalCode")
+        .param("personalCode", PERSONAL_CODE)
+        .update();
     jdbcClient
         .sql("DELETE FROM event_log WHERE principal = :principal")
         .param("principal", PERSONAL_CODE)
@@ -188,6 +217,37 @@ class ContactChangeHistoryIntegrationTest {
         .isEqualTo(new StoredContactDetails("old@example.com", "+37255555555"));
     assertThat(contactChanges.of(user.getId())).isEmpty();
     assertThat(eventLogsOfTheUser()).isEmpty();
+  }
+
+  @Test
+  void aCommittedEmailChangeIsNoticedAtTheReplacedAddressAndTheNoticeIsRecorded() {
+    LocaleContextHolder.setLocale(Locale.ENGLISH);
+    var message = new MandrillMessage();
+    given(
+            emailService.newMandrillMessage(
+                eq("old@example.com"), eq("contact_details_changed_en"), any(), any()))
+        .willReturn(message);
+    given(emailService.send(any(), eq(message), eq("contact_details_changed_en")))
+        .willReturn(Optional.of(accepted()));
+
+    userService.changeContactDetails(PERSONAL_CODE, "new@example.com", "+37255555555");
+
+    assertThat(emailPersistenceService.hasPendingOrSentEmail(user, CONTACT_DETAILS_CHANGED))
+        .isTrue();
+  }
+
+  @Test
+  void aChangeThatFailsWhenCommittedNoticesNobody() {
+    assertThatThrownBy(
+            () -> userService.changeContactDetails(PERSONAL_CODE, "not-an-email", "+37255555555"))
+        .isInstanceOf(TransactionSystemException.class);
+
+    then(emailService).shouldHaveNoInteractions();
+  }
+
+  private static MandrillMessageStatus accepted() {
+    return LutungGsonUtils.getGson()
+        .fromJson("{\"_id\": \"notice\", \"status\": \"sent\"}", MandrillMessageStatus.class);
   }
 
   private StoredContactDetails storedContactDetails() {

@@ -1,0 +1,28 @@
+{
+  "variants": {
+    "email address changed, to a previous address": {
+      "FNAME": "Mari",
+      "emailChanged": true,
+      "phoneChanged": false,
+      "previousAddress": true
+    },
+    "email address and phone number changed, to a previous address": {
+      "FNAME": "Mari",
+      "emailChanged": true,
+      "phoneChanged": true,
+      "previousAddress": true
+    },
+    "phone number changed, to the current address": {
+      "FNAME": "Mari",
+      "emailChanged": false,
+      "phoneChanged": true,
+      "previousAddress": false
+    },
+    "phone number changed, to a previous address": {
+      "FNAME": "Mari",
+      "emailChanged": false,
+      "phoneChanged": true,
+      "previousAddress": true
+    }
+  }
+}

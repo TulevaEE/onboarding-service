@@ -235,8 +235,7 @@ public class OcfCalculationService {
   }
 
   TransactionCost getTransactionCost(TulevaFund fund, LocalDate monthEnd) {
-    var periodStart =
-        laterOf(fund.getInceptionDate(), TransactionCostWindow.trailingYearStart(monthEnd));
+    var periodStart = laterOf(fund.getInceptionDate(), AnnualisedRate.trailingYearStart(monthEnd));
     if (periodStart.isAfter(monthEnd)) {
       return new TransactionCostWindow(periodStart, monthEnd, ZERO, ZERO, List.of())
           .at(ZERO, List.of());

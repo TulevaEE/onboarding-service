@@ -209,7 +209,8 @@ public class TransactionExportService {
 
     try (Workbook workbook = new XSSFWorkbook()) {
       Sheet sheet = workbook.createSheet(SHEET_NAME_OF_THE_GAS_ORDER_FILE);
-      CellStyle dateStyle = gasOrderFileDateStyle(workbook);
+      CellStyle dateStyle = workbook.createCellStyle();
+      dateStyle.setDataFormat(EXCEL_BUILT_IN_SHORT_DATE_AS_IN_THE_GAS_ORDER_FILE);
 
       createRow(sheet, 0, FT_ETF_HEADERS);
 
@@ -246,12 +247,6 @@ public class TransactionExportService {
     } catch (IOException e) {
       throw new IllegalStateException("Failed to generate FT ETF export", e);
     }
-  }
-
-  private CellStyle gasOrderFileDateStyle(Workbook workbook) {
-    CellStyle style = workbook.createCellStyle();
-    style.setDataFormat(EXCEL_BUILT_IN_SHORT_DATE_AS_IN_THE_GAS_ORDER_FILE);
-    return style;
   }
 
   private void createFundQuantityCell(Row row, int column, BigDecimal quantity) {

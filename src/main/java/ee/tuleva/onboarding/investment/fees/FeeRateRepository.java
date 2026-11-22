@@ -32,4 +32,23 @@ public class FeeRateRepository {
         .query(FeeRate::fromResultSet)
         .optional();
   }
+
+  public Optional<FeeRate> findNextRateAfter(TulevaFund fund, FeeType feeType, LocalDate date) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT id, fund_code, fee_type, annual_rate, rate_source, valid_from, valid_to
+            FROM investment_fee_rate
+            WHERE fund_code = :fundCode
+              AND fee_type = :feeType
+              AND valid_from > :date
+            ORDER BY valid_from
+            LIMIT 1
+            """)
+        .param("fundCode", fund.name())
+        .param("feeType", feeType.name())
+        .param("date", date)
+        .query(FeeRate::fromResultSet)
+        .optional();
+  }
 }

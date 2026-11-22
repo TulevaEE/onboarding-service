@@ -22,6 +22,7 @@ final class UnreportedSaleDeduction {
   private final Map<String, BigDecimal> saleValuesTheReportDoesNotShow;
   private final Map<String, BigDecimal> leftToDeduct = new HashMap<>();
   private final Map<String, BigDecimal> valueDeducted = new HashMap<>();
+  private final Map<String, BigDecimal> unitsDeducted = new HashMap<>();
 
   private UnreportedSaleDeduction(
       Map<String, SellableUnits> sellableUnits,
@@ -62,6 +63,7 @@ final class UnreportedSaleDeduction {
             .divide(quantity, Math.max(row.marketValue().scale(), CENTS), HALF_UP);
     leftToDeduct.put(isin, left.subtract(quantity.subtract(remaining)));
     valueDeducted.merge(isin, row.marketValue().subtract(value), BigDecimal::add);
+    unitsDeducted.merge(isin, quantity.subtract(remaining), BigDecimal::add);
     return new PositionSnapshot(isin, value, remaining, row.unitPrice());
   }
 
@@ -83,7 +85,10 @@ final class UnreportedSaleDeduction {
         .map(PositionSnapshot::isin)
         .filter(Objects::nonNull)
         .distinct()
-        .filter(isin -> valueDeducted.getOrDefault(isin, ZERO).signum() > 0)
+        .filter(
+            isin ->
+                valueDeducted.getOrDefault(isin, ZERO).signum() > 0
+                    || unitsDeducted.getOrDefault(isin, ZERO).signum() > 0)
         .map(isin -> deductedSale(isin, report))
         .toList();
   }

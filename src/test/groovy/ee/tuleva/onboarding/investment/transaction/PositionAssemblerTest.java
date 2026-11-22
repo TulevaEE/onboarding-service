@@ -166,6 +166,7 @@ class PositionAssemblerTest {
             ZERO,
             ZERO,
             Map.of("IE00A", new BigDecimal("600")),
+            Map.of(),
             Map.of());
 
     var assembled = assembler.assemble(TUV100, POSITION_DATE, pendingOrders, noResolvedPrices());
@@ -273,6 +274,7 @@ class PositionAssemblerTest {
                     new BigDecimal("15000"),
                     new BigDecimal("300000"),
                     new BigDecimal("15"),
+                    ZERO,
                     new BigDecimal("225000"))));
   }
 
@@ -313,7 +315,114 @@ class PositionAssemblerTest {
                     null,
                     new BigDecimal("100000"),
                     new BigDecimal("15"),
+                    ZERO,
                     new BigDecimal("100000"))));
+  }
+
+  @Test
+  void assemble_unitsTakenOffARowWorthNothingAreStillListed() {
+    givenReport(row("IE00A", "1000", "0"));
+
+    var assembled =
+        assembler.assemble(
+            TUV100, POSITION_DATE, sales(Map.of("IE00A", "600"), Map.of()), noResolvedPrices());
+
+    assertThat(assembled.adjustments().deductedSales())
+        .usingRecursiveComparison(byValue())
+        .isEqualTo(
+            List.of(
+                new DeductedSale(
+                    "IE00A",
+                    new BigDecimal("1000"),
+                    ZERO,
+                    new BigDecimal("600"),
+                    ZERO,
+                    DeductedSale.DeductedBy.UNITS)));
+  }
+
+  @Test
+  void assemble_aManualPriceAlsoValuesUnitsBoughtButNotYetReported() {
+    givenReport(row("IE00A", "1000", "14000"));
+
+    var assembled =
+        assembler.assemble(
+            TUV100,
+            POSITION_DATE,
+            purchases(Map.of("IE00A", "2800"), Map.of("IE00A", "200"), Map.of()),
+            manualPrices(Map.of("IE00A", "15")));
+
+    assertThat(assembled.positions())
+        .singleElement()
+        .satisfies(
+            position -> {
+              assertThat(position.quantity()).isEqualByComparingTo("1200");
+              assertThat(position.marketValue()).isEqualByComparingTo("18000");
+            });
+  }
+
+  @Test
+  void assemble_aManualPriceValuesAnInstrumentHeldOnlyThroughAPurchaseTheReportDoesNotShow() {
+    givenReport();
+
+    var assembled =
+        assembler.assemble(
+            TUV100,
+            POSITION_DATE,
+            purchases(Map.of("IE00N", "2800"), Map.of("IE00N", "200"), Map.of()),
+            manualPrices(Map.of("IE00N", "15")));
+
+    assertThat(assembled.positions())
+        .singleElement()
+        .satisfies(position -> assertThat(position.marketValue()).isEqualByComparingTo("3000"));
+    assertThat(assembled.adjustments().manualPriceValuations())
+        .usingRecursiveComparison(byValue())
+        .isEqualTo(
+            List.of(
+                new ManualPriceValuation(
+                    "IE00N",
+                    new BigDecimal("200"),
+                    new BigDecimal("2800"),
+                    new BigDecimal("15"),
+                    ZERO,
+                    new BigDecimal("3000"))));
+  }
+
+  @Test
+  void assemble_aPurchaseWithoutAUnitCountKeepsItsAmountBesideTheUnitsAtTheManualPriceAndSaysSo() {
+    givenReport(row("IE00A", "1000", "14000"));
+
+    var assembled =
+        assembler.assemble(
+            TUV100,
+            POSITION_DATE,
+            purchases(Map.of("IE00A", "25000"), Map.of(), Map.of("IE00A", "25000")),
+            manualPrices(Map.of("IE00A", "15")));
+
+    assertThat(assembled.adjustments().manualPriceValuations())
+        .usingRecursiveComparison(byValue())
+        .isEqualTo(
+            List.of(
+                new ManualPriceValuation(
+                    "IE00A",
+                    new BigDecimal("1000"),
+                    new BigDecimal("39000"),
+                    new BigDecimal("15"),
+                    new BigDecimal("25000"),
+                    new BigDecimal("40000"))));
+  }
+
+  private static PendingOrderImpact purchases(
+      Map<String, String> values, Map<String, String> units, Map<String, String> withoutUnits) {
+    return new PendingOrderImpact(
+        ZERO,
+        ZERO,
+        decimals(values),
+        decimals(units),
+        ZERO,
+        ZERO,
+        Map.of(),
+        Map.of(),
+        decimals(withoutUnits));
   }
 
   private static TradePrepPricing manualPrices(Map<String, String> prices) {
@@ -364,7 +473,8 @@ class PositionAssemblerTest {
         ZERO,
         ZERO,
         decimals(unitsInSales),
-        decimals(valuesInTheWindow));
+        decimals(valuesInTheWindow),
+        Map.of());
   }
 
   private static Map<String, BigDecimal> decimals(Map<String, String> values) {
@@ -400,6 +510,7 @@ class PositionAssemblerTest {
             ZERO,
             ZERO,
             Map.of(),
+            Map.of(),
             Map.of());
 
     var result =
@@ -434,7 +545,8 @@ class PositionAssemblerTest {
             ZERO,
             ZERO,
             Map.of("IE00B", new BigDecimal("20")),
-            Map.of("IE00B", new BigDecimal("1000")));
+            Map.of("IE00B", new BigDecimal("1000")),
+            Map.of());
 
     var result =
         assembler.assemble(TUV100, POSITION_DATE, pendingOrders, noResolvedPrices()).positions();
@@ -474,6 +586,7 @@ class PositionAssemblerTest {
             ZERO,
             ZERO,
             Map.of(),
+            Map.of(),
             Map.of());
 
     var result =
@@ -503,6 +616,7 @@ class PositionAssemblerTest {
             Map.of(),
             ZERO,
             ZERO,
+            Map.of(),
             Map.of(),
             Map.of());
 

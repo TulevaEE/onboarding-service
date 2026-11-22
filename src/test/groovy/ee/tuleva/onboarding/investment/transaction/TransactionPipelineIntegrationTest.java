@@ -1712,7 +1712,7 @@ class TransactionPipelineIntegrationTest {
                 Map.of(
                     "isin", "IE00BFG1TM61",
                     "units", "15000",
-                    "reportValue", "300000",
+                    "valueBeforeManualPrice", "300000",
                     "manualPrice", "15",
                     "valueUsed", "225000",
                     "valuedAt", "MANUAL_PRICE")));

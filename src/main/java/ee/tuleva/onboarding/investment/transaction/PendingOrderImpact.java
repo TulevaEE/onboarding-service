@@ -13,22 +13,11 @@ record PendingOrderImpact(
     BigDecimal buysInTheBalance,
     BigDecimal sellsInTheBalance,
     Map<String, BigDecimal> unreportedSellQuantities,
-    Map<String, BigDecimal> unreportedSellValues) {
-
-  PendingOrderImpact withUnreportedSales(
-      Map<String, BigDecimal> quantities, Map<String, BigDecimal> values) {
-    return new PendingOrderImpact(
-        pendingBuys,
-        pendingSells,
-        unreportedBuyValues,
-        unreportedBuyQuantities,
-        buysInTheBalance,
-        sellsInTheBalance,
-        Map.copyOf(quantities),
-        Map.copyOf(values));
-  }
+    Map<String, BigDecimal> unreportedSellValues,
+    Map<String, BigDecimal> unreportedBuyValuesWithoutUnits) {
 
   static PendingOrderImpact none() {
-    return new PendingOrderImpact(ZERO, ZERO, Map.of(), Map.of(), ZERO, ZERO, Map.of(), Map.of());
+    return new PendingOrderImpact(
+        ZERO, ZERO, Map.of(), Map.of(), ZERO, ZERO, Map.of(), Map.of(), Map.of());
   }
 }

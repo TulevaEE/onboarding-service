@@ -13,18 +13,22 @@ import org.jspecify.annotations.Nullable;
 record ManualPriceValuation(
     String isin,
     @Nullable BigDecimal units,
-    BigDecimal reportValue,
+    BigDecimal valueBeforeManualPrice,
     BigDecimal manualPrice,
+    BigDecimal valueWithoutUnits,
     BigDecimal valueUsed) {
 
   Map<String, Object> payload() {
     Map<String, Object> map = new LinkedHashMap<>();
     map.put("isin", isin);
     putIfPresent(map, "units", units == null ? null : normalised(units));
-    map.put("reportValue", normalised(reportValue));
+    map.put("valueBeforeManualPrice", normalised(valueBeforeManualPrice));
     map.put("manualPrice", normalised(manualPrice));
+    if (valueWithoutUnits.signum() != 0) {
+      map.put("valueWithoutUnits", normalised(valueWithoutUnits));
+    }
     map.put("valueUsed", normalised(valueUsed));
-    map.put("valuedAt", units == null ? "REPORT_VALUE" : "MANUAL_PRICE");
+    map.put("valuedAt", units == null ? "WITHOUT_UNITS" : "MANUAL_PRICE");
     return map;
   }
 }

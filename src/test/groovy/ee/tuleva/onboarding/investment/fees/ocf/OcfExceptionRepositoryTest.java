@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.fees.ocf;
 
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -74,12 +75,13 @@ class OcfExceptionRepositoryTest {
             BigDecimal.ZERO,
             RebateBasis.NET,
             BigDecimal.ZERO,
+            ZERO,
             BigDecimal.ZERO,
             false,
             checks,
             new OcfAudit(
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null)),
+                null, null, null, null)),
         List.of());
     return snapshotRepository.findByFundAndMonth("TUK75", APRIL).orElseThrow();
   }

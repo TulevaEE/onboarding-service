@@ -105,6 +105,7 @@ public class OcfSnapshotRepository {
                   rebate_basis = :rebateBasis,
                   methodology = :methodology,
                   transaction_cost_rate = :transactionCostRate,
+                  bank_charges_rate = :bankChargesRate,
                   total_ocf = :totalOcf,
                   complete = :complete,
                   checks = :checks,
@@ -123,6 +124,9 @@ public class OcfSnapshotRepository {
                   underlying_weight_basis = :underlyingWeightBasis,
                   invested_ratio_month_end = :investedRatioMonthEnd,
                   invested_ratio_month_average = :investedRatioMonthAverage,
+                  bank_charges_window_start = :bankChargesWindowStart,
+                  bank_fees = :bankFees,
+                  overdraft_interest = :overdraftInterest,
                   calculated_at = now()
                 WHERE fund_code = :fundCode
                   AND snapshot_month = :snapshotMonth
@@ -140,22 +144,24 @@ public class OcfSnapshotRepository {
                   (fund_code, snapshot_month, version, management_fee_rate, depot_fee_rate,
                    underlying_fund_cost, underlying_fund_cost_gross, underlying_fund_cost_net,
                    rebate_basis, methodology,
-                   transaction_cost_rate, total_ocf, complete, checks,
+                   transaction_cost_rate, bank_charges_rate, total_ocf, complete, checks,
                    nav_date, nav_calculation_id, assets_under_management, management_fee_rate_id,
                    depot_charged_to_fund, depot_tier_nav_date, depot_tier_basis,
                    txn_window_start, txn_window_end, txn_fees, txn_average_aum,
                    txn_nav_dates, underlying_weight_basis, invested_ratio_month_end,
-                   invested_ratio_month_average)
+                   invested_ratio_month_average, bank_charges_window_start, bank_fees,
+                   overdraft_interest)
                 SELECT :fundCode, :snapshotMonth, COALESCE(MAX(version), 0) + 1,
                        :managementFeeRate, :depotFeeRate, :underlyingFundCost,
                        :underlyingFundCostGross, :underlyingFundCostNet, :rebateBasis,
                        :methodology,
-                       :transactionCostRate, :totalOcf, :complete, :checks,
+                       :transactionCostRate, :bankChargesRate, :totalOcf, :complete, :checks,
                        :navDate, :navCalculationId, :assetsUnderManagement, :managementFeeRateId,
                        :depotChargedToFund, :depotTierNavDate, :depotTierBasis,
                        :txnWindowStart, :txnWindowEnd, :txnFees, :txnAverageAum,
                        :txnNavDates, :underlyingWeightBasis, :investedRatioMonthEnd,
-                       :investedRatioMonthAverage
+                       :investedRatioMonthAverage, :bankChargesWindowStart, :bankFees,
+                       :overdraftInterest
                 FROM investment_ocf_snapshot
                 WHERE fund_code = :fundCode AND snapshot_month = :snapshotMonth
                 """),

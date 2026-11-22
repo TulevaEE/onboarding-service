@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.admin;
 
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
@@ -440,12 +441,13 @@ class InvestmentAdminControllerTest {
             new BigDecimal("0.00070000"),
             ee.tuleva.onboarding.investment.fees.ocf.RebateBasis.NET,
             new BigDecimal("0.00020000"),
+            ZERO,
             new BigDecimal("0.00530000"),
             false,
             null,
             new ee.tuleva.onboarding.investment.fees.ocf.OcfAudit(
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null));
+                null, null, null, null));
     given(ocfCalculationService.calculateOcf(TulevaFund.TUK75, java.time.YearMonth.of(2026, 4)))
         .willReturn(snapshot);
 

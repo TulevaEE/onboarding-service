@@ -84,6 +84,7 @@ class OcfCalculationDecisionServiceTest {
         BigDecimal.ZERO,
         RebateBasis.NET,
         BigDecimal.ZERO,
+        null,
         new BigDecimal(totalOcf),
         COMPLETE_CHECKS.equals(checks),
         checks,
@@ -91,7 +92,7 @@ class OcfCalculationDecisionServiceTest {
         publishedAt == null ? null : "KID 2026",
         new OcfAudit(
             null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-            null));
+            null, null, null, null));
   }
 
   private void givenTheVersion(OcfSnapshot snapshot) {

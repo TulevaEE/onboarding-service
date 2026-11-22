@@ -509,7 +509,10 @@ class OcfNotifierTest {
             null,
             UnderlyingWeightBasis.MONTH_AVERAGE,
             new BigDecimal("0.940700000000"),
-            new BigDecimal("0.964512345678"));
+            new BigDecimal("0.964512345678"),
+            null,
+            null,
+            null);
     return new Computed(
         fund,
         MONTH,
@@ -526,6 +529,7 @@ class OcfNotifierTest {
             snapshot.underlyingFundCostNet(),
             snapshot.rebateBasis(),
             snapshot.transactionCostRate(),
+            null,
             snapshot.totalOcf(),
             snapshot.complete(),
             snapshot.checks(),
@@ -588,6 +592,7 @@ class OcfNotifierTest {
         ZERO,
         RebateBasis.NET,
         ZERO,
+        ZERO,
         new BigDecimal(totalOcf),
         complete,
         null,
@@ -596,7 +601,8 @@ class OcfNotifierTest {
 
   private static OcfAudit emptyAudit() {
     return new OcfAudit(
-        null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+        null, null, null);
   }
 
   @Test

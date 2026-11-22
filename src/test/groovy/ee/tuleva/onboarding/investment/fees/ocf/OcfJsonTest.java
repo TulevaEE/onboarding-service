@@ -16,8 +16,8 @@ class OcfJsonTest {
     assertThat(ocfJson.checks(List.of(NO_PUBLISHED_NAV_CALCULATION)))
         .isEqualTo(
             "{\"gaps\":[\"NO_PUBLISHED_NAV_CALCULATION\"],\"excluded\":[\"ENTRY_CHARGES\","
-                + "\"EXIT_CHARGES\",\"PERFORMANCE_FEES\",\"BORROWING_INTEREST\","
-                + "\"DERIVATIVE_HOLDING_COSTS\",\"SOFT_COMMISSIONS\"]}");
+                + "\"EXIT_CHARGES\",\"PERFORMANCE_FEES\",\"DERIVATIVE_HOLDING_COSTS\","
+                + "\"SOFT_COMMISSIONS\"]}");
   }
 
   @Test

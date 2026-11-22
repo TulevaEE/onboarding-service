@@ -56,6 +56,7 @@ public class OcfCalculationService {
   private final MonthEndNavCheck monthEndNavCheck;
   private final UnderlyingWeights underlyingWeights;
   private final KidComparisons kidComparisons;
+  private final BankChargesCalculator bankChargesCalculator;
 
   public OcfSnapshot calculateOcf(TulevaFund fund, YearMonth month) {
     return compute(fund, month).snapshot();
@@ -68,9 +69,11 @@ public class OcfCalculationService {
     var depot = getDepotFee(fund, monthEnd);
     var underlying = getUnderlyingFundCost(fund, monthEnd);
     var txn = getTransactionCost(fund, monthEnd);
-    var totalOcf = mgmt.rate().add(depot.rate()).add(underlying.rate()).add(txn.rate());
+    var bank = bankChargesCalculator.costOver(fund, txn);
+    var totalOcf =
+        mgmt.rate().add(depot.rate()).add(underlying.rate()).add(txn.rate()).add(bank.rate());
 
-    var gaps = gaps(mgmt, depot, underlying, txn);
+    var gaps = gaps(mgmt, depot, underlying, txn, bank);
     var snapshot =
         OcfSnapshot.computed(
             fund.getCode(),
@@ -81,22 +84,24 @@ public class OcfCalculationService {
             underlying.rate(),
             REBATE_BASIS,
             txn.rate(),
+            bank.rate(),
             totalOcf,
             gaps.isEmpty(),
             ocfJson.checks(gaps),
-            audit(mgmt, depot, underlying, txn));
+            audit(mgmt, depot, underlying, txn, bank));
 
     ocfSnapshotRepository.save(snapshot, underlying.holdings());
 
     log.info(
-        "OCF calculated: fund={}, month={}, mgmt={}, depot={}, underlying={}, txn={}, total={},"
-            + " complete={}, gaps={}",
+        "OCF calculated: fund={}, month={}, mgmt={}, depot={}, underlying={}, txn={}, bank={},"
+            + " total={}, complete={}, gaps={}",
         fund.getCode(),
         month,
         mgmt.rate(),
         depot.rate(),
         underlying.rate(),
         txn.rate(),
+        bank.rate(),
         totalOcf,
         gaps.isEmpty(),
         gaps);
@@ -141,7 +146,11 @@ public class OcfCalculationService {
   }
 
   private static List<OcfGap> gaps(
-      ManagementFee mgmt, DepotFee depot, UnderlyingFundCost underlying, TransactionCost txn) {
+      ManagementFee mgmt,
+      DepotFee depot,
+      UnderlyingFundCost underlying,
+      TransactionCost txn,
+      BankChargesCost bank) {
     var gaps = new ArrayList<OcfGap>();
     if (mgmt.rateId() == null) {
       gaps.add(MANAGEMENT_FEE_RATE_MISSING);
@@ -151,11 +160,16 @@ public class OcfCalculationService {
     }
     gaps.addAll(underlying.gaps());
     gaps.addAll(txn.gaps());
+    gaps.addAll(bank.gaps());
     return List.copyOf(gaps);
   }
 
   private OcfAudit audit(
-      ManagementFee mgmt, DepotFee depot, UnderlyingFundCost underlying, TransactionCost txn) {
+      ManagementFee mgmt,
+      DepotFee depot,
+      UnderlyingFundCost underlying,
+      TransactionCost txn,
+      BankChargesCost bank) {
     return new OcfAudit(
         underlying.navDate(),
         underlying.navCalculationId(),
@@ -171,7 +185,10 @@ public class OcfCalculationService {
         ocfJson.navDates(txn.navDates()),
         underlying.weightBasis(),
         underlying.investedRatioMonthEnd(),
-        underlying.investedRatioMonthAverage());
+        underlying.investedRatioMonthAverage(),
+        bank.windowStart(),
+        bank.bankFees(),
+        bank.overdraftInterest());
   }
 
   ManagementFee getManagementFee(TulevaFund fund, LocalDate asOf) {

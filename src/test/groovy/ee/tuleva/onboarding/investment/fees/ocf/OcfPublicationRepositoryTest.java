@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.fees.ocf;
 
 import static ee.tuleva.onboarding.investment.fees.ocf.OcfPublicationBasis.EX_POST;
 import static ee.tuleva.onboarding.investment.fees.ocf.OcfPublicationBasis.MONTHLY_ESTIMATE;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -31,7 +32,8 @@ class OcfPublicationRepositoryTest {
   private static final LocalDate MAY_1 = LocalDate.of(2026, 5, 1);
   private static final OcfAudit NO_AUDIT =
       new OcfAudit(
-          null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+          null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+          null, null, null);
 
   @Autowired private JdbcClient jdbcClient;
   @Autowired private OcfPublicationRepository repository;
@@ -350,6 +352,7 @@ class OcfPublicationRepositoryTest {
             new BigDecimal(totalOcf).subtract(new BigDecimal(managementFeeRate)),
             RebateBasis.NET,
             BigDecimal.ZERO,
+            ZERO,
             new BigDecimal(totalOcf),
             complete,
             checks,

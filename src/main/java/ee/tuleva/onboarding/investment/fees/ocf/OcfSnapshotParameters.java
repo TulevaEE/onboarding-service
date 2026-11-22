@@ -19,6 +19,7 @@ final class OcfSnapshotParameters {
         .param("rebateBasis", snapshot.rebateBasis().name())
         .param("methodology", snapshot.methodology().name())
         .param("transactionCostRate", snapshot.transactionCostRate())
+        .param("bankChargesRate", snapshot.bankChargesRate())
         .param("totalOcf", snapshot.totalOcf())
         .param("complete", snapshot.complete())
         .param("checks", snapshot.checks() == null ? "{}" : snapshot.checks())
@@ -36,7 +37,10 @@ final class OcfSnapshotParameters {
         .param("txnNavDates", audit.txnNavDates())
         .param("underlyingWeightBasis", nameOf(audit.underlyingWeightBasis()))
         .param("investedRatioMonthEnd", audit.investedRatioMonthEnd())
-        .param("investedRatioMonthAverage", audit.investedRatioMonthAverage());
+        .param("investedRatioMonthAverage", audit.investedRatioMonthAverage())
+        .param("bankChargesWindowStart", audit.bankChargesWindowStart())
+        .param("bankFees", audit.bankFees())
+        .param("overdraftInterest", audit.overdraftInterest());
   }
 
   private static @Nullable String nameOf(@Nullable UnderlyingWeightBasis basis) {

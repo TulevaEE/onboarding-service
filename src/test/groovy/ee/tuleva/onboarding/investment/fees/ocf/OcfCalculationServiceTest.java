@@ -30,6 +30,7 @@ import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
 import ee.tuleva.onboarding.investment.fees.rate.RateBasis;
 import ee.tuleva.onboarding.investment.fees.rate.RebateKind;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
+import ee.tuleva.onboarding.ledger.BankCharges;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.savings.fund.nav.NavAccountLine;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculation;
@@ -80,6 +81,9 @@ class OcfCalculationServiceTest {
 
   @Mock(strictness = Mock.Strictness.LENIENT)
   private KidComparisons kidComparisons;
+
+  @Mock(strictness = Mock.Strictness.LENIENT)
+  private BankChargesCalculator bankChargesCalculator;
 
   @Spy private OcfJson ocfJson = new OcfJson(JsonMapper.builder().build());
 
@@ -163,6 +167,11 @@ class OcfCalculationServiceTest {
   }
 
   @BeforeEach
+  void noBankChargesByDefault() {
+    given(bankChargesCalculator.costOver(any(), any())).willReturn(NO_BANK_CHARGES);
+  }
+
+  @BeforeEach
   void noSwedbankEraFeesByDefault() {
     given(historicalTransactionFeeRepository.sumForFundBetween(any(), any(), any()))
         .willReturn(ZERO);
@@ -179,6 +188,8 @@ class OcfCalculationServiceTest {
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
   private static final LocalDate TRAILING_YEAR_START = MONTH_END.minusYears(1).plusDays(1);
   private static final LocalDate FIRST_NAV_DATE_IN_WINDOW = MONTH_END.minusMonths(3);
+  private static final BankChargesCost NO_BANK_CHARGES =
+      new BankChargesCost(ZERO, TRAILING_YEAR_START, new BankCharges(ZERO, ZERO), List.of());
 
   private static NavAccountLine securityLine(String isin, BigDecimal marketValue) {
     return new NavAccountLine("SECURITY", isin, isin, null, null, marketValue);
@@ -329,7 +340,7 @@ class OcfCalculationServiceTest {
 
     var result = service.calculateOcf(fund, MONTH);
 
-    assertThat(result.methodology()).isEqualTo(OcfMethodology.EX_ANTE_NET_ASSETS_V2);
+    assertThat(result.methodology()).isEqualTo(OcfMethodology.EX_ANTE_NET_ASSETS_V3);
   }
 
   @Test
@@ -349,9 +360,22 @@ class OcfCalculationServiceTest {
         .contains("ENTRY_CHARGES")
         .contains("EXIT_CHARGES")
         .contains("PERFORMANCE_FEES")
-        .contains("BORROWING_INTEREST")
         .contains("DERIVATIVE_HOLDING_COSTS")
         .contains("SOFT_COMMISSIONS");
+  }
+
+  @Test
+  void theOverdraftInterestAFundPaysIsCountedSoItIsNotListedAsLeftOut() {
+    var fund = TUK75;
+    setupManagementFee(fund, ZERO);
+    setupDepotFee(fund, ZERO);
+    setupNoTransactionCosts(fund);
+    setupNoInstrumentFees();
+    givenPublishedCalculation(fund, unitsLine(new BigDecimal("100000000")));
+
+    var result = service.calculateOcf(fund, MONTH);
+
+    assertThat(result.checks()).doesNotContain("BORROWING_INTEREST");
   }
 
   @Test
@@ -896,13 +920,14 @@ class OcfCalculationServiceTest {
     given(rs.getDate("snapshot_month")).willReturn(Date.valueOf("2026-04-01"));
     given(rs.getBigDecimal("management_fee_rate")).willReturn(new BigDecimal("0.0034"));
     given(rs.getBigDecimal("depot_fee_rate")).willReturn(new BigDecimal("0.0010"));
-    given(rs.getString("methodology")).willReturn("EX_ANTE_NET_ASSETS_V1");
+    given(rs.getString("methodology")).willReturn("EX_ANTE_NET_ASSETS_V3");
     given(rs.getString("rebate_basis")).willReturn("NET");
     given(rs.getBigDecimal("underlying_fund_cost")).willReturn(new BigDecimal("0.0007"));
     given(rs.getBigDecimal("underlying_fund_cost_gross")).willReturn(new BigDecimal("0.0009"));
     given(rs.getBigDecimal("underlying_fund_cost_net")).willReturn(new BigDecimal("0.0007"));
     given(rs.getBigDecimal("transaction_cost_rate")).willReturn(new BigDecimal("0.0002"));
-    given(rs.getBigDecimal("total_ocf")).willReturn(new BigDecimal("0.0053"));
+    given(rs.getBigDecimal("bank_charges_rate")).willReturn(new BigDecimal("0.0001"));
+    given(rs.getBigDecimal("total_ocf")).willReturn(new BigDecimal("0.0054"));
 
     var snapshot = OcfSnapshot.fromResultSet(rs, 1);
 
@@ -914,9 +939,10 @@ class OcfCalculationServiceTest {
     assertThat(snapshot.underlyingFundCost()).isEqualByComparingTo(new BigDecimal("0.0007"));
     assertThat(snapshot.underlyingFundCostGross()).isEqualByComparingTo(new BigDecimal("0.0009"));
     assertThat(snapshot.rebateBasis()).isEqualTo(RebateBasis.NET);
-    assertThat(snapshot.methodology()).isEqualTo(OcfMethodology.EX_ANTE_NET_ASSETS_V1);
+    assertThat(snapshot.methodology()).isEqualTo(OcfMethodology.EX_ANTE_NET_ASSETS_V3);
     assertThat(snapshot.transactionCostRate()).isEqualByComparingTo(new BigDecimal("0.0002"));
-    assertThat(snapshot.totalOcf()).isEqualByComparingTo(new BigDecimal("0.0053"));
+    assertThat(snapshot.bankChargesRate()).isEqualByComparingTo(new BigDecimal("0.0001"));
+    assertThat(snapshot.totalOcf()).isEqualByComparingTo(new BigDecimal("0.0054"));
   }
 
   @Test
@@ -949,7 +975,65 @@ class OcfCalculationServiceTest {
                 "[\"%s\",\"%s\"]".formatted(FIRST_NAV_DATE_IN_WINDOW, MONTH_END),
                 UnderlyingWeightBasis.MONTH_END,
                 new BigDecimal("0.500000000000"),
-                null));
+                null,
+                TRAILING_YEAR_START,
+                ZERO,
+                ZERO));
+  }
+
+  @Test
+  void theBankFeesAndOverdraftInterestOverTheTransactionWindowEnterTheTotalAndTheAudit() {
+    setupManagementFee(TUK75, new BigDecimal("0.0034"));
+    setupDepotFee(TUK75, new BigDecimal("0.0010"));
+    givenRate(new BigDecimal("0.0010"));
+    givenPublishedCalculation(
+        TUK75, securityLine(ISIN, new BigDecimal("500000")), unitsLine(new BigDecimal("1000000")));
+    givenTransactionCosts(new BigDecimal("1000"), new BigDecimal("1000000"));
+    var sebDepotStart = LocalDate.of(2026, 3, 1);
+    given(
+            bankChargesCalculator.costOver(
+                eq(TUK75),
+                argThat(
+                    txn ->
+                        txn.windowStart().equals(TRAILING_YEAR_START)
+                            && txn.windowEnd().equals(MONTH_END)
+                            && txn.averageAum().compareTo(new BigDecimal("1000000")) == 0)))
+        .willReturn(
+            new BankChargesCost(
+                new BigDecimal("0.00012"),
+                sebDepotStart,
+                new BankCharges(new BigDecimal("100"), new BigDecimal("20")),
+                List.of()));
+
+    var snapshot = service.calculateOcf(TUK75, MONTH);
+
+    assertThat(snapshot.bankChargesRate()).isEqualByComparingTo("0.00012");
+    assertThat(snapshot.totalOcf()).isEqualByComparingTo("0.00602");
+    assertThat(snapshot.complete()).isTrue();
+    assertThat(snapshot.audit().bankChargesWindowStart()).isEqualTo(sebDepotStart);
+    assertThat(snapshot.audit().bankFees()).isEqualByComparingTo("100");
+    assertThat(snapshot.audit().overdraftInterest()).isEqualByComparingTo("20");
+  }
+
+  @Test
+  void bankChargesTheLedgerCannotShowLeaveTheSnapshotIncompleteAndNameTheGap() {
+    setupManagementFee(TUK75, new BigDecimal("0.0034"));
+    setupDepotFee(TUK75, new BigDecimal("0.0010"));
+    givenRate(new BigDecimal("0.0010"));
+    givenPublishedCalculation(
+        TUK75, securityLine(ISIN, new BigDecimal("500000")), unitsLine(new BigDecimal("1000000")));
+    setupNoTransactionCosts(TUK75);
+    given(bankChargesCalculator.costOver(eq(TUK75), any()))
+        .willReturn(
+            new BankChargesCost(ZERO, null, null, List.of(OcfGap.BANK_CHARGES_NOT_IN_LEDGER)));
+
+    var snapshot = service.calculateOcf(TUK75, MONTH);
+
+    assertThat(snapshot.complete()).isFalse();
+    assertThat(snapshot.checks()).contains("\"gaps\":[\"BANK_CHARGES_NOT_IN_LEDGER\"]");
+    assertThat(snapshot.audit().bankChargesWindowStart()).isNull();
+    assertThat(snapshot.audit().bankFees()).isNull();
+    assertThat(snapshot.audit().overdraftInterest()).isNull();
   }
 
   @Test

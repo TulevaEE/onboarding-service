@@ -88,6 +88,7 @@ class OcfPublicationServiceTest {
         new BigDecimal("0.00260000"),
         RebateBasis.NET,
         BigDecimal.ZERO,
+        null,
         CALCULATED_OCF,
         COMPLETE_CHECKS.equals(checks),
         checks,
@@ -95,7 +96,7 @@ class OcfPublicationServiceTest {
         publishedAt == null ? null : "KID 2026",
         new OcfAudit(
             null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-            null));
+            null, null, null, null));
   }
 
   private void givenTheFeeOnThePublicationDate() {

@@ -18,7 +18,8 @@ class ScenarioPresentation {
 
   static final BigDecimal ANNEX_VI_P90_EXAMPLE_INVESTMENT_EUR = BigDecimal.valueOf(10_000);
   private static final int ANNEX_IV_P42_NEAREST_TEN_EUROS = -1;
-  private static final int RETURN_SCALE = 8;
+  static final int STORED_UNROUNDED_SCALE = 8;
+  private static final int PRINTED_RETURN_PERCENT_TO_TWO_DECIMALS_AS_A_FRACTION_SCALE = 4;
 
   List<KidScenario> present(
       int horizonYears,
@@ -59,19 +60,20 @@ class ScenarioPresentation {
     }
 
     KidScenario as(ScenarioKind kind, int horizonYears) {
+      var amount = BigDecimal.valueOf(netFactor).multiply(ANNEX_VI_P90_EXAMPLE_INVESTMENT_EUR);
+      var averageReturnPerYear = BigDecimal.valueOf(Math.pow(netFactor, 1.0 / horizonYears) - 1);
       return new KidScenario(
           horizonYears,
           kind,
-          BigDecimal.valueOf(netFactor)
-              .multiply(ANNEX_VI_P90_EXAMPLE_INVESTMENT_EUR)
-              .setScale(ANNEX_IV_P42_NEAREST_TEN_EUROS, HALF_UP)
-              .setScale(0),
-          BigDecimal.valueOf(Math.pow(netFactor, 1.0 / horizonYears) - 1)
-              .setScale(RETURN_SCALE, HALF_UP),
+          amount.setScale(ANNEX_IV_P42_NEAREST_TEN_EUROS, HALF_UP).setScale(0),
+          averageReturnPerYear.setScale(STORED_UNROUNDED_SCALE, HALF_UP),
           start,
           end,
           window,
-          windowMonths);
+          windowMonths,
+          amount.setScale(STORED_UNROUNDED_SCALE, HALF_UP),
+          averageReturnPerYear.setScale(
+              PRINTED_RETURN_PERCENT_TO_TWO_DECIMALS_AS_A_FRACTION_SCALE, HALF_UP));
     }
   }
 }

@@ -23,18 +23,28 @@ record ScenarioPeriod(LocalDate start, LocalDate end) {
   private static final double DAILY_SERIES_CLOSES_ON_AT_LEAST_THIS_SHARE_OF_A_MONTHS_WEEKDAYS = 0.7;
 
   static ScenarioPeriod endingWithLastCompleteMonth(LocalDate lastPriceDate, LocalDate today) {
-    if (lastPriceDate.plusDays(SERIES_STALLED_AFTER_DAYS_WITHOUT_A_PRICE).isBefore(today)) {
+    if (seriesStopped(lastPriceDate, today)) {
       throw new KidCalculationRefusedException(
           "Series stopped, no figures for an older period: lastPriceDate=%s, today=%s"
               .formatted(lastPriceDate, today));
     }
+    return endingWith(lastClosedMonth(lastPriceDate, today));
+  }
+
+  static boolean seriesStopped(LocalDate lastPriceDate, LocalDate today) {
+    return lastPriceDate.plusDays(SERIES_STALLED_AFTER_DAYS_WITHOUT_A_PRICE).isBefore(today);
+  }
+
+  static YearMonth lastClosedMonth(LocalDate lastPriceDate, LocalDate today) {
     var lastMonthTheSeriesCloses = lastMonthTheSeriesCloses(lastPriceDate);
-    var lastCalendarMonthEnded = YearMonth.from(today).minusMonths(1);
-    var end =
-        (lastMonthTheSeriesCloses.isBefore(lastCalendarMonthEnded)
-                ? lastMonthTheSeriesCloses
-                : lastCalendarMonthEnded)
-            .atEndOfMonth();
+    var lastCalendarMonthEnded = KidCalendar.lastMonthEnded(today);
+    return lastMonthTheSeriesCloses.isBefore(lastCalendarMonthEnded)
+        ? lastMonthTheSeriesCloses
+        : lastCalendarMonthEnded;
+  }
+
+  static ScenarioPeriod endingWith(YearMonth month) {
+    var end = month.atEndOfMonth();
     return new ScenarioPeriod(end.minusYears(ANNEX_IV_P6_PERIOD_YEARS), end);
   }
 

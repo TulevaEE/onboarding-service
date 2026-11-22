@@ -107,6 +107,8 @@ public class SecurityConfiguration {
                     .permitAll()
                     .requestMatchers(GET, "/v1/funds/*/nav")
                     .permitAll()
+                    .requestMatchers(GET, "/v1/funds/*/kid-scenarios")
+                    .permitAll()
                     .requestMatchers(GET, "/v1/benchmarks/world-market/returns")
                     .permitAll()
                     .requestMatchers(HEAD, "/v1/members")

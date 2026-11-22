@@ -7,4 +7,8 @@ record KidCost(
     BigDecimal totalCostsEur,
     BigDecimal annualCostImpact,
     BigDecimal returnPerYearBeforeCosts,
-    BigDecimal returnPerYearAfterCosts) {}
+    BigDecimal returnPerYearAfterCosts,
+    BigDecimal unroundedTotalCostsEur,
+    BigDecimal unroundedAnnualCostImpact,
+    BigDecimal unroundedReturnPerYearBeforeCosts,
+    BigDecimal unroundedReturnPerYearAfterCosts) {}

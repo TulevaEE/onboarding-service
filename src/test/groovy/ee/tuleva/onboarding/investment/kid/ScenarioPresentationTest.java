@@ -42,7 +42,9 @@ class ScenarioPresentationTest {
                 date("2020-02-21"),
                 date("2020-05-20"),
                 STRESSED_VOLATILITY,
-                null),
+                null,
+                new BigDecimal("5000.00000000"),
+                new BigDecimal("-0.1294")),
             new KidScenario(
                 5,
                 UNFAVOURABLE,
@@ -51,7 +53,9 @@ class ScenarioPresentationTest {
                 date("2024-12-31"),
                 date("2025-12-31"),
                 SHORTER,
-                12),
+                12,
+                new BigDecimal("9000.00000000"),
+                new BigDecimal("-0.0209")),
             new KidScenario(
                 5,
                 MODERATE,
@@ -60,7 +64,9 @@ class ScenarioPresentationTest {
                 date("2018-01-31"),
                 date("2023-01-31"),
                 FULL_LENGTH,
-                60),
+                60,
+                new BigDecimal("12345.00000000"),
+                new BigDecimal("0.0430")),
             new KidScenario(
                 5,
                 FAVOURABLE,
@@ -69,7 +75,9 @@ class ScenarioPresentationTest {
                 date("2016-03-31"),
                 date("2021-03-31"),
                 FULL_LENGTH,
-                60));
+                60,
+                new BigDecimal("20000.00000000"),
+                new BigDecimal("0.1487")));
   }
 
   @Test
@@ -88,7 +96,9 @@ class ScenarioPresentationTest {
                 date("2024-12-31"),
                 date("2025-12-31"),
                 SHORTER,
-                12));
+                12,
+                new BigDecimal("9000.00000000"),
+                new BigDecimal("-0.0209")));
   }
 
   @Test
@@ -115,7 +125,9 @@ class ScenarioPresentationTest {
                 date("2020-02-21"),
                 date("2020-05-20"),
                 STRESSED_VOLATILITY,
-                null));
+                null,
+                new BigDecimal("9000.00000000"),
+                new BigDecimal("-0.0209")));
   }
 
   @Test
@@ -134,7 +146,9 @@ class ScenarioPresentationTest {
                 date("2020-02-21"),
                 date("2020-05-20"),
                 STRESSED_VOLATILITY,
-                null),
+                null,
+                new BigDecimal("4754.95024950"),
+                new BigDecimal("-0.1382")),
             new KidScenario(
                 5,
                 UNFAVOURABLE,
@@ -143,7 +157,9 @@ class ScenarioPresentationTest {
                 date("2024-12-31"),
                 date("2025-12-31"),
                 SHORTER,
-                12));
+                12,
+                new BigDecimal("8910.00000000"),
+                new BigDecimal("-0.0228")));
   }
 
   @Test
@@ -159,6 +175,23 @@ class ScenarioPresentationTest {
 
     assertThat(scenarios.get(2).amountEur()).isEqualTo(new BigDecimal("12350"));
     assertThat(scenarios.get(3).amountEur()).isEqualTo(new BigDecimal("12340"));
+    assertThat(scenarios.get(3).unroundedAmountEur()).isEqualTo(new BigDecimal("12344.90000000"));
+  }
+
+  @Test
+  void printsTheAverageReturnToTwoPercentDecimalsRoundedOnceFromTheUnroundedReturn() {
+    var justBelowAHalfway =
+        new PerformanceScenarios(
+            UNFAVOURABLE_WINDOW,
+            new ScenarioWindow(
+                FULL_LENGTH, date("2018-01-31"), date("2019-01-31"), 12, 1.04304999996),
+            FAVOURABLE_WINDOW);
+    var stress = new StressScenario(Math.log(0.5), date("2020-02-21"), date("2020-05-20"));
+
+    var moderate = presentation.present(1, justBelowAHalfway, stress, 0).get(2);
+
+    assertThat(moderate.averageReturnPerYear()).isEqualTo(new BigDecimal("0.04305000"));
+    assertThat(moderate.printedAverageReturnPerYear()).isEqualTo(new BigDecimal("0.0430"));
   }
 
   private static LocalDate date(String date) {

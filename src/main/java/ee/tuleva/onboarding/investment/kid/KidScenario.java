@@ -12,4 +12,6 @@ record KidScenario(
     LocalDate periodStart,
     LocalDate periodEnd,
     WindowSource window,
-    @Nullable Integer windowMonths) {}
+    @Nullable Integer windowMonths,
+    BigDecimal unroundedAmountEur,
+    BigDecimal printedAverageReturnPerYear) {}

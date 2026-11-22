@@ -154,6 +154,19 @@ class OcfPublicationRepositoryTest {
   }
 
   @Test
+  void aFigureFromACalculationNamesThatCalculationAndAGivenFigureNamesNone() {
+    var calculation = storedCalculation(APRIL, "0.00340000", "0.00340000", true, null);
+    repository.recordFromCalculation(
+        calculation, fromCalculation(calculation, MAY_1, "KID 01.05.2026"));
+    var fromTheCalculation = repository.findInForceOn("TUK75", MAY_1).orElseThrow();
+    var given = repository.recordGiven(given("TUK75", MAY_1, "0.00460000", "KID 01.05.2026 b"));
+
+    assertThat(repository.findCalculationOf(fromTheCalculation.publicationId()))
+        .contains(snapshotRepository.findVersion("TUK75", APRIL, 1).orElseThrow());
+    assertThat(repository.findCalculationOf(given.publicationId())).isEmpty();
+  }
+
+  @Test
   void aKidIsRecordedOnceForItsFundDateAndDocument() {
     repository.recordGiven(given("TUK75", MAY_1, "0.00460000", "KID 01.05.2026"));
 

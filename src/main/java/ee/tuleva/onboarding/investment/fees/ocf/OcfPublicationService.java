@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
@@ -87,6 +88,14 @@ public class OcfPublicationService {
         request.basis(),
         request.publishedIn());
     return recorded;
+  }
+
+  public Optional<KidFigure> figureInForceOn(TulevaFund fund, LocalDate date) {
+    return publicationRepository.findInForceOn(fund.getCode(), date);
+  }
+
+  public Optional<OcfSnapshot> calculationOf(KidFigure figure) {
+    return publicationRepository.findCalculationOf(figure.publicationId());
   }
 
   private OcfPublicationPreview preview(

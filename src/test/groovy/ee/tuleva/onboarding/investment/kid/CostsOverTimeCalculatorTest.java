@@ -21,7 +21,11 @@ class CostsOverTimeCalculatorTest {
                 new BigDecimal("50"),
                 new BigDecimal("0.0050"),
                 new BigDecimal("0.0050"),
-                new BigDecimal("0.0000")));
+                new BigDecimal("0.0000"),
+                new BigDecimal("50.25125628"),
+                new BigDecimal("0.00502513"),
+                new BigDecimal("0.00502513"),
+                new BigDecimal("0.00000000")));
   }
 
   @Test
@@ -33,7 +37,11 @@ class CostsOverTimeCalculatorTest {
                 new BigDecimal("417"),
                 new BigDecimal("0.0417"),
                 new BigDecimal("0.0417"),
-                new BigDecimal("0.0000")));
+                new BigDecimal("0.0000"),
+                new BigDecimal("416.66666667"),
+                new BigDecimal("0.04166667"),
+                new BigDecimal("0.04166667"),
+                new BigDecimal("0.00000000")));
   }
 
   @Test
@@ -53,7 +61,11 @@ class CostsOverTimeCalculatorTest {
                 new BigDecimal("273"),
                 new BigDecimal("0.0052"),
                 new BigDecimal("0.0332"),
-                new BigDecimal("0.0281")));
+                new BigDecimal("0.0281"),
+                new BigDecimal("273.22744679"),
+                new BigDecimal("0.00516621"),
+                new BigDecimal("0.03324129"),
+                new BigDecimal("0.02807509")));
   }
 
   @Test
@@ -73,6 +85,10 @@ class CostsOverTimeCalculatorTest {
                 new BigDecimal("350"),
                 new BigDecimal("0.0056"),
                 new BigDecimal("0.1178"),
-                new BigDecimal("0.1122")));
+                new BigDecimal("0.1122"),
+                new BigDecimal("349.60570134"),
+                new BigDecimal("0.00558900"),
+                new BigDecimal("0.11780000"),
+                new BigDecimal("0.11221100")));
   }
 }

@@ -400,6 +400,14 @@ class SecurityConfigurationSpec extends Specification {
     url << ["/v1/listings", "/v1/hackathon-registration"]
   }
 
+  def "a stranger reads a fund's NAV and KID scenario history without a token"() {
+    expect:
+    isPublic(GET, pattern)
+
+    where:
+    pattern << ["/v1/funds/{isin}/nav", "/v1/funds/{isin}/kid-scenarios"]
+  }
+
   def "a stranger reaches the gift link routes without a token"() {
     expect:
     mvc.perform(request(method, url)

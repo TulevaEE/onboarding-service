@@ -24,6 +24,7 @@ public final class JobRunSchedule {
   public static final String R16_FLOW_RECALC = "0 30 17 * * MON-FRI";
 
   public static final String RISK_INDICATOR_DAILY = "0 30 9 * * MON-FRI";
+  public static final String KID_CALCULATION_EACH_WORKING_DAY = "0 30 10 * * MON-FRI";
 
   public static final String MODEL_REBALANCE_CHECK = "0 15 9 * * MON-FRI";
 

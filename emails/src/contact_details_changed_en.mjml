@@ -1,0 +1,40 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+
+        <mj-raw>*|IF:emailChanged|*</mj-raw>
+        <mj-raw>*|IF:phoneChanged|*</mj-raw>
+        <mj-text>The email address and phone number in your Tuleva account were changed.</mj-text>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>The email address in your Tuleva account was changed.</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>The phone number in your Tuleva account was changed.</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-raw>*|IF:previousAddress|*</mj-raw>
+        <mj-text>We are sending this to your previous email address.</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-text>If you made the change yourself, there is nothing you need to do.</mj-text>
+        <mj-text>
+          If it wasn't you, contact us right away:
+          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or
+          <a href="tel:+3726445100">644&nbsp;5100</a>.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Tuleva</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

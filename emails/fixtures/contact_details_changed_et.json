@@ -1,0 +1,28 @@
+{
+  "variants": {
+    "muutus e-posti aadress, varasemale aadressile": {
+      "FNAME": "Mari",
+      "emailChanged": true,
+      "phoneChanged": false,
+      "previousAddress": true
+    },
+    "muutusid e-posti aadress ja telefoninumber, varasemale aadressile": {
+      "FNAME": "Mari",
+      "emailChanged": true,
+      "phoneChanged": true,
+      "previousAddress": true
+    },
+    "muutus telefoninumber, praegusele aadressile": {
+      "FNAME": "Mari",
+      "emailChanged": false,
+      "phoneChanged": true,
+      "previousAddress": false
+    },
+    "muutus telefoninumber, varasemale aadressile": {
+      "FNAME": "Mari",
+      "emailChanged": false,
+      "phoneChanged": true,
+      "previousAddress": true
+    }
+  }
+}

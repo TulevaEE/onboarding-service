@@ -34,18 +34,23 @@ public final class MandateEmailType {
       return SECOND_PILLAR_REJOIN;
     }
 
-    var allMandatesWithdrawals =
-        batch.getMandates().stream()
-            .allMatch(
-                mandate ->
-                    mandate.getMandateType() == MandateType.PARTIAL_WITHDRAWAL
-                        || mandate.getMandateType() == MandateType.FUND_PENSION_OPENING);
-
-    if (allMandatesWithdrawals) {
+    if (isWithdrawalBatch(batch)) {
       return WITHDRAWAL_BATCH;
     }
 
     throw new IllegalArgumentException("Cannot find email type for batch");
+  }
+
+  static boolean isWithdrawalBatch(MandateBatch batch) {
+    return batch.getMandates().stream()
+        .map(Mandate::getMandateType)
+        .allMatch(MandateType::isWithdrawalType);
+  }
+
+  static boolean containsWithdrawal(MandateBatch batch) {
+    return batch.getMandates().stream()
+        .map(Mandate::getMandateType)
+        .anyMatch(MandateType::isWithdrawalType);
   }
 
   private MandateEmailType() {}

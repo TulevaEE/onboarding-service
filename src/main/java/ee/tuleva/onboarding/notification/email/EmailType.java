@@ -25,6 +25,9 @@ public enum EmailType {
 
   WITHDRAWAL_BATCH("withdrawal_batch"),
 
+  CONTACT_DETAILS_CHANGED("contact_details_changed"),
+  PREVIOUS_CONTACT_ACTIVITY("previous_contact_activity"),
+
   LISTING_REPLY_TO_SELLER("listing_reply_to_seller"),
   LISTING_EXPIRES("listing_expires"),
   LISTING_REPLY_TO_BUYER("listing_reply_to_buyer"),

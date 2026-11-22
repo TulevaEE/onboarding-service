@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user;
 
+import java.time.Instant;
 import java.util.List;
 
 public record ContactDetailsChanged(
@@ -10,5 +11,9 @@ public record ContactDetailsChanged(
       throw new IllegalArgumentException("Contact details changed without changes");
     }
     changes = List.copyOf(changes);
+  }
+
+  public Instant changedAt() {
+    return changes.getFirst().changedAt();
   }
 }

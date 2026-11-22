@@ -60,6 +60,16 @@
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
+    "contact_details_changed_en": {
+      "subject": "Your Tuleva contact details changed",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "contact_details_changed_et": {
+      "subject": "Sinu Tuleva kontaktandmed muutusid",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
     "hackathon_registration_en": {
       "subject": "You’re registered for the Tuleva hackathon",
       "from_email": "tuleva@tuleva.ee",
@@ -117,6 +127,16 @@
     },
     "membership_et": {
       "subject": "Tuleva liikmetunnistus",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "previous_contact_activity_en": {
+      "subject": "A payout application was signed in your Tuleva account",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "previous_contact_activity_et": {
+      "subject": "Sinu Tuleva kontol allkirjastati väljamakse avaldus",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -378,12 +398,14 @@
     "capital_transfer_confirmed_by_buyer": "Sent to the seller when the buyer confirms they have paid, asking the seller to confirm that the money arrived.",
     "capital_transfer_confirmed_by_seller": "Sent to the buyer when the seller confirms receiving the payment. The contract then goes to the board for approval.",
     "capital_transfer_seller_to_confirm": "Published in Mandrill but currently unused: no code path in the service sends this template. The confirmed_by_buyer email covers this step.",
+    "contact_details_changed": "Sent right after a person changes their email address or phone number in their Tuleva account, as a security notice. Goes to the email addresses they replaced within the configured window (contact-change.replaced-email-notice-window in onboarding-service), including the one just replaced, but never to a new email address. When only the phone number changed, it also goes to the current address. A change in letter case alone sends nothing. Says what changed (emailChanged, phoneChanged) and, to a replaced address, why it got the email (previousAddress), but never the old or new value, and asks them to contact us right away if it wasn't them.",
     "hackathon_registration": "Confirmation sent immediately after registering for the Tuleva hackathon.",
     "insurance_transfer_form": "Sent right after the person signs a request to end a third pillar insurance contract and move its money to Tuleva III Samba Pensionifond, with the signed request attached. Tuleva sends nothing to the insurer: the email asks the person to forward it to the insurer address it names.",
     "listing_expires": "Published in Mandrill but currently unused: no code path in the service sends this template yet.",
     "listing_reply_to_buyer": "Sent to the owner of a member capital buy listing when another member responds, with the responder's contact details.",
     "listing_reply_to_seller": "Sent to the owner of a member capital sell listing when another member responds, with the responder's contact details.",
     "membership": "Sent as soon as a person becomes a Tuleva member, right after the membership application is completed.",
+    "previous_contact_activity": "Sent as a security notice the moment a person signs a batch of applications that includes a withdrawal application, to the email addresses they replaced within the configured window (contact-change.replaced-email-notice-window in onboarding-service). It goes out when the batch is signed, whatever Pensionikeskus decides about the applications. It names the person and says a payout application was signed, without saying which, and asks them to contact us right away if it wasn't them.",
     "savings_fund_payment_cancelled": "Sent when a savings fund payment is cancelled before units are issued and the money is sent back to the payer.",
     "savings_fund_payment_failed": "Sent when a savings fund payment fails our checks and the money is returned to the payer.",
     "savings_fund_payment_success_child": "Sent to the parent when their bank transfer to a child's savings fund account is matched and units are issued.",

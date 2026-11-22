@@ -49,6 +49,30 @@ class ContactChangeRecorderTest {
   }
 
   @Test
+  void datesTheChangeToTheMicrosecondSoItsEventCarriesExactlyTheMomentTheDatabaseKeeps() {
+    recorder =
+        new ContactChangeRecorder(
+            repository,
+            eventPublisher,
+            Clock.fixed(Instant.parse("2026-11-18T10:00:00.123456789Z"), UTC));
+    var user = sampleUserNonMember().email("new@example.com").phoneNumber("+37255555555").build();
+
+    recorder.recordSelfServiceChange(user, "old@example.com", "+37255555555");
+
+    var changes =
+        List.of(
+            new ContactChange(
+                EMAIL,
+                "old@example.com",
+                "new@example.com",
+                Instant.parse("2026-11-18T10:00:00.123456Z")));
+    then(repository).should().saveAll(user.getId(), SELF_SERVICE, changes);
+    then(eventPublisher)
+        .should()
+        .publishEvent(new ContactDetailsChanged(user, SELF_SERVICE, changes));
+  }
+
+  @Test
   void recordsAPhoneNumberChange() {
     var user = sampleUserNonMember().email("old@example.com").phoneNumber("+37251111111").build();
 

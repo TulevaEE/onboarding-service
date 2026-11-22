@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.user.contact;
 import static ee.tuleva.onboarding.user.ContactChangeSource.SELF_SERVICE;
 import static ee.tuleva.onboarding.user.ContactField.EMAIL;
 import static ee.tuleva.onboarding.user.ContactField.PHONE;
+import static java.time.temporal.ChronoUnit.MICROS;
 
 import ee.tuleva.onboarding.user.ContactChange;
 import ee.tuleva.onboarding.user.ContactDetailsChanged;
@@ -29,7 +30,7 @@ public class ContactChangeRecorder {
 
   public void recordSelfServiceChange(
       User changedUser, @Nullable String oldEmail, @Nullable String oldPhoneNumber) {
-    Instant changedAt = clock.instant();
+    Instant changedAt = clock.instant().truncatedTo(MICROS);
     List<ContactChange> changes =
         Stream.of(
                 change(EMAIL, oldEmail, changedUser.getEmail(), changedAt),

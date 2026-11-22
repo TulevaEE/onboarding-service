@@ -343,6 +343,9 @@ investment:
 ledger:
   unit-balance-guard:
     enforce: true
+
+contact-change:
+  replaced-email-notice-window: 28d
 ---
 spring:
   config:

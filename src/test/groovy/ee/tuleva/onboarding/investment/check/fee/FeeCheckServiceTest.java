@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.BLACKROCK_A
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_POSITION_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.INSTRUMENT_RATE_COVERAGE;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.KID_AFTER_FEE_CHANGE;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.LEDGER_ACCRUAL_CONSISTENCY;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.PENSIONIKESKUS_MANAGEMENT_FEE;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.PENSIONIKESKUS_ONGOING_CHARGES;
@@ -45,6 +46,7 @@ class FeeCheckServiceTest {
   @Mock private InstrumentRateCoverageChecker instrumentRateCoverageChecker;
   @Mock private PensionikeskusManagementFeeChecker pensionikeskusManagementFeeChecker;
   @Mock private PensionikeskusOngoingChargesChecker pensionikeskusOngoingChargesChecker;
+  @Mock private KidAfterFeeChangeChecker kidAfterFeeChangeChecker;
   @Mock private FeeCheckEventRepository eventRepository;
   @Mock private FeeCheckNotifier notifier;
 
@@ -63,6 +65,7 @@ class FeeCheckServiceTest {
             instrumentRateCoverageChecker,
             pensionikeskusManagementFeeChecker,
             pensionikeskusOngoingChargesChecker,
+            kidAfterFeeChangeChecker,
             eventRepository,
             notifier,
             35);
@@ -87,7 +90,22 @@ class FeeCheckServiceTest {
             org.assertj.core.groups.Tuple.tuple(INSTRUMENT_RATE_COVERAGE, FeeCheckScope.ALL),
             org.assertj.core.groups.Tuple.tuple(
                 PENSIONIKESKUS_MANAGEMENT_FEE, FeeCheckScope.MANAGEMENT),
-            org.assertj.core.groups.Tuple.tuple(PENSIONIKESKUS_ONGOING_CHARGES, FeeCheckScope.ALL));
+            org.assertj.core.groups.Tuple.tuple(PENSIONIKESKUS_ONGOING_CHARGES, FeeCheckScope.ALL),
+            org.assertj.core.groups.Tuple.tuple(KID_AFTER_FEE_CHANGE, FeeCheckScope.MANAGEMENT));
+  }
+
+  @Test
+  void aKidAfterFeeChangeCheckThatCannotRunIsNotRunForTheManagementFee() {
+    willThrow(new IllegalStateException("boom"))
+        .given(kidAfterFeeChangeChecker)
+        .check(any(), any());
+
+    service.runDailyChecks(List.of(TUK75), CHECK_DATE);
+
+    assertThat(savedEvents())
+        .filteredOn(event -> event.getCheckType() == KID_AFTER_FEE_CHANGE)
+        .extracting(FeeCheckEvent::getFeeScope, FeeCheckEvent::getSeverity)
+        .containsExactly(org.assertj.core.groups.Tuple.tuple(FeeCheckScope.MANAGEMENT, NOT_RUN));
   }
 
   @Test
@@ -197,6 +215,8 @@ class FeeCheckServiceTest {
         .willReturn(List.of(passFinding(PENSIONIKESKUS_MANAGEMENT_FEE, FeeCheckScope.MANAGEMENT)));
     given(pensionikeskusOngoingChargesChecker.check(any(), any()))
         .willReturn(List.of(passFinding(PENSIONIKESKUS_ONGOING_CHARGES, FeeCheckScope.ALL)));
+    given(kidAfterFeeChangeChecker.check(any(), any()))
+        .willReturn(List.of(passFinding(KID_AFTER_FEE_CHANGE, FeeCheckScope.MANAGEMENT)));
   }
 
   private void givenCustodianCheckerPasses() {

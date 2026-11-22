@@ -193,6 +193,8 @@ class FeeCheckIntegrationTest {
         .isEqualTo("PASS");
     assertThat(findEvent(TUK75, "PENSIONIKESKUS_ONGOING_CHARGES", "ALL").get("severity"))
         .isEqualTo("PASS");
+    assertThat(findEvent(TUK75, "KID_AFTER_FEE_CHANGE", "MANAGEMENT").get("severity"))
+        .isEqualTo("PASS");
     verifyNoInteractions(notificationService);
   }
 

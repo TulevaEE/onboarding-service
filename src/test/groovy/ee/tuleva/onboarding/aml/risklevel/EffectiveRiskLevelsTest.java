@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
+import static ee.tuleva.onboarding.aml.PersonRiskLevel.Level.NOT_ASSESSED;
 import static ee.tuleva.onboarding.aml.PersonRiskLevel.Level.NOT_HIGH;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.Duration.ofSeconds;
@@ -113,6 +114,21 @@ class EffectiveRiskLevelsTest {
   }
 
   @Test
+  void highRiskWhenTheThirdPillarFamilyIsHighWithoutATkfLevel() {
+    respond(families(family("third-pillar", "HIGH")));
+
+    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE).isHigh()).isTrue();
+  }
+
+  @Test
+  void notHighRiskWithoutAThirdPillarLevelWhenTheTkfLevelIsNotHigh() {
+    respond(families(family("tkf", "MEDIUM")));
+
+    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE))
+        .isEqualTo(new PersonRiskLevel(NOT_HIGH, null));
+  }
+
+  @Test
   void notHighRiskWhenTheSpecialistOverrodeAComputedHighToLow() {
     respond(
         families(
@@ -120,16 +136,19 @@ class EffectiveRiskLevelsTest {
             {"family": "third-pillar", "computed": "HIGH", "effective": "LOW",
              "override": {"outcome": "OVERRIDDEN", "level": "LOW",
                           "createdAt": "2026-11-02T10:00:00Z"}}
-            """));
+            """,
+            family("tkf", "LOW")));
 
-    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE).isHigh()).isFalse();
+    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE))
+        .isEqualTo(new PersonRiskLevel(NOT_HIGH, null));
   }
 
   @Test
   void notHighRiskWhenEveryFamilyIsEffectivelyLowOrMedium() {
     respond(families(family("third-pillar", "LOW"), family("tkf", "MEDIUM")));
 
-    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE).isHigh()).isFalse();
+    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE))
+        .isEqualTo(new PersonRiskLevel(NOT_HIGH, null));
   }
 
   @Test
@@ -187,24 +206,47 @@ class EffectiveRiskLevelsTest {
         .isEqualTo(new PersonRiskLevel(NOT_HIGH, null));
   }
 
-  @Test
-  void carriesNoTkfDecisionTimeWhenThePersonHasNoTkfLevel() {
-    respond(
-        families(
-            """
-            {"family": "third-pillar", "computed": "LOW", "decidedAt": "2026-11-15T02:45:00Z",
-             "effective": "LOW", "override": null}
-            """));
+  @ParameterizedTest
+  @MethodSource("answersWithoutATkfLevel")
+  void notAssessedWhenAmlServiceHasNoTkfLevelForThePerson(ResponseCreator withoutATkfLevel) {
+    server.expect(once(), requestTo(EFFECTIVE_URL)).andRespond(withoutATkfLevel);
 
     assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE))
-        .isEqualTo(new PersonRiskLevel(NOT_HIGH, null));
+        .isEqualTo(new PersonRiskLevel(NOT_ASSESSED, null));
+    server.verify();
   }
 
-  @Test
-  void notHighRiskWhenThePersonHasNoLevelInAnyFamily() {
-    respond(families());
+  @ParameterizedTest
+  @MethodSource("answersWithoutATkfLevel")
+  void asksForTheNextPersonAtOnceWhenAmlServiceHadNoTkfLevelForThisPerson(
+      ResponseCreator withoutATkfLevel) {
+    server.expect(once(), requestTo(EFFECTIVE_URL)).andRespond(withoutATkfLevel);
+    server
+        .expect(once(), requestTo(OTHER_EFFECTIVE_URL))
+        .andRespond(withSuccess(families(family("tkf", "HIGH")), APPLICATION_JSON));
+    var effectiveRiskLevels = effectiveRiskLevels(API_TOKEN);
+    effectiveRiskLevels.riskLevel(PERSONAL_CODE);
 
-    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE).isHigh()).isFalse();
+    assertThat(effectiveRiskLevels.riskLevel(OTHER_PERSONAL_CODE).isHigh()).isTrue();
+    server.verify();
+  }
+
+  static Stream<Named<ResponseCreator>> answersWithoutATkfLevel() {
+    return Stream.of(
+        named("no level in any family", answering(families())),
+        named("only a III pillar level", answering(families(family("third-pillar", "LOW")))),
+        named(
+            "only a III pillar level overridden from high",
+            answering(
+                families(
+                    """
+                    {"family": "third-pillar", "computed": "HIGH", "effective": "MEDIUM",
+                     "override": {"outcome": "OVERRIDDEN", "level": "MEDIUM",
+                                  "createdAt": "2026-11-02T10:00:00Z"}}
+                    """))),
+        named(
+            "a level without a family",
+            answering(families("{\"family\": null, \"effective\": \"LOW\"}"))));
   }
 
   @ParameterizedTest

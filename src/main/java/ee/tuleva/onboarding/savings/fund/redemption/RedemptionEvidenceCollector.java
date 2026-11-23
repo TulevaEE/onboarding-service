@@ -129,11 +129,12 @@ class RedemptionEvidenceCollector {
             request.getPartyId());
       }
       return risk;
-    } catch (RiskLevelUnavailableException _) {
+    } catch (RiskLevelUnavailableException e) {
       log.warn(
-          "Risk level unavailable: id={}, partyType={}",
+          "Risk level unavailable: id={}, partyType={}, reason={}",
           request.getId(),
-          request.getPartyId().type());
+          request.getPartyId().type(),
+          e.getMessage());
       return Risk.UNAVAILABLE;
     }
   }
@@ -150,6 +151,10 @@ class RedemptionEvidenceCollector {
           request.getId(),
           level.tkfAssessedAt());
       return Risk.DECIDED_BEFORE_PEP_HIT;
+    }
+    if (!level.isAssessed()) {
+      throw new RiskLevelUnavailableException(
+          "aml-service has no TKF risk level for the person, so no nightly check has assessed them");
     }
     return Risk.NOT_HIGH;
   }

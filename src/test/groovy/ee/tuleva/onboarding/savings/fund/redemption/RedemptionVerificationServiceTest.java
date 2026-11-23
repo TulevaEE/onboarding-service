@@ -69,6 +69,7 @@ class RedemptionVerificationServiceTest {
       new PersonRiskLevel(Level.NOT_HIGH, THURSDAY_NIGHT);
   private static final PersonRiskLevel HIGH_DECIDED_LAST_NIGHT =
       new PersonRiskLevel(Level.HIGH, THURSDAY_NIGHT);
+  private static final PersonRiskLevel NOT_ASSESSED = new PersonRiskLevel(Level.NOT_ASSESSED, null);
 
   @Mock private RedemptionRequestRepository redemptionRequestRepository;
   @Mock private RedemptionStatusService redemptionStatusService;
@@ -285,6 +286,61 @@ class RedemptionVerificationServiceTest {
     verify(holdService).holdPayout(requestId, Set.of(RISK_LEVEL_UNAVAILABLE));
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
     verify(redemptionRequestRepository, never()).markVerificationAttempted(any(), any());
+  }
+
+  @Test
+  void process_personRequest_recordsTheAttemptAndRetriesWhileNoNightlyCheckHasAssessedTheParty() {
+    var request = personRequest(UUID.randomUUID());
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
+    given(riskLevels.riskLevel(PERSONAL_CODE)).willReturn(NOT_ASSESSED);
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verify(redemptionRequestRepository).markVerificationAttempted(request.getId(), FRIDAY_NOON);
+    verifyNoInteractions(holdService, redemptionStatusService);
+  }
+
+  @Test
+  void
+      process_personRequest_holdsThePayoutAsRiskLevelUnavailableWhenNoNightlyCheckAssessedThePartyByTheDeadline() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
+    given(riskLevels.riskLevel(PERSONAL_CODE)).willReturn(NOT_ASSESSED);
+
+    serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
+
+    verify(holdService).holdPayout(requestId, Set.of(RISK_LEVEL_UNAVAILABLE));
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
+  }
+
+  @Test
+  void process_personRequest_retriesAPepHitWhileNoNightlyCheckHasAssessedTheParty() {
+    var request = personRequest(UUID.randomUUID());
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(PEP_HIT);
+    given(sanctionAndPepScreener.pepHitAt(user)).willReturn(Optional.of(WEDNESDAY_NOON));
+    given(riskLevels.riskLevel(PERSONAL_CODE)).willReturn(NOT_ASSESSED);
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verify(redemptionRequestRepository).markVerificationAttempted(request.getId(), FRIDAY_NOON);
+    verifyNoInteractions(holdService, redemptionStatusService);
+  }
+
+  @Test
+  void process_personRequest_holdsAPepHitAsPepWhenNoNightlyCheckAssessedThePartyByTheDeadline() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(PEP_HIT);
+    given(sanctionAndPepScreener.pepHitAt(user)).willReturn(Optional.of(WEDNESDAY_NOON));
+    given(riskLevels.riskLevel(PERSONAL_CODE)).willReturn(NOT_ASSESSED);
+
+    serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
+
+    verify(holdService).holdPayout(requestId, Set.of(PEP));
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
   @Test

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
 import static ee.tuleva.onboarding.aml.PersonRiskLevel.Level.HIGH;
+import static ee.tuleva.onboarding.aml.PersonRiskLevel.Level.NOT_ASSESSED;
 import static ee.tuleva.onboarding.aml.PersonRiskLevel.Level.NOT_HIGH;
 
 import ee.tuleva.onboarding.aml.PersonRiskLevel;
@@ -60,10 +61,15 @@ class EffectiveRiskLevels implements RiskLevels {
   }
 
   private static PersonRiskLevel personRiskLevel(List<EffectiveFamilyLevel> families) {
+    boolean high = families.stream().anyMatch(EffectiveFamilyLevel::isHigh);
+    List<EffectiveFamilyLevel> tkfLevels =
+        families.stream().filter(family -> TKF_FAMILY.equals(family.family())).toList();
+    if (!high && tkfLevels.isEmpty()) {
+      return new PersonRiskLevel(NOT_ASSESSED, null);
+    }
     return new PersonRiskLevel(
-        families.stream().anyMatch(EffectiveFamilyLevel::isHigh) ? HIGH : NOT_HIGH,
-        families.stream()
-            .filter(family -> TKF_FAMILY.equals(family.family()))
+        high ? HIGH : NOT_HIGH,
+        tkfLevels.stream()
             .map(EffectiveFamilyLevel::assessedAt)
             .filter(Objects::nonNull)
             .findFirst()

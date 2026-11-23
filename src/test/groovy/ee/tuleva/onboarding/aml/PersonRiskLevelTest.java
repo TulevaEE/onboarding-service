@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.PersonRiskLevel.Level.HIGH;
+import static ee.tuleva.onboarding.aml.PersonRiskLevel.Level.NOT_ASSESSED;
 import static ee.tuleva.onboarding.aml.PersonRiskLevel.Level.NOT_HIGH;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -35,6 +36,13 @@ class PersonRiskLevelTest {
   @Test
   void aTkfLevelWithoutADecisionTimeAccountsForNoPepHit() {
     var level = new PersonRiskLevel(NOT_HIGH, null);
+
+    assertThat(level.accountsForPepHitAt(PEP_HIT_AT)).isFalse();
+  }
+
+  @Test
+  void aLevelNotAssessedAccountsForNoPepHit() {
+    var level = new PersonRiskLevel(NOT_ASSESSED, null);
 
     assertThat(level.accountsForPepHitAt(PEP_HIT_AT)).isFalse();
   }

@@ -11,8 +11,14 @@ the AML Slack channel, and the other family still runs.
 `EffectiveRiskLevels.riskLevel`, which the redemption verification job asks before a payout, asks
 aml-service's `GET /v1/risk-levels/effective/{personalCode}`, with the specialist's overrides and
 the related-persons chain applied; the person is high risk when any family's `effective` level is
-`HIGH`, even if another family's answer is unusable, and a person with no level in any family is
-not. The call has its own short timeouts, no retry of its own, and a plain `RestClient.builder()`
+`HIGH`, even if another family's answer is unusable or missing. Otherwise an answer without a TKF
+level means the person is not assessed, whatever the III pillar level: a savings fund payout is
+TKF, and aml-service's nightly run decides everyone with a savings fund payment of their own, so
+no TKF level means no nightly check has assessed the person, such as one who paid in since the
+last run or holds units without a payment of their own. That is no failure and starts no quiet
+period; the verification job takes it as an unavailable risk level, but holds a PEP hit's payout
+with `PEP`, as below.
+The call has its own short timeouts, no retry of its own, and a plain `RestClient.builder()`
 rather than the application's, so no customizer (Sentry's span and breadcrumb interceptor, the
 observation one) sees the URL with the personal code in it. When aml-service cannot answer it
 throws `RiskLevelUnavailableException`, whose message carries a reason without the personal code.
@@ -39,8 +45,8 @@ is unavailable retries and is held with `SCREENING_UNAVAILABLE` without its risk
 is. A company is not asked during a quiet period a person's failure started, but its own failures
 quiet no one: a failure on the company endpoint alone (one company's data, or an aml-service
 without the endpoint) would otherwise hold back every person after it, and the few companies cost
-at most a timeout each. Unlike a person's, a company's answer with no level is unavailable rather
-than not high risk: aml-service's nightly run decides every company, so an empty answer means it
+at most a timeout each. Like a person's answer without a TKF level, a company's answer with no
+level is unavailable: aml-service's nightly run decides every company, so an empty answer means it
 has never been decided, such as one onboarded since the last run.
 
 A person's KYC onboarding risk is assessed while they submit their KYC survey, by

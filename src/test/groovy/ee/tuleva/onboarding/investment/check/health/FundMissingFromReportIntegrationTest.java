@@ -15,11 +15,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.AdditionalMatchers.and;
 import static org.mockito.AdditionalMatchers.not;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
@@ -49,7 +55,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.web.client.RestClientException;
 
 @DataJpaTest
 @Import({
@@ -57,6 +65,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
   FundInReportChecker.class,
   CompletenessChecker.class,
   HealthCheckNotifier.class,
+  HealthCheckAlertSender.class,
+  HealthCheckAlertRepository.class,
+  HealthCheckAlertRetryJob.class,
   FundNavQueryService.class,
   PublicHolidays.class,
   ClockConfig.class
@@ -67,7 +78,9 @@ class FundMissingFromReportIntegrationTest {
 
   @Autowired HealthCheckService healthCheckService;
   @Autowired HealthCheckNotifier notifier;
+  @Autowired HealthCheckAlertRetryJob retryJob;
   @Autowired NavReportRepository navReportRepository;
+  @Autowired JdbcClient jdbcClient;
 
   @MockitoBean OperationsNotificationService notificationService;
   @MockitoBean ReceivablesChecker receivablesChecker;
@@ -196,6 +209,68 @@ class FundMissingFromReportIntegrationTest {
         .sendMessage(
             and(contains("\n\n[CLEARED] FUND_IN_REPORT TUV100"), not(contains("COMPLETENESS"))),
             eq(INVESTMENT));
+  }
+
+  @Test
+  void aMissingFundWhoseSlackPostFailsIsPostedOnceByALaterRetryRunSayingWhenItWasFound() {
+    importReport("2026-10-31T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+    slackIsDown();
+
+    var missingReported = importReport("2026-10-31T07:00:00Z", complete(TUK75, TUK00, TKF100));
+    var sameStateReported = importReport("2026-10-31T07:05:00Z", complete(TUK75, TUK00, TKF100));
+    slackIsBack();
+    retryAt("2026-10-31T07:06:00Z");
+    retryAt("2026-10-31T07:07:00Z");
+
+    assertThat(missingReported).isTrue();
+    assertThat(sameStateReported).isFalse();
+    verify(notificationService)
+        .sendMessage(
+            and(
+                startsWith(
+                    "Import warning: SEB 2026-10-30 — TUV100 not imported"
+                        + " (found 2026-10-31 09:00, posted late)\nFunds: "),
+                contains(missingLine(TUV100, "15:20"))),
+            eq(INVESTMENT));
+    verifyNoMoreInteractions(notificationService);
+    assertThat(alertStatuses()).containsExactly("POSTED");
+  }
+
+  @Test
+  void aClearedLineWhoseSlackPostFailsIsPostedLaterAndAWarningPostedOnTimeIsNotPostedAgain() {
+    importReport("2026-10-31T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+    importReport("2026-10-31T07:00:00Z", complete(TUK75, TUK00, TKF100));
+    slackIsDown();
+
+    var backReported = importReport("2026-10-31T07:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+    slackIsBack();
+    retryAt("2026-10-31T07:33:00Z");
+
+    assertThat(backReported).isTrue();
+    verify(notificationService)
+        .sendMessage(
+            and(
+                startsWith(
+                    "✅ Import cleared: SEB 2026-10-30 (found 2026-10-31 09:30, posted late)\n"),
+                contains("\n[CLEARED] FUND_IN_REPORT TUV100")),
+            eq(INVESTMENT));
+    verifyNoMoreInteractions(notificationService);
+    assertThat(alertStatuses()).containsExactly("POSTED", "POSTED");
+  }
+
+  @Test
+  void anAlertSlackDoesNotTakeForADayIsGivenUpAndNeverPosted() {
+    importReport("2026-10-31T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+    slackIsDown();
+    importReport("2026-10-31T07:00:00Z", complete(TUK75, TUK00, TKF100));
+    retryAt("2026-10-31T07:03:00Z");
+    slackIsBack();
+
+    retryAt("2026-11-01T07:01:00Z");
+    retryAt("2026-11-01T07:02:00Z");
+
+    then(notificationService).shouldHaveNoInteractions();
+    assertThat(alertStatuses()).containsExactly("GIVEN_UP");
   }
 
   @Test
@@ -329,6 +404,29 @@ class FundMissingFromReportIntegrationTest {
     ClockHolder.setClock(Clock.fixed(Instant.parse(at), UTC));
     var results = healthCheckService.check(NAV_DATE, positions, positionRows);
     return notifier.notify(SEB, NAV_DATE, results, earlierImports);
+  }
+
+  private void slackIsDown() {
+    willThrow(new RestClientException("Slack is down"))
+        .given(notificationService)
+        .sendMessage(anyString(), eq(INVESTMENT));
+  }
+
+  private void slackIsBack() {
+    willDoNothing().given(notificationService).sendMessage(anyString(), eq(INVESTMENT));
+    clearInvocations(notificationService);
+  }
+
+  private void retryAt(String at) {
+    ClockHolder.setClock(Clock.fixed(Instant.parse(at), UTC));
+    retryJob.postAlertsNotYetPosted();
+  }
+
+  private List<String> alertStatuses() {
+    return jdbcClient
+        .sql("SELECT status FROM investment_health_check_alert ORDER BY id")
+        .query(String.class)
+        .list();
   }
 
   private static String missingLine(TulevaFund fund, String navTime) {

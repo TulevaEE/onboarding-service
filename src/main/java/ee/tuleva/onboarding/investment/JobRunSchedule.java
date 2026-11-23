@@ -31,4 +31,6 @@ public final class JobRunSchedule {
   public static final String CASH_BUFFER_REVIEW_BEFORE_THE_MORNING_IMPORTS = "0 30 7 1-14 * *";
 
   public static final String JOB_TRIGGER_POLL = "0 * * * * *";
+
+  public static final String HEALTH_CHECK_ALERT_RETRY = "30 * * * * *";
 }

@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.P
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.FUND_IN_REPORT;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.time.format.DateTimeFormatter.BASIC_ISO_DATE;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
@@ -14,7 +13,6 @@ import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toCollection;
 
 import ee.tuleva.onboarding.investment.report.ReportProvider;
-import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -36,7 +34,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class HealthCheckNotifier {
 
-  private final OperationsNotificationService notificationService;
+  private final HealthCheckAlertSender alertSender;
   private final HealthCheckEventRepository eventRepository;
 
   public boolean notify(
@@ -75,11 +73,15 @@ public class HealthCheckNotifier {
               new EarlierImports(earlierImports),
               activeTransitions,
               clearedTransitions);
-      notificationService.sendMessage(message, INVESTMENT);
-      return true;
+      return alertSender.send(provider, date, message);
 
     } catch (Exception e) {
-      log.error("Failed to send health check notification", e);
+      log.error(
+          "Health check alert not raised, its transitions could not be worked out:"
+              + " provider={}, date={}",
+          provider,
+          date,
+          e);
       return false;
     }
   }

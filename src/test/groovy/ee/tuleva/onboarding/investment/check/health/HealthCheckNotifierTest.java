@@ -12,19 +12,22 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -32,10 +35,20 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class HealthCheckNotifierTest {
 
   private static final LocalDate DATE = LocalDate.of(2026, 4, 15);
+  private static final Instant NOW = Instant.parse("2026-04-16T06:10:00Z");
 
   @Mock OperationsNotificationService notificationService;
   @Mock HealthCheckEventRepository eventRepository;
-  @InjectMocks HealthCheckNotifier notifier;
+  @Mock HealthCheckAlertRepository alertRepository;
+  HealthCheckNotifier notifier;
+
+  @BeforeEach
+  void setUp() {
+    notifier =
+        new HealthCheckNotifier(
+            new HealthCheckAlertSender(notificationService, alertRepository, Clock.fixed(NOW, UTC)),
+            eventRepository);
+  }
 
   @Test
   void silentWhenNoIssuesAndNoPriorState() {
@@ -44,7 +57,7 @@ class HealthCheckNotifierTest {
     var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isFalse();
-    verifyNoInteractions(notificationService);
+    verifyNoInteractions(notificationService, alertRepository);
   }
 
   @Test
@@ -354,7 +367,7 @@ class HealthCheckNotifierTest {
     var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isFalse();
-    verifyNoInteractions(notificationService);
+    verifyNoInteractions(notificationService, alertRepository);
   }
 
   @Test
@@ -382,14 +395,32 @@ class HealthCheckNotifierTest {
   }
 
   @Test
-  void swallowsExceptions() {
+  void anAlertWhoseSlackPostFailsIsLeftNotPostedForTheRetryRun() {
     doThrow(new RuntimeException("Slack down")).when(notificationService).sendMessage(any(), any());
     var finding = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "test");
     var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
 
     var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
+    assertThat(notified).isTrue();
+    verify(alertRepository)
+        .recordNotPosted(eq(SEB), eq(DATE), startsWith("IMPORT BLOCKED"), eq(NOW));
+    verify(alertRepository, never()).markPosted(anyLong(), any());
+  }
+
+  @Test
+  void aCheckWhoseEarlierStateCannotBeReadRaisesNoAlertAndDoesNotStopTheImport() {
+    given(
+            eventRepository.findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
+                any(), any(), any()))
+        .willThrow(new RuntimeException("database down"));
+    var finding = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "test");
+    var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
+
+    var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
+
     assertThat(notified).isFalse();
+    verifyNoInteractions(notificationService, alertRepository);
   }
 
   // A check that could not run for a new reason needs saying out loud: the reasons call for

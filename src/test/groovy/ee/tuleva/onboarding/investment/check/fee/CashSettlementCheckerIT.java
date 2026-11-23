@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.investment.check.fee;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
-import static ee.tuleva.onboarding.ledger.SystemAccount.MANAGEMENT_FEE_ACCRUAL;
+import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
@@ -17,7 +17,8 @@ import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry.CounterPartyDetails;
 import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
-import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
+import ee.tuleva.onboarding.investment.fees.FeeAccrual;
+import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -33,28 +34,38 @@ class CashSettlementCheckerIT {
       new BankAccount(TUK75_IBAN, FUND_INVESTMENT_EUR, TUK75, "gw-test");
   private static final String MANAGER_NAME = "Tuleva Fondid AS";
   private static final String MANAGER_IBAN = "EE001234567890123488";
-  private static final LocalDate APRIL = LocalDate.of(2026, 4, 1);
-  private static final LocalDate LAST_DAY_OF_APRIL = LocalDate.of(2026, 4, 30);
-  private static final LocalDate PAYMENT_DAY = LocalDate.of(2026, 5, 12);
-  private static final Instant PAYMENT_BOOKED = Instant.parse("2026-05-12T10:00:00Z");
-  private static final LocalDate WINDOW_ELAPSED = LocalDate.of(2026, 6, 3);
-  private static final BigDecimal SETTLED = new BigDecimal("1234.56");
+  private static final LocalDate NOVEMBER = LocalDate.of(2026, 11, 1);
+  private static final LocalDate NOVEMBER_16 = LocalDate.of(2026, 11, 16);
+  private static final LocalDate DECEMBER_1 = LocalDate.of(2026, 12, 1);
+  private static final LocalDate DECEMBER_2 = LocalDate.of(2026, 12, 2);
+  private static final Instant DEBITS_BOOKED = Instant.parse("2026-12-01T10:00:00Z");
+  private static final BigDecimal NOVEMBER_FEE = new BigDecimal("1234.56");
 
   @Autowired private CashSettlementChecker checker;
   @Autowired private PensionFundStatementProcessor processor;
-  @Autowired private NavFeeAccrualLedger navFeeAccrualLedger;
+  @Autowired private FeeAccrualRepository feeAccrualRepository;
 
   @Test
-  void aPensionFundsFeePaymentBesideAnotherPaymentToTheManagerPassesAgainstItsSettlement() {
-    navFeeAccrualLedger.settleFeeAccrual(TUK75, LAST_DAY_OF_APRIL, MANAGEMENT_FEE_ACCRUAL, SETTLED);
+  void aPensionFundsFeePaymentBesideAnotherPaymentToTheManagerClearsTheMonthItPays() {
+    feeAccrualRepository.save(
+        new FeeAccrual(
+            null,
+            TUK75,
+            MANAGEMENT,
+            NOVEMBER_16,
+            NOVEMBER,
+            new BigDecimal("1000000000"),
+            new BigDecimal("0.0045"),
+            NOVEMBER_FEE,
+            365));
 
     processor.process(
         statementWith(
-            managerDebit("fee-04", SETTLED.negate(), "TUK75 valitsemistasu 04/2026"),
-            managerDebit("other-04", new BigDecimal("-50.00"), "BR tasud TUK75")),
+            managerDebit("fee-11", NOVEMBER_FEE.negate(), "TUK75 valitsemistasu 11/2026"),
+            managerDebit("other-11", new BigDecimal("-50.00"), "BR tasud TUK75")),
         TUK75_ACCOUNT);
 
-    assertThat(checker.check(TUK75, APRIL, WINDOW_ELAPSED))
+    assertThat(checker.check(TUK75, DECEMBER_2))
         .extracting(FeeCheckFinding::fund, FeeCheckFinding::severity, FeeCheckFinding::identifiers)
         .containsExactly(tuple(TUK75, PASS, List.of()));
   }
@@ -65,7 +76,7 @@ class CashSettlementCheckerIT {
         new BankStatementAccount(TUK75_IBAN, "Tuleva Maailma Aktsiate Pensionifond", "14118923"),
         List.of(),
         List.of(entries),
-        new StatementPeriod(PAYMENT_DAY, PAYMENT_DAY));
+        new StatementPeriod(DECEMBER_1, DECEMBER_1));
   }
 
   private static BankStatementEntry managerDebit(
@@ -79,7 +90,7 @@ class CashSettlementCheckerIT {
         externalId,
         null,
         "ICDT",
-        PAYMENT_BOOKED,
+        DEBITS_BOOKED,
         true);
   }
 }

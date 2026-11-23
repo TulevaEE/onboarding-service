@@ -101,9 +101,6 @@ echo ""
 echo "✅ All certificates ready!"
 echo ""
 
-CVE_2026_114938_MITIGATION_OPTS="-XX:-UseBASE64Intrinsics"
-JVM_OPTS="${JVM_OPTS} ${CVE_2026_114938_MITIGATION_OPTS}"
-
 echo "🎯 Starting onboarding-service"
 echo "=========================================="
 echo "Spring Profile: ${SPRING_PROFILES_ACTIVE}"

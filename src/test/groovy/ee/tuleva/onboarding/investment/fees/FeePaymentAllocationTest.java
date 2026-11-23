@@ -191,7 +191,7 @@ class FeePaymentAllocationTest {
 
   private static List<FeeMonthBalance> allocate(
       List<FeeMonthBalance> months, FeePayment... payments) {
-    return FeePaymentAllocation.allocate(months, List.of(payments), THRESHOLD);
+    return FeePaymentAllocation.allocate(months, List.of(payments), bookedOn -> THRESHOLD);
   }
 
   private static BigDecimal owed(List<FeeMonthBalance> months) {

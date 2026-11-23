@@ -6,21 +6,25 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
 final class FeePaymentAllocation {
 
   private final List<FeeMonthBalance> months;
-  private final BigDecimal threshold;
+  private final Function<LocalDate, BigDecimal> thresholdOn;
 
-  private FeePaymentAllocation(List<FeeMonthBalance> months, BigDecimal threshold) {
+  private FeePaymentAllocation(
+      List<FeeMonthBalance> months, Function<LocalDate, BigDecimal> thresholdOn) {
     this.months = new ArrayList<>(months);
-    this.threshold = threshold;
+    this.thresholdOn = thresholdOn;
   }
 
   static List<FeeMonthBalance> allocate(
-      List<FeeMonthBalance> months, List<FeePayment> payments, BigDecimal threshold) {
-    var allocation = new FeePaymentAllocation(months, threshold);
+      List<FeeMonthBalance> months,
+      List<FeePayment> payments,
+      Function<LocalDate, BigDecimal> thresholdOn) {
+    var allocation = new FeePaymentAllocation(months, thresholdOn);
     payments.forEach(allocation::apply);
     return List.copyOf(allocation.months);
   }
@@ -45,6 +49,7 @@ final class FeePaymentAllocation {
   }
 
   private boolean clearsARunOfOpenMonths(FeePayment payment, List<Integer> open) {
+    var threshold = thresholdOn.apply(payment.bookedOn());
     for (int first = 0; first < open.size(); first++) {
       var owedSoFar = ZERO;
       for (int last = first; last < open.size(); last++) {

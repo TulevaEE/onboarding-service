@@ -9,6 +9,7 @@ import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
@@ -82,7 +83,7 @@ class OutstandingFeesTest {
   void aDebitBookedByTheDateClearsTheMonthItPays() {
     givenAccruals(
         OCTOBER_2, Map.of(SEPTEMBER_30, "100.004", OCTOBER_1, "50.001", OCTOBER_2, "50.002"));
-    givenThreshold(OCTOBER_2, "0.02");
+    givenThreshold(OCTOBER_1, "0.02");
     givenDebits(OCTOBER_2, debit(OCTOBER_1, "100.00"));
 
     var months = outstandingFees.monthsOn(charged(MANAGEMENT), OCTOBER_2);
@@ -103,10 +104,24 @@ class OutstandingFeesTest {
   @Test
   void closesAMonthWithinTheManagementFeeThresholdSetInTheParameters() {
     givenAccruals(OCTOBER_2, Map.of(SEPTEMBER_30, "100.00", OCTOBER_1, "50.00"));
-    givenThreshold(OCTOBER_2, "0.05");
+    givenThreshold(OCTOBER_1, "0.05");
     givenDebits(OCTOBER_2, debit(OCTOBER_1, "99.96"));
 
     assertThat(outstandingFees.owedOn(charged(MANAGEMENT), OCTOBER_2)).isEqualTo("50.00");
+  }
+
+  @Test
+  void aThresholdRaisedAfterADebitWasBookedDoesNotClearTheMonthItLeftShort() {
+    givenAccruals(OCTOBER_3, Map.of(SEPTEMBER_30, "100.00", OCTOBER_1, "50.00"));
+    givenThreshold(OCTOBER_1, "0.02");
+    lenient()
+        .when(
+            investmentParameterRepository.findLatestValue(
+                MANAGEMENT_FEE_PAYMENT_THRESHOLD, OCTOBER_3))
+        .thenReturn(new BigDecimal("0.05"));
+    givenDebits(OCTOBER_3, debit(OCTOBER_1, "99.96"));
+
+    assertThat(outstandingFees.owedOn(charged(MANAGEMENT), OCTOBER_3)).isEqualTo("50.04");
   }
 
   @Test

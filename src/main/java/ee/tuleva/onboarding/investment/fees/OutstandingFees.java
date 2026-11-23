@@ -86,10 +86,12 @@ public class OutstandingFees {
     if (debits.isEmpty()) {
       return months;
     }
-    return FeePaymentAllocation.allocate(
-        months,
-        debits,
-        investmentParameterRepository.findLatestValue(MANAGEMENT_FEE_PAYMENT_THRESHOLD, date));
+    return FeePaymentAllocation.allocate(months, debits, this::paymentThresholdOn);
+  }
+
+  private BigDecimal paymentThresholdOn(LocalDate bookedOn) {
+    return investmentParameterRepository.findLatestValue(
+        MANAGEMENT_FEE_PAYMENT_THRESHOLD, bookedOn);
   }
 
   private Map<LocalDate, Map<LocalDate, BigDecimal>> accrualsByMonth(

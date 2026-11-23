@@ -8,5 +8,7 @@ CREATE TABLE investment_seb_fund_confirmation (
     source_file_key   text        NOT NULL,
     created_at        timestamptz NOT NULL,
     updated_at        timestamptz NOT NULL,
-    CONSTRAINT investment_seb_fund_confirmation_pkey PRIMARY KEY (trade_reference)
+    CONSTRAINT investment_seb_fund_confirmation_pkey PRIMARY KEY (trade_reference),
+    CONSTRAINT chk_investment_seb_fund_confirmation_transaction_type
+        CHECK (transaction_type IN ('BUY', 'SELL'))
 );

@@ -1,0 +1,2 @@
+ALTER TABLE investment_seb_fund_confirmation
+    DROP CONSTRAINT IF EXISTS chk_investment_seb_fund_confirmation_transaction_type;

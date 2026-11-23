@@ -99,7 +99,6 @@ var RUN_LOCK_WAIT_MS = 10000;
 var INLINE_CONFIRMATION_CATCH_UP = {
     since: new Date("2026-11-16T00:00:00+02:00"),
     runsFrom: new Date("2026-11-23T00:00:00+02:00"),
-    runsUntil: new Date("2026-11-30T00:00:00+02:00"),
     doneProperty: "INLINE_CONFIRMATION_CATCH_UP_DONE"
 };
 
@@ -107,7 +106,7 @@ function processNewEmails() {
     if (!runAlone(function () {
         try {
             processEmailsFromDays(2);
-            catchUpInlineConfirmationsOnce(PropertiesService.getScriptProperties(), new Date());
+            requestTheInlineConfirmationCatchUpOnce(PropertiesService.getScriptProperties(), new Date());
             continueRequestedBackfillUnderTheRunsLock();
         } catch (e) {
             notifySlack(":rotating_light: Uncaught error in `processNewEmails`: `" + e.message +
@@ -119,10 +118,13 @@ function processNewEmails() {
     }
 }
 
-function catchUpInlineConfirmationsOnce(props, now) {
+function requestTheInlineConfirmationCatchUpOnce(props, now) {
     var catchUp = INLINE_CONFIRMATION_CATCH_UP;
-    if (now < catchUp.runsFrom || now >= catchUp.runsUntil || props.getProperty(catchUp.doneProperty) !== null) return;
-    processEmailsFromDays(daysToReach(catchUp.since, now), { minMessageDate: catchUp.since });
+    if (now < catchUp.runsFrom || props.getProperty(catchUp.doneProperty) !== null) return;
+    if (!backfillRequested(props)) {
+        props.setProperty(SEB_CONFIRMATION_BACKFILL_RESUME_PROPERTY, catchUp.since.toISOString());
+        requestBackfill(props);
+    }
     props.setProperty(catchUp.doneProperty, now.toISOString());
 }
 

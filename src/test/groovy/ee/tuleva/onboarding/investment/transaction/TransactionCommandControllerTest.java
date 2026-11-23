@@ -676,13 +676,15 @@ class TransactionCommandControllerTest {
 
   @Test
   void confirmBatch_preparedOnAnEarlierDay_returnsConflict() throws Exception {
-    given(adminService.confirmAndFinalize(10L, "shared-admin-token"))
+    given(adminService.confirmAndFinalize(10L, 3L, "shared-admin-token"))
         .willThrow(new TransactionBatchRefusedException("prepared on an earlier day"));
 
     mockMvc
         .perform(
             post("/admin/transaction-batches/10/confirm")
                 .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content("{\"version\": 3}")
                 .header("X-Admin-Token", "valid-token"))
         .andExpect(status().isConflict());
   }

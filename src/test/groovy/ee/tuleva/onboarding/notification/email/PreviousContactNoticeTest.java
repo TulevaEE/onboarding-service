@@ -194,7 +194,7 @@ class PreviousContactNoticeTest {
     var user = userWithEmail("new@example.com");
 
     var notice =
-        PreviousContactNotice.ofWithdrawal(user, List.of("old@example.com", "older@example.com"));
+        PreviousContactNotice.ofActivity(user, List.of("old@example.com", "older@example.com"));
 
     assertThat(notice)
         .isEqualTo(
@@ -207,7 +207,7 @@ class PreviousContactNoticeTest {
 
   @Test
   void aSignedWithdrawalWithNoReplacedAddressIsNoticedByNobody() {
-    var notice = PreviousContactNotice.ofWithdrawal(userWithEmail("new@example.com"), List.of());
+    var notice = PreviousContactNotice.ofActivity(userWithEmail("new@example.com"), List.of());
 
     assertThat(notice.recipients()).isEmpty();
   }

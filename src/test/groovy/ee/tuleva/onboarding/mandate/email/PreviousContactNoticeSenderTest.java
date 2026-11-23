@@ -40,7 +40,7 @@ class PreviousContactNoticeSenderTest {
     sender.sendWithdrawalNotice(
         signed(List.of(samplePartialWithdrawalMandate(), sampleFundPensionOpeningMandate())));
 
-    then(previousContactNotices).should().sendWithdrawalNotice(user, Locale.ENGLISH, SIGNED_AT);
+    then(previousContactNotices).should().sendActivityNotice(user, Locale.ENGLISH, SIGNED_AT);
   }
 
   @Test
@@ -58,14 +58,14 @@ class PreviousContactNoticeSenderTest {
     sender.sendWithdrawalNotice(
         signed(List.of(samplePartialWithdrawalMandate(), sampleMandateWithPaymentRate())));
 
-    then(previousContactNotices).should().sendWithdrawalNotice(user, Locale.ENGLISH, SIGNED_AT);
+    then(previousContactNotices).should().sendActivityNotice(user, Locale.ENGLISH, SIGNED_AT);
   }
 
   @Test
   void aFailingNoticeFailsNeitherTheSigningNorTheSubmissionToPensionikeskus() {
     willThrow(new IllegalStateException())
         .given(previousContactNotices)
-        .sendWithdrawalNotice(user, Locale.ENGLISH, SIGNED_AT);
+        .sendActivityNotice(user, Locale.ENGLISH, SIGNED_AT);
 
     assertThatCode(
             () -> sender.sendWithdrawalNotice(signed(List.of(samplePartialWithdrawalMandate()))))

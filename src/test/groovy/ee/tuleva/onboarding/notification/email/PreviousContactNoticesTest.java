@@ -123,7 +123,7 @@ class PreviousContactNoticesTest {
     given(emailService.send(user, toOlder, "previous_contact_activity_et"))
         .willReturn(Optional.of(accepted("older-message")));
 
-    notices.sendWithdrawalNotice(user, Locale.of("et"), SIGNED_AT);
+    notices.sendActivityNotice(user, Locale.of("et"), SIGNED_AT);
 
     then(emailPersistenceService)
         .should()
@@ -157,7 +157,7 @@ class PreviousContactNoticesTest {
         .given(emailPersistenceService)
         .save(user, "old-message", PREVIOUS_CONTACT_ACTIVITY, "sent");
 
-    assertThatCode(() -> notices.sendWithdrawalNotice(user, Locale.ENGLISH, SIGNED_AT))
+    assertThatCode(() -> notices.sendActivityNotice(user, Locale.ENGLISH, SIGNED_AT))
         .doesNotThrowAnyException();
 
     then(emailPersistenceService)
@@ -178,7 +178,7 @@ class PreviousContactNoticesTest {
     given(emailService.send(user, message, "previous_contact_activity_en"))
         .willReturn(Optional.empty());
 
-    notices.sendWithdrawalNotice(user, Locale.ENGLISH, SIGNED_AT);
+    notices.sendActivityNotice(user, Locale.ENGLISH, SIGNED_AT);
 
     then(emailPersistenceService).shouldHaveNoInteractions();
   }
@@ -188,7 +188,7 @@ class PreviousContactNoticesTest {
     var user = sampleUserNonMember().email("new@example.com").build();
     given(recentlyReplacedEmails.of(user.getIdOrThrow(), SIGNED_AT)).willReturn(List.of());
 
-    notices.sendWithdrawalNotice(user, Locale.ENGLISH, SIGNED_AT);
+    notices.sendActivityNotice(user, Locale.ENGLISH, SIGNED_AT);
 
     then(emailService).shouldHaveNoInteractions();
     then(emailPersistenceService).shouldHaveNoInteractions();

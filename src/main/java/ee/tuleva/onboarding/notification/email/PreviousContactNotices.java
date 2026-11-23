@@ -47,11 +47,11 @@ public class PreviousContactNotices {
     }
   }
 
-  public void sendWithdrawalNotice(User user, Locale locale, Instant signedAt) {
+  public void sendActivityNotice(User user, Locale locale, Instant activityAt) {
     send(
         user,
-        PreviousContactNotice.ofWithdrawal(
-            user, recentlyReplacedEmails.of(user.getIdOrThrow(), signedAt)),
+        PreviousContactNotice.ofActivity(
+            user, recentlyReplacedEmails.of(user.getIdOrThrow(), activityAt)),
         locale);
   }
 

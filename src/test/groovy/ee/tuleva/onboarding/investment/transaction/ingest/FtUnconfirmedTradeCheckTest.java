@@ -466,6 +466,18 @@ class FtUnconfirmedTradeCheckTest {
   }
 
   @Test
+  void orderCancelledInTheRegistry_isNotLookedFor_soItsSebExecutionIsNeverRead() {
+    TransactionOrder cancelled = order("1000");
+    cancelled.setOrderStatus(CANCELLED);
+    givenOrders(cancelled);
+
+    check(TWO_DAYS_AFTER_TRADE).check(List.of(), ACTOR);
+
+    verify(digest).publish(List.of());
+    verifyNoInteractions(auditRecorder, executionRepository);
+  }
+
+  @Test
   void sebExecutionWithoutAPrice_leavesTheTradeUnconfirmedWithThePriceUnchecked() {
     TransactionOrder order = order("1000");
     givenOrders(order);

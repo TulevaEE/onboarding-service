@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.notification.slack;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Locale.ROOT;
 import static java.util.Objects.requireNonNullElse;
+import static java.util.stream.Collectors.joining;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -10,6 +12,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.log.LogFormatUtils;
 import org.springframework.http.HttpHeaders;
@@ -19,73 +25,84 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.UnknownContentTypeException;
 import org.springframework.web.client.UnknownHttpStatusCodeException;
 
 final class SlackWebhook {
 
-  private static final String SCHEME_SEPARATOR = "://";
+  private static final Set<String> WEB_SCHEMES = Set.of("http", "https");
 
   private static final String REDACTED = "<webhook>";
 
-  private final String url;
+  private static final String NO_ANSWER = "I/O error posting to Slack";
+
+  private final URI uri;
 
   SlackWebhook(String url) {
-    this.url = url;
+    this.uri = webUri(url);
   }
 
   URI uri() {
-    try {
-      return new URI(url);
-    } catch (URISyntaxException invalid) {
-      throw new IllegalArgumentException(
-          "Slack webhook is not a valid URI: reason="
-              + invalid.getReason()
-              + ", index="
-              + invalid.getIndex());
-    }
+    return uri;
   }
 
   RestClientException withoutUrl(RestClientException failure) {
     return switch (failure) {
-      case HttpClientErrorException refusal ->
-          HttpClientErrorException.create(
-              describe(refusal),
-              refusal.getStatusCode(),
-              refusal.getStatusText(),
-              headersOf(refusal),
-              refusal.getResponseBodyAsByteArray(),
-              charsetOf(refusal));
-      case HttpServerErrorException error ->
-          HttpServerErrorException.create(
-              describe(error),
-              error.getStatusCode(),
-              error.getStatusText(),
-              headersOf(error),
-              error.getResponseBodyAsByteArray(),
-              charsetOf(error));
-      case UnknownHttpStatusCodeException unknown ->
-          new UnknownHttpStatusCodeException(
-              describe(unknown),
-              unknown.getStatusCode().value(),
-              unknown.getStatusText(),
-              headersOf(unknown),
-              unknown.getResponseBodyAsByteArray(),
-              charsetOf(unknown));
-      case RestClientResponseException answer ->
-          new RestClientResponseException(
-              describe(answer),
-              answer.getStatusCode(),
-              answer.getStatusText(),
-              headersOf(answer),
-              answer.getResponseBodyAsByteArray(),
-              charsetOf(answer));
+      case RestClientResponseException answer -> answerWithoutUrl(answer);
+      case UnknownContentTypeException unreadable -> unreadableWithoutUrl(unreadable);
       case ResourceAccessException noAnswer when noAnswer.getCause() instanceof IOException cause ->
-          new ResourceAccessException(
-              described("I/O error posting to Slack", cause), ioCauseWithoutUrl(cause));
+          new ResourceAccessException(described(NO_ANSWER, cause), ioCauseWithoutUrl(cause));
+      case ResourceAccessException noAnswer -> noAnswerWithoutUrl(noAnswer);
       default ->
           new RestClientException(
               described("Slack post failed", failure), causeWithoutUrl(failure.getCause()));
     };
+  }
+
+  private RestClientResponseException answerWithoutUrl(RestClientResponseException answer) {
+    String message = describe(answer);
+    HttpHeaders headers = headersWithoutUrl(answer.getResponseHeaders());
+    byte[] body = bodyWithoutUrl(answer.getResponseBodyAsByteArray(), headers);
+    Charset charset = charsetOf(headers);
+    return switch (answer) {
+      case HttpClientErrorException refusal ->
+          HttpClientErrorException.create(
+              message, refusal.getStatusCode(), refusal.getStatusText(), headers, body, charset);
+      case HttpServerErrorException error ->
+          HttpServerErrorException.create(
+              message, error.getStatusCode(), error.getStatusText(), headers, body, charset);
+      case UnknownHttpStatusCodeException unknown ->
+          new UnknownHttpStatusCodeException(
+              message,
+              unknown.getStatusCode().value(),
+              unknown.getStatusText(),
+              headers,
+              body,
+              charset);
+      default ->
+          new RestClientResponseException(
+              message, answer.getStatusCode(), answer.getStatusText(), headers, body, charset);
+    };
+  }
+
+  private UnknownContentTypeException unreadableWithoutUrl(UnknownContentTypeException unreadable) {
+    HttpHeaders headers = headersWithoutUrl(unreadable.getResponseHeaders());
+    return new UnknownContentTypeException(
+        unreadable.getTargetType(),
+        unreadable.getContentType(),
+        unreadable.getStatusCode(),
+        unreadable.getStatusText(),
+        headers,
+        bodyWithoutUrl(unreadable.getResponseBody(), headers));
+  }
+
+  private ResourceAccessException noAnswerWithoutUrl(ResourceAccessException noAnswer) {
+    ResourceAccessException rebuilt = new ResourceAccessException(described(NO_ANSWER, noAnswer));
+    Throwable cause = causeWithoutUrl(noAnswer.getCause());
+    if (cause != null) {
+      rebuilt.initCause(cause);
+    }
+    return rebuilt;
   }
 
   private String describe(RestClientResponseException answer) {
@@ -116,35 +133,79 @@ final class SlackWebhook {
     return new IOException(described("Replaced a cause that named the Slack webhook", cause));
   }
 
+  private HttpHeaders headersWithoutUrl(@Nullable HttpHeaders headers) {
+    HttpHeaders scrubbedHeaders = new HttpHeaders();
+    Optional.ofNullable(headers)
+        .ifPresent(
+            original ->
+                original.forEach(
+                    (name, values) ->
+                        scrubbedHeaders.put(name, values.stream().map(this::scrubbed).toList())));
+    return scrubbedHeaders;
+  }
+
+  private byte[] bodyWithoutUrl(byte[] body, HttpHeaders headers) {
+    Charset charset = requireNonNullElse(charsetOf(headers), UTF_8);
+    String text = new String(body, charset);
+    return carriesSecret(text) ? scrubbed(text).getBytes(charset) : body;
+  }
+
   private boolean names(Throwable failure) {
     StringWriter printed = new StringWriter();
     failure.printStackTrace(new PrintWriter(printed));
-    return printed.toString().contains(secret());
+    return carriesSecret(printed.toString());
+  }
+
+  private boolean carriesSecret(String text) {
+    return secrets().matcher(text).find();
   }
 
   private String scrubbed(String text) {
-    return text.replace(secret(), REDACTED);
+    return secrets().matcher(text).replaceAll(Matcher.quoteReplacement(REDACTED));
   }
 
-  private String secret() {
-    return pathOf(url).orElse(url);
+  private Pattern secrets() {
+    return Pattern.compile(secretForms().map(Pattern::quote).collect(joining("|")));
   }
 
-  private static Optional<String> pathOf(String url) {
-    int schemeEnd = url.indexOf(SCHEME_SEPARATOR);
-    int pathStart = url.indexOf('/', schemeEnd < 0 ? 0 : schemeEnd + SCHEME_SEPARATOR.length());
-    return pathStart < 0 || pathStart == url.length() - 1
-        ? Optional.empty()
-        : Optional.of(url.substring(pathStart));
+  private Stream<String> secretForms() {
+    String rawPath = uri.getRawPath();
+    if (rawPath == null || rawPath.length() <= 1) {
+      return Stream.of(uri.toString());
+    }
+    String path = uri.getPath();
+    return Stream.of(rawPath, path, lastSegment(rawPath), lastSegment(path))
+        .filter(form -> !form.isEmpty())
+        .distinct();
   }
 
-  private static HttpHeaders headersOf(RestClientResponseException answer) {
-    return requireNonNullElse(answer.getResponseHeaders(), HttpHeaders.EMPTY);
+  private static String lastSegment(String path) {
+    return path.substring(path.lastIndexOf('/') + 1);
   }
 
-  private static @Nullable Charset charsetOf(RestClientResponseException answer) {
-    return Optional.ofNullable(headersOf(answer).getContentType())
-        .map(MediaType::getCharset)
-        .orElse(null);
+  private static URI webUri(String url) {
+    URI parsed = parsed(url);
+    if (!parsed.isAbsolute()
+        || parsed.getHost() == null
+        || !WEB_SCHEMES.contains(parsed.getScheme().toLowerCase(ROOT))) {
+      throw new IllegalArgumentException("Slack webhook is not an http or https URL with a host");
+    }
+    return parsed;
+  }
+
+  private static URI parsed(String url) {
+    try {
+      return new URI(url);
+    } catch (URISyntaxException invalid) {
+      throw new IllegalArgumentException(
+          "Slack webhook is not a valid URI: reason="
+              + invalid.getReason()
+              + ", index="
+              + invalid.getIndex());
+    }
+  }
+
+  private static @Nullable Charset charsetOf(HttpHeaders headers) {
+    return Optional.ofNullable(headers.getContentType()).map(MediaType::getCharset).orElse(null);
   }
 }

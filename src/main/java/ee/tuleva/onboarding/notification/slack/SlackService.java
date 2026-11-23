@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.notification.slack;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.util.List;
+import java.util.Optional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -83,9 +84,12 @@ public class SlackService implements OperationsNotificationService {
   @Override
   public void sendMessage(String message, Channel channel, Severity severity) {
     SlackChannel slackChannel = SlackChannel.of(channel);
-    String webhookUrl = configuration.getWebhookUrl(slackChannel);
+    Optional<String> webhookUrl =
+        Optional.ofNullable(configuration.getWebhookUrl(slackChannel))
+            .map(String::strip)
+            .filter(url -> !url.isEmpty());
 
-    if (webhookUrl == null || webhookUrl.isBlank()) {
+    if (webhookUrl.isEmpty()) {
       if (environment.matchesProfiles("production")) {
         throw new IllegalStateException("No webhook for slack channel " + channel);
       }
@@ -93,10 +97,11 @@ public class SlackService implements OperationsNotificationService {
       return;
     }
 
-    post(new SlackWebhook(webhookUrl), payload(message, severity));
+    post(webhookUrl.get(), payload(message, severity));
   }
 
-  private void post(SlackWebhook webhook, Object payload) {
+  private void post(String webhookUrl, Object payload) {
+    SlackWebhook webhook = new SlackWebhook(webhookUrl);
     try {
       restClient.post().uri(webhook.uri()).body(payload).retrieve().toBodilessEntity();
     } catch (RestClientException failure) {

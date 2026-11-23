@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.error.RestResponseErrorHandler
 import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationHandler
 import io.micrometer.observation.ObservationRegistry
+import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.function.Supplier
 import org.apache.hc.client5.http.CircularRedirectException
@@ -25,6 +26,8 @@ import org.springframework.boot.http.client.autoconfigure.HttpClientAutoConfigur
 import org.springframework.boot.http.client.autoconfigure.imperative.ImperativeHttpClientAutoConfiguration
 import org.springframework.boot.restclient.autoconfigure.RestTemplateAutoConfiguration
 import org.springframework.boot.restclient.observation.ObservationRestTemplateCustomizer
+import org.springframework.boot.context.properties.bind.Binder
+import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.core.env.Environment
 import org.springframework.http.HttpHeaders
@@ -37,6 +40,7 @@ import org.springframework.web.client.HttpServerErrorException
 import org.springframework.web.client.ResourceAccessException
 import org.springframework.web.client.RestClientException
 import org.springframework.web.client.RestClientResponseException
+import org.springframework.web.client.UnknownContentTypeException
 import org.springframework.web.client.UnknownHttpStatusCodeException
 import spock.lang.Specification
 import spock.lang.Timeout
@@ -52,9 +56,11 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Se
 import static org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder.httpComponents
 import static org.springframework.http.HttpMethod.POST
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*
+import static org.springframework.http.HttpStatus.BAD_GATEWAY
 import static org.springframework.http.HttpStatus.BAD_REQUEST
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR
 import static org.springframework.http.HttpStatus.NOT_FOUND
+import static org.springframework.http.HttpStatus.OK
 import static org.springframework.http.MediaType.TEXT_PLAIN
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withException
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus
@@ -65,6 +71,8 @@ class SlackServiceSpec extends Specification {
   private static final String WEBHOOK_PATH = "/services/T000/B000/not-a-real-token"
 
   private static final String WEBHOOK_URL = "https://hooks.slack.com" + WEBHOOK_PATH
+
+  private static final String WEBHOOK_TOKEN = "not-a-real-token"
 
   private String dummyWebhookUrl = "https://example.com"
 
@@ -269,19 +277,6 @@ class SlackServiceSpec extends Specification {
     !printedWithEveryCause(failure).contains(WEBHOOK_PATH)
   }
 
-  def "a webhook without a scheme fails without carrying the webhook path"() {
-    given:
-    webhookConfiguration.webhooks = [trading: "hooks.slack.com" + WEBHOOK_PATH]
-    def overRealHttpClient = slackServiceOverRealHttpClient()
-
-    when:
-    overRealHttpClient.sendMessage("Orders NOT sent", TRADING, ERROR)
-
-    then:
-    def failure = thrown(RuntimeException)
-    !printedWithEveryCause(failure).contains(WEBHOOK_PATH)
-  }
-
   def "a webhook that is not a valid URI is refused before any request, and the refusal never carries the webhook path: #invalidPart"() {
     given:
     def invalidPath = "/services/T000/B000/" + invalidPart
@@ -297,6 +292,164 @@ class SlackServiceSpec extends Specification {
 
     where:
     invalidPart << ["not-a-real-{token", "not a real token"]
+  }
+
+  def "a webhook that is not an absolute http or https URL with a host is refused before any request, without carrying the webhook path: #webhookUrl"() {
+    given:
+    webhookConfiguration.webhooks = [trading: webhookUrl]
+
+    when:
+    slackService.sendMessage("Orders NOT sent", TRADING, ERROR)
+
+    then:
+    def failure = thrown(IllegalArgumentException)
+    !printedWithEveryCause(failure).contains(WEBHOOK_PATH)
+    server.verify()
+
+    where:
+    webhookUrl << [
+        "https:" + WEBHOOK_PATH,
+        "https://" + WEBHOOK_PATH,
+        "ftp://hooks.slack.com" + WEBHOOK_PATH,
+        "hooks.slack.com" + WEBHOOK_PATH
+    ]
+  }
+
+  def "a webhook with surrounding whitespace, such as a trailing newline from a secret mount, still posts"() {
+    given:
+    webhookConfiguration.webhooks = [trading: WEBHOOK_URL + "\n"]
+    server.expect(requestTo(WEBHOOK_URL)).andRespond(withSuccess("ok", MediaType.TEXT_PLAIN))
+
+    when:
+    slackService.sendMessage("Orders sent", TRADING)
+
+    then:
+    server.verify()
+  }
+
+  def "an I/O error that names only the webhook's token is replaced as well, so the post never carries the token"() {
+    given:
+    webhookConfiguration.webhooks = [trading: WEBHOOK_URL]
+    server.expect(requestTo(WEBHOOK_URL))
+        .andRespond(withException(new ClientProtocolException("Rejected credential " + WEBHOOK_TOKEN)))
+
+    when:
+    slackService.sendMessage("Orders NOT sent", TRADING, ERROR)
+
+    then:
+    def failure = thrown(ResourceAccessException)
+    failure.cause.class == IOException
+    !printedWithEveryCause(failure).contains(WEBHOOK_TOKEN)
+  }
+
+  def "an I/O error that names the webhook's decoded path is replaced as well, so the post never carries it"() {
+    given:
+    def encodedUrl = "https://hooks.slack.com/services/T000/B000/not%20a%20real%20token"
+    webhookConfiguration.webhooks = [trading: encodedUrl]
+    server.expect(requestTo(encodedUrl))
+        .andRespond(withException(new ClientProtocolException(
+            "Circular redirect to 'https://hooks.slack.com/services/T000/B000/not a real token'")))
+
+    when:
+    slackService.sendMessage("Orders NOT sent", TRADING, ERROR)
+
+    then:
+    def failure = thrown(ResourceAccessException)
+    failure.cause.class == IOException
+    !printedWithEveryCause(failure).contains("not a real token")
+  }
+
+  def "an answer that echoes the webhook keeps its type and status, and neither its body nor its headers carry the webhook URL"() {
+    given:
+    webhookConfiguration.webhooks = [trading: WEBHOOK_URL]
+    server.expect(requestTo(WEBHOOK_URL)).andRespond(withStatus(BAD_GATEWAY)
+        .contentType(MediaType.TEXT_HTML)
+        .location(URI.create(WEBHOOK_URL))
+        .body("<html><body>Bad gateway for " + WEBHOOK_URL + "</body></html>"))
+
+    when:
+    slackService.sendMessage("Orders NOT sent", TRADING, ERROR)
+
+    then:
+    def failure = thrown(HttpServerErrorException.BadGateway)
+    failure.statusCode == BAD_GATEWAY
+    failure.responseHeaders.contentType == MediaType.TEXT_HTML
+    !failure.responseBodyAsString.contains(WEBHOOK_PATH)
+    !failure.responseHeaders.toString().contains(WEBHOOK_PATH)
+    !printedWithEveryCause(failure).contains(WEBHOOK_PATH)
+  }
+
+  def "an answer in a content type the client cannot read keeps its type and status, and never carries the webhook URL"() {
+    given:
+    def headers = new HttpHeaders()
+    headers.contentType = MediaType.TEXT_HTML
+    headers.location = URI.create(WEBHOOK_URL)
+    def unreadable = new UnknownContentTypeException(
+        String, MediaType.TEXT_HTML, OK, "OK", headers, ("<html>" + WEBHOOK_URL + "</html>").getBytes(UTF_8))
+    webhookConfiguration.webhooks = [trading: WEBHOOK_URL]
+    server.expect(requestTo(WEBHOOK_URL)).andRespond({ request -> throw unreadable } as ResponseCreator)
+
+    when:
+    slackService.sendMessage("Orders NOT sent", TRADING, ERROR)
+
+    then:
+    def failure = thrown(UnknownContentTypeException)
+    failure.statusCode == OK
+    failure.contentType == MediaType.TEXT_HTML
+    failure.targetType == String
+    !failure.responseBodyAsString.contains(WEBHOOK_PATH)
+    !failure.responseHeaders.toString().contains(WEBHOOK_PATH)
+    !printedWithEveryCause(failure).contains(WEBHOOK_PATH)
+  }
+
+  def "a post that gets no answer keeps its type when its cause is not an I/O error, and never carries the webhook URL: #cause"() {
+    given:
+    def noAnswer = new ResourceAccessException("I/O error on POST request for \"" + WEBHOOK_URL + "\"")
+    if (cause != null) {
+      noAnswer.initCause(cause)
+    }
+    webhookConfiguration.webhooks = [trading: WEBHOOK_URL]
+    server.expect(requestTo(WEBHOOK_URL)).andRespond({ request -> throw noAnswer } as ResponseCreator)
+
+    when:
+    slackService.sendMessage("Orders NOT sent", TRADING, ERROR)
+
+    then:
+    def failure = thrown(ResourceAccessException)
+    failure.class == ResourceAccessException
+    failure.cause.is(cause)
+    !printedWithEveryCause(failure).contains(WEBHOOK_PATH)
+
+    where:
+    cause << [null, new IllegalStateException("Connection pool shut down")]
+  }
+
+  def "a Slack post gets the connect and read timeouts configured under spring.http.clients in application.yml"() {
+    given:
+    def sharedSettings = null
+    def configuredTimeouts = null
+    new ApplicationContextRunner()
+        .withInitializer(new ConfigDataApplicationContextInitializer())
+        .withConfiguration(AutoConfigurations.of(HttpClientAutoConfiguration))
+        .run { context ->
+          sharedSettings = context.getBean(HttpClientSettings)
+          def configuration = Binder.get(context.environment)
+          configuredTimeouts = [
+              configuration.bind("spring.http.clients.connect-timeout", Duration).get(),
+              configuration.bind("spring.http.clients.read-timeout", Duration).get()
+          ]
+        }
+    def builtWith = new CopyOnWriteArrayList<HttpClientSettings>()
+    def recordingFactoryBuilder = { HttpClientSettings settings ->
+      builtWith << settings
+      httpComponents().build(settings)
+    } as ClientHttpRequestFactoryBuilder
+
+    when:
+    new SlackService(webhookConfiguration, environment, recordingFactoryBuilder, sharedSettings)
+
+    then:
+    builtWith.collect { [it.connectTimeout(), it.readTimeout()] } == [configuredTimeouts]
   }
 
   def "a blank webhook counts as missing, so nothing is posted outside production: '#blank'"() {

@@ -25,9 +25,7 @@ class SebFundConfirmationNavDateWriter {
         .findByBrokerTransactionId(tradeReference)
         .ifPresent(
             execution ->
-                orderRepository
-                    .findById(execution.getOrderId())
-                    .ifPresent(order -> writeTo(execution, order)));
+                writeTo(execution, orderRepository.getReferenceById(execution.getOrderId())));
   }
 
   void writeTo(TransactionExecution execution, TransactionOrder order) {

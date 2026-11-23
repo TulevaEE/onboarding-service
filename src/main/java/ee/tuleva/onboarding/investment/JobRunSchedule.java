@@ -32,5 +32,5 @@ public final class JobRunSchedule {
 
   public static final String JOB_TRIGGER_POLL = "0 * * * * *";
 
-  public static final String HEALTH_CHECK_ALERT_RETRY = "30 * * * * *";
+  public static final String HEALTH_CHECK_ALERT_POSTING = "30 * * * * *";
 }

@@ -6,11 +6,14 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckAlertRepos
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.investment.report.ReportProvider;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.core.simple.JdbcClient.StatementSpec;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -28,35 +31,21 @@ class HealthCheckAlertRepository {
 
   private final JdbcClient jdbcClient;
 
-  boolean anyNotPosted() {
-    return jdbcClient
-            .sql("SELECT COUNT(*) FROM investment_health_check_alert WHERE status = :notPosted")
-            .param("notPosted", NOT_POSTED.name())
-            .query(Long.class)
-            .single()
-        > 0;
-  }
-
   long recordNotPosted(
-      ReportProvider provider,
-      LocalDate reportDate,
-      String message,
-      Instant foundAt,
-      int unansweredPosts) {
+      ReportProvider provider, LocalDate reportDate, String message, Instant foundAt) {
     var keyHolder = new GeneratedKeyHolder();
     jdbcClient
         .sql(
             """
             INSERT INTO investment_health_check_alert
-              (provider, report_date, message, found_at, status, unanswered_posts)
-            VALUES (:provider, :reportDate, :message, :foundAt, :notPosted, :unansweredPosts)
+              (provider, report_date, message, found_at, status)
+            VALUES (:provider, :reportDate, :message, :foundAt, :notPosted)
             """)
         .param("provider", provider.name())
         .param("reportDate", reportDate)
         .param("message", message)
         .param("foundAt", Timestamp.from(foundAt))
         .param("notPosted", NOT_POSTED.name())
-        .param("unansweredPosts", unansweredPosts)
         .update(keyHolder, "id");
     return requireNonNull(keyHolder.getKey(), "Health check alert insert returned no id")
         .longValue();
@@ -66,7 +55,7 @@ class HealthCheckAlertRepository {
     return jdbcClient
         .sql(
             """
-            SELECT id, provider, report_date, message, found_at, unanswered_posts
+            SELECT id, provider, report_date, message, found_at, attempts, last_attempt_at
             FROM investment_health_check_alert
             WHERE status = :notPosted
             ORDER BY found_at, id
@@ -80,8 +69,25 @@ class HealthCheckAlertRepository {
                     rs.getObject("report_date", LocalDate.class),
                     rs.getString("message"),
                     rs.getTimestamp("found_at").toInstant(),
-                    rs.getInt("unanswered_posts")))
+                    rs.getInt("attempts"),
+                    lastAttemptAt(rs)))
         .list();
+  }
+
+  boolean claimAttempt(long id, Instant at) {
+    return whileNotPosted(id, "attempts = attempts + 1, last_attempt_at = :at")
+            .param("at", Timestamp.from(at))
+            .update()
+        == 1;
+  }
+
+  boolean refundAttempt(long id, @Nullable Instant previousAttemptAt) {
+    return whileNotPosted(id, "attempts = attempts - 1, last_attempt_at = :previousAttemptAt")
+            .param(
+                "previousAttemptAt",
+                previousAttemptAt == null ? null : Timestamp.from(previousAttemptAt))
+            .update()
+        == 1;
   }
 
   boolean markPosted(long id, Instant postedAt) {
@@ -96,17 +102,6 @@ class HealthCheckAlertRepository {
     return whileNotPosted(id, "status = :givenUp").param("givenUp", GIVEN_UP.name()).update() == 1;
   }
 
-  boolean recordUnansweredPost(long id) {
-    return whileNotPosted(id, "unanswered_posts = unanswered_posts + 1").update() == 1;
-  }
-
-  boolean giveUpAfterUnansweredPost(long id) {
-    return whileNotPosted(id, "status = :givenUp, unanswered_posts = unanswered_posts + 1")
-            .param("givenUp", GIVEN_UP.name())
-            .update()
-        == 1;
-  }
-
   private StatementSpec whileNotPosted(long id, String assignments) {
     return jdbcClient
         .sql(
@@ -115,5 +110,10 @@ class HealthCheckAlertRepository {
                 + " WHERE id = :id AND status = :notPosted")
         .param("id", id)
         .param("notPosted", NOT_POSTED.name());
+  }
+
+  private static @Nullable Instant lastAttemptAt(ResultSet rs) throws SQLException {
+    var lastAttemptAt = rs.getTimestamp("last_attempt_at");
+    return lastAttemptAt == null ? null : lastAttemptAt.toInstant();
   }
 }

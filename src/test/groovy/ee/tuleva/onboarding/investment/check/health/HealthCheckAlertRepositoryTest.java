@@ -28,11 +28,12 @@ class HealthCheckAlertRepositoryTest {
   @Autowired JdbcClient jdbcClient;
 
   @Test
-  void findsEveryAlertNotPostedOldestFirstWithItsUnansweredPosts() {
-    var later = repository.recordNotPosted(SEB, REPORT_DATE, "later", TEN_PAST_NINE, 0);
-    var earlier = repository.recordNotPosted(SEB, REPORT_DATE, "earlier", NINE, 1);
-    var posted = repository.recordNotPosted(SEB, REPORT_DATE, "posted", NINE, 0);
-    var givenUp = repository.recordNotPosted(SEB, REPORT_DATE, "given up", NINE, 0);
+  void findsEveryAlertNotPostedOldestFirstWithItsAttempts() {
+    var later = repository.recordNotPosted(SEB, REPORT_DATE, "later", TEN_PAST_NINE);
+    var earlier = repository.recordNotPosted(SEB, REPORT_DATE, "earlier", NINE);
+    var posted = repository.recordNotPosted(SEB, REPORT_DATE, "posted", NINE);
+    var givenUp = repository.recordNotPosted(SEB, REPORT_DATE, "given up", NINE);
+    repository.claimAttempt(earlier, FIVE_PAST_NINE);
     repository.markPosted(posted, FIVE_PAST_NINE);
     repository.giveUp(givenUp);
 
@@ -40,81 +41,95 @@ class HealthCheckAlertRepositoryTest {
 
     assertThat(notPosted)
         .containsExactly(
-            new HealthCheckAlert(earlier, SEB, REPORT_DATE, "earlier", NINE, 1),
-            new HealthCheckAlert(later, SEB, REPORT_DATE, "later", TEN_PAST_NINE, 0));
+            new HealthCheckAlert(earlier, SEB, REPORT_DATE, "earlier", NINE, 1, FIVE_PAST_NINE),
+            new HealthCheckAlert(later, SEB, REPORT_DATE, "later", TEN_PAST_NINE, 0, null));
   }
 
   @Test
-  void knowsWhetherAnyAlertIsWaitingToBePosted() {
-    var noneRecorded = repository.anyNotPosted();
-    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE, 0);
-    var oneWaiting = repository.anyNotPosted();
-    repository.markPosted(id, FIVE_PAST_NINE);
-    var itWasPosted = repository.anyNotPosted();
+  void aSavedAlertWaitsWithNoAttempts() {
+    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE);
 
-    assertThat(List.of(noneRecorded, oneWaiting, itWasPosted)).containsExactly(false, true, false);
+    assertThat(row(id)).isEqualTo("NOT_POSTED, attempts 0, last null, posted null");
+  }
+
+  @Test
+  void aClaimCountsTheAttemptAndItsTimeOnlyWhileTheAlertWaits() {
+    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE);
+
+    var first = repository.claimAttempt(id, FIVE_PAST_NINE);
+    var second = repository.claimAttempt(id, TEN_PAST_NINE);
+    repository.giveUp(id);
+    var afterGivingUp = repository.claimAttempt(id, TEN_PAST_NINE);
+
+    assertThat(List.of(first, second, afterGivingUp)).containsExactly(true, true, false);
+    assertThat(row(id)).isEqualTo("GIVEN_UP, attempts 2, last " + TEN_PAST_NINE + ", posted null");
+  }
+
+  @Test
+  void aRefundTakesTheAttemptBackAndRestoresTheEarlierAttemptTime() {
+    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE);
+    repository.claimAttempt(id, FIVE_PAST_NINE);
+    repository.claimAttempt(id, TEN_PAST_NINE);
+
+    var refunded = repository.refundAttempt(id, FIVE_PAST_NINE);
+
+    assertThat(refunded).isTrue();
+    assertThat(row(id))
+        .isEqualTo("NOT_POSTED, attempts 1, last " + FIVE_PAST_NINE + ", posted null");
+  }
+
+  @Test
+  void aRefundOfTheFirstAttemptLeavesTheAlertAsIfNeverTried() {
+    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE);
+    repository.claimAttempt(id, FIVE_PAST_NINE);
+
+    repository.refundAttempt(id, null);
+
+    assertThat(row(id)).isEqualTo("NOT_POSTED, attempts 0, last null, posted null");
   }
 
   @Test
   void anAlertIsPostedOnceAndRecordsWhen() {
-    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE, 0);
+    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE);
+    repository.claimAttempt(id, FIVE_PAST_NINE);
 
     var first = repository.markPosted(id, FIVE_PAST_NINE);
     var second = repository.markPosted(id, TEN_PAST_NINE);
 
     assertThat(List.of(first, second)).containsExactly(true, false);
-    assertThat(row(id)).isEqualTo("POSTED at " + FIVE_PAST_NINE + ", unanswered 0");
+    assertThat(row(id))
+        .isEqualTo("POSTED, attempts 1, last " + FIVE_PAST_NINE + ", posted " + FIVE_PAST_NINE);
   }
 
   @Test
-  void aGivenUpAlertIsNeitherPostedNorGivenUpAgain() {
-    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE, 0);
+  void aGivenUpAlertIsNeitherPostedNorGivenUpAgainNorRefunded() {
+    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE);
 
     var givenUp = repository.giveUp(id);
     var postedAfter = repository.markPosted(id, TEN_PAST_NINE);
     var givenUpAgain = repository.giveUp(id);
+    var refundedAfter = repository.refundAttempt(id, null);
 
-    assertThat(List.of(givenUp, postedAfter, givenUpAgain)).containsExactly(true, false, false);
-    assertThat(row(id)).isEqualTo("GIVEN_UP at null, unanswered 0");
+    assertThat(List.of(givenUp, postedAfter, givenUpAgain, refundedAfter))
+        .containsExactly(true, false, false, false);
+    assertThat(row(id)).isEqualTo("GIVEN_UP, attempts 0, last null, posted null");
   }
 
   @Test
   void aPostedAlertIsNotGivenUp() {
-    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE, 0);
+    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE);
     repository.markPosted(id, FIVE_PAST_NINE);
 
     var givenUp = repository.giveUp(id);
 
     assertThat(givenUp).isFalse();
-    assertThat(row(id)).isEqualTo("POSTED at " + FIVE_PAST_NINE + ", unanswered 0");
-  }
-
-  @Test
-  void anUnansweredPostIsCountedOnAnAlertStillWaiting() {
-    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE, 0);
-
-    var counted = repository.recordUnansweredPost(id);
-
-    assertThat(counted).isTrue();
-    assertThat(row(id)).isEqualTo("NOT_POSTED at null, unanswered 1");
-  }
-
-  @Test
-  void anAlertGivenUpAfterAnUnansweredPostCountsThatPost() {
-    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE, 1);
-
-    var givenUp = repository.giveUpAfterUnansweredPost(id);
-    var givenUpAgain = repository.giveUpAfterUnansweredPost(id);
-    var countedAfter = repository.recordUnansweredPost(id);
-
-    assertThat(List.of(givenUp, givenUpAgain, countedAfter)).containsExactly(true, false, false);
-    assertThat(row(id)).isEqualTo("GIVEN_UP at null, unanswered 2");
+    assertThat(row(id)).isEqualTo("POSTED, attempts 0, last null, posted " + FIVE_PAST_NINE);
   }
 
   @Test
   @EnabledIfEnvironmentVariable(named = "SPRING_PROFILES_ACTIVE", matches = ".*(pg|ci).*")
   void theTableTakesOnlyTheThreeStatuses() {
-    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE, 0);
+    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE);
 
     assertThatThrownBy(() -> setStatus(id, "'CLAIMED'", "NULL"))
         .isInstanceOf(DataIntegrityViolationException.class);
@@ -123,7 +138,7 @@ class HealthCheckAlertRepositoryTest {
   @Test
   @EnabledIfEnvironmentVariable(named = "SPRING_PROFILES_ACTIVE", matches = ".*(pg|ci).*")
   void aPostedAlertCarriesItsPostedTime() {
-    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE, 0);
+    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE);
 
     assertThatThrownBy(() -> setStatus(id, "'POSTED'", "NULL"))
         .isInstanceOf(DataIntegrityViolationException.class);
@@ -132,7 +147,7 @@ class HealthCheckAlertRepositoryTest {
   @Test
   @EnabledIfEnvironmentVariable(named = "SPRING_PROFILES_ACTIVE", matches = ".*(pg|ci).*")
   void aGivenUpAlertCarriesNoPostedTime() {
-    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE, 0);
+    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE);
 
     assertThatThrownBy(() -> setStatus(id, "'GIVEN_UP'", "CURRENT_TIMESTAMP"))
         .isInstanceOf(DataIntegrityViolationException.class);
@@ -150,17 +165,19 @@ class HealthCheckAlertRepositoryTest {
   private String row(long id) {
     return jdbcClient
         .sql(
-            "SELECT status, posted_at, unanswered_posts FROM investment_health_check_alert"
+            "SELECT status, attempts, last_attempt_at, posted_at FROM investment_health_check_alert"
                 + " WHERE id = :id")
         .param("id", id)
         .query(
             (rs, rowNum) -> {
+              var lastAttemptAt = rs.getTimestamp("last_attempt_at");
               var postedAt = rs.getTimestamp("posted_at");
-              return "%s at %s, unanswered %d"
+              return "%s, attempts %d, last %s, posted %s"
                   .formatted(
                       rs.getString("status"),
-                      postedAt == null ? null : postedAt.toInstant(),
-                      rs.getInt("unanswered_posts"));
+                      rs.getInt("attempts"),
+                      lastAttemptAt == null ? null : lastAttemptAt.toInstant(),
+                      postedAt == null ? null : postedAt.toInstant());
             })
         .single();
   }

@@ -34,7 +34,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class HealthCheckNotifier {
 
-  private final HealthCheckAlertSender alertSender;
+  private final HealthCheckAlertOutbox alertOutbox;
   private final HealthCheckEventRepository eventRepository;
 
   public boolean notify(
@@ -73,7 +73,7 @@ public class HealthCheckNotifier {
               new EarlierImports(earlierImports),
               activeTransitions,
               clearedTransitions);
-      return alertSender.send(provider, date, message);
+      return alertOutbox.raise(provider, date, message);
 
     } catch (Exception e) {
       log.error(

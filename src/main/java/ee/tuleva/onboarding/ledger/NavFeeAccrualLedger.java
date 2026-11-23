@@ -13,7 +13,6 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -26,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class NavFeeAccrualLedger {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
-  private static final int MAX_SETTLEMENT_REVISIONS = 50;
 
   private final LedgerAccountService ledgerAccountService;
   private final LedgerTransactionService ledgerTransactionService;
@@ -90,11 +88,7 @@ public class NavFeeAccrualLedger {
                   AND a.name = :accountName
                 ORDER BY t.transaction_date, t.id
                 """)
-            .param(
-                "externalReferences",
-                IntStream.range(0, MAX_SETTLEMENT_REVISIONS)
-                    .mapToObj(revision -> settlementReference(fund, feeMonth, feeAccount, revision))
-                    .toList())
+            .param("externalReferences", FeeMonthSettlement.references(fund, feeMonth, feeAccount))
             .param("accountName", feeAccount.getAccountName(fund))
             .query(
                 (rs, rowNum) ->
@@ -144,7 +138,7 @@ public class NavFeeAccrualLedger {
           feeAccount.name());
       return;
     }
-    if (revision >= MAX_SETTLEMENT_REVISIONS) {
+    if (revision >= FeeMonthSettlement.MAX_REVISIONS) {
       log.error(
           "Fee settlement revisions exhausted, left for the settlement check: fund={}, feeMonth={}, feeAccount={}, revision={}, amount={}",
           fund,
@@ -155,7 +149,7 @@ public class NavFeeAccrualLedger {
       return;
     }
 
-    UUID externalReference = settlementReference(fund, feeMonth, feeAccount, revision);
+    UUID externalReference = FeeMonthSettlement.reference(fund, feeMonth, feeAccount, revision);
     if (ledgerTransactionService.existsByExternalReferenceAndTransactionType(
         externalReference, FEE_SETTLEMENT)) {
       log.info(
@@ -331,14 +325,6 @@ public class NavFeeAccrualLedger {
     String key =
         fund.name() + ":" + accrualDate + ":" + feeAccount.name() + ":REVISION:" + revision;
     return UUID.nameUUIDFromBytes(key.getBytes(UTF_8));
-  }
-
-  private UUID settlementReference(
-      TulevaFund fund, LocalDate feeMonth, SystemAccount feeAccount, int revision) {
-    LocalDate lastDayOfFeeMonth = feeMonth.plusMonths(1).minusDays(1);
-    String key = fund.name() + ":" + lastDayOfFeeMonth + ":" + feeAccount.name() + ":SETTLEMENT";
-    String revisedKey = revision == 0 ? key : key + ":" + revision;
-    return UUID.nameUUIDFromBytes(revisedKey.getBytes(UTF_8));
   }
 
   private static Instant startOf(LocalDate date) {

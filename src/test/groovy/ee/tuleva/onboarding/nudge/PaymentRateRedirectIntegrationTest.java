@@ -42,7 +42,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
       "nudge.payment-rate-redirect.start-date=2026-09-01",
       "spring.datasource.hikari.maximum-pool-size=20"
     })
-class PaymentRateRedirectConcurrencyTest {
+class PaymentRateRedirectIntegrationTest {
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final String TREATMENT_PERSONAL_CODE = "38888880000";

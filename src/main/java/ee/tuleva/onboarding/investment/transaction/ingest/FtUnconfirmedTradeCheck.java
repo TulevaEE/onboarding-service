@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.OrderVenue.FT;
 import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.idsOfOrdersWithAConfirmation;
 
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
-import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
@@ -45,7 +45,7 @@ class FtUnconfirmedTradeCheck {
     LocalDate firstTradeDate = firstTradeDateToCheck();
     List<TransactionOrder> ftOrders =
         orderRepository.findByOrderVenueAndOrderTimestampGreaterThanEqual(
-            OrderVenue.FT, firstTradeDate.atStartOfDay(ZoneOffset.UTC).toInstant());
+            FT, firstTradeDate.atStartOfDay(ZoneOffset.UTC).toInstant());
     List<FtConfirmation> ofTheseDays =
         confirmations.stream()
             .filter(confirmation -> !confirmation.tradeDate().isBefore(firstTradeDate))

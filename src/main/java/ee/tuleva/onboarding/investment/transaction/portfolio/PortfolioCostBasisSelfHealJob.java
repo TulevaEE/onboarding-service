@@ -100,7 +100,7 @@ public class PortfolioCostBasisSelfHealJob {
     }
   }
 
-  public void runForRange(LocalDate from, LocalDate to) {
+  void runForRange(LocalDate from, LocalDate to) {
     log.info("Running portfolio cost-basis self-heal: from={}, to={}", from, to);
     rebuildEveryFundWithABaseline(baseline -> from, to);
   }

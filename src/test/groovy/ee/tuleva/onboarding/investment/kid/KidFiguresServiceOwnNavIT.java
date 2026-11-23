@@ -145,15 +145,15 @@ class KidFiguresServiceOwnNavIT {
                     new KidCost(
                         1,
                         new BigDecimal("50"),
-                        new BigDecimal("0.005"),
-                        new BigDecimal("0.005"),
-                        new BigDecimal("0.000")),
+                        new BigDecimal("0.0050"),
+                        new BigDecimal("0.0050"),
+                        new BigDecimal("0.0000")),
                     new KidCost(
                         5,
                         new BigDecimal("276"),
-                        new BigDecimal("0.005"),
-                        new BigDecimal("0.036"),
-                        new BigDecimal("0.031")))));
+                        new BigDecimal("0.0052"),
+                        new BigDecimal("0.0361"),
+                        new BigDecimal("0.0310")))));
   }
 
   @Test

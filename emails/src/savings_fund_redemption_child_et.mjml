@@ -1,0 +1,46 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Saime kätte avalduse Tuleva Täiendava Kogumisfondi osakute tagasivõtmiseks lapse
+          kontolt.*|IF:RECIPIENTNAME|* Osakute omanik on *|RECIPIENTNAME|*.*|END:IF|*
+        </mj-text>
+        <mj-text>
+          Võtame tagasi *|fundUnits|* osakut, mis on praegu väärt umbes *|amount|*&nbsp;€. Täpne
+          summa sõltub osakute puhasväärtusest (NAV) tehingupäeval.
+        </mj-text>
+        <mj-text>
+          Kanname raha kontole *|iban|* eeldatavalt hiljemalt *|payoutDeadline|*.
+        </mj-text>
+        <mj-text>
+          Üldjuhul saad avalduse Tuleva kontol tühistada kuni *|cancellationDeadline|*.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="12px 24px 0">
+      <mj-column>
+        <mj-text>
+          Kui see polnud sina, võta meiega kohe ühendust:
+          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või
+          <a href="tel:+3726445100">644&nbsp;5100</a>.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_short_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

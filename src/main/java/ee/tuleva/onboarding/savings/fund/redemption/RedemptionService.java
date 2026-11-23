@@ -110,7 +110,15 @@ public class RedemptionService {
 
     applicationEventPublisher.publishEvent(
         new RedemptionRequestedEvent(
-            saved.getId(), authenticatedPerson.getUserIdOrThrow(), partyId, amount, fundUnits));
+            saved.getId(),
+            authenticatedPerson.getUserIdOrThrow(),
+            partyId,
+            amount,
+            fundUnits,
+            canonicalIban,
+            saved.getRequestedAt(),
+            deadlinesService.getCancellationDeadline(saved),
+            deadlinesService.getFulfillmentDeadline(saved)));
 
     if (!authenticatedPerson.isActingAsSelf() && partyId.type() == PartyId.Type.PERSON) {
       applicationEventPublisher.publishEvent(

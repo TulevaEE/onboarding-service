@@ -1,0 +1,48 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          We received your request to redeem units of Tuleva Additional Investment Fund from
+          *|IF:RECIPIENTNAME|**|RECIPIENTNAME|*'s*|ELSE:|*your child's*|END:IF|* account.
+        </mj-text>
+        <mj-text>
+          We will redeem *|fundUnits|* units, currently worth about *|amount|*&nbsp;€. The exact
+          amount depends on the net asset value (NAV) of the units on the dealing day.
+        </mj-text>
+        <mj-text>
+          We expect to pay the money to the account *|iban|* by *|payoutDeadline|* (Estonian
+          time).
+        </mj-text>
+        <mj-text>
+          You can usually cancel the request in your Tuleva account until
+          *|cancellationDeadline|* (Estonian time).
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="12px 24px 0">
+      <mj-column>
+        <mj-text>
+          If it wasn't you, contact us right away:
+          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or
+          <a href="tel:+3726445100">644&nbsp;5100</a>.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Founder and fund manager of Tuleva
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_short_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

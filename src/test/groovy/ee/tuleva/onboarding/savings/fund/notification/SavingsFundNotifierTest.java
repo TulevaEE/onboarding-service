@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.party.PartyId;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -94,7 +95,11 @@ class SavingsFundNotifierTest {
             42L,
             new PartyId(PartyId.Type.PERSON, "38812121215"),
             new BigDecimal("500.00"),
-            new BigDecimal("50.12345"));
+            new BigDecimal("50.12345"),
+            "EE471000001020145685",
+            Instant.parse("2025-09-29T15:00:00Z"),
+            Instant.parse("2025-09-30T13:00:00Z"),
+            Instant.parse("2025-10-01T13:00:00Z"));
 
     notifier.onRedemptionRequested(event);
 

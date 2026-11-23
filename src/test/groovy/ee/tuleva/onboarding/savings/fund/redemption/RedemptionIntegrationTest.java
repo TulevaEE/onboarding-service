@@ -8,6 +8,9 @@ import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
+import static ee.tuleva.onboarding.notification.email.EmailType.PREVIOUS_CONTACT_ACTIVITY;
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_REDEMPTION_COMPANY;
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_REDEMPTION_PERSON;
 import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
@@ -17,16 +20,23 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Sta
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 import static java.time.ZoneOffset.UTC;
+import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willReturn;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.microtripit.mandrillapp.lutung.model.LutungGsonUtils;
+import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
@@ -44,6 +54,8 @@ import ee.tuleva.onboarding.ledger.LedgerParty;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
+import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.FundNavProvider;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
@@ -51,27 +63,39 @@ import ee.tuleva.onboarding.savings.SavingFundPayment.Status;
 import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
+import ee.tuleva.onboarding.savings.fund.notification.RedemptionRequestedEvent;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
+import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatcher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -85,6 +109,12 @@ class RedemptionIntegrationTest {
   // Monday 2025-09-29 17:00 EET (15:00 UTC) - after 16:00 cutoff
   private static final Instant NOW = Instant.parse("2025-09-29T15:00:00Z");
   private static final String VALID_IBAN = "EE471000001020145685";
+  private static final String NEW_EMAIL = "redemption-new-address@example.com";
+  private static final String PERSONAL_CODE = "39901019992";
+  private static final String COMPANY_REGISTRY_CODE = "16007788";
+  private static final String COMPANY_NAME = "Mesila OÜ";
+  private static final List<String> PARTY_CODES = List.of(PERSONAL_CODE, COMPANY_REGISTRY_CODE);
+  private static final Locale ESTONIAN = Locale.of("et");
 
   @Autowired RedemptionService redemptionService;
   @Autowired RedemptionStatusService redemptionStatusService;
@@ -104,19 +134,27 @@ class RedemptionIntegrationTest {
   @Autowired CompanyRepository companyRepository;
   @Autowired CompanyPartyRepository companyPartyRepository;
   @Autowired ApplicationEvents applicationEvents;
+  @Autowired UserService userService;
+  @Autowired EmailPersistenceService emailPersistenceService;
+  @Autowired JdbcClient jdbcClient;
 
+  @MockitoSpyBean EmailService emailService;
   @MockitoBean SebGatewayClient sebGatewayClient;
   @MockitoBean OperationsNotificationService operationsNotificationService;
   @MockitoBean FundNavProvider navProvider;
   @MockitoBean RiskLevels riskLevels;
 
   User testUser;
+  boolean testDataCommitted;
   PartyId testParty;
   AuthenticatedPerson testAuthenticatedPerson;
 
   @BeforeEach
   void setUp() {
+    deleteWhatCommittedTestsLeft();
     ClockHolder.setClock(Clock.fixed(NOW, UTC));
+    LocaleContextHolder.setLocale(ENGLISH);
+    keepEveryEmailAwayFromMandrill();
     doReturn("").when(sebGatewayClient).submitPaymentFile(any(), any(), any());
     lenient().when(navProvider.getDisplayNav(any())).thenReturn(BigDecimal.ONE);
     lenient()
@@ -124,7 +162,7 @@ class RedemptionIntegrationTest {
         .thenReturn(BigDecimal.ONE);
 
     testUser =
-        userRepository.save(sampleUser().id(null).member(null).personalCode("39901019992").build());
+        userRepository.save(sampleUser().id(null).member(null).personalCode(PERSONAL_CODE).build());
     testParty = new PartyId(PartyId.Type.PERSON, testUser.getPersonalCode());
     testAuthenticatedPerson = authenticatedPersonFromUser(testUser).build();
     savingsFundOnboardingRepository.saveOnboardingStatus(
@@ -136,6 +174,11 @@ class RedemptionIntegrationTest {
   @AfterEach
   void tearDown() {
     ClockHolder.setDefaultClock();
+    LocaleContextHolder.resetLocaleContext();
+    if (testDataCommitted) {
+      rollBackATestTransactionLeftOpen();
+      deleteWhatCommittedTestsLeft();
+    }
   }
 
   @Test
@@ -971,5 +1014,343 @@ class RedemptionIntegrationTest {
 
     // Payments sent only once (batch + individual)
     verify(sebGatewayClient, times(2)).submitPaymentFile(any(), any(), any());
+  }
+
+  @Test
+  void aRedemptionRequestIsConfirmedAtTheCurrentAddressWithTheMaskedIbanAndDeadlinesAndRecorded() {
+    var currentEmail = testUser.getEmail();
+    willReturn(Optional.of(acceptedFor(currentEmail)))
+        .given(emailService)
+        .send(any(), argThat(addressedTo(currentEmail)), eq("savings_fund_redemption_person_en"));
+
+    redemptionService.createRedemptionRequest(
+        testAuthenticatedPerson, new BigDecimal("10.00"), EUR, VALID_IBAN);
+    commitTheTestTransaction();
+
+    then(emailService)
+        .should()
+        .newMandrillMessage(
+            eq(currentEmail),
+            eq("savings_fund_redemption_person_en"),
+            eq(
+                Map.of(
+                    "fname", "Jordan",
+                    "amount", "10.00",
+                    "fundUnits", "10.00000",
+                    "iban", "EE47 **** **** **** 5685",
+                    "cancellationDeadline", "30.09.2025 16:00",
+                    "payoutDeadline", "01.10.2025 16:00")),
+            any());
+    then(emailService)
+        .should()
+        .send(
+            argThat(person -> person.getPersonalCode().equals(testUser.getPersonalCode())),
+            argThat(addressedTo(currentEmail)),
+            eq("savings_fund_redemption_person_en"));
+    assertThat(
+            emailPersistenceService.hasPendingOrSentEmail(testUser, SAVINGS_FUND_REDEMPTION_PERSON))
+        .isTrue();
+  }
+
+  @Test
+  void aRedemptionRequestedWithinTheWindowAfterAnEmailChangeIsNoticedAtTheReplacedAddress() {
+    var replacedEmail = testUser.getEmail();
+    changeEmailOn(NOW.minus(Duration.ofDays(27)));
+
+    redemptionService.createRedemptionRequest(
+        testAuthenticatedPerson, new BigDecimal("10.00"), EUR, VALID_IBAN);
+    commitTheTestTransaction();
+
+    then(emailService)
+        .should()
+        .send(
+            argThat(person -> person.getPersonalCode().equals(testUser.getPersonalCode())),
+            argThat(addressedTo(replacedEmail)),
+            eq("previous_contact_activity_en"));
+    then(emailService)
+        .should()
+        .send(any(), argThat(addressedTo(NEW_EMAIL)), eq("savings_fund_redemption_person_en"));
+    then(emailService).should(times(1)).send(any(), any(), eq("previous_contact_activity_en"));
+  }
+
+  @Test
+  void aRedemptionRequestedAfterTheWindowAfterAnEmailChangeIsOnlyConfirmedAtTheNewAddress() {
+    changeEmailOn(NOW.minus(Duration.ofDays(29)));
+
+    redemptionService.createRedemptionRequest(
+        testAuthenticatedPerson, new BigDecimal("10.00"), EUR, VALID_IBAN);
+    commitTheTestTransaction();
+
+    then(emailService)
+        .should()
+        .send(any(), argThat(addressedTo(NEW_EMAIL)), eq("savings_fund_redemption_person_en"));
+    then(emailService).should(never()).send(any(), any(), eq("previous_contact_activity_en"));
+  }
+
+  @Test
+  void aRedemptionRequestRolledBackAfterItsEventSendsNeitherTheConfirmationNorTheNotice() {
+    changeEmailOn(NOW.minus(Duration.ofDays(27)));
+    commitTheTestTransaction();
+    TestTransaction.start();
+
+    redemptionService.createRedemptionRequest(
+        testAuthenticatedPerson, new BigDecimal("10.00"), EUR, VALID_IBAN);
+    assertThat(applicationEvents.stream(RedemptionRequestedEvent.class)).hasSize(1);
+    TestTransaction.flagForRollback();
+    TestTransaction.end();
+
+    then(emailService).should(never()).send(any(), any(), eq("savings_fund_redemption_person_en"));
+    then(emailService).should(never()).send(any(), any(), eq("previous_contact_activity_en"));
+  }
+
+  @Test
+  void
+      aBoardMembersRedemptionAfterAnEmailChangeIsNoticedAtTheReplacedAddressAndConfirmedInEstonian() {
+    LocaleContextHolder.setLocale(ESTONIAN);
+    when(navProvider.getDisplayNav(any())).thenReturn(new BigDecimal("12.34560"));
+    setUpLegalEntity(COMPANY_REGISTRY_CODE, COMPANY_NAME, VALID_IBAN);
+    var replacedEmail = testUser.getEmail();
+    changeEmailOn(NOW.minus(Duration.ofDays(27)));
+    var boardMember =
+        authenticatedPersonFromUser(testUser)
+            .role(new Role(LEGAL_ENTITY, COMPANY_REGISTRY_CODE, COMPANY_NAME))
+            .build();
+    willReturn(Optional.of(acceptedFor(NEW_EMAIL)))
+        .given(emailService)
+        .send(any(), argThat(addressedTo(NEW_EMAIL)), eq("savings_fund_redemption_company_et"));
+    willReturn(Optional.of(acceptedFor(replacedEmail)))
+        .given(emailService)
+        .send(any(), argThat(addressedTo(replacedEmail)), eq("previous_contact_activity_et"));
+
+    redemptionService.createRedemptionRequest(
+        boardMember, new BigDecimal("1234.56"), EUR, VALID_IBAN);
+    var commitStarted = System.nanoTime();
+    commitTheTestTransaction();
+    var commitAndListenersTook = Duration.ofNanos(System.nanoTime() - commitStarted);
+
+    then(emailService)
+        .should()
+        .newMandrillMessage(
+            eq(NEW_EMAIL),
+            eq("savings_fund_redemption_company_et"),
+            eq(
+                Map.of(
+                    "fname", "Jordan",
+                    "amount", "1\u00A0234,56",
+                    "fundUnits", "100,00000",
+                    "iban", "EE47 **** **** **** 5685",
+                    "cancellationDeadline", "30.09.2025 16:00",
+                    "payoutDeadline", "01.10.2025 16:00",
+                    "recipientName", COMPANY_NAME)),
+            any());
+    then(emailService)
+        .should()
+        .send(
+            argThat(person -> person.getPersonalCode().equals(PERSONAL_CODE)),
+            argThat(addressedTo(NEW_EMAIL)),
+            eq("savings_fund_redemption_company_et"));
+    then(emailService)
+        .should()
+        .send(
+            argThat(person -> person.getPersonalCode().equals(PERSONAL_CODE)),
+            argThat(addressedTo(replacedEmail)),
+            eq("previous_contact_activity_et"));
+    assertThat(
+            emailPersistenceService.hasPendingOrSentEmail(
+                testUser, SAVINGS_FUND_REDEMPTION_COMPANY))
+        .isTrue();
+    assertThat(emailPersistenceService.hasPendingOrSentEmail(testUser, PREVIOUS_CONTACT_ACTIVITY))
+        .isTrue();
+    assertThat(commitAndListenersTook).isLessThan(Duration.ofSeconds(10));
+  }
+
+  private void keepEveryEmailAwayFromMandrill() {
+    willReturn(Optional.empty()).given(emailService).send(any(), any(), any());
+    willReturn(Optional.empty()).given(emailService).send(any(), any(), any(), any());
+    willReturn(Optional.empty()).given(emailService).attemptSend(any(), any(), any());
+    willReturn(false).given(emailService).sendSystemEmail(any());
+    willReturn(Optional.empty()).given(emailService).cancelScheduledEmail(any());
+  }
+
+  private void changeEmailOn(Instant changedAt) {
+    ClockHolder.setClock(Clock.fixed(changedAt, UTC));
+    userService.changeContactDetails(
+        testUser.getPersonalCode(), NEW_EMAIL, testUser.getPhoneNumber());
+    ClockHolder.setClock(Clock.fixed(NOW, UTC));
+  }
+
+  private void commitTheTestTransaction() {
+    testDataCommitted = true;
+    TestTransaction.flagForCommit();
+    TestTransaction.end();
+  }
+
+  private static void rollBackATestTransactionLeftOpen() {
+    if (TestTransaction.isActive()) {
+      TestTransaction.flagForRollback();
+      TestTransaction.end();
+    }
+  }
+
+  private void deleteWhatCommittedTestsLeft() {
+    sweep(
+        this::deleteLedgerTransactionsOfTheParties,
+        this::deleteLedgerPartiesAndAccounts,
+        this::deleteRedemptionRequests,
+        this::deleteDepositPayments,
+        this::deleteOnboardingStatusChanges,
+        this::deleteOnboardingStatuses,
+        this::deleteEmails,
+        this::deleteEventLogs,
+        this::deleteCompany,
+        this::deleteContactChanges,
+        this::deleteRequester);
+  }
+
+  private void sweep(Runnable... deletions) {
+    var failures = new ArrayList<RuntimeException>();
+    for (Runnable deletion : deletions) {
+      try {
+        deletion.run();
+      } catch (RuntimeException e) {
+        failures.add(e);
+      }
+    }
+    if (failures.isEmpty()) {
+      return;
+    }
+    var failure = failures.getFirst();
+    failures.stream().skip(1).forEach(failure::addSuppressed);
+    throw failure;
+  }
+
+  private void deleteLedgerTransactionsOfTheParties() {
+    var ledgerTransactionIds =
+        jdbcClient
+            .sql(
+                """
+                SELECT DISTINCT related.id
+                FROM ledger.transaction related
+                WHERE related.external_reference IN (
+                  SELECT owned.external_reference
+                  FROM ledger.transaction owned
+                  JOIN ledger.entry entry ON entry.transaction_id = owned.id
+                  JOIN ledger.account account ON account.id = entry.account_id
+                  JOIN ledger.party party ON party.id = account.owner_party_id
+                  WHERE party.owner_id IN (:codes))
+                """)
+            .param("codes", PARTY_CODES)
+            .query(UUID.class)
+            .list();
+    if (ledgerTransactionIds.isEmpty()) {
+      return;
+    }
+    jdbcClient
+        .sql("DELETE FROM ledger.entry WHERE transaction_id IN (:ids)")
+        .param("ids", ledgerTransactionIds)
+        .update();
+    jdbcClient
+        .sql("DELETE FROM ledger.transaction WHERE id IN (:ids)")
+        .param("ids", ledgerTransactionIds)
+        .update();
+  }
+
+  private void deleteLedgerPartiesAndAccounts() {
+    jdbcClient
+        .sql(
+            "DELETE FROM ledger.account WHERE owner_party_id IN"
+                + " (SELECT id FROM ledger.party WHERE owner_id IN (:codes))")
+        .param("codes", PARTY_CODES)
+        .update();
+    jdbcClient
+        .sql("DELETE FROM ledger.party WHERE owner_id IN (:codes)")
+        .param("codes", PARTY_CODES)
+        .update();
+  }
+
+  private void deleteRedemptionRequests() {
+    jdbcClient
+        .sql("DELETE FROM redemption_request WHERE party_code IN (:codes)")
+        .param("codes", PARTY_CODES)
+        .update();
+  }
+
+  private void deleteDepositPayments() {
+    jdbcClient
+        .sql("DELETE FROM saving_fund_payment WHERE party_code IN (:codes)")
+        .param("codes", PARTY_CODES)
+        .update();
+  }
+
+  private void deleteOnboardingStatusChanges() {
+    jdbcClient
+        .sql("DELETE FROM savings_fund_onboarding_status_change WHERE code IN (:codes)")
+        .param("codes", PARTY_CODES)
+        .update();
+  }
+
+  private void deleteOnboardingStatuses() {
+    jdbcClient
+        .sql("DELETE FROM savings_fund_onboarding WHERE code IN (:codes)")
+        .param("codes", PARTY_CODES)
+        .update();
+  }
+
+  private void deleteEmails() {
+    jdbcClient
+        .sql("DELETE FROM email WHERE personal_code = :personalCode")
+        .param("personalCode", PERSONAL_CODE)
+        .update();
+  }
+
+  private void deleteEventLogs() {
+    jdbcClient
+        .sql("DELETE FROM event_log WHERE principal = :personalCode")
+        .param("personalCode", PERSONAL_CODE)
+        .update();
+  }
+
+  private void deleteCompany() {
+    jdbcClient
+        .sql(
+            "DELETE FROM company_party WHERE company_id IN"
+                + " (SELECT id FROM company WHERE registry_code = :registryCode)")
+        .param("registryCode", COMPANY_REGISTRY_CODE)
+        .update();
+    jdbcClient
+        .sql("DELETE FROM company WHERE registry_code = :registryCode")
+        .param("registryCode", COMPANY_REGISTRY_CODE)
+        .update();
+  }
+
+  private void deleteContactChanges() {
+    jdbcClient
+        .sql(
+            "DELETE FROM user_contact_change WHERE user_id IN"
+                + " (SELECT id FROM users WHERE personal_code = :personalCode)")
+        .param("personalCode", PERSONAL_CODE)
+        .update();
+  }
+
+  private void deleteRequester() {
+    jdbcClient
+        .sql("DELETE FROM users WHERE personal_code = :personalCode")
+        .param("personalCode", PERSONAL_CODE)
+        .update();
+  }
+
+  private static ArgumentMatcher<MandrillMessage> addressedTo(String email) {
+    return message -> email.equals(message.getTo().getFirst().getEmail());
+  }
+
+  private static MandrillMessageStatus acceptedFor(String email) {
+    return LutungGsonUtils.getGson()
+        .fromJson(
+            "{\"_id\": \"accepted-"
+                + email
+                + "\", \"email\": \""
+                + email
+                + "\", \"status\": \"sent\"}",
+            MandrillMessageStatus.class);
   }
 }

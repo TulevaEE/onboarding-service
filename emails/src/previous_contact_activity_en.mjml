@@ -6,12 +6,12 @@
     <mj-section padding-top="12px">
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
-        <mj-text>An application to pay out your savings was signed in your Tuleva account.</mj-text>
+        <mj-text>An application to pay out your savings was submitted in your Tuleva account.</mj-text>
         <mj-text>
           We are sending this to your previous email address because your contact details
           changed recently.
         </mj-text>
-        <mj-text>If you signed it yourself, there is nothing you need to do.</mj-text>
+        <mj-text>If you submitted it yourself, there is nothing you need to do.</mj-text>
         <mj-text>
           If it wasn't you, contact us right away:
           <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or

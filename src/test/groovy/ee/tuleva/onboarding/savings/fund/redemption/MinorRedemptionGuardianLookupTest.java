@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.party.AutomaticGuardianLookups;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.notification.RedemptionRequestedEvent;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,6 +52,14 @@ class MinorRedemptionGuardianLookupTest {
 
   private static RedemptionRequestedEvent requested(PartyId party) {
     return new RedemptionRequestedEvent(
-        UUID.randomUUID(), 7L, party, new BigDecimal("100.00"), BigDecimal.TEN);
+        UUID.randomUUID(),
+        7L,
+        party,
+        new BigDecimal("100.00"),
+        BigDecimal.TEN,
+        "EE471000001020145685",
+        Instant.parse("2025-09-29T15:00:00Z"),
+        Instant.parse("2025-09-30T13:00:00Z"),
+        Instant.parse("2025-10-01T13:00:00Z"));
   }
 }

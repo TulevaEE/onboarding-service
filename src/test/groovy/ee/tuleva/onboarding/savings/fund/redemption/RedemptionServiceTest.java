@@ -22,8 +22,10 @@ import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistService;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
+import ee.tuleva.onboarding.savings.fund.notification.RedemptionRequestedEvent;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -57,6 +59,9 @@ class RedemptionServiceTest {
   private static final String IBAN = "EE471000001020145685";
   private static final BigDecimal AMOUNT = new BigDecimal("50.00");
   private static final UUID REQUEST_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+  private static final Instant REQUESTED_AT = Instant.parse("2025-09-29T15:00:00Z");
+  private static final Instant CANCELLATION_DEADLINE = Instant.parse("2025-09-30T13:00:00Z");
+  private static final Instant PAYOUT_DEADLINE = Instant.parse("2025-10-01T13:00:00Z");
 
   @Test
   void createRedemptionRequest_whileRepresentingChild_publishesMinorRedemptionEvent() {
@@ -114,6 +119,47 @@ class RedemptionServiceTest {
     redemptionService.createRedemptionRequest(self, AMOUNT, EUR, IBAN);
 
     verify(applicationEventPublisher, never()).publishEvent(any(TrackableEvent.class));
+  }
+
+  @Test
+  void createRedemptionRequest_publishesTheCanonicalIbanRequestTimeAndDeadlinesOfTheRequest() {
+    AuthenticatedPerson self = sampleAuthenticatedPersonAndMember().build();
+    PartyId selfParty = PartyId.from(self);
+
+    given(savingsFundOnboardingService.isOnboardingCompleted(selfParty)).willReturn(true);
+    given(savingFundPaymentRepository.findWithdrawableIbans(selfParty)).willReturn(List.of(IBAN));
+    given(navProvider.getDisplayNav(any())).willReturn(new BigDecimal("1.00"));
+    LedgerAccount account =
+        org.mockito.Mockito.mock(LedgerAccount.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);
+    given(account.getBalance()).willReturn(new BigDecimal("-1000.00"));
+    given(ledgerService.getPartyAccount(any(), any(), any())).willReturn(account);
+    given(redemptionRequestRepository.save(any()))
+        .willAnswer(
+            invocation -> {
+              RedemptionRequest req = invocation.getArgument(0);
+              req.setId(REQUEST_ID);
+              req.setRequestedAt(REQUESTED_AT);
+              return req;
+            });
+    given(deadlinesService.getCancellationDeadline(any(RedemptionRequest.class)))
+        .willReturn(CANCELLATION_DEADLINE);
+    given(deadlinesService.getFulfillmentDeadline(any(RedemptionRequest.class)))
+        .willReturn(PAYOUT_DEADLINE);
+
+    redemptionService.createRedemptionRequest(self, AMOUNT, EUR, "ee47 1000 0010 2014 5685");
+
+    verify(applicationEventPublisher)
+        .publishEvent(
+            new RedemptionRequestedEvent(
+                REQUEST_ID,
+                self.getUserIdOrThrow(),
+                selfParty,
+                AMOUNT,
+                new BigDecimal("50.00000"),
+                IBAN,
+                REQUESTED_AT,
+                CANCELLATION_DEADLINE,
+                PAYOUT_DEADLINE));
   }
 
   private AuthenticatedPerson parentRepresentingChild() {

@@ -51,6 +51,9 @@ public enum EmailType {
   SAVINGS_FUND_PAYMENT_FAIL("savings_fund_payment_failed"),
   SAVINGS_FUND_COMPANY_ONBOARDED("savings_fund_company_onboarded"),
   SAVINGS_FUND_COMPANY_WAITING_RELATED("savings_fund_company_waiting_related"),
+  SAVINGS_FUND_REDEMPTION_PERSON("savings_fund_redemption_person"),
+  SAVINGS_FUND_REDEMPTION_CHILD("savings_fund_redemption_child"),
+  SAVINGS_FUND_REDEMPTION_COMPANY("savings_fund_redemption_company"),
 
   MAILCHIMP_CAMPAIGN("mailchimp_campaign"),
 

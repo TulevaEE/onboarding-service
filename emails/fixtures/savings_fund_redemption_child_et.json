@@ -1,0 +1,21 @@
+{
+  "variants": {
+    "lapse nimega": {
+      "FNAME": "Mari",
+      "fundUnits": "1\u00a0157,40741",
+      "amount": "1\u00a0250,50",
+      "iban": "EE47 **** **** **** 5685",
+      "cancellationDeadline": "30.09.2025 16:00",
+      "payoutDeadline": "01.10.2025 16:00",
+      "RECIPIENTNAME": "Jaan Tamm"
+    },
+    "lapse nimeta": {
+      "FNAME": "Mari",
+      "fundUnits": "1\u00a0157,40741",
+      "amount": "1\u00a0250,50",
+      "iban": "EE47 **** **** **** 5685",
+      "cancellationDeadline": "30.09.2025 16:00",
+      "payoutDeadline": "01.10.2025 16:00"
+    }
+  }
+}

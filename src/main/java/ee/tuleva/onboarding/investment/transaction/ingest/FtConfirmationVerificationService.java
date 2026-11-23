@@ -130,7 +130,7 @@ public class FtConfirmationVerificationService {
           confirmation.fund(),
           confirmation.isin(),
           confirmation.tradeDate());
-      return new FtVerification(orphan(), null);
+      return new FtVerification(candidates.isEmpty() ? orphan() : orphanOfAWithdrawnOrder(), null);
     }
 
     FtOrderSelection selection = FtOrderSelection.among(liveOrders, confirmation);
@@ -175,6 +175,14 @@ public class FtConfirmationVerificationService {
   private static FtConfirmationResult orphan() {
     return new FtConfirmationResult(
         ORPHAN, ORPHAN, Map.of("orphanReason", "no matching order in registry"));
+  }
+
+  private static FtConfirmationResult orphanOfAWithdrawnOrder() {
+    return new FtConfirmationResult(
+        ORPHAN,
+        ORPHAN,
+        Map.of(
+            "withdrawnOrderOnly", "only an order cancelled or discarded in the registry matches"));
   }
 
   private @Nullable FtConfirmationResult ignoredResult(FtConfirmation confirmation) {

@@ -16,6 +16,11 @@ enum FtIssueCause {
       "orphanReason",
       (value, confirmation, details) -> "no FT order in the registry for this trade",
       "import the batch's orders into the registry"),
+  ORDER_WITHDRAWN(
+      "withdrawnOrderOnly",
+      (value, confirmation, details) ->
+          "FT confirmed a trade whose registry order is cancelled or discarded",
+      "check the trade with FT; if it happened, its registry order should not be cancelled"),
   SEVERAL_ORDERS(
       "ambiguousOrderCount",
       (value, confirmation, details) -> value + " registry orders match",

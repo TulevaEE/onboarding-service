@@ -114,15 +114,21 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
-  void confirmationForAnOrderCancelledInTheRegistry_isAnOrphan() {
+  void confirmationForAnOrderCancelledInTheRegistry_isAnOrphanOfAWithdrawnOrder() {
     TransactionOrder order = order(new BigDecimal("40434"));
     order.setOrderStatus(OrderStatus.CANCELLED);
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
 
     FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
-    assertThat(result.quantityStatus()).isEqualTo(ORPHAN);
-    assertThat(result.priceStatus()).isEqualTo(ORPHAN);
+    assertThat(result)
+        .isEqualTo(
+            new FtConfirmationResult(
+                ORPHAN,
+                ORPHAN,
+                Map.of(
+                    "withdrawnOrderOnly",
+                    "only an order cancelled or discarded in the registry matches")));
   }
 
   @Test

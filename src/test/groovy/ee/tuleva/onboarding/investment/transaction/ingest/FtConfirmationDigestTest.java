@@ -188,6 +188,29 @@ class FtConfirmationDigestTest {
   }
 
   @Test
+  void confirmationOfAnOrderCancelledInTheRegistry_isNotSentAsAMissingOrder() {
+    digest(true)
+        .publish(
+            List.of(
+                outcome(
+                    ISIN,
+                    ORPHAN,
+                    ORPHAN,
+                    Map.of(
+                        "withdrawnOrderOnly",
+                        "only an order cancelled or discarded in the registry matches"))));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "FT issue: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434"
+                + " — FT confirmed a trade whose registry order is cancelled or discarded\n"
+                + "Next: check the trade with FT; if it happened, its registry order should not"
+                + " be cancelled",
+            INVESTMENT);
+  }
+
+  @Test
   void errorRowWithoutAKnownCause_isSentWithItsStatuses() {
     digest(true).publish(List.of(outcome(ERROR, OK)));
 

@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.investment.event.RunSebFundConfirmationBackfillReque
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,61 +60,110 @@ class SebFundConfirmationBackfillJob {
 
   private void recordEveryConfirmationInS3() {
     List<String> keys = s3Source.allKeys();
-    List<String> unreadable = new ArrayList<>();
-    List<String> failed = new ArrayList<>();
+    LeftOutKeys leftOut = new LeftOutKeys();
     Map<String, SebFundConfirmationUpload> latestByReference = new LinkedHashMap<>();
     keys.forEach(
         key ->
-            read(key, unreadable, failed)
+            read(key, leftOut)
                 .ifPresent(upload -> latestByReference.put(upload.tradeReference(), upload)));
-    latestByReference.values().forEach(upload -> keep(upload, failed));
+    Map<String, String> recordedReferenceByKey = new HashMap<>();
+    latestByReference
+        .values()
+        .forEach(
+            upload -> {
+              if (kept(upload, leftOut)) {
+                recordedReferenceByKey.put(upload.key(), upload.tradeReference());
+              }
+            });
+    leftOut
+        .vanished()
+        .forEach(
+            key -> failUnlessRecordedFromANewerUpload(key, keys, recordedReferenceByKey, leftOut));
     log.info(
         "SEB fund confirmation backfill completed: objectCount={}, tradeCount={},"
             + " unreadableKeys={}, failedKeys={}",
         keys.size(),
         latestByReference.size(),
-        unreadable,
-        failed);
-    if (!unreadable.isEmpty() || !failed.isEmpty()) {
-      throw new SebFundConfirmationBackfillIncompleteException(unreadable, failed);
+        leftOut.unreadable(),
+        leftOut.failed());
+    if (leftOut.leftAnyPdfOut()) {
+      throw new SebFundConfirmationBackfillIncompleteException(
+          leftOut.unreadable(), leftOut.failed());
     }
   }
 
-  private Optional<SebFundConfirmationUpload> read(
-      String key, List<String> unreadable, List<String> failed) {
+  private Optional<SebFundConfirmationUpload> read(String key, LeftOutKeys leftOut) {
     Optional<byte[]> bytes;
     try {
       bytes = s3Source.get(key);
     } catch (RuntimeException e) {
       log.error("SEB fund confirmation backfill could not download: key={}", key, e);
-      failed.add(key);
+      leftOut.failed().add(key);
       return Optional.empty();
     }
     if (bytes.isEmpty()) {
-      log.warn("SEB fund confirmation PDF disappeared before the backfill fetched it: key={}", key);
-      failed.add(key);
+      leftOut.vanished().add(key);
       return Optional.empty();
     }
     try {
       return Optional.of(new SebFundConfirmationUpload(key, parser.parse(bytes.get())));
     } catch (RuntimeException e) {
       log.error("SEB fund confirmation backfill could not read: key={}", key, e);
-      unreadable.add(key);
+      leftOut.unreadable().add(key);
       return Optional.empty();
     }
   }
 
-  private void keep(SebFundConfirmationUpload upload, List<String> failed) {
+  private boolean kept(SebFundConfirmationUpload upload, LeftOutKeys leftOut) {
     try {
       confirmationRecorder.record(upload);
       navDateWriter.write(upload.tradeReference());
+      return true;
     } catch (RuntimeException e) {
       log.error(
           "SEB fund confirmation backfill could not record or date: key={}, tradeReference={}",
           upload.key(),
           upload.tradeReference(),
           e);
-      failed.add(upload.key());
+      leftOut.failed().add(upload.key());
+      return false;
+    }
+  }
+
+  private static void failUnlessRecordedFromANewerUpload(
+      String vanishedKey,
+      List<String> keysOldestFirst,
+      Map<String, String> recordedReferenceByKey,
+      LeftOutKeys leftOut) {
+    String reference = SebFundConfirmationS3Source.tradeReference(vanishedKey);
+    boolean recordedFromANewerUpload =
+        keysOldestFirst
+            .subList(keysOldestFirst.indexOf(vanishedKey) + 1, keysOldestFirst.size())
+            .stream()
+            .anyMatch(newerKey -> reference.equals(recordedReferenceByKey.get(newerKey)));
+    if (recordedFromANewerUpload) {
+      log.warn(
+          "SEB fund confirmation PDF vanished before the backfill fetched it, its trade was"
+              + " recorded from a newer upload: key={}, tradeReference={}",
+          vanishedKey,
+          reference);
+      return;
+    }
+    log.error(
+        "SEB fund confirmation PDF vanished before the backfill fetched it: key={}, tradeReference={}",
+        vanishedKey,
+        reference);
+    leftOut.failed().add(vanishedKey);
+  }
+
+  private record LeftOutKeys(List<String> unreadable, List<String> vanished, List<String> failed) {
+
+    LeftOutKeys() {
+      this(new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+    }
+
+    boolean leftAnyPdfOut() {
+      return !unreadable.isEmpty() || !failed.isEmpty();
     }
   }
 }

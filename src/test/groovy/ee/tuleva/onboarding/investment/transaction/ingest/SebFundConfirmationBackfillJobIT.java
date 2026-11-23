@@ -185,6 +185,7 @@ class SebFundConfirmationBackfillJobIT {
 
     assertThat(recorded("DLA0000002")).isPresent();
     assertThat(recorded("DLA0000001")).isEmpty();
+    then(importJobLock).should().unlock();
   }
 
   @Test
@@ -202,6 +203,40 @@ class SebFundConfirmationBackfillJobIT {
 
     assertThat(recorded("DLA0000002")).isPresent();
     assertThat(recorded("DLA0000001")).isEmpty();
+    then(importJobLock).should().unlock();
+  }
+
+  @Test
+  void backfill_completesWhenAVanishedUploadsTradeWasRecordedFromANewerUpload() {
+    s3Holds(Map.of(RESENT_UPLOAD, pdf("DLA0000001", "07/01/26")), FIRST_UPLOAD, RESENT_UPLOAD);
+    given(s3Client.getObjectAsBytes(requestFor(FIRST_UPLOAD)))
+        .willThrow(NoSuchKeyException.builder().build());
+
+    job.backfill();
+
+    assertThat(recorded("DLA0000001"))
+        .hasValueSatisfying(
+            confirmation -> assertThat(confirmation.sourceFileKey()).isEqualTo(RESENT_UPLOAD));
+    then(importJobLock).should().unlock();
+  }
+
+  @Test
+  void backfill_failsTheTriggerWhenATradesNewestUploadVanishedAndOnlyAnOlderOneWasRecorded() {
+    s3Holds(Map.of(FIRST_UPLOAD, pdf("DLA0000001", "06/01/26")), FIRST_UPLOAD, RESENT_UPLOAD);
+    given(s3Client.getObjectAsBytes(requestFor(RESENT_UPLOAD)))
+        .willThrow(NoSuchKeyException.builder().build());
+
+    assertThatThrownBy(job::backfill)
+        .isInstanceOfSatisfying(
+            SebFundConfirmationBackfillIncompleteException.class,
+            failure ->
+                assertThat(failure.leftOut())
+                    .isEqualTo(new LeftOut(List.of(), List.of(RESENT_UPLOAD))));
+
+    assertThat(recorded("DLA0000001"))
+        .hasValueSatisfying(
+            confirmation -> assertThat(confirmation.sourceFileKey()).isEqualTo(FIRST_UPLOAD));
+    then(importJobLock).should().unlock();
   }
 
   @Test
@@ -212,6 +247,7 @@ class SebFundConfirmationBackfillJobIT {
             OTHER_TRADE, pdf("DLA0000002", "06/01/26")),
         FIRST_UPLOAD,
         OTHER_TRADE);
+    TransactionExecution undatedExecution = registerExecution("DLA0000001");
     TransactionExecution otherExecution = registerExecution("DLA0000002");
     SebFundConfirmationNavDateWriter writerFailingForTheFirstTrade = spy(navDateWriter);
     willThrow(new IllegalStateException("registry down"))
@@ -227,7 +263,9 @@ class SebFundConfirmationBackfillJobIT {
 
     assertThat(recorded("DLA0000001")).isPresent();
     assertThat(recorded("DLA0000002")).isPresent();
+    assertThat(reloaded(undatedExecution).getNavDate()).isNull();
     assertThat(reloaded(otherExecution).getNavDate()).isEqualTo(LocalDate.of(2026, 1, 6));
+    then(importJobLock).should().unlock();
   }
 
   @Test

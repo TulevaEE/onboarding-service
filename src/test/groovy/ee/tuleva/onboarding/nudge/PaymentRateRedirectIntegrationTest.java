@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.nudge;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.nudge.ExperimentArm.TREATMENT;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -59,9 +60,7 @@ class PaymentRateRedirectIntegrationTest {
 
   @BeforeEach
   void setUp() {
-    ClockHolder.setClock(
-        Clock.fixed(
-            LocalDateTime.parse("2026-09-15T09:00:00").atZone(TALLINN).toInstant(), TALLINN));
+    ClockHolder.setClock(clockAt("2026-09-15T09:00"));
     personalCode = "3888888" + UUID.randomUUID().toString().replaceAll("\\D", "").substring(0, 4);
     userId = insertUser(personalCode);
   }
@@ -77,20 +76,23 @@ class PaymentRateRedirectIntegrationTest {
   }
 
   @Test
+  void aTreatmentPersonIsSentASecondTimeSevenCalendarDaysAfterTheFirstAndThenNeverAgain() {
+    AuthenticatedPerson person = anEligibleTreatmentPerson();
+
+    assertThat(assignAt("2026-11-10T20:00", person))
+        .isEqualTo(PaymentRateRedirect.to(TREATMENT, 2026));
+    assertThat(assignAt("2026-11-16T23:59", person)).isEqualTo(PaymentRateRedirect.no());
+    assertThat(assignAt("2026-11-17T08:00", person))
+        .isEqualTo(PaymentRateRedirect.to(TREATMENT, 2026));
+    assertThat(assignAt("2026-11-18T08:00", person)).isEqualTo(PaymentRateRedirect.no());
+    assertThat(exposureCount()).isEqualTo(1);
+  }
+
+  @Test
   void twoSimultaneousLandingsConsumeTheSeasonOnce() throws Exception {
     assumeTrue(isPostgres(), "The insert-on-conflict race only reproduces on PostgreSQL");
 
-    User user = sampleUser().id(userId).personalCode(personalCode).build();
-    given(userService.getByIdOrThrow(userId)).willReturn(user);
-    given(eligibility.isEligible(any())).willReturn(true);
-    AuthenticatedPerson person =
-        AuthenticatedPerson.builder()
-            .firstName("Nudge")
-            .lastName("Exposure")
-            .personalCode(TREATMENT_PERSONAL_CODE)
-            .userId(userId)
-            .role(null)
-            .build();
+    AuthenticatedPerson person = anEligibleTreatmentPerson();
 
     int threads = 2;
     ExecutorService pool = Executors.newFixedThreadPool(threads);
@@ -123,8 +125,30 @@ class PaymentRateRedirectIntegrationTest {
     assertThat(errors).isEmpty();
     assertThat(answers)
         .containsExactlyInAnyOrder(
-            PaymentRateRedirect.to(ExperimentArm.TREATMENT, 2026), PaymentRateRedirect.no());
+            PaymentRateRedirect.to(TREATMENT, 2026), PaymentRateRedirect.no());
     assertThat(exposureCount()).isEqualTo(1);
+  }
+
+  private AuthenticatedPerson anEligibleTreatmentPerson() {
+    User user = sampleUser().id(userId).personalCode(personalCode).build();
+    given(userService.getByIdOrThrow(userId)).willReturn(user);
+    given(eligibility.isEligible(any())).willReturn(true);
+    return AuthenticatedPerson.builder()
+        .firstName("Nudge")
+        .lastName("Exposure")
+        .personalCode(TREATMENT_PERSONAL_CODE)
+        .userId(userId)
+        .role(null)
+        .build();
+  }
+
+  private PaymentRateRedirect assignAt(String tallinnTime, AuthenticatedPerson person) {
+    ClockHolder.setClock(clockAt(tallinnTime));
+    return paymentRateRedirectService.assign(person);
+  }
+
+  private static Clock clockAt(String tallinnTime) {
+    return Clock.fixed(LocalDateTime.parse(tallinnTime).atZone(TALLINN).toInstant(), TALLINN);
   }
 
   private long exposureCount() {

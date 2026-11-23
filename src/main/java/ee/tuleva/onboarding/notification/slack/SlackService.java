@@ -6,6 +6,7 @@ import static java.util.Objects.requireNonNullElse;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import lombok.Getter;
@@ -13,12 +14,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
-import org.springframework.boot.restclient.RestTemplateBuilder;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.boot.http.client.HttpClientSettings;
 import org.springframework.core.env.Environment;
 import org.springframework.core.log.LogFormatUtils;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
@@ -32,7 +36,18 @@ import org.springframework.web.client.RestTemplate;
 @Slf4j
 public class SlackService implements OperationsNotificationService {
 
-  private Environment environment;
+  private static final Duration SAME_CONNECT_TIMEOUT_AS_SHARED_HTTP_CLIENTS =
+      Duration.ofSeconds(10);
+
+  private static final Duration SAME_READ_TIMEOUT_AS_SHARED_HTTP_CLIENTS = Duration.ofSeconds(60);
+
+  static final HttpClientSettings SAME_SETTINGS_AS_SHARED_HTTP_CLIENTS =
+      HttpClientSettings.defaults()
+          .withTimeouts(
+              SAME_CONNECT_TIMEOUT_AS_SHARED_HTTP_CLIENTS,
+              SAME_READ_TIMEOUT_AS_SHARED_HTTP_CLIENTS);
+
+  private final Environment environment;
   private final RestTemplate restTemplate;
   private final SlackWebhookConfiguration configuration;
 
@@ -60,13 +75,25 @@ public class SlackService implements OperationsNotificationService {
     }
   }
 
-  public SlackService(
-      RestTemplateBuilder restTemplateBuilder,
-      SlackWebhookConfiguration configuration,
-      Environment environment) {
-    this.restTemplate = restTemplateBuilder.build();
+  @Autowired
+  public SlackService(SlackWebhookConfiguration configuration, Environment environment) {
+    this(
+        restTemplateKeepingTheWebhookUrlPrivate(SAME_SETTINGS_AS_SHARED_HTTP_CLIENTS),
+        configuration,
+        environment);
+  }
+
+  SlackService(
+      RestTemplate restTemplate, SlackWebhookConfiguration configuration, Environment environment) {
+    this.restTemplate = restTemplate;
     this.configuration = configuration;
     this.environment = environment;
+  }
+
+  static RestTemplate restTemplateKeepingTheWebhookUrlPrivate(HttpClientSettings settings) {
+    return new RestTemplate(
+        new BufferingClientHttpRequestFactory(
+            ClientHttpRequestFactoryBuilder.httpComponents().build(settings)));
   }
 
   @Override

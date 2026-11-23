@@ -3,13 +3,13 @@ package ee.tuleva.onboarding.investment.fees.ocf;
 import org.jspecify.annotations.Nullable;
 
 record KidComparison(
-    PublishedPrecision fundRule,
+    PublishedPrecision newKidPrecision,
     @Nullable KidFigure kidInForce,
     @Nullable KidReview keptOnReview,
     boolean monthPublished) {
 
   PublishedPrecision precision() {
-    return kidInForce == null ? fundRule : kidInForce.precision();
+    return kidInForce == null ? newKidPrecision : kidInForce.precision();
   }
 
   boolean differsFrom(OcfSnapshot snapshot) {
@@ -20,6 +20,6 @@ record KidComparison(
   }
 
   KidComparison keptOn(KidReview review) {
-    return new KidComparison(fundRule, kidInForce, review, monthPublished);
+    return new KidComparison(newKidPrecision, kidInForce, review, monthPublished);
   }
 }

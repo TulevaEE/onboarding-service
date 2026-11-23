@@ -1,15 +1,30 @@
 package ee.tuleva.onboarding.notification.slack;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNullElse;
+
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.List;
+import java.util.Optional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.core.env.Environment;
+import org.springframework.core.log.LogFormatUtils;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 @NullMarked
@@ -72,8 +87,60 @@ public class SlackService implements OperationsNotificationService {
       return;
     }
 
-    restTemplate.postForEntity(
-        webhookUrl, new HttpEntity<>(payload(message, severity)), String.class);
+    post(webhookUrl, payload(message, severity));
+  }
+
+  private void post(String webhookUrl, Object payload) {
+    try {
+      restTemplate.postForEntity(webhookUrl, new HttpEntity<>(payload), String.class);
+    } catch (RestClientException failure) {
+      throw withoutWebhookUrl(failure);
+    }
+  }
+
+  private static RestClientException withoutWebhookUrl(RestClientException failure) {
+    return switch (failure) {
+      case HttpClientErrorException refusal ->
+          HttpClientErrorException.create(
+              describe(refusal),
+              refusal.getStatusCode(),
+              refusal.getStatusText(),
+              headersOf(refusal),
+              refusal.getResponseBodyAsByteArray(),
+              charsetOf(refusal));
+      case HttpServerErrorException error ->
+          HttpServerErrorException.create(
+              describe(error),
+              error.getStatusCode(),
+              error.getStatusText(),
+              headersOf(error),
+              error.getResponseBodyAsByteArray(),
+              charsetOf(error));
+      case ResourceAccessException noAnswer when noAnswer.getCause() instanceof IOException cause ->
+          new ResourceAccessException("I/O error posting to Slack: " + cause.getMessage(), cause);
+      default ->
+          new RestClientException(
+              "Slack post failed: failure=" + failure.getClass().getSimpleName());
+    };
+  }
+
+  private static String describe(RestClientResponseException answer) {
+    return "Slack answered with an error: status="
+        + answer.getStatusCode().value()
+        + " "
+        + answer.getStatusText()
+        + ", body="
+        + LogFormatUtils.formatValue(answer.getResponseBodyAsString(UTF_8), -1, true);
+  }
+
+  private static HttpHeaders headersOf(RestClientResponseException answer) {
+    return requireNonNullElse(answer.getResponseHeaders(), HttpHeaders.EMPTY);
+  }
+
+  private static @Nullable Charset charsetOf(RestClientResponseException answer) {
+    return Optional.ofNullable(headersOf(answer).getContentType())
+        .map(MediaType::getCharset)
+        .orElse(null);
   }
 
   private static Object payload(String message, Severity severity) {

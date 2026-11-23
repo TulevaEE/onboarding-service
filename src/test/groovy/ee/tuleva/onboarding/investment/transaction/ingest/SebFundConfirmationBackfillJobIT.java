@@ -16,7 +16,9 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willReturn;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 
 import ee.tuleva.onboarding.investment.event.JobBusyException;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
@@ -26,6 +28,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
+import ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationBackfillIncompleteException.LeftOut;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -46,6 +49,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
@@ -74,27 +78,33 @@ class SebFundConfirmationBackfillJobIT {
   private final LockProvider lockProvider = mock(LockProvider.class);
   private final SimpleLock importJobLock = mock(SimpleLock.class);
 
+  private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+
+  private SebFundConfirmationRepository confirmationRepository;
+  private SebFundConfirmationAuditRecorder auditRecorder;
+  private SebFundConfirmationNavDateWriter navDateWriter;
   private SebFundConfirmationBackfillJob job;
 
   @BeforeEach
   void setUp() {
-    Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
-    SebFundConfirmationRepository confirmationRepository =
-        new SebFundConfirmationRepository(jdbcClient);
-    SebFundConfirmationAuditRecorder auditRecorder =
-        new SebFundConfirmationAuditRecorder(auditEventRepository, clock);
-    job =
-        new SebFundConfirmationBackfillJob(
-            new SebFundConfirmationS3Source(s3Client, clock),
-            new SebFundConfirmationPdfParser(
-                new SebClientNameToFundResolver(), liberationSansTable()),
-            new SebFundConfirmationRecorder(confirmationRepository, auditRecorder, clock),
-            new SebFundConfirmationNavDateWriter(
-                confirmationRepository, executionRepository, orderRepository, auditRecorder),
-            lockProvider,
-            clock);
+    confirmationRepository = new SebFundConfirmationRepository(jdbcClient);
+    auditRecorder = new SebFundConfirmationAuditRecorder(auditEventRepository, clock);
+    navDateWriter =
+        new SebFundConfirmationNavDateWriter(
+            confirmationRepository, executionRepository, orderRepository, auditRecorder);
+    job = jobDatingWith(navDateWriter);
     given(lockProvider.lock(argThat(SebFundConfirmationBackfillJobIT::isTheImportJobsLock)))
         .willReturn(Optional.of(importJobLock));
+  }
+
+  private SebFundConfirmationBackfillJob jobDatingWith(SebFundConfirmationNavDateWriter writer) {
+    return new SebFundConfirmationBackfillJob(
+        new SebFundConfirmationS3Source(s3Client, clock),
+        new SebFundConfirmationPdfParser(new SebClientNameToFundResolver(), liberationSansTable()),
+        new SebFundConfirmationRecorder(confirmationRepository, auditRecorder, clock),
+        writer,
+        lockProvider,
+        clock);
   }
 
   @Test
@@ -141,17 +151,65 @@ class SebFundConfirmationBackfillJobIT {
   }
 
   @Test
-  void backfill_recordsEveryReadablePdfAndThenFailsTheTriggerForThePdfItCouldNotRead() {
+  void backfill_recordsEveryReadablePdfAndThenFailsTheTriggerNamingThePdfItCouldNotRead() {
     s3Holds(
         Map.of(UNREADABLE, new byte[] {1, 2, 3}, OTHER_TRADE, pdf("DLA0000002", "06/01/26")),
         UNREADABLE,
         OTHER_TRADE);
 
-    assertThatThrownBy(job::backfill).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(job::backfill)
+        .isInstanceOfSatisfying(
+            SebFundConfirmationBackfillIncompleteException.class,
+            failure ->
+                assertThat(failure.leftOut())
+                    .isEqualTo(new LeftOut(List.of(UNREADABLE), List.of())));
 
     assertThat(recorded("DLA0000002")).isPresent();
     assertThat(recorded("DLA0000003")).isEmpty();
     then(importJobLock).should().unlock();
+  }
+
+  @Test
+  void backfill_recordsTheOtherPdfsAndThenFailsTheTriggerNamingAPdfWhoseDownloadFailed() {
+    s3Holds(Map.of(OTHER_TRADE, pdf("DLA0000002", "06/01/26")), FIRST_UPLOAD, OTHER_TRADE);
+    given(s3Client.getObjectAsBytes(requestFor(FIRST_UPLOAD)))
+        .willThrow(SdkClientException.create("S3 unavailable"));
+
+    assertThatThrownBy(job::backfill)
+        .isInstanceOfSatisfying(
+            SebFundConfirmationBackfillIncompleteException.class,
+            failure ->
+                assertThat(failure.leftOut())
+                    .isEqualTo(new LeftOut(List.of(), List.of(FIRST_UPLOAD))));
+
+    assertThat(recorded("DLA0000002")).isPresent();
+    assertThat(recorded("DLA0000001")).isEmpty();
+  }
+
+  @Test
+  void backfill_datesTheOtherTradesAndThenFailsTheTriggerNamingAPdfWhoseTradeCouldNotBeDated() {
+    s3Holds(
+        Map.of(
+            FIRST_UPLOAD, pdf("DLA0000001", "06/01/26"),
+            OTHER_TRADE, pdf("DLA0000002", "06/01/26")),
+        FIRST_UPLOAD,
+        OTHER_TRADE);
+    TransactionExecution otherExecution = registerExecution("DLA0000002");
+    SebFundConfirmationNavDateWriter writerFailingForTheFirstTrade = spy(navDateWriter);
+    willThrow(new IllegalStateException("registry down"))
+        .given(writerFailingForTheFirstTrade)
+        .write("DLA0000001");
+
+    assertThatThrownBy(jobDatingWith(writerFailingForTheFirstTrade)::backfill)
+        .isInstanceOfSatisfying(
+            SebFundConfirmationBackfillIncompleteException.class,
+            failure ->
+                assertThat(failure.leftOut())
+                    .isEqualTo(new LeftOut(List.of(), List.of(FIRST_UPLOAD))));
+
+    assertThat(recorded("DLA0000001")).isPresent();
+    assertThat(recorded("DLA0000002")).isPresent();
+    assertThat(reloaded(otherExecution).getNavDate()).isEqualTo(LocalDate.of(2026, 1, 6));
   }
 
   @Test
@@ -194,14 +252,13 @@ class SebFundConfirmationBackfillJobIT {
         .willReturn(ListObjectsV2Response.builder().contents(objects).isTruncated(false).build());
     pdfs.forEach(
         (key, bytes) ->
-            given(
-                    s3Client.getObjectAsBytes(
-                        GetObjectRequest.builder()
-                            .bucket("tuleva-investment-reports")
-                            .key(key)
-                            .build()))
+            given(s3Client.getObjectAsBytes(requestFor(key)))
                 .willReturn(
                     ResponseBytes.fromByteArray(GetObjectResponse.builder().build(), bytes)));
+  }
+
+  private static GetObjectRequest requestFor(String key) {
+    return GetObjectRequest.builder().bucket("tuleva-investment-reports").key(key).build();
   }
 
   private TransactionExecution registerExecution(String reference) {

@@ -75,11 +75,7 @@ class SebFundConfirmationBackfillJob {
         unreadable,
         failed);
     if (!unreadable.isEmpty() || !failed.isEmpty()) {
-      throw new IllegalStateException(
-          "SEB fund confirmation backfill left PDFs out: unreadableKeys="
-              + unreadable
-              + ", failedKeys="
-              + failed);
+      throw new SebFundConfirmationBackfillIncompleteException(unreadable, failed);
     }
   }
 

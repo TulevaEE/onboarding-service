@@ -1,19 +1,17 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.AMBIGUOUS;
-import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.CANCELLED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ERROR;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.IGNORED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.OK;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ORPHAN;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_EXECUTION;
-import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_NAV;
-import static java.util.Comparator.comparing;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCHECKED;
+import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.liveOrders;
+import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.matchesOnlyAWithdrawnOrder;
+import static ee.tuleva.onboarding.investment.transaction.ingest.FtOrderSelection.withinQuantityTolerance;
 import static java.util.stream.Collectors.toList;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
-import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
-import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
 import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationBatchResult;
@@ -35,11 +33,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @NullMarked
@@ -48,25 +46,21 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class FtConfirmationVerificationService {
 
-  private static final BigDecimal QUANTITY_TOLERANCE = BigDecimal.ONE;
-  private static final BigDecimal DEFAULT_PRICE_TOLERANCE = new BigDecimal("0.001");
   private static final int EXECUTION_PENDING_BUSINESS_DAYS = 1;
   private static final String ADMIN_ACTOR = "admin";
 
   private final TransactionOrderRepository orderRepository;
   private final TransactionExecutionRepository executionRepository;
-  private final PositionPriceResolver positionPriceResolver;
-  private final PriceValidator priceValidator;
+  private final FtPriceCheck priceCheck;
   private final Target2Calendar target2Calendar;
   private final FtConfirmationAuditRecorder auditRecorder;
+  private final FtCancellationCheck cancellationCheck;
   private final FtConfirmationDigest digest;
   private final Clock clock;
 
-  @Value("${investment.transaction.ft-confirmation.price-tolerance:0.001}")
-  private BigDecimal priceTolerance = DEFAULT_PRICE_TOLERANCE;
-
   public FtConfirmationResult verify(FtConfirmation confirmation) {
-    FtConfirmationResult result = verifyAndRecord(confirmation, ADMIN_ACTOR);
+    FtConfirmationResult result =
+        verifyAndRecord(confirmation, FtCorrections.among(List.of(confirmation)), ADMIN_ACTOR);
     digest.publish(List.of(new FtConfirmationOutcome(confirmation, result)));
     return result;
   }
@@ -74,7 +68,8 @@ public class FtConfirmationVerificationService {
   public List<FtConfirmationBatchResult> verifyAll(
       List<FtConfirmation> confirmations, String actor) {
     List<FtConfirmationBatchResult> results = new ArrayList<>();
-    List<FtConfirmationOutcome> outcomes = new ArrayList<>();
+    List<FtCheckOutcome> outcomes = new ArrayList<>();
+    FtCorrections corrections = FtCorrections.among(confirmations);
     for (int index = 0; index < confirmations.size(); index++) {
       FtConfirmation confirmation = confirmations.get(index);
       if (confirmation == null) {
@@ -82,7 +77,7 @@ public class FtConfirmationVerificationService {
         continue;
       }
       try {
-        FtConfirmationResult result = verifyAndRecord(confirmation, actor);
+        FtConfirmationResult result = verifyAndRecord(confirmation, corrections, actor);
         results.add(FtConfirmationBatchResult.verified(index, confirmation.isin(), result));
         outcomes.add(new FtConfirmationOutcome(confirmation, result));
       } catch (RuntimeException e) {
@@ -92,29 +87,31 @@ public class FtConfirmationVerificationService {
             confirmation.isin(),
             e.getMessage(),
             e);
-        results.add(
-            FtConfirmationBatchResult.failed(
-                index,
-                confirmation.isin(),
-                e.getMessage() == null ? e.toString() : e.getMessage()));
+        String error = e.getMessage() == null ? e.toString() : e.getMessage();
+        results.add(FtConfirmationBatchResult.failed(index, confirmation.isin(), error));
+        if (hasEveryTradeField(confirmation)) {
+          outcomes.add(new FtConfirmationOutcome(confirmation, unchecked(error)));
+        }
       }
     }
     digest.publish(outcomes);
     return results;
   }
 
-  private FtConfirmationResult verifyAndRecord(FtConfirmation confirmation, String actor) {
-    Computed computed = compute(confirmation);
+  private FtConfirmationResult verifyAndRecord(
+      FtConfirmation confirmation, FtCorrections corrections, String actor) {
+    FtVerification computed = compute(confirmation, corrections);
     record(confirmation, computed, actor);
     return computed.result();
   }
 
-  private void record(FtConfirmation confirmation, Computed computed, String actor) {
+  private void record(FtConfirmation confirmation, FtVerification computed, String actor) {
     if (computed.result().quantityStatus() == IGNORED) {
       return;
     }
     boolean recorded =
-        auditRecorder.recordOutcome(computed.order(), confirmation, computed.result(), actor);
+        auditRecorder.recordOutcome(
+            computed.order(), new FtConfirmationOutcome(confirmation, computed.result()), actor);
     if (recorded) {
       log.info(
           "FT confirmation verified: isin={}, tradeDate={}, type={}, quantityStatus={}, priceStatus={}",
@@ -126,54 +123,66 @@ public class FtConfirmationVerificationService {
     }
   }
 
-  private Computed compute(FtConfirmation confirmation) {
+  private FtVerification compute(FtConfirmation confirmation, FtCorrections corrections) {
     FtConfirmationResult ignored = ignoredResult(confirmation);
     if (ignored != null) {
-      return new Computed(ignored, null);
+      return new FtVerification(ignored, null);
     }
 
     List<TransactionOrder> candidates = candidateOrders(confirmation);
-    if (candidates.isEmpty()) {
+    if (confirmation.isCancellation()) {
+      return cancellationCheck.cancellation(confirmation, candidates, corrections);
+    }
+    if (corrections.isVoided(confirmation)) {
+      return FtCancellationCheck.voided(confirmation, candidates);
+    }
+    List<TransactionOrder> liveOrders = liveOrders(candidates);
+    if (liveOrders.isEmpty() || matchesOnlyAWithdrawnOrder(confirmation, candidates, liveOrders)) {
       log.warn(
           "No order found for FT confirmation: fund={}, isin={}, tradeDate={}",
           confirmation.fund(),
           confirmation.isin(),
           confirmation.tradeDate());
-      return new Computed(orphan(), null);
+      return new FtVerification(orphan(), null);
     }
 
-    OrderSelection selection = selectOrder(confirmation, candidates);
+    FtOrderSelection selection = FtOrderSelection.among(liveOrders, confirmation);
     TransactionOrder order = selection.order();
 
     Map<String, String> details = new LinkedHashMap<>();
     details.put("orderUuid", order.getOrderUuid().toString());
 
-    if (confirmation.isCancellation()) {
-      if (selection.matchCount() > 1) {
-        details.put("ambiguousOrderCount", String.valueOf(selection.matchCount()));
-        return new Computed(result(AMBIGUOUS, AMBIGUOUS, details), order);
-      }
-      details.put("cancellationSignature", confirmation.cancellationSignature());
-      return new Computed(result(CANCELLED, CANCELLED, details), order);
-    }
-
     if (selection.ambiguous()) {
       details.put("ambiguousOrderCount", String.valueOf(selection.matchCount()));
-      return new Computed(result(AMBIGUOUS, AMBIGUOUS, details), order);
+      return new FtVerification(result(AMBIGUOUS, AMBIGUOUS, details), order);
     }
 
     FtVerificationStatus quantityStatus = checkQuantity(confirmation, order, details);
-    FtVerificationStatus priceStatus = checkPrice(confirmation, details);
-    return new Computed(result(quantityStatus, priceStatus, details), order);
+    FtVerificationStatus priceStatus =
+        priceCheck.check(
+            confirmation.isin(), confirmation.tradeDate(), confirmation.grossPrice(), details);
+    return new FtVerification(result(quantityStatus, priceStatus, details), order);
   }
-
-  private record Computed(FtConfirmationResult result, @Nullable TransactionOrder order) {}
 
   private static FtConfirmationResult result(
       FtVerificationStatus quantityStatus,
       FtVerificationStatus priceStatus,
       Map<String, String> details) {
     return new FtConfirmationResult(quantityStatus, priceStatus, Map.copyOf(details));
+  }
+
+  private static boolean hasEveryTradeField(FtConfirmation confirmation) {
+    return Stream.of(
+            confirmation.fund(),
+            confirmation.isin(),
+            confirmation.tradeDate(),
+            confirmation.quantity(),
+            confirmation.grossPrice())
+        .allMatch(Objects::nonNull);
+  }
+
+  private static FtConfirmationResult unchecked(String error) {
+    return new FtConfirmationResult(UNCHECKED, UNCHECKED, Map.of("verificationError", error));
   }
 
   private static FtConfirmationResult orphan() {
@@ -213,35 +222,6 @@ public class FtConfirmationVerificationService {
         .filter(order -> hasTradeDate(order, confirmation.tradeDate()))
         .collect(toList());
   }
-
-  private OrderSelection selectOrder(
-      FtConfirmation confirmation, List<TransactionOrder> candidates) {
-    if (candidates.size() == 1) {
-      return new OrderSelection(candidates.get(0), false, 1);
-    }
-    List<TransactionOrder> quantityMatches =
-        candidates.stream()
-            .filter(
-                order -> {
-                  var orderQuantity = order.getOrderQuantity();
-                  return orderQuantity != null
-                      && withinQuantityTolerance(confirmation.quantity(), orderQuantity);
-                })
-            .collect(toList());
-    if (quantityMatches.size() == 1) {
-      return new OrderSelection(quantityMatches.get(0), false, 1);
-    }
-    if (quantityMatches.size() > 1) {
-      return new OrderSelection(oldest(quantityMatches), true, quantityMatches.size());
-    }
-    return new OrderSelection(oldest(candidates), true, candidates.size());
-  }
-
-  private static TransactionOrder oldest(List<TransactionOrder> orders) {
-    return orders.stream().min(comparing(TransactionOrder::getId)).orElseThrow();
-  }
-
-  private record OrderSelection(TransactionOrder order, boolean ambiguous, int matchCount) {}
 
   private static boolean hasTradeDate(TransactionOrder order, LocalDate ftUtcTradeDate) {
     var timestamp = order.getOrderTimestamp();
@@ -286,37 +266,5 @@ public class FtConfirmationVerificationService {
         .map(TransactionExecution::getExecutedQuantity)
         .filter(Objects::nonNull)
         .reduce(BigDecimal.ZERO, BigDecimal::add);
-  }
-
-  private static boolean withinQuantityTolerance(BigDecimal ftQuantity, BigDecimal quantity) {
-    return ftQuantity.subtract(quantity).abs().compareTo(QUANTITY_TOLERANCE) <= 0;
-  }
-
-  private FtVerificationStatus checkPrice(
-      FtConfirmation confirmation, Map<String, String> details) {
-    Optional<BigDecimal> referencePrice =
-        positionPriceResolver
-            .resolve(confirmation.isin(), confirmation.tradeDate())
-            .filter(resolved -> resolved.validationStatus() == ValidationStatus.OK)
-            .filter(resolved -> confirmation.tradeDate().equals(resolved.priceDate()))
-            .map(ResolvedPrice::usedPrice);
-
-    if (referencePrice.isEmpty()) {
-      return PENDING_NAV;
-    }
-
-    BigDecimal reference = referencePrice.get();
-    details.put("referencePrice", reference.toPlainString());
-    if (reference.signum() <= 0) {
-      details.put("invalidReferencePrice", "true");
-      return ERROR;
-    }
-    if (priceValidator.isWithinTolerance(confirmation.grossPrice(), reference, priceTolerance)) {
-      return OK;
-    }
-    details.put(
-        "priceDeltaPercent",
-        priceValidator.computeDeltaPercent(confirmation.grossPrice(), reference).toPlainString());
-    return ERROR;
   }
 }

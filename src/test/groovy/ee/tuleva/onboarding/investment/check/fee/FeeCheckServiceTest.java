@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_CO
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.INSTRUMENT_RATE_COVERAGE;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.LEDGER_ACCRUAL_CONSISTENCY;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.PENSIONIKESKUS_MANAGEMENT_FEE;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.PENSIONIKESKUS_ONGOING_CHARGES;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -43,6 +44,7 @@ class FeeCheckServiceTest {
   @Mock private CashSettlementChecker cashSettlementChecker;
   @Mock private InstrumentRateCoverageChecker instrumentRateCoverageChecker;
   @Mock private PensionikeskusManagementFeeChecker pensionikeskusManagementFeeChecker;
+  @Mock private PensionikeskusOngoingChargesChecker pensionikeskusOngoingChargesChecker;
   @Mock private FeeCheckEventRepository eventRepository;
   @Mock private FeeCheckNotifier notifier;
 
@@ -60,6 +62,7 @@ class FeeCheckServiceTest {
             cashSettlementChecker,
             instrumentRateCoverageChecker,
             pensionikeskusManagementFeeChecker,
+            pensionikeskusOngoingChargesChecker,
             eventRepository,
             notifier,
             35);
@@ -83,7 +86,8 @@ class FeeCheckServiceTest {
                 BLACKROCK_ADJUSTMENT_AFTER_REBATE, FeeCheckScope.ALL),
             org.assertj.core.groups.Tuple.tuple(INSTRUMENT_RATE_COVERAGE, FeeCheckScope.ALL),
             org.assertj.core.groups.Tuple.tuple(
-                PENSIONIKESKUS_MANAGEMENT_FEE, FeeCheckScope.MANAGEMENT));
+                PENSIONIKESKUS_MANAGEMENT_FEE, FeeCheckScope.MANAGEMENT),
+            org.assertj.core.groups.Tuple.tuple(PENSIONIKESKUS_ONGOING_CHARGES, FeeCheckScope.ALL));
   }
 
   @Test
@@ -191,6 +195,8 @@ class FeeCheckServiceTest {
         .willReturn(List.of(passFinding(INSTRUMENT_RATE_COVERAGE, FeeCheckScope.ALL)));
     given(pensionikeskusManagementFeeChecker.check(any(), any()))
         .willReturn(List.of(passFinding(PENSIONIKESKUS_MANAGEMENT_FEE, FeeCheckScope.MANAGEMENT)));
+    given(pensionikeskusOngoingChargesChecker.check(any(), any()))
+        .willReturn(List.of(passFinding(PENSIONIKESKUS_ONGOING_CHARGES, FeeCheckScope.ALL)));
   }
 
   private void givenCustodianCheckerPasses() {

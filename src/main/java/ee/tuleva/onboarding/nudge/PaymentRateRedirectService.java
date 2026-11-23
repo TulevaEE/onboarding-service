@@ -6,7 +6,9 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Period;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,8 +28,11 @@ class PaymentRateRedirectService {
   private final Clock estonianClock;
 
   PaymentRateRedirect assign(AuthenticatedPerson person) {
-    if (!isWindowOpenFor(person) || alreadyAssigned(person)) {
+    if (!isWindowOpenFor(person)) {
       return PaymentRateRedirect.no();
+    }
+    if (alreadyAssigned(person)) {
+      return showASecondTimeIfDue(person);
     }
     User user = userService.getByIdOrThrow(person.getUserIdOrThrow());
     if (!eligibility.isEligible(user)) {
@@ -48,6 +53,28 @@ class PaymentRateRedirectService {
     return assigned && arm == TREATMENT
         ? PaymentRateRedirect.to(arm, seasonYear())
         : PaymentRateRedirect.no();
+  }
+
+  private PaymentRateRedirect showASecondTimeIfDue(AuthenticatedPerson person) {
+    final Period SECOND_SHOWING_AFTER = Period.ofDays(7);
+    long userId = person.getUserIdOrThrow();
+    LocalDate lastFirstShowingDay = LocalDate.now(estonianClock).minus(SECOND_SHOWING_AFTER);
+    Instant firstShownBefore =
+        lastFirstShowingDay.plusDays(1).atStartOfDay(estonianClock.getZone()).toInstant();
+    if (!nudgeExposureRepository.isDueForSecondShowing(
+            userId, NUDGE_KEY, seasonYear(), firstShownBefore)
+        || !eligibility.isEligible(userService.getByIdOrThrow(userId))) {
+      return PaymentRateRedirect.no();
+    }
+    if (!nudgeExposureRepository.recordSecondShowing(
+        userId, NUDGE_KEY, seasonYear(), firstShownBefore, estonianClock.instant())) {
+      return PaymentRateRedirect.no();
+    }
+    log.info(
+        "Payment rate redirect shown a second time: userId={}, seasonYear={}",
+        userId,
+        seasonYear());
+    return PaymentRateRedirect.to(TREATMENT, seasonYear());
   }
 
   void dismiss(AuthenticatedPerson person) {

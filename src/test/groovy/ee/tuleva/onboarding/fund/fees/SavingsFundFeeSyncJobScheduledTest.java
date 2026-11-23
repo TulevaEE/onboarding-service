@@ -6,11 +6,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-@ScheduledTest(SavingsFundManagementFeeSyncJob.class)
+@ScheduledTest(SavingsFundFeeSyncJob.class)
 @ActiveProfiles("production")
-class SavingsFundManagementFeeSyncJobScheduledTest {
+class SavingsFundFeeSyncJobScheduledTest {
 
   @MockitoBean SavingsFundManagementFeeSync savingsFundManagementFeeSync;
+  @MockitoBean SavingsFundOngoingChargesSync savingsFundOngoingChargesSync;
   @MockitoBean Clock clock;
 
   @Test

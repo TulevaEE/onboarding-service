@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.event.NavEventListenerOrder;
 import ee.tuleva.onboarding.investment.event.RunPortfolioReconciliationRequested;
+import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisRefresher;
 import ee.tuleva.onboarding.savings.NavCalculationCompleted;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
@@ -25,6 +26,7 @@ public class PortfolioReconciliationJob {
   private final Clock clock;
   private final PublicHolidays publicHolidays;
   private final PortfolioReconciliationService service;
+  private final CostBasisRefresher costBasisRefresher;
 
   @EventListener
   @Order(NavEventListenerOrder.PORTFOLIO_RECONCILIATION)
@@ -43,7 +45,7 @@ public class PortfolioReconciliationJob {
     log.info("Running portfolio reconciliation: navDate={}, fundCount={}", navDate, funds.size());
     for (TulevaFund fund : funds) {
       try {
-        service.reconcile(fund, navDate);
+        service.reconcile(fund, navDate, costBasisRefresher.refresh(fund));
       } catch (RuntimeException e) {
         log.error(
             "Portfolio reconciliation failed: fundCode={}, navDate={}, error={}",

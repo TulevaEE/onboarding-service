@@ -68,12 +68,15 @@ var SOURCES = {
             {
                 // Flow Traders names the confirmation PDF by allocation id,
                 // e.g. "MID9DSWsDs-00.pdf" (confirmed against live FT email, 2026-08).
+                // A cancellation can carry the same name as the confirmation it cancels,
+                // so the key also holds the e-mail's Gmail id and neither overwrites the other.
                 pattern: /^(MID\w+-\d+)\.pdf$/i,
                 s3Prefix: "ft-confirmations/",
                 s3Suffix: ".pdf",
                 binary: true,
                 contentType: "application/pdf",
-                keyFromCapture: true
+                keyFromCapture: true,
+                keyPerEmail: true
             }
         ]
     },
@@ -96,10 +99,17 @@ var SOURCES = {
 
 var RUN_LOCK_WAIT_MS = 10000;
 
+var INLINE_CONFIRMATION_CATCH_UP = {
+    since: new Date("2026-11-16T00:00:00+02:00"),
+    runsFrom: new Date("2026-11-23T00:00:00+02:00"),
+    doneProperty: "INLINE_CONFIRMATION_CATCH_UP_DONE"
+};
+
 function processNewEmails() {
     if (!runAlone(function () {
         try {
             processEmailsFromDays(2);
+            requestTheInlineConfirmationCatchUpOnce(PropertiesService.getScriptProperties(), new Date());
             continueRequestedBackfillUnderTheRunsLock();
         } catch (e) {
             notifySlack(":rotating_light: Uncaught error in `processNewEmails`: `" + e.message +
@@ -109,6 +119,16 @@ function processNewEmails() {
     })) {
         Logger.log("Skipped, another run holds the script lock; the next trigger retries");
     }
+}
+
+function requestTheInlineConfirmationCatchUpOnce(props, now) {
+    var catchUp = INLINE_CONFIRMATION_CATCH_UP;
+    if (now < catchUp.runsFrom || props.getProperty(catchUp.doneProperty) !== null) return;
+    if (!backfillRequested(props)) {
+        props.setProperty(SEB_CONFIRMATION_BACKFILL_RESUME_PROPERTY, catchUp.since.toISOString());
+        requestBackfill(props);
+    }
+    props.setProperty(catchUp.doneProperty, now.toISOString());
 }
 
 function processHistoricalEmails() {
@@ -353,18 +373,25 @@ function messageHasMatchingAttachments(message) {
     var source = sourceOf(message);
     if (!source) return false;
 
-    var filenames = message.getAttachments({ includeInlineImages: false })
-        .map(function (a) { return a.getName(); });
-    var partition = partitionFilenamesByMatch(source, filenames);
+    var matched = partitionFilenamesByMatch(source, namesOf(message.getAttachments())).matched;
+    var unmatched = partitionFilenamesByMatch(source, namesOf(regularAttachmentsOf(message))).unmatched;
 
     Logger.log("Attachments from known sender: sender=" + sender +
-        ", matched=[" + partition.matched.join(",") +
-        "], unmatched=[" + partition.unmatched.join(",") + "]");
+        ", matched=[" + matched.join(",") +
+        "], unmatched=[" + unmatched.join(",") + "]");
 
-    if (shouldAlertOnUnmatched(sender, partition.matched.length, partition.unmatched) && isWithinTheLongestCatchUp(message.getDate(), new Date())) {
-        notifyOnceForUnmatchedAttachments(message.getId(), sender, partition.unmatched, partition.matched.length);
+    if (shouldAlertOnUnmatched(sender, matched.length, unmatched) && isWithinTheLongestCatchUp(message.getDate(), new Date())) {
+        notifyOnceForUnmatchedAttachments(message.getId(), sender, unmatched, matched.length);
     }
-    return partition.matched.length > 0;
+    return matched.length > 0;
+}
+
+function regularAttachmentsOf(message) {
+    return message.getAttachments({ includeInlineImages: false });
+}
+
+function namesOf(attachments) {
+    return attachments.map(function (a) { return a.getName(); });
 }
 
 function isWithinTheLongestCatchUp(messageDate, now) {
@@ -428,7 +455,7 @@ function uploadMatchingAttachments(message, source, newestUploaded) {
     var attachments = message.getAttachments();
     var counts = { uploaded: 0, handled: 0 };
     var emailSource = emailSourceOf(message);
-    var keysWithAPlainAttachment = keysOfAttachmentsWithoutUsEnding(source, attachments);
+    var keysWithAPlainAttachment = keysOfAttachmentsWithoutUsEnding(source, attachments, emailSource);
 
     for (var k = 0; k < attachments.length; k++) {
         var attachment = attachments[k];
@@ -436,7 +463,7 @@ function uploadMatchingAttachments(message, source, newestUploaded) {
 
         var result = getFileConfigAndDate(source, filename);
         if (result) {
-            var s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
+            var s3Key = s3KeyFor(result, emailSource);
             var datedReport = !result.fileConfig.keyFromCapture;
             if (isSebUsCopyBesideItsPlainReport(result.fileConfig, filename, s3Key, keysWithAPlainAttachment)) {
                 Logger.log("S3 upload skipped, the e-mail also has the report without the _US ending: file=" + filename + ", key=" + s3Key + ", messageId=" + emailSource.id);
@@ -473,11 +500,11 @@ function isSebUsCopyBesideItsPlainReport(fileConfig, filename, s3Key, keysWithAP
     return Boolean(fileConfig.driveKeyword) && isUsCopyName(nameWithoutTheSendersVersionSuffix(filename)) && keysWithAPlainAttachment.indexOf(s3Key) !== -1;
 }
 
-function keysOfAttachmentsWithoutUsEnding(source, attachments) {
+function keysOfAttachmentsWithoutUsEnding(source, attachments, emailSource) {
     var keys = [];
     attachments.forEach(function (attachment) {
         var result = getFileConfigAndDate(source, attachment.getName());
-        if (result && !isUsCopyName(nameWithoutTheSendersVersionSuffix(attachment.getName()))) keys.push(result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix);
+        if (result && !isUsCopyName(nameWithoutTheSendersVersionSuffix(attachment.getName()))) keys.push(s3KeyFor(result, emailSource));
     });
     return keys;
 }
@@ -584,7 +611,7 @@ function isNewerThanEveryUnreadUpload(emailSource, scan) {
 function datedReportKeysOf(message) {
     var source = sourceOf(message);
     if (!source) return null;
-    var attachments = message.getAttachments({ includeInlineImages: false });
+    var attachments = message.getAttachments();
     var matched = false;
     var keys = [];
     for (var i = 0; i < attachments.length; i++) {
@@ -1135,6 +1162,11 @@ function getFileConfigAndDate(source, filename) {
     return null;
 }
 
+function s3KeyFor(result, emailSource) {
+    var stem = result.fileConfig.keyPerEmail ? result.keyStem + "_" + emailSource.id : result.keyStem;
+    return result.fileConfig.s3Prefix + stem + result.fileConfig.s3Suffix;
+}
+
 function formatDateFromCapture(ymd) {
     return ymd.substring(0, 4) + "-" + ymd.substring(4, 6) + "-" + ymd.substring(6, 8);
 }
@@ -1332,12 +1364,12 @@ function dryRunThread(thread) {
         }
 
         var attachments = message.getAttachments();
-        var keysWithAPlainAttachment = keysOfAttachmentsWithoutUsEnding(source, attachments);
+        var keysWithAPlainAttachment = keysOfAttachmentsWithoutUsEnding(source, attachments, emailSourceOf(message));
         for (var k = 0; k < attachments.length; k++) {
             var filename = attachments[k].getName();
             var result = getFileConfigAndDate(source, filename);
             if (result) {
-                var s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
+                var s3Key = s3KeyFor(result, emailSourceOf(message));
                 if (isSebUsCopyBesideItsPlainReport(result.fileConfig, filename, s3Key, keysWithAPlainAttachment)) {
                     Logger.log("    -> Would SKIP: " + filename + ", the e-mail also has the report without the _US ending");
                     continue;
@@ -1373,6 +1405,7 @@ if (typeof module !== "undefined" && module.exports) {
         getSourceForSender,
         getSourceForMessage,
         getFileConfigAndDate,
+        s3KeyFor,
         isMessageWithinWindow,
         shouldProcessMessage,
         parseUploadCountFromLabelNames,

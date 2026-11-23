@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisRefresh;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -9,7 +10,8 @@ public record PortfolioReconciliationSkippedEvent(
     TulevaFund fund,
     LocalDate asOfDate,
     Map<String, BigDecimal> ourQuantities,
-    Map<String, BigDecimal> theirQuantities) {
+    Map<String, BigDecimal> theirQuantities,
+    CostBasisRefresh costBasisRefresh) {
 
   boolean isLedgerMissing() {
     return ourQuantities.isEmpty();

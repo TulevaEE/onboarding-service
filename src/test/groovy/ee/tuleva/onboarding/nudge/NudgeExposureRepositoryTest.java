@@ -21,6 +21,7 @@ class NudgeExposureRepositoryTest {
 
   private static final String KEY = NudgeKey.SECOND_PILLAR_PAYMENT_RATE.name();
   private static final Instant ASSIGNED_AT = Instant.parse("2026-09-15T06:00:00Z");
+  private static final Instant SECOND_SHOWN_AT = Instant.parse("2026-09-22T06:00:00Z");
 
   @Autowired private NudgeExposureRepository repository;
   @Autowired private JdbcClient jdbcClient;
@@ -74,6 +75,94 @@ class NudgeExposureRepositoryTest {
     repository.recordDismissal(userId, KEY, 2026, Instant.parse("2026-09-15T07:00:00Z"));
 
     assertThat(armOf(2026)).isEmpty();
+  }
+
+  @Test
+  void aTreatmentPersonFirstShownLongEnoughAgoIsShownASecondTimeOnce() {
+    repository.recordAssignment(userId, KEY, 2026, TREATMENT, ASSIGNED_AT);
+    Instant firstShownBefore = ASSIGNED_AT.plusSeconds(1);
+
+    assertThat(repository.isDueForSecondShowing(userId, KEY, 2026, firstShownBefore)).isTrue();
+    assertThat(repository.recordSecondShowing(userId, KEY, 2026, firstShownBefore, SECOND_SHOWN_AT))
+        .isTrue();
+    assertThat(repository.recordSecondShowing(userId, KEY, 2026, firstShownBefore, SECOND_SHOWN_AT))
+        .isFalse();
+    assertThat(repository.isDueForSecondShowing(userId, KEY, 2026, firstShownBefore)).isFalse();
+    assertThat(instantColumn("second_shown_at")).contains(SECOND_SHOWN_AT);
+  }
+
+  @Test
+  void aTreatmentPersonFirstShownTooRecentlyIsNotShownASecondTime() {
+    repository.recordAssignment(userId, KEY, 2026, TREATMENT, ASSIGNED_AT);
+
+    assertThat(repository.isDueForSecondShowing(userId, KEY, 2026, ASSIGNED_AT)).isFalse();
+    assertThat(repository.recordSecondShowing(userId, KEY, 2026, ASSIGNED_AT, SECOND_SHOWN_AT))
+        .isFalse();
+  }
+
+  @Test
+  void aTreatmentPersonWhoDismissedTheFirstShowingIsStillShownASecondTime() {
+    repository.recordAssignment(userId, KEY, 2026, TREATMENT, ASSIGNED_AT);
+    repository.recordDismissal(userId, KEY, 2026, ASSIGNED_AT.plusSeconds(20));
+
+    assertThat(repository.isDueForSecondShowing(userId, KEY, 2026, SECOND_SHOWN_AT)).isTrue();
+  }
+
+  @Test
+  void aControlPersonIsNeverShownASecondTime() {
+    repository.recordAssignment(userId, KEY, 2026, CONTROL, ASSIGNED_AT);
+
+    assertThat(repository.isDueForSecondShowing(userId, KEY, 2026, SECOND_SHOWN_AT)).isFalse();
+    assertThat(repository.recordSecondShowing(userId, KEY, 2026, SECOND_SHOWN_AT, SECOND_SHOWN_AT))
+        .isFalse();
+  }
+
+  @Test
+  void aPersonNeverAssignedIsNeverShownASecondTime() {
+    assertThat(repository.isDueForSecondShowing(userId, KEY, 2026, SECOND_SHOWN_AT)).isFalse();
+    assertThat(repository.recordSecondShowing(userId, KEY, 2026, SECOND_SHOWN_AT, SECOND_SHOWN_AT))
+        .isFalse();
+  }
+
+  @Test
+  void aDismissalAfterTheSecondShowingIsStampedOnTheSecondShowingOnly() {
+    Instant firstDismissal = ASSIGNED_AT.plusSeconds(20);
+    Instant secondDismissal = SECOND_SHOWN_AT.plusSeconds(20);
+    repository.recordAssignment(userId, KEY, 2026, TREATMENT, ASSIGNED_AT);
+    repository.recordDismissal(userId, KEY, 2026, firstDismissal);
+    repository.recordSecondShowing(userId, KEY, 2026, SECOND_SHOWN_AT, SECOND_SHOWN_AT);
+
+    repository.recordDismissal(userId, KEY, 2026, secondDismissal);
+    repository.recordDismissal(userId, KEY, 2026, secondDismissal.plusSeconds(60));
+
+    assertThat(instantColumn("dismissed_at")).contains(firstDismissal);
+    assertThat(instantColumn("second_dismissed_at")).contains(secondDismissal);
+  }
+
+  @Test
+  void aDismissalOfTheSecondShowingAfterAnIgnoredFirstLeavesTheFirstUndismissed() {
+    Instant secondDismissal = SECOND_SHOWN_AT.plusSeconds(20);
+    repository.recordAssignment(userId, KEY, 2026, TREATMENT, ASSIGNED_AT);
+    repository.recordSecondShowing(userId, KEY, 2026, SECOND_SHOWN_AT, SECOND_SHOWN_AT);
+
+    repository.recordDismissal(userId, KEY, 2026, secondDismissal);
+
+    assertThat(instantColumn("dismissed_at")).isEmpty();
+    assertThat(instantColumn("second_dismissed_at")).contains(secondDismissal);
+  }
+
+  private Optional<Instant> instantColumn(String column) {
+    return jdbcClient
+        .sql(
+            "SELECT "
+                + column
+                + " FROM nudge_exposure WHERE user_id = :userId"
+                + " AND nudge_key = :key AND season_year = 2026")
+        .param("userId", userId)
+        .param("key", KEY)
+        .query((rs, rowNum) -> Optional.ofNullable(rs.getTimestamp(1)))
+        .single()
+        .map(Timestamp::toInstant);
   }
 
   private Optional<String> armOf(int seasonYear) {

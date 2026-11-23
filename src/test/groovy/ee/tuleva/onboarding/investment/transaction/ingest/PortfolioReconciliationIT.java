@@ -1,20 +1,42 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
+import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
+import ee.tuleva.onboarding.investment.transaction.TransactionBatch;
+import ee.tuleva.onboarding.investment.transaction.TransactionBatchRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
+import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
+import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisRefresh;
+import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisRefresher;
+import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioBaseline;
+import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioBaselineEntry;
+import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioBaselineRepository;
 import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasis;
 import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasisRepository;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import net.javacrumbs.shedlock.core.LockProvider;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.event.EventListener;
@@ -36,6 +58,11 @@ class PortfolioReconciliationIT {
   @Autowired private PortfolioCostBasisRepository costBasisRepository;
   @Autowired private JdbcClient jdbcClient;
   @Autowired private TestEventRecorder recorder;
+  @Autowired private PortfolioCostBasisService costBasisService;
+  @Autowired private PortfolioBaselineRepository baselineRepository;
+  @Autowired private TransactionBatchRepository batchRepository;
+  @Autowired private TransactionOrderRepository orderRepository;
+  @Autowired private TransactionExecutionRepository executionRepository;
 
   @BeforeEach
   void cleanRecorderAndData() {
@@ -56,7 +83,7 @@ class PortfolioReconciliationIT {
     seedCostBasis(ISIN_A, "10000.0000");
     seedNavReport(ISIN_A, new BigDecimal("10000.0000"));
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.refreshed());
 
     assertThat(recorder.events).isEmpty();
   }
@@ -66,7 +93,7 @@ class PortfolioReconciliationIT {
     seedCostBasis(ISIN_A, "10005.0000");
     seedNavReport(ISIN_A, new BigDecimal("10000.0000"));
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.refreshed());
 
     assertThat(recorder.events).hasSize(1);
     PortfolioReconciliationMismatchEvent event = recorder.events.get(0);
@@ -86,7 +113,7 @@ class PortfolioReconciliationIT {
     seedCostBasis(ISIN_B, "250.0000");
     seedNavReport(ISIN_B, new BigDecimal("250.0000"));
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.refreshed());
 
     assertThat(recorder.events).hasSize(1);
     assertThat(recorder.events.get(0).mismatches()).hasSize(1);
@@ -103,7 +130,7 @@ class PortfolioReconciliationIT {
     seedNavReport(ISIN_A, new BigDecimal("10000.0000"), calculationId);
     seedNavReport(ISIN_B, new BigDecimal("250.0000"), calculationId);
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.refreshed());
 
     assertThat(recorder.events).hasSize(1);
     assertThat(recorder.events.get(0).mismatches()).hasSize(1);
@@ -114,12 +141,59 @@ class PortfolioReconciliationIT {
   }
 
   @Test
+  void zeroLedgerRowTheNavReportOmits_isNotAMismatch() {
+    seedCostBasis(ISIN_A, "10000.0000");
+    seedCostBasis(ISIN_B, "0.0000");
+    seedNavReport(ISIN_A, new BigDecimal("10000.0000"));
+
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.refreshed());
+
+    assertThat(recorder.events).isEmpty();
+    assertThat(recorder.skippedEvents).isEmpty();
+  }
+
+  @Test
+  void ledgerDustBelowTheToleranceTheNavReportOmits_isNotAMismatch() {
+    seedCostBasis(ISIN_A, "10000.0000");
+    seedCostBasis(ISIN_B, "0.0040");
+    seedNavReport(ISIN_A, new BigDecimal("10000.0000"));
+
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.refreshed());
+
+    assertThat(recorder.events).isEmpty();
+    assertThat(recorder.skippedEvents).isEmpty();
+  }
+
+  @Test
+  void aBuyTheRegistryHoldsButTheStoredLedgerLacks_isAMismatchUntilTheRefreshRebuildsTheLedger() {
+    seedBaseline(AS_OF.minusDays(2), ISIN_A, "10000.0000");
+    seedCostBasis(ISIN_A, "10000.0000");
+    seedBuy(ISIN_A, AS_OF, "500.0000");
+    seedNavReport(ISIN_A, new BigDecimal("10500.0000"));
+
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.lockNotTaken());
+    CostBasisRefresh refresh = refresherOn(AS_OF).refresh(TUK75);
+    service.reconcile(TUK75, AS_OF, refresh);
+
+    assertThat(refresh).isEqualTo(CostBasisRefresh.refreshed());
+    assertThat(recorder.events)
+        .singleElement()
+        .satisfies(
+            storedLedgerEvent ->
+                assertThat(storedLedgerEvent.mismatches())
+                    .singleElement()
+                    .returns(ISIN_A, MismatchEntry::isin)
+                    .satisfies(
+                        entry -> assertThat(entry.delta()).isEqualByComparingTo("-500.0000")));
+  }
+
+  @Test
   void wholeCostBasisLedgerMissing_emitsSkippedInsteadOfMismatch() {
     UUID calculationId = UUID.randomUUID();
     seedNavReport(ISIN_A, new BigDecimal("10000.0000"), calculationId);
     seedNavReport(ISIN_B, new BigDecimal("250.0000"), calculationId);
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.refreshed());
 
     assertThat(recorder.events).isEmpty();
     assertThat(recorder.skippedEvents).hasSize(1);
@@ -137,13 +211,71 @@ class PortfolioReconciliationIT {
     seedCostBasis(ISIN_A, "10000.0000");
     seedCostBasis(ISIN_B, "250.0000");
 
-    service.reconcile(TUK75, AS_OF);
+    service.reconcile(TUK75, AS_OF, CostBasisRefresh.refreshed());
 
     assertThat(recorder.events).isEmpty();
     assertThat(recorder.skippedEvents).hasSize(1);
     var skipped = recorder.skippedEvents.get(0);
     assertThat(skipped.theirQuantities()).isEmpty();
     assertThat(skipped.ourQuantities()).containsOnlyKeys(ISIN_A, ISIN_B);
+  }
+
+  private CostBasisRefresher refresherOn(LocalDate tallinnToday) {
+    ZoneId tallinn = ZoneId.of("Europe/Tallinn");
+    LockProvider locksAlwaysFree = configuration -> Optional.of(() -> {});
+    return new CostBasisRefresher(
+        Clock.fixed(tallinnToday.atTime(12, 0).atZone(tallinn).toInstant(), tallinn),
+        costBasisService,
+        baselineRepository,
+        new StaticListableBeanFactory(Map.of("lockProvider", locksAlwaysFree))
+            .getBeanProvider(LockProvider.class));
+  }
+
+  private void seedBaseline(LocalDate baselineDate, String isin, String quantity) {
+    PortfolioBaseline baseline =
+        PortfolioBaseline.builder()
+            .fundIsin(TUK75.getIsin())
+            .baselineDate(baselineDate)
+            .loadedBy("test")
+            .build();
+    baseline.addEntry(
+        PortfolioBaselineEntry.builder()
+            .instrumentIsin(isin)
+            .quantity(new BigDecimal(quantity))
+            .avgUnitCost(new BigDecimal("10.00000000"))
+            .build());
+    baselineRepository.saveAndFlush(baseline);
+  }
+
+  private void seedBuy(String isin, LocalDate tradeDate, String quantity) {
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TUK75).createdBy("test").build());
+    TransactionOrder order =
+        orderRepository.save(
+            TransactionOrder.builder()
+                .batch(batch)
+                .fund(TUK75)
+                .instrumentIsin(isin)
+                .transactionType(BUY)
+                .instrumentType(ETF)
+                .orderQuantity(new BigDecimal(quantity))
+                .orderVenue(SEB)
+                .orderTimestamp(tradeDate.atStartOfDay().toInstant(ZoneOffset.UTC))
+                .orderUuid(UUID.randomUUID())
+                .build());
+    executionRepository.saveAndFlush(
+        TransactionExecution.builder()
+            .orderId(order.getId())
+            .brokerTransactionId("DLA-" + tradeDate + "-" + UUID.randomUUID())
+            .executionTimestamp(tradeDate.atStartOfDay().toInstant(ZoneOffset.UTC))
+            .executedQuantity(new BigDecimal(quantity))
+            .unitPrice(new BigDecimal("10.00000000"))
+            .totalConsideration(new BigDecimal(quantity).multiply(new BigDecimal("10.00000000")))
+            .commissionAmount(BigDecimal.ZERO)
+            .scheduledSettlementDate(tradeDate.plusDays(2))
+            .source("SEB_OOTEL")
+            .reportedDate(tradeDate)
+            .build());
   }
 
   private void seedCostBasis(String isin, String quantity) {

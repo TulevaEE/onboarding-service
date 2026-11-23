@@ -99,7 +99,7 @@ class SuspenseReclassificationServiceTest {
 
   @Test
   void reclassify_leavesAManagerCreditNotStatedAsARebateInSuspense() {
-    parkManagerCredit("100.00", "muu ülekanne");
+    parkManagerEntry("100.00", "muu ülekanne");
 
     var result = service.reclassify(TUK75);
 
@@ -108,7 +108,48 @@ class SuspenseReclassificationServiceTest {
     assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(new BigDecimal("-100.00"));
   }
 
-  private void parkManagerCredit(String amount, String remittanceInformation) {
+  @Test
+  void reclassify_leavesAManagerDebitNotStatedAsAManagementFeeInSuspense() {
+    parkManagerEntry("-50.00", "BR tasud TUK75");
+
+    var result = service.reclassify(TUK75);
+
+    assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(0, 1));
+    assertThat(balance(SystemAccount.MANAGEMENT_FEE)).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(new BigDecimal("50.00"));
+  }
+
+  @Test
+  void reclassify_leavesAManagerBookDebitStatedAsAKickbackInSuspense() {
+    fundBankLedger.recordUnclassifiedBankEntry(
+        TUK75,
+        new BigDecimal("-100.00"),
+        randomUUID(),
+        FUND_INVESTMENT_CASH_CLEARING,
+        BOOKING_DATE,
+        new UnclassifiedEntryDetails(
+            "Tuleva Fondid AS", "EE001234567890123488", "Kickback 02/2026", "BOOK"));
+
+    var result = service.reclassify(TUK75);
+
+    assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(0, 1));
+    assertThat(balance(SystemAccount.MANAGEMENT_FEE_REBATE)).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(new BigDecimal("100.00"));
+  }
+
+  @Test
+  void reclassify_movesAManagerDebitStatedAsAManagementFeeOutOfSuspense() {
+    parkManagerEntry("-742.34", "TUK75 valitsemistasu 02/2026");
+
+    var result = service.reclassify(TUK75);
+
+    assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(1, 0));
+    assertThat(balance(SystemAccount.MANAGEMENT_FEE))
+        .isEqualByComparingTo(new BigDecimal("742.34"));
+    assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  private void parkManagerEntry(String amount, String remittanceInformation) {
     fundBankLedger.recordUnclassifiedBankEntry(
         TUK75,
         new BigDecimal(amount),

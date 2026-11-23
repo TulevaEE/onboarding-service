@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.config;
 
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.SEB_FUND_CONFIRMATION_NAV_TOLERANCE;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_BREACH_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_MAX_DAILY_RETURN;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
@@ -20,6 +21,9 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @DataJpaTest
 @Import(InvestmentParameterRepository.class)
 class InvestmentParameterRepositoryTest {
+
+  private static final String ISIN = "ZZ0000000001";
+  private static final String OTHER_ISIN = "ZZ0000000002";
 
   @Autowired private JdbcClient jdbcClient;
   @Autowired private InvestmentParameterRepository repository;
@@ -182,20 +186,238 @@ class InvestmentParameterRepositoryTest {
         .isEmpty();
   }
 
+  @Test
+  void findLatestValue_globalScope_ignoresIsinScopedRows() {
+    insert(TRACKING_BREACH_THRESHOLD, null, new BigDecimal("0.01"), LocalDate.of(2024, 1, 1));
+    insertForIsin(
+        TRACKING_BREACH_THRESHOLD, ISIN, new BigDecimal("0.99"), LocalDate.of(2025, 1, 1));
+
+    BigDecimal value =
+        repository.findLatestValue(TRACKING_BREACH_THRESHOLD, LocalDate.of(2025, 6, 15));
+
+    assertThat(value).isEqualByComparingTo(new BigDecimal("0.01"));
+  }
+
+  @Test
+  void findLatestValueIfPresent_globalScope_isEmptyWhenOnlyAnIsinRowExists() {
+    insertForIsin(
+        TRACKING_BREACH_THRESHOLD, ISIN, new BigDecimal("0.99"), LocalDate.of(2025, 1, 1));
+
+    assertThat(
+            repository.findLatestValueIfPresent(
+                TRACKING_BREACH_THRESHOLD, LocalDate.of(2025, 6, 15)))
+        .isEmpty();
+  }
+
+  @Test
+  void findLatestValue_fundScope_ignoresARowThatAlsoNamesAnIsin() {
+    insert(TRACKING_MAX_DAILY_RETURN, TUK75, new BigDecimal("0.5"), LocalDate.of(2024, 1, 1));
+    insertForFundAndIsin(
+        TRACKING_MAX_DAILY_RETURN, TUK75, ISIN, new BigDecimal("0.99"), LocalDate.of(2025, 1, 1));
+
+    BigDecimal value =
+        repository.findLatestValue(TRACKING_MAX_DAILY_RETURN, TUK75, LocalDate.of(2025, 6, 15));
+
+    assertThat(value).isEqualByComparingTo(new BigDecimal("0.5"));
+  }
+
+  @Test
+  void findLatestValueForIsinOrGlobal_takesTheIsinsRowOverTheGlobalOne() {
+    insert(
+        SEB_FUND_CONFIRMATION_NAV_TOLERANCE,
+        null,
+        new BigDecimal("0.004"),
+        LocalDate.of(2025, 1, 1));
+    insertForIsin(
+        SEB_FUND_CONFIRMATION_NAV_TOLERANCE,
+        ISIN,
+        new BigDecimal("0.009"),
+        LocalDate.of(2025, 1, 1));
+
+    BigDecimal value =
+        repository.findLatestValueForIsinOrGlobal(
+            SEB_FUND_CONFIRMATION_NAV_TOLERANCE, ISIN, LocalDate.of(2025, 6, 15));
+
+    assertThat(value).isEqualByComparingTo(new BigDecimal("0.009"));
+  }
+
+  @Test
+  void findLatestValueForIsinOrGlobal_fallsBackToTheGlobalRowForAnIsinWithoutItsOwn() {
+    insert(
+        SEB_FUND_CONFIRMATION_NAV_TOLERANCE,
+        null,
+        new BigDecimal("0.004"),
+        LocalDate.of(2025, 1, 1));
+    insertForIsin(
+        SEB_FUND_CONFIRMATION_NAV_TOLERANCE,
+        OTHER_ISIN,
+        new BigDecimal("0.009"),
+        LocalDate.of(2025, 1, 1));
+
+    BigDecimal value =
+        repository.findLatestValueForIsinOrGlobal(
+            SEB_FUND_CONFIRMATION_NAV_TOLERANCE, ISIN, LocalDate.of(2025, 6, 15));
+
+    assertThat(value).isEqualByComparingTo(new BigDecimal("0.004"));
+  }
+
+  @Test
+  void findLatestValueForIsinOrGlobal_takesTheGlobalRowInForceBeforeTheIsinsRowTakesEffect() {
+    insert(
+        SEB_FUND_CONFIRMATION_NAV_TOLERANCE,
+        null,
+        new BigDecimal("0.004"),
+        LocalDate.of(2025, 1, 1));
+    insert(
+        SEB_FUND_CONFIRMATION_NAV_TOLERANCE,
+        null,
+        new BigDecimal("0.006"),
+        LocalDate.of(2025, 3, 1));
+    insertForIsin(
+        SEB_FUND_CONFIRMATION_NAV_TOLERANCE,
+        ISIN,
+        new BigDecimal("0.009"),
+        LocalDate.of(2025, 7, 1));
+
+    BigDecimal beforeTheIsinsRow =
+        repository.findLatestValueForIsinOrGlobal(
+            SEB_FUND_CONFIRMATION_NAV_TOLERANCE, ISIN, LocalDate.of(2025, 6, 30));
+    BigDecimal fromTheIsinsRow =
+        repository.findLatestValueForIsinOrGlobal(
+            SEB_FUND_CONFIRMATION_NAV_TOLERANCE, ISIN, LocalDate.of(2025, 7, 1));
+
+    assertThat(beforeTheIsinsRow).isEqualByComparingTo(new BigDecimal("0.006"));
+    assertThat(fromTheIsinsRow).isEqualByComparingTo(new BigDecimal("0.009"));
+  }
+
+  @Test
+  void findLatestValueForIsinOrGlobal_keepsTheIsinsRowWhenTheGlobalRowChangesLater() {
+    insertForIsin(
+        SEB_FUND_CONFIRMATION_NAV_TOLERANCE,
+        ISIN,
+        new BigDecimal("0.009"),
+        LocalDate.of(2025, 1, 1));
+    insert(
+        SEB_FUND_CONFIRMATION_NAV_TOLERANCE,
+        null,
+        new BigDecimal("0.002"),
+        LocalDate.of(2025, 3, 1));
+
+    BigDecimal value =
+        repository.findLatestValueForIsinOrGlobal(
+            SEB_FUND_CONFIRMATION_NAV_TOLERANCE, ISIN, LocalDate.of(2025, 6, 15));
+
+    assertThat(value).isEqualByComparingTo(new BigDecimal("0.009"));
+  }
+
+  @Test
+  void findLatestValueForIsinOrGlobal_takesTheIsinsLatestRowInForce() {
+    insertForIsin(
+        SEB_FUND_CONFIRMATION_NAV_TOLERANCE,
+        ISIN,
+        new BigDecimal("0.009"),
+        LocalDate.of(2025, 1, 1));
+    insertForIsin(
+        SEB_FUND_CONFIRMATION_NAV_TOLERANCE,
+        ISIN,
+        new BigDecimal("0.007"),
+        LocalDate.of(2025, 3, 1));
+    insertForIsin(
+        SEB_FUND_CONFIRMATION_NAV_TOLERANCE,
+        ISIN,
+        new BigDecimal("0.005"),
+        LocalDate.of(2025, 9, 1));
+
+    BigDecimal value =
+        repository.findLatestValueForIsinOrGlobal(
+            SEB_FUND_CONFIRMATION_NAV_TOLERANCE, ISIN, LocalDate.of(2025, 6, 15));
+
+    assertThat(value).isEqualByComparingTo(new BigDecimal("0.007"));
+  }
+
+  @Test
+  void findLatestValueForIsinOrGlobal_ignoresFundScopedRows() {
+    insert(
+        SEB_FUND_CONFIRMATION_NAV_TOLERANCE,
+        null,
+        new BigDecimal("0.004"),
+        LocalDate.of(2025, 1, 1));
+    insert(
+        SEB_FUND_CONFIRMATION_NAV_TOLERANCE,
+        TUK75,
+        new BigDecimal("0.009"),
+        LocalDate.of(2025, 3, 1));
+    insertForFundAndIsin(
+        SEB_FUND_CONFIRMATION_NAV_TOLERANCE,
+        TUK75,
+        ISIN,
+        new BigDecimal("0.008"),
+        LocalDate.of(2025, 3, 1));
+
+    BigDecimal value =
+        repository.findLatestValueForIsinOrGlobal(
+            SEB_FUND_CONFIRMATION_NAV_TOLERANCE, ISIN, LocalDate.of(2025, 6, 15));
+
+    assertThat(value).isEqualByComparingTo(new BigDecimal("0.004"));
+  }
+
+  @Test
+  void findLatestValueForIsinOrGlobal_throwsWhenNeitherTheIsinNorTheGlobalRowIsInForce() {
+    insertForIsin(
+        SEB_FUND_CONFIRMATION_NAV_TOLERANCE,
+        ISIN,
+        new BigDecimal("0.009"),
+        LocalDate.of(2025, 7, 1));
+
+    assertThatThrownBy(
+            () ->
+                repository.findLatestValueForIsinOrGlobal(
+                    SEB_FUND_CONFIRMATION_NAV_TOLERANCE, ISIN, LocalDate.of(2025, 6, 15)))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
   private void insert(
       InvestmentParameter parameter,
       TulevaFund fund,
       BigDecimal numericValue,
       LocalDate effectiveDate) {
+    insertRow(parameter, fund == null ? null : fund.name(), null, numericValue, effectiveDate);
+  }
+
+  private void insertForIsin(
+      InvestmentParameter parameter,
+      String isin,
+      BigDecimal numericValue,
+      LocalDate effectiveDate) {
+    insertRow(parameter, null, isin, numericValue, effectiveDate);
+  }
+
+  private void insertForFundAndIsin(
+      InvestmentParameter parameter,
+      TulevaFund fund,
+      String isin,
+      BigDecimal numericValue,
+      LocalDate effectiveDate) {
+    insertRow(parameter, fund.name(), isin, numericValue, effectiveDate);
+  }
+
+  private void insertRow(
+      InvestmentParameter parameter,
+      String fundCode,
+      String isin,
+      BigDecimal numericValue,
+      LocalDate effectiveDate) {
     jdbcClient
         .sql(
             """
-            INSERT INTO investment_parameter (effective_date, parameter_name, fund_code, numeric_value)
-            VALUES (:effectiveDate, :name, :fundCode, :numericValue)
+            INSERT INTO investment_parameter
+              (effective_date, parameter_name, fund_code, isin, numeric_value)
+            VALUES (:effectiveDate, :name, :fundCode, :isin, :numericValue)
             """)
         .param("effectiveDate", effectiveDate)
         .param("name", parameter.name())
-        .param("fundCode", fund == null ? null : fund.name())
+        .param("fundCode", fundCode)
+        .param("isin", isin)
         .param("numericValue", numericValue)
         .update();
   }

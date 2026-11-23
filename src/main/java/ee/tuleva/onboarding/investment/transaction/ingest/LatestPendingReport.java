@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
-import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingTransactionReconciliationService.TRUNCATION_ROW_DROP_RATIO;
 import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
@@ -48,14 +47,6 @@ class LatestPendingReport {
       return Optional.empty();
     }
     List<SebPendingTransactionRow> rows = extraction.rows();
-    if (rows.isEmpty() || lostRowsSincePriorReport(report, rows.size())) {
-      log.warn(
-          "Latest SEB pending report is empty or may be truncated, no settlement from the bank:"
-              + " reportDate={}, rowCount={}",
-          report.getReportDate(),
-          rows.size());
-      return Optional.empty();
-    }
     return Optional.of(
         new PendingListing(
             asOfDate,
@@ -71,14 +62,11 @@ class LatestPendingReport {
                 .filter(row -> row.clientRef() == null && row.ourRef() == null)
                 .map(SebPendingTransactionRow::isin)
                 .filter(Objects::nonNull)
+                .collect(toSet()),
+            rows.stream()
+                .filter(row -> row.ourRef() == null)
+                .map(SebPendingTransactionRow::clientRef)
+                .filter(Objects::nonNull)
                 .collect(toSet())));
-  }
-
-  private boolean lostRowsSincePriorReport(InvestmentReport report, int rowCount) {
-    return reportService
-        .getPriorReport(SEB, PENDING_TRANSACTIONS, report.getReportDate())
-        .map(prior -> extractor.extractWithDiagnostics(prior).rows().size())
-        .filter(priorRowCount -> rowCount < priorRowCount * (1 - TRUNCATION_ROW_DROP_RATIO))
-        .isPresent();
   }
 }

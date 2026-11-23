@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.seb.processor;
 
+import ee.tuleva.onboarding.banking.ManagementCompanies;
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser;
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
@@ -21,6 +22,7 @@ public class PensionFundEntryClassifier {
 
   private final TradeSettlementParser tradeSettlementParser;
   private final SebAccountConfiguration sebAccountConfiguration;
+  private final ManagementCompanies managementCompanies;
 
   public sealed interface Classification
       permits InterestReceived,
@@ -28,6 +30,7 @@ public class PensionFundEntryClassifier {
           BankAdjustment,
           ManagementFeeRebate,
           UnrecognisedManagementCompanyCredit,
+          UnrecognisedManagementCompanyDebit,
           ManagementFeePayment,
           RegistrarContribution,
           RegistrarPayout,
@@ -44,6 +47,8 @@ public class PensionFundEntryClassifier {
   public record ManagementFeeRebate() implements Classification {}
 
   public record UnrecognisedManagementCompanyCredit() implements Classification {}
+
+  public record UnrecognisedManagementCompanyDebit() implements Classification {}
 
   public record ManagementFeePayment() implements Classification {}
 
@@ -95,10 +100,9 @@ public class PensionFundEntryClassifier {
     if (details == null) {
       return new Unclassified("subFamilyCode=" + code);
     }
-    var name = details.getName();
-    if (name != null && sebAccountConfiguration.isManagementCompany(name)) {
+    if (managementCompanies.isManagementCompany(details.getName())) {
       return entry.amount().signum() < 0
-          ? new ManagementFeePayment()
+          ? managementCompanyDebit(entry.remittanceInformation())
           : managementCompanyCredit(entry.remittanceInformation());
     }
     if (sebAccountConfiguration.getRegistrarIbans().contains(details.getIban())) {
@@ -111,6 +115,12 @@ public class PensionFundEntryClassifier {
       return new BankFee();
     }
     return new Unclassified("unknown counterparty");
+  }
+
+  private Classification managementCompanyDebit(@Nullable String remittanceInformation) {
+    return managementCompanies.isManagementFeeDescription(remittanceInformation)
+        ? new ManagementFeePayment()
+        : new UnrecognisedManagementCompanyDebit();
   }
 
   private static Classification managementCompanyCredit(@Nullable String remittanceInformation) {
@@ -136,7 +146,9 @@ public class PensionFundEntryClassifier {
   }
 
   private static boolean isKickbackBooking(String code, BankStatementEntry entry) {
-    return "BOOK".equals(code) && isKickback(entry.remittanceInformation());
+    return "BOOK".equals(code)
+        && entry.amount().signum() >= 0
+        && isKickback(entry.remittanceInformation());
   }
 
   private static boolean isKickback(@Nullable String remittanceInformation) {

@@ -70,8 +70,17 @@ public class TransactionCommandJob {
 
     log.info("Found confirmed batches: count={}", batches.size());
 
-    for (var batch : batches) {
+    batches.forEach(this::finalizeUnlessRefused);
+  }
+
+  private void finalizeUnlessRefused(TransactionBatch batch) {
+    try {
       batchFinalizer.finalizeConfirmedBatch(batch);
+    } catch (TransactionBatchRefusedException refusal) {
+      log.warn(
+          "Confirmed batch refused, left unsent: id={}, reason={}",
+          batch.getId(),
+          refusal.getMessage());
     }
   }
 }

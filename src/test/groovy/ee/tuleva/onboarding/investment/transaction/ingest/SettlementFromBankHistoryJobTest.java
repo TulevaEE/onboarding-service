@@ -170,8 +170,8 @@ class SettlementFromBankHistoryJobTest {
     then(notificationService)
         .should()
         .sendMessage(
-            "Registri tellimused ei saanud panga kuupäeva: viimane SEB ootel-tehingute raport on"
-                + " tühi, vigaste ridadega või võib olla kärbitud (vt logi).\n"
+            "Registri tellimused ei saanud panga kuupäeva: viimane SEB ootel-tehingute raport"
+                + " puudub, on vigaste ridadega või ilma As-of kuupäevata (vt logi).\n"
                 + "Midagi ei muudetud.\n"
                 + "Käivita uuesti pärast järgmist raportit: INSERT INTO"
                 + " public.investment_job_trigger (job_name) VALUES"

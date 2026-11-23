@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -304,6 +305,23 @@ class SebPendingTransactionReconciliationIT {
         auditEventRepository.findByOrderIdAndEventType(absentOrder.getId(), "SETTLEMENT_DETECTED");
     assertThat(events).hasSize(1);
     assertThat(events.get(0).getPayload().get("reportDate")).isEqualTo("2026-02-13");
+  }
+
+  @Test
+  void reconcile_reportWithFarFewerRowsThanTheDayBefore_stillSettlesTheOrderThatLeftIt() {
+    TransactionOrder absentOrder =
+        seedExecutedOrderAbsentFromReport(LocalDate.of(2026, 2, 10), "SEB_OOTEL");
+    givenTheDayBeforeListedThreeTimesAsManyRows();
+
+    reconciliationService.reconcile(report, LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(
+            settlementRepository.findByOrderId(absentOrder.getId()).orElseThrow().getReportDate())
+        .isEqualTo(LocalDate.of(2026, 2, 13));
+    assertThat(orderRepository.findById(absentOrder.getId()).orElseThrow().getOrderStatus())
+        .isEqualTo(SETTLED);
   }
 
   @Test
@@ -1461,6 +1479,19 @@ class SebPendingTransactionReconciliationIT {
             .build());
     entityManager.flush();
     return absentOrder;
+  }
+
+  private void givenTheDayBeforeListedThreeTimesAsManyRows() {
+    reportRepository.save(
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(LocalDate.of(2026, 2, 12))
+            .rawData(
+                Stream.generate(this::loadFixtureRawData).limit(3).flatMap(List::stream).toList())
+            .metadata(Map.of("source", "fixture", "asOfDate", "2026-02-11"))
+            .createdAt(Instant.now())
+            .build());
   }
 
   private TransactionOrder givenOrderLeavesAfterFirstReportWhileAnotherStays() {

@@ -54,6 +54,7 @@ class FeeCheckIntegrationTest {
   void setUp() {
     insertSecurityPositions();
     insertFeeRates();
+    insertKidsInForce();
     insertDepotFeeTiers();
   }
 
@@ -187,6 +188,10 @@ class FeeCheckIntegrationTest {
     assertThat(findEvent(TUK75, "INSTRUMENT_RATE_COVERAGE", "ALL").get("severity"))
         .isEqualTo("PASS");
     assertThat(findEvent(TUK75, "BLACKROCK_ADJUSTMENT_AFTER_REBATE", "ALL").get("severity"))
+        .isEqualTo("PASS");
+    assertThat(findEvent(TUK75, "PENSIONIKESKUS_MANAGEMENT_FEE", "MANAGEMENT").get("severity"))
+        .isEqualTo("PASS");
+    assertThat(findEvent(TUK75, "PENSIONIKESKUS_ONGOING_CHARGES", "ALL").get("severity"))
         .isEqualTo("PASS");
     verifyNoInteractions(notificationService);
   }
@@ -489,6 +494,27 @@ class FeeCheckIntegrationTest {
           .update();
       jdbcClient
           .sql("UPDATE fund SET management_fee_rate = 0.0025 WHERE isin = :isin")
+          .param("isin", fund.getIsin())
+          .update();
+    }
+  }
+
+  private void insertKidsInForce() {
+    for (TulevaFund fund : TulevaFund.values()) {
+      jdbcClient
+          .sql(
+              """
+              INSERT INTO investment_ocf_publication
+                (fund_code, valid_from, published_ocf, published_decimals, basis, basis_reason,
+                 published_in, published_by)
+              VALUES (:fundCode, :validFrom, 0.0028, 2, 'MONTHLY_ESTIMATE', 'the KID in force',
+                      'KID 2025-01-01', 'TEST')
+              """)
+          .param("fundCode", fund.getCode())
+          .param("validFrom", LocalDate.of(2025, 1, 1))
+          .update();
+      jdbcClient
+          .sql("UPDATE fund SET ongoing_charges_figure = 0.0028 WHERE isin = :isin")
           .param("isin", fund.getIsin())
           .update();
     }

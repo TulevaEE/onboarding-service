@@ -19,6 +19,7 @@ import static java.math.RoundingMode.HALF_UP;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.UUID.randomUUID;
 import static java.util.stream.Collectors.toMap;
+import static org.apache.poi.ss.usermodel.CellType.NUMERIC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
@@ -35,6 +36,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -327,6 +329,49 @@ class TransactionPipelineIntegrationTest {
         totalAmount = totalAmount.add(BigDecimal.valueOf(row.getCell(7).getNumericCellValue()));
       }
       assertThat(totalAmount).isCloseTo(EXPECTED_FT_TOTAL, within(BigDecimal.ONE));
+    }
+  }
+
+  @Test
+  void finalizeConfirmedBatch_etfExportsAskForWholeUnits() throws Exception {
+    var batch = runFullPipeline();
+
+    assertThat(quantitiesIn(decodeExport(batch.getMetadata(), "ftEtfXlsx"), 6, 2, 8, 9, 10))
+        .isNotEmpty()
+        .allSatisfy(
+            quantity -> {
+              assertThat(quantity).isNotNegative();
+              assertThat(quantity.remainder(BigDecimal.ONE)).isZero();
+            });
+    assertThat(quantitiesIn(decodeExport(batch.getMetadata(), "sebEtfXlsx"), 2, 6))
+        .isNotEmpty()
+        .allSatisfy(
+            quantity -> {
+              assertThat(quantity).isNotNegative();
+              assertThat(quantity.remainder(BigDecimal.ONE)).isZero();
+            });
+  }
+
+  private static List<BigDecimal> quantitiesIn(byte[] xlsx, int isinColumn, int... quantityColumns)
+      throws Exception {
+    try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(xlsx))) {
+      Sheet sheet = workbook.getSheetAt(0);
+      List<BigDecimal> quantities = new ArrayList<>();
+      for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+        Row row = sheet.getRow(i);
+        if (row == null
+            || row.getCell(isinColumn) == null
+            || row.getCell(isinColumn).getStringCellValue().isEmpty()) {
+          continue;
+        }
+        for (int column : quantityColumns) {
+          var cell = row.getCell(column);
+          if (cell != null && cell.getCellType() == NUMERIC) {
+            quantities.add(BigDecimal.valueOf(cell.getNumericCellValue()));
+          }
+        }
+      }
+      return quantities;
     }
   }
 

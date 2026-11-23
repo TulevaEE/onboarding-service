@@ -2,8 +2,6 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
-import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
-import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -30,16 +28,15 @@ class FtConfirmationDigest {
     this.registryAuthoritative = registryAuthoritative;
   }
 
-  void publish(List<FtConfirmationOutcome> outcomes) {
+  void publish(List<FtCheckOutcome> outcomes) {
     if (!registryAuthoritative) {
       return;
     }
-    List<FtConfirmationOutcome> unalerted =
+    List<FtCheckOutcome> unalerted =
         outcomes.stream()
             .filter(outcome -> outcome.result().isActionable())
             .distinct()
-            .filter(
-                outcome -> !auditRecorder.alreadyAlerted(outcome.confirmation(), outcome.result()))
+            .filter(outcome -> !auditRecorder.alreadyAlerted(outcome))
             .toList();
     if (unalerted.isEmpty()) {
       return;
@@ -47,8 +44,7 @@ class FtConfirmationDigest {
     if (!send(buildMessage(unalerted))) {
       return;
     }
-    unalerted.forEach(
-        outcome -> auditRecorder.recordAlerted(outcome.confirmation(), outcome.result()));
+    unalerted.forEach(auditRecorder::recordAlerted);
   }
 
   private boolean send(String message) {
@@ -61,35 +57,17 @@ class FtConfirmationDigest {
     }
   }
 
-  private static String buildMessage(List<FtConfirmationOutcome> actionable) {
+  private static String buildMessage(List<FtCheckOutcome> actionable) {
     StringBuilder message = new StringBuilder();
     message
         .append("FT confirmation check: ")
         .append(actionable.size())
         .append(" issue(s) need attention");
-    actionable.forEach(outcome -> message.append('\n').append(describe(outcome)));
+    actionable.forEach(outcome -> message.append('\n').append(outcome.describe()));
+    actionable.stream()
+        .flatMap(outcome -> outcome.nextSteps().stream())
+        .distinct()
+        .forEach(step -> message.append("\nNext: ").append(step));
     return message.toString();
-  }
-
-  private static String describe(FtConfirmationOutcome outcome) {
-    FtConfirmation confirmation = outcome.confirmation();
-    FtConfirmationResult result = outcome.result();
-    if (result.isCancellation()) {
-      return String.format(
-          "FT broker cancellation: fund=%s, isin=%s, tradeDate=%s, quantity=%s"
-              + " — verify and cancel in registry",
-          confirmation.fund().name(),
-          confirmation.isin(),
-          confirmation.tradeDate(),
-          confirmation.quantity().toPlainString());
-    }
-    return String.format(
-        "FT issue: fund=%s, isin=%s, tradeDate=%s, quantity=%s, quantityStatus=%s, priceStatus=%s",
-        confirmation.fund().name(),
-        confirmation.isin(),
-        confirmation.tradeDate(),
-        confirmation.quantity().toPlainString(),
-        result.quantityStatus(),
-        result.priceStatus());
   }
 }

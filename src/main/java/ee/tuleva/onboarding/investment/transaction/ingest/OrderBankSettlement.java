@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static java.util.Comparator.naturalOrder;
 
 import ee.tuleva.onboarding.investment.transaction.BankDating;
@@ -91,9 +90,7 @@ class OrderBankSettlement {
               + ", brokerReference="
               + execution.getBrokerTransactionId());
     }
-    if (order.getFund() != booking.fund()
-        || !order.getInstrumentIsin().equals(booking.isin())
-        || cashLeftTheFund(cash) != (order.getTransactionType() == BUY)) {
+    if (!BookingsByReference.fits(order, booking)) {
       log.warn(
           "Bank booking does not fit its order: orderId={}, brokerReference={}, orderFund={},"
               + " bookingFund={}, orderIsin={}, bookingIsin={}, side={}, cash={}",
@@ -108,10 +105,6 @@ class OrderBankSettlement {
       return Optional.empty();
     }
     return Optional.of(new BookedPiece(execution, booking.bookingDate(), cash));
-  }
-
-  private static boolean cashLeftTheFund(BigDecimal cash) {
-    return cash.signum() < 0;
   }
 
   private record BookedPiece(

@@ -91,6 +91,20 @@ class TransactionCommandJobTest {
   }
 
   @Test
+  void finalizeConfirmedBatches_anOutdatedBatchRefused_stillSendsTheBatchesAfterIt() {
+    var outdated = TransactionBatch.builder().id(1L).status(CONFIRMED).createdBy("analyst").build();
+    var current = TransactionBatch.builder().id(2L).status(CONFIRMED).createdBy("analyst").build();
+    when(batchRepository.findByStatus(CONFIRMED)).thenReturn(List.of(outdated, current));
+    doThrow(new TransactionBatchRefusedException("prepared on an earlier day"))
+        .when(batchFinalizer)
+        .finalizeConfirmedBatch(outdated);
+
+    job.finalizeConfirmedBatches();
+
+    verify(batchFinalizer).finalizeConfirmedBatch(current);
+  }
+
+  @Test
   void finalizeConfirmedBatches_withNoBatches_doesNothing() {
     when(batchRepository.findByStatus(CONFIRMED)).thenReturn(List.of());
 

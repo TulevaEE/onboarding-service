@@ -10,13 +10,11 @@ import static ee.tuleva.onboarding.pipeline.PipelineStep.FEE_ACCRUAL_SYNC;
 import ee.tuleva.onboarding.investment.event.FeeAccrualPositionsSynced;
 import ee.tuleva.onboarding.investment.event.FundPositionsImported;
 import ee.tuleva.onboarding.investment.event.RunFeeAccrualPositionSyncRequested;
-import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
-import ee.tuleva.onboarding.investment.fees.FeeType;
+import ee.tuleva.onboarding.investment.fees.OutstandingFees;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -36,7 +34,7 @@ import org.springframework.stereotype.Component;
 @Profile({"production", "staging"})
 public class FeeAccrualPositionSyncJob {
 
-  private final FeeAccrualRepository feeAccrualRepository;
+  private final OutstandingFees outstandingFees;
   private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final FundPositionImportService fundPositionImportService;
   private final FundPositionRepository fundPositionRepository;
@@ -110,8 +108,8 @@ public class FeeAccrualPositionSyncJob {
 
     int written = 0;
     for (var navDate : navDates) {
-      var mgmtAccrual = chargedAccrual(managementPolicy, fund, MANAGEMENT, navDate);
-      var depotAccrual = chargedAccrual(depotPolicy, fund, DEPOT, navDate);
+      var mgmtAccrual = outstandingFees.owedOn(managementPolicy, navDate);
+      var depotAccrual = outstandingFees.owedOn(depotPolicy, navDate);
 
       var positions =
           List.of(
@@ -122,17 +120,6 @@ public class FeeAccrualPositionSyncJob {
       written += positions.size();
     }
     return written;
-  }
-
-  private BigDecimal chargedAccrual(
-      FeeChargedToFundPolicy.Resolver policy, TulevaFund fund, FeeType feeType, LocalDate navDate) {
-    return roundedToCents(
-        policy.sumChargedDays(
-            feeAccrualRepository.getUnsettledAccrualByDate(fund, feeType, navDate)));
-  }
-
-  private static BigDecimal roundedToCents(BigDecimal amount) {
-    return amount.signum() == 0 ? BigDecimal.ZERO : amount.setScale(2, RoundingMode.HALF_UP);
   }
 
   private FundPosition feeAccrualPosition(

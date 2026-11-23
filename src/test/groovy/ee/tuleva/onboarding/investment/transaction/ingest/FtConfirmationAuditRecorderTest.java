@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -55,7 +56,8 @@ class FtConfirmationAuditRecorderTest {
         new FtConfirmationResult(
             OK, ERROR, Map.of("orderQuantity", "40434", "priceDeltaPercent", "0.12"));
 
-    boolean recorded = recorder().recordOutcome(order, confirmation, result, "admin");
+    boolean recorded =
+        recorder().recordOutcome(order, new FtConfirmationOutcome(confirmation, result), "admin");
 
     assertThat(recorded).isTrue();
     verify(auditEventRepository)
@@ -95,7 +97,7 @@ class FtConfirmationAuditRecorderTest {
     FtConfirmationResult result =
         new FtConfirmationResult(CANCELLED, CANCELLED, Map.of("cancellationSignature", "sig"));
 
-    recorder().recordOutcome(order, confirmation, result, "admin");
+    recorder().recordOutcome(order, new FtConfirmationOutcome(confirmation, result), "admin");
 
     verify(auditEventRepository)
         .save(
@@ -128,7 +130,10 @@ class FtConfirmationAuditRecorderTest {
     boolean recorded =
         recorder()
             .recordOutcome(
-                order(), confirmation(), new FtConfirmationResult(ERROR, OK, Map.of()), "admin");
+                order(),
+                new FtConfirmationOutcome(
+                    confirmation(), new FtConfirmationResult(ERROR, OK, Map.of())),
+                "admin");
 
     assertThat(recorded).isFalse();
     verify(auditEventRepository, never()).save(any());
@@ -142,7 +147,10 @@ class FtConfirmationAuditRecorderTest {
     boolean recorded =
         recorder()
             .recordOutcome(
-                order(), confirmation(), new FtConfirmationResult(ERROR, OK, Map.of()), "admin");
+                order(),
+                new FtConfirmationOutcome(
+                    confirmation(), new FtConfirmationResult(ERROR, OK, Map.of())),
+                "admin");
 
     assertThat(recorded).isTrue();
     verify(auditEventRepository).save(any());
@@ -154,7 +162,9 @@ class FtConfirmationAuditRecorderTest {
     FtConfirmationResult result =
         new FtConfirmationResult(ORPHAN, ORPHAN, Map.of("orphanReason", "no matching order"));
 
-    boolean recorded = recorder().recordOutcome(null, confirmation, result, "ops-person");
+    boolean recorded =
+        recorder()
+            .recordOutcome(null, new FtConfirmationOutcome(confirmation, result), "ops-person");
 
     assertThat(recorded).isTrue();
     verify(auditEventRepository)
@@ -179,12 +189,42 @@ class FtConfirmationAuditRecorderTest {
   }
 
   @Test
+  void firstSeenOn_isTheDayTheConfirmationWasFirstVerified() {
+    TransactionAuditEvent first = priorEvent("PENDING_EXECUTION", "PENDING_NAV");
+    first.setCreatedAt(Instant.parse("2026-06-08T16:05:00Z"));
+    TransactionAuditEvent later = priorEvent("OK", "OK");
+    later.setCreatedAt(Instant.parse("2026-06-09T08:00:00Z"));
+    given(auditEventRepository.findByEventTypeAndDedupKey("FT_CONFIRMATION_VERIFIED", DEDUP_KEY))
+        .willReturn(List.of(later, first));
+
+    assertThat(recorder().firstSeenOn(confirmation())).isEqualTo(LocalDate.parse("2026-06-08"));
+  }
+
+  @Test
+  void firstSeenOn_countsTheDayInTheClocksZone() {
+    TransactionAuditEvent lateEvening = priorEvent("PENDING_EXECUTION", "PENDING_NAV");
+    lateEvening.setCreatedAt(Instant.parse("2026-06-08T22:30:00Z"));
+    given(auditEventRepository.findByEventTypeAndDedupKey("FT_CONFIRMATION_VERIFIED", DEDUP_KEY))
+        .willReturn(List.of(lateEvening));
+    FtConfirmationAuditRecorder tallinnRecorder =
+        new FtConfirmationAuditRecorder(
+            auditEventRepository, Clock.fixed(NOW, ZoneId.of("Europe/Tallinn")));
+
+    assertThat(tallinnRecorder.firstSeenOn(confirmation()))
+        .isEqualTo(LocalDate.parse("2026-06-09"));
+  }
+
+  @Test
+  void firstSeenOn_neverVerified_isToday() {
+    assertThat(recorder().firstSeenOn(confirmation())).isEqualTo(LocalDate.parse("2026-06-09"));
+  }
+
+  @Test
   void alreadyAlerted_noPriorAlert_returnsFalse() {
     given(auditEventRepository.findByEventTypeAndDedupKey("FT_CONFIRMATION_ALERTED", DEDUP_KEY))
         .willReturn(List.of());
 
-    boolean alerted =
-        recorder().alreadyAlerted(confirmation(), new FtConfirmationResult(ERROR, OK, Map.of()));
+    boolean alerted = recorder().alreadyAlerted(errorOutcome(confirmation()));
 
     assertThat(alerted).isFalse();
   }
@@ -194,8 +234,7 @@ class FtConfirmationAuditRecorderTest {
     given(auditEventRepository.findByEventTypeAndDedupKey("FT_CONFIRMATION_ALERTED", DEDUP_KEY))
         .willReturn(List.of(priorAlert("ERROR", "OK")));
 
-    boolean alerted =
-        recorder().alreadyAlerted(confirmation(), new FtConfirmationResult(ERROR, OK, Map.of()));
+    boolean alerted = recorder().alreadyAlerted(errorOutcome(confirmation()));
 
     assertThat(alerted).isTrue();
   }
@@ -205,8 +244,7 @@ class FtConfirmationAuditRecorderTest {
     given(auditEventRepository.findByEventTypeAndDedupKey("FT_CONFIRMATION_ALERTED", DEDUP_KEY))
         .willReturn(List.of(priorAlert("AMBIGUOUS", "AMBIGUOUS")));
 
-    boolean alerted =
-        recorder().alreadyAlerted(confirmation(), new FtConfirmationResult(ERROR, OK, Map.of()));
+    boolean alerted = recorder().alreadyAlerted(errorOutcome(confirmation()));
 
     assertThat(alerted).isFalse();
   }
@@ -219,20 +257,20 @@ class FtConfirmationAuditRecorderTest {
     boolean alerted =
         recorder()
             .alreadyAlerted(
-                new FtConfirmation(
-                    TUK75,
-                    "IE000F60HVH9",
-                    LocalDate.parse("2026-06-08"),
-                    new BigDecimal("40434.000"),
-                    new BigDecimal("10.0900")),
-                new FtConfirmationResult(ERROR, OK, Map.of()));
+                errorOutcome(
+                    new FtConfirmation(
+                        TUK75,
+                        "IE000F60HVH9",
+                        LocalDate.parse("2026-06-08"),
+                        new BigDecimal("40434.000"),
+                        new BigDecimal("10.0900"))));
 
     assertThat(alerted).isTrue();
   }
 
   @Test
   void recordAlerted_savesAlertedEventWithSystemActor() {
-    recorder().recordAlerted(confirmation(), new FtConfirmationResult(ERROR, OK, Map.of()));
+    recorder().recordAlerted(errorOutcome(confirmation()));
 
     verify(auditEventRepository)
         .save(
@@ -314,5 +352,9 @@ class FtConfirmationAuditRecorderTest {
         .payload(payload)
         .createdAt(NOW.minusSeconds(60))
         .build();
+  }
+
+  private static FtConfirmationOutcome errorOutcome(FtConfirmation confirmation) {
+    return new FtConfirmationOutcome(confirmation, new FtConfirmationResult(ERROR, OK, Map.of()));
   }
 }

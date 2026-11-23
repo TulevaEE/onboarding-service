@@ -2,11 +2,13 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -14,6 +16,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
@@ -30,13 +33,17 @@ class FtConfirmationS3Source {
   private final S3Client s3Client;
 
   List<String> list() {
-    ListObjectsV2Request request =
-        ListObjectsV2Request.builder().bucket(BUCKET).prefix(PREFIX).build();
-    List<String> keys =
-        s3Client.listObjectsV2(request).contents().stream()
-            .map(S3Object::key)
-            .filter(key -> !key.equals(PREFIX))
-            .toList();
+    List<String> keys = new ArrayList<>();
+    @Nullable String continuationToken = null;
+    do {
+      ListObjectsV2Response page = s3Client.listObjectsV2(request(continuationToken));
+      page.contents().stream()
+          .map(S3Object::key)
+          .filter(key -> !key.equals(PREFIX))
+          .forEach(keys::add);
+      continuationToken =
+          Boolean.TRUE.equals(page.isTruncated()) ? page.nextContinuationToken() : null;
+    } while (continuationToken != null);
     log.info(
         "Listed FT confirmation objects: bucket={}, prefix={}, count={}, keys={}",
         BUCKET,
@@ -88,5 +95,14 @@ class FtConfirmationS3Source {
               + key,
           e);
     }
+  }
+
+  private static ListObjectsV2Request request(@Nullable String continuationToken) {
+    ListObjectsV2Request.Builder request =
+        ListObjectsV2Request.builder().bucket(BUCKET).prefix(PREFIX);
+    if (continuationToken != null) {
+      request.continuationToken(continuationToken);
+    }
+    return request.build();
   }
 }

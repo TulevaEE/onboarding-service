@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisSnapshot;
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
+import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisRefresh;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -14,7 +15,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -33,13 +33,13 @@ public class PortfolioReconciliationService {
   @Value("${transaction-registry.portfolio-reconciliation.tolerance:1.0}")
   private BigDecimal tolerance = DEFAULT_TOLERANCE;
 
-  public void reconcile(TulevaFund fund, LocalDate asOfDate) {
+  public void reconcile(TulevaFund fund, LocalDate asOfDate, CostBasisRefresh costBasisRefresh) {
     Map<String, BigDecimal> ourQuantities = readOurQuantities(fund, asOfDate);
     Map<String, BigDecimal> theirQuantities =
         navReportLookup.findSecurityQuantities(fund, asOfDate);
 
     if (ourQuantities.isEmpty() || theirQuantities.isEmpty()) {
-      skip(fund, asOfDate, ourQuantities, theirQuantities);
+      skip(fund, asOfDate, ourQuantities, theirQuantities, costBasisRefresh);
       return;
     }
 
@@ -55,7 +55,7 @@ public class PortfolioReconciliationService {
       BigDecimal theirEffective = theirQty == null ? BigDecimal.ZERO : theirQty;
       BigDecimal delta = ourEffective.subtract(theirEffective);
 
-      if (isMismatch(ourQty, theirQty, delta)) {
+      if (exceedsTheTolerance(delta)) {
         mismatches.add(new MismatchEntry(isin, ourQty, theirQty, delta));
       }
     }
@@ -75,14 +75,15 @@ public class PortfolioReconciliationService {
         asOfDate,
         mismatches.size());
     eventPublisher.publishEvent(
-        new PortfolioReconciliationMismatchEvent(fund, asOfDate, mismatches));
+        new PortfolioReconciliationMismatchEvent(fund, asOfDate, mismatches, costBasisRefresh));
   }
 
   private void skip(
       TulevaFund fund,
       LocalDate asOfDate,
       Map<String, BigDecimal> ourQuantities,
-      Map<String, BigDecimal> theirQuantities) {
+      Map<String, BigDecimal> theirQuantities,
+      CostBasisRefresh costBasisRefresh) {
     if (ourQuantities.isEmpty() && theirQuantities.isEmpty()) {
       log.warn(
           "Portfolio reconciliation had nothing to compare: fundCode={}, asOfDate={}",
@@ -97,14 +98,11 @@ public class PortfolioReconciliationService {
         ourQuantities.size(),
         theirQuantities.size());
     eventPublisher.publishEvent(
-        new PortfolioReconciliationSkippedEvent(fund, asOfDate, ourQuantities, theirQuantities));
+        new PortfolioReconciliationSkippedEvent(
+            fund, asOfDate, ourQuantities, theirQuantities, costBasisRefresh));
   }
 
-  private boolean isMismatch(
-      @Nullable BigDecimal ourQty, @Nullable BigDecimal theirQty, BigDecimal delta) {
-    if (ourQty == null || theirQty == null) {
-      return true;
-    }
+  private boolean exceedsTheTolerance(BigDecimal delta) {
     return delta.abs().compareTo(tolerance) > 0;
   }
 

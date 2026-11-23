@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisRefresh;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -7,7 +8,10 @@ import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 public record PortfolioReconciliationMismatchEvent(
-    TulevaFund fund, LocalDate asOfDate, List<MismatchEntry> mismatches) {
+    TulevaFund fund,
+    LocalDate asOfDate,
+    List<MismatchEntry> mismatches,
+    CostBasisRefresh costBasisRefresh) {
 
   public PortfolioReconciliationMismatchEvent {
     mismatches = mismatches == null ? List.of() : List.copyOf(mismatches);

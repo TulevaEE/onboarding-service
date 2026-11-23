@@ -54,6 +54,8 @@ class JobTriggerPoller {
               RunSebFundConfirmationBackfillRequested.JOB_NAME,
               RunSebFundConfirmationBackfillRequested::new),
           Map.entry(RunSettlementFromBankRequested.JOB_NAME, RunSettlementFromBankRequested::new),
+          Map.entry(
+              RunSebTradeListingCheckRequested.JOB_NAME, RunSebTradeListingCheckRequested::new),
           Map.entry("PortfolioCostBasisJob", RunPortfolioCostBasisRequested::new),
           Map.entry("PortfolioCostBasisSelfHealJob", RunPortfolioCostBasisSelfHealRequested::new),
           Map.entry(

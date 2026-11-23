@@ -118,6 +118,7 @@ function fakeAttachment(name, content) {
 function installAppsScriptFakes({ properties = {}, folders = {}, threads = [], lockAvailable = true, s3Status = 200 } = {}) {
   const slack = [];
   const calls = { search: 0, lock: 0, folders: [] };
+  const queries = [];
   const props = Object.assign({}, properties);
   const logs = [];
   global.Logger = { log: (line) => logs.push(String(line)) };
@@ -165,9 +166,10 @@ function installAppsScriptFakes({ properties = {}, folders = {}, threads = [], l
     },
   };
   global.GmailApp = {
-    search: () => {
+    search: (query) => {
       calls.search++;
-      return threads;
+      queries.push(query);
+      return typeof threads === "function" ? threads(query) : threads;
     },
     getUserLabelByName: (name) => ({ getName: () => name }),
   };
@@ -190,7 +192,7 @@ function installAppsScriptFakes({ properties = {}, folders = {}, threads = [], l
       return { getResponseCode: () => response, getContentText: () => "slack says " + response };
     },
   };
-  return { slack, calls, props, s3, s3Keys, s3Bodies, slackResponses, logs, lock };
+  return { slack, calls, queries, props, s3, s3Keys, s3Bodies, slackResponses, logs, lock };
 }
 
 const noRecipients = { getTo: () => "", getCc: () => "", getBcc: () => "" };
@@ -2024,21 +2026,37 @@ describe("S3 and Drive keep the newest e-mail of each report date", () => {
     expect(JSON.parse(fakes.props["report_source:seb/2026-10-20_positions.csv"]).id).toBe("18f0a00000000001");
   });
 
-  test("Flow Traders confirmations, named by allocation id, keep no e-mail record", () => {
+  const flowTradersEmail = (id, bytes) => ({
+    ...noRecipients,
+    getId: () => id,
+    getDate: () => MORNING,
+    getFrom: () => "Flow Traders <" + SOURCES.FT.senders[0] + ">",
+    getAttachments: () => [{ getName: () => "MID9DSWsDs-00.pdf", getBytes: () => bytes }],
+  });
+
+  test("Flow Traders confirmations, named by allocation id and e-mail, keep no e-mail record", () => {
     const drive = fakeDrive();
-    const confirmation = {
-      ...noRecipients,
-      getId: () => "18f0a00000000003",
-      getDate: () => MORNING,
-      getFrom: () => "Flow Traders <" + SOURCES.FT.senders[0] + ">",
-      getAttachments: () => [{ getName: () => "MID9DSWsDs-00.pdf", getBytes: () => [37, 80, 68, 70] }],
-    };
-    const fakes = fakesWith(drive, [fakeThread([confirmation], [])]);
+    const fakes = fakesWith(drive, [fakeThread([flowTradersEmail("18f0a00000000003", [37, 80, 68, 70])], [])]);
 
     processNewEmails();
 
-    expect(fakes.s3Keys).toEqual(["ft-confirmations/MID9DSWsDs-00.pdf"]);
+    expect(fakes.s3Keys).toEqual(["ft-confirmations/MID9DSWsDs-00_18f0a00000000003.pdf"]);
     expect(Object.keys(fakes.props).filter((k) => k.startsWith("report_source:"))).toEqual([]);
+  });
+
+  test("a Flow Traders cancellation named like the confirmation it cancels does not overwrite it", () => {
+    const drive = fakeDrive();
+    const fakes = fakesWith(drive, [
+      fakeThread([flowTradersEmail("18f0a00000000005", [67, 65, 78])], []),
+      fakeThread([flowTradersEmail("18f0a00000000004", [84, 82, 68])], []),
+    ]);
+
+    processNewEmails();
+
+    expect(fakes.s3Bodies).toEqual({
+      "ft-confirmations/MID9DSWsDs-00_18f0a00000000005.pdf": "67,65,78",
+      "ft-confirmations/MID9DSWsDs-00_18f0a00000000004.pdf": "84,82,68",
+    });
   });
 });
 
@@ -2224,5 +2242,174 @@ describe("unmatched-attachment alerts", () => {
 
     expect(alertsIn(fakes)).toEqual([]);
     expect(alertRecordsIn(fakes)).toEqual([]);
+  });
+});
+
+describe("SEB sends some files as inline parts", () => {
+  const PDF_BYTES = [37, 80, 68, 70];
+  const inlinePdf = (name) => ({ getName: () => name, getContentType: () => "application/pdf", getBytes: () => PDF_BYTES });
+  const inlinePicture = (name) => ({ getName: () => name, getContentType: () => "image/png", getBytes: () => [137, 80, 78, 71] });
+  const gmailAttachments = (regular, inline) => (options = {}) => [
+    ...(options.includeAttachments === false ? [] : regular),
+    ...(options.includeInlineImages === false ? [] : inline),
+  ];
+  const confirmationWithInline = (inline) => ({
+    ...noRecipients,
+    getId: () => "18f0a00000000011",
+    getDate: () => MORNING,
+    getFrom: () => "SEB <" + SOURCES.SEB_CONFIRMATION.senders[0] + ">",
+    getAttachments: gmailAttachments([], inline),
+  });
+  const withSlack = (threads) =>
+    installAppsScriptFakes({
+      properties: { AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret", SLACK_WEBHOOK_URL: "https://hooks.example/x" },
+      threads,
+    });
+  const unmatchedAlerts = (fakes) => fakes.slack.filter((text) => text.includes("Unmatched files:"));
+
+  test("a trade confirmation PDF sent inline is uploaded by the regular run and its thread labelled", () => {
+    const thread = fakeThread([confirmationWithInline([inlinePdf("DLA1234567-001.pdf")])], []);
+    const fakes = withSlack([thread]);
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["seb-confirmations/DLA1234567-001.pdf"]);
+    expect(thread.labels).toEqual(["S3-Uploaded-1x"]);
+    expect(unmatchedAlerts(fakes)).toEqual([]);
+  });
+
+  test("an inline picture beside a matched report, like a signature logo, raises no alert", () => {
+    const message = {
+      ...sebMessage("18f0a00000000012", []),
+      getAttachments: gmailAttachments([fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], [inlinePicture("image001.png")]),
+    };
+    const fakes = withSlack([fakeThread([message], [])]);
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["seb/2026-10-20_positions.csv"]);
+    expect(unmatchedAlerts(fakes)).toEqual([]);
+  });
+
+  test("an inline part that matches no pattern is not alerted, as before; a missing confirmation is os's alert to raise", () => {
+    const thread = fakeThread([confirmationWithInline([inlinePdf("DLA1234567.pdf")])], []);
+    const fakes = withSlack([thread]);
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(unmatchedAlerts(fakes)).toEqual([]);
+  });
+
+  test("a regular attachment that matches no pattern is still alerted beside an inline report, which is uploaded", () => {
+    const message = {
+      ...sebMessage("18f0a00000000013", []),
+      getAttachments: gmailAttachments([fakeAttachment("TULEVA_unknown_report.csv", "x")], [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")]),
+    };
+    const fakes = withSlack([fakeThread([message], [])]);
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["seb/2026-10-20_positions.csv"]);
+    expect(unmatchedAlerts(fakes)).toEqual([expect.stringContaining("alongside 1 matched")]);
+    expect(unmatchedAlerts(fakes)).toEqual([expect.stringContaining("Unmatched files: `TULEVA_unknown_report.csv`")]);
+  });
+
+  test("the scan of earlier uploads reads an inline report as the run uploaded it, so a catch-up keeps the newer e-mail's report", () => {
+    const newerInline = fakeThread(
+      [{ ...sebMessage("18f0a00000000002", [], new Date("2026-11-02T10:15:00Z")), getAttachments: gmailAttachments([], [inlinePdf("TULEVA_pos_raport_20261020_korrigeeritud.csv")]) }],
+      ["S3-Uploaded-1x"],
+    );
+    const olderRegular = fakeThread(
+      [sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], new Date("2026-10-31T08:45:00Z"))],
+      [],
+    );
+    const fakes = withSlack([newerInline, olderRegular]);
+
+    processHistoricalEmails();
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(olderRegular.labels).toEqual(["S3-Uploaded-1x"]);
+  });
+});
+
+describe("the one-off catch-up of inline confirmations since the 16.11 backfill", () => {
+  const CONFIRMATIONS_SINCE_16_NOVEMBER = "to:funds@tuleva.ee has:attachment newer_than:10d from:(" + SOURCES.SEB_CONFIRMATION.senders[0] + ")";
+  const inlineConfirmation = (date) => ({
+    ...noRecipients,
+    getId: () => "18f0a00000000021",
+    getDate: () => date,
+    getFrom: () => "SEB <" + SOURCES.SEB_CONFIRMATION.senders[0] + ">",
+    getAttachments: (options = {}) =>
+      options.includeInlineImages === false ? [] : [{ getName: () => "DLA1234567-001.pdf", getBytes: () => [37, 80, 68, 70] }],
+  });
+  const withConfirmationsFoundByTheCatchUp = (messages, properties = {}) =>
+    installAppsScriptFakes({
+      properties: { AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret", ...properties },
+      threads: (query) => (query === CONFIRMATIONS_SINCE_16_NOVEMBER ? [fakeThread(messages, [])] : []),
+    });
+
+  test("the first regular run from 23.11 uploads the inline confirmations e-mailed since 16.11 through the backfill and records the catch-up", () => {
+    jest.setSystemTime(new Date("2026-11-24T08:00:00Z"));
+    const fakes = withConfirmationsFoundByTheCatchUp([inlineConfirmation(new Date("2026-11-19T14:45:00Z"))]);
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["seb-confirmations/DLA1234567-001.pdf"]);
+    expect(fakes.props.INLINE_CONFIRMATION_CATCH_UP_DONE).toBe("2026-11-24T08:00:00.000Z");
+    expect(fakes.props.SEB_CONFIRMATION_BACKFILL_REQUESTED).toBeUndefined();
+  });
+
+  test("a confirmation e-mailed before 16.11, which the backfill already uploaded, is left alone", () => {
+    jest.setSystemTime(new Date("2026-11-24T08:00:00Z"));
+    const fakes = withConfirmationsFoundByTheCatchUp([inlineConfirmation(new Date("2026-11-15T14:45:00Z"))]);
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual([]);
+  });
+
+  test("a run after the catch-up was recorded does not request it again", () => {
+    jest.setSystemTime(new Date("2026-11-24T08:05:00Z"));
+    const fakes = withConfirmationsFoundByTheCatchUp([inlineConfirmation(new Date("2026-11-19T14:45:00Z"))], {
+      INLINE_CONFIRMATION_CATCH_UP_DONE: "2026-11-24T08:00:00.000Z",
+    });
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual([]);
+  });
+
+  test("a backfill that fails stays requested, so the next run continues it", () => {
+    jest.setSystemTime(new Date("2026-11-24T08:00:00Z"));
+    const fakes = withConfirmationsFoundByTheCatchUp([inlineConfirmation(new Date("2026-11-19T14:45:00Z"))]);
+    fakes.s3.status = 403;
+
+    expect(() => processNewEmails()).toThrow();
+
+    expect(fakes.props.SEB_CONFIRMATION_BACKFILL_REQUESTED).toBe("yes");
+    expect(fakes.props.SEB_CONFIRMATION_BACKFILL_RESUME_FROM).toBe("2026-11-15T22:00:00.000Z");
+  });
+
+  test("a backfill already under way is left to finish from where it is, since it reaches the present anyway", () => {
+    jest.setSystemTime(new Date("2026-11-24T08:00:00Z"));
+    const fakes = withConfirmationsFoundByTheCatchUp([], {
+      SEB_CONFIRMATION_BACKFILL_REQUESTED: "yes",
+      SEB_CONFIRMATION_BACKFILL_RESUME_FROM: "2026-11-10T00:00:00.000Z",
+    });
+    fakes.s3.status = 403;
+
+    processNewEmails();
+
+    expect(fakes.queries).toContain("to:funds@tuleva.ee has:attachment newer_than:16d from:(" + SOURCES.SEB_CONFIRMATION.senders[0] + ")");
+  });
+
+  test("a run before 23.11 requests nothing", () => {
+    const fakes = withConfirmationsFoundByTheCatchUp([inlineConfirmation(new Date("2026-11-01T14:45:00Z"))]);
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(fakes.props.INLINE_CONFIRMATION_CATCH_UP_DONE).toBeUndefined();
   });
 });

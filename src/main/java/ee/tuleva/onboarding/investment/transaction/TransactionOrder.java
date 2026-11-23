@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.CANCELLED;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DISCARDED;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DRAFT;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.EnumType.STRING;
 
@@ -71,7 +74,7 @@ public class TransactionOrder {
   @NotNull
   @Enumerated(STRING)
   @Builder.Default
-  private OrderStatus orderStatus = OrderStatus.DRAFT;
+  private OrderStatus orderStatus = DRAFT;
 
   @NotNull
   @Enumerated(STRING)
@@ -91,5 +94,9 @@ public class TransactionOrder {
     if (createdAt == null) {
       createdAt = clock().instant();
     }
+  }
+
+  public boolean isCancelledOrDiscarded() {
+    return orderStatus == CANCELLED || orderStatus == DISCARDED;
   }
 }

@@ -17,6 +17,9 @@ public interface TransactionOrderRepository extends JpaRepository<TransactionOrd
 
   Optional<TransactionOrder> findByOrderUuid(UUID orderUuid);
 
+  List<TransactionOrder> findByOrderVenueAndOrderTimestampGreaterThanEqual(
+      OrderVenue orderVenue, Instant since);
+
   List<TransactionOrder> findByInstrumentIsin(String instrumentIsin);
 
   List<TransactionOrder> findByFund(TulevaFund fund);

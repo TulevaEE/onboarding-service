@@ -19,10 +19,13 @@ public class ManagementCompanies {
   }
 
   public boolean isManagementFee(StatementDebit debit) {
-    var description = debit.description();
     return debit.amount().signum() < 0
         && isManagementCompany(debit.beneficiaryName())
-        && description != null
+        && isManagementFeeDescription(debit.description());
+  }
+
+  public boolean isManagementFeeDescription(@Nullable String description) {
+    return description != null
         && description.toLowerCase(Locale.ROOT).contains(MANAGEMENT_FEE_DESCRIPTION);
   }
 }

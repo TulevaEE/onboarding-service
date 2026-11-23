@@ -18,8 +18,4 @@ public interface InvestmentReportRepository extends JpaRepository<InvestmentRepo
 
   Optional<InvestmentReport> findTopByProviderAndReportTypeOrderByReportDateDesc(
       ReportProvider provider, ReportType reportType);
-
-  Optional<InvestmentReport>
-      findTopByProviderAndReportTypeAndReportDateLessThanOrderByReportDateDesc(
-          ReportProvider provider, ReportType reportType, LocalDate reportDate);
 }

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
+import static ee.tuleva.onboarding.investment.transaction.export.GoogleServiceAccountFixture.generatedKeyPair;
+import static ee.tuleva.onboarding.investment.transaction.export.GoogleServiceAccountFixture.serviceAccountJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -7,16 +9,12 @@ import static org.mockito.Mockito.*;
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.JWSVerifier;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.Base64;
 import java.util.Map;
-import net.minidev.json.JSONObject;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 
@@ -24,8 +22,8 @@ class GoogleDriveTokenProviderTest {
 
   @Test
   void getAccessToken_exchangesJwtForAccessToken() throws Exception {
-    var keyPair = generateKeyPair();
-    var serviceAccountJson = buildServiceAccountJson(keyPair);
+    var keyPair = generatedKeyPair();
+    var serviceAccountJson = serviceAccountJson(keyPair);
     var restClient = mockTokenExchange("test-access-token");
     var clock = Clock.fixed(Instant.parse("2026-02-16T10:00:00Z"), ZoneId.of("UTC"));
 
@@ -36,8 +34,8 @@ class GoogleDriveTokenProviderTest {
 
   @Test
   void getAccessToken_createsValidJwtWithCorrectClaims() throws Exception {
-    var keyPair = generateKeyPair();
-    var serviceAccountJson = buildServiceAccountJson(keyPair);
+    var keyPair = generatedKeyPair();
+    var serviceAccountJson = serviceAccountJson(keyPair);
     var capturedJwt = new String[1];
 
     var restClient = mockTokenExchangeCapturingJwt("token-value", capturedJwt);
@@ -58,8 +56,8 @@ class GoogleDriveTokenProviderTest {
 
   @Test
   void getAccessToken_returnsCachedTokenWhenNotExpired() throws Exception {
-    var keyPair = generateKeyPair();
-    var serviceAccountJson = buildServiceAccountJson(keyPair);
+    var keyPair = generatedKeyPair();
+    var serviceAccountJson = serviceAccountJson(keyPair);
     var restClient = mockTokenExchange("cached-token");
     var clock = Clock.fixed(Instant.parse("2026-02-16T10:00:00Z"), ZoneId.of("UTC"));
 
@@ -73,8 +71,8 @@ class GoogleDriveTokenProviderTest {
 
   @Test
   void getAccessToken_refreshesExpiredToken() throws Exception {
-    var keyPair = generateKeyPair();
-    var serviceAccountJson = buildServiceAccountJson(keyPair);
+    var keyPair = generatedKeyPair();
+    var serviceAccountJson = serviceAccountJson(keyPair);
     var start = Instant.parse("2026-02-16T10:00:00Z");
     var mutableClock = Clock.offset(Clock.fixed(start, ZoneId.of("UTC")), Duration.ZERO);
 
@@ -101,29 +99,6 @@ class GoogleDriveTokenProviderTest {
         new GoogleDriveTokenProvider(serviceAccountJson, restClient, expiredClock);
 
     assertThat(providerAfterExpiry.getAccessToken()).isEqualTo("second-token");
-  }
-
-  private static KeyPair generateKeyPair() throws Exception {
-    var generator = KeyPairGenerator.getInstance("RSA");
-    generator.initialize(2048);
-    return generator.generateKeyPair();
-  }
-
-  private static String buildServiceAccountJson(KeyPair keyPair) {
-    var privateKeyPem = pemEncodePrivateKey(keyPair);
-    var json =
-        new JSONObject(
-            Map.of(
-                "type", "service_account",
-                "client_email", "test@project.iam.gserviceaccount.com",
-                "private_key", privateKeyPem,
-                "token_uri", "https://oauth2.googleapis.com/token"));
-    return Base64.getEncoder().encodeToString(json.toJSONString().getBytes());
-  }
-
-  private static String pemEncodePrivateKey(KeyPair keyPair) {
-    var encoded = Base64.getEncoder().encodeToString(keyPair.getPrivate().getEncoded());
-    return "-----BEGIN PRIVATE KEY-----\n" + encoded + "\n-----END PRIVATE KEY-----\n";
   }
 
   @SuppressWarnings("unchecked")

@@ -268,19 +268,21 @@ class SettlementFromBankIT {
   }
 
   @Test
-  void anEmptyLatestPendingReport_settlesNothing() {
+  void anEmptyLatestPendingReport_stillSettlesABookedOrder() {
     TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
     piece(order, "DLA0553690", "11704");
     bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
     reportRepository.deleteAll();
     pendingReport(LocalDate.of(2026, 2, 21), List.of());
 
-    assertThat(settlementFromBankService.settleOrdersBookedSince(SINCE, LOCK_HELD)).isEmpty();
-    assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
+    settleFromTheBank();
+
+    assertThat(settlementOf(order).getReportDate()).isEqualTo(LocalDate.of(2026, 2, 12));
+    assertThat(settlementOf(order).getSource()).isEqualTo(BANK_STATEMENT);
   }
 
   @Test
-  void aLatestPendingReportThatLostHalfItsRows_settlesNothing() {
+  void aLatestPendingReportWithFarFewerRowsThanThePriorOne_stillSettlesABookedOrder() {
     TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
     piece(order, "DLA0553690", "11704");
     bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
@@ -289,8 +291,10 @@ class SettlementFromBankIT {
         List.of(anotherOrdersRow(), anotherOrdersRow(), anotherOrdersRow(), anotherOrdersRow()));
     pendingReport(LocalDate.of(2026, 2, 22), List.of(anotherOrdersRow()));
 
-    assertThat(settlementFromBankService.settleOrdersBookedSince(SINCE, LOCK_HELD)).isEmpty();
-    assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
+    settleFromTheBank();
+
+    assertThat(settlementOf(order).getReportDate()).isEqualTo(LocalDate.of(2026, 2, 12));
+    assertThat(settlementOf(order).getSource()).isEqualTo(BANK_STATEMENT);
   }
 
   @Test

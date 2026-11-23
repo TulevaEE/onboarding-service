@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.FEE;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.FEE_ACCRUAL_SYNC;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -15,9 +16,9 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.investment.event.FeeAccrualPositionsSynced;
-import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeType;
+import ee.tuleva.onboarding.investment.fees.OutstandingFees;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -26,7 +27,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,14 +39,12 @@ import org.springframework.context.ApplicationEventPublisher;
 @ExtendWith(MockitoExtension.class)
 class FeeAccrualPositionSyncJobTest {
 
-  private static final LocalDate ACCRUAL_DAY = LocalDate.of(2000, 1, 2);
-
   private static final Instant NOW = Instant.parse("2025-03-12T10:00:00Z");
   private static final ZoneId ZONE = ZoneId.of("Europe/Tallinn");
   private static final boolean CHARGED_TO_FUND = true;
   private static final boolean BORNE_BY_TULEVA = false;
 
-  @Mock private FeeAccrualRepository feeAccrualRepository;
+  @Mock private OutstandingFees outstandingFees;
   @Mock private FundPositionImportService fundPositionImportService;
   @Mock private FundPositionRepository fundPositionRepository;
   @Mock private Clock clock;
@@ -81,6 +79,10 @@ class FeeAccrualPositionSyncJobTest {
         .build();
   }
 
+  private void givenOwed(FeeChargedToFundPolicy.Resolver policy, LocalDate navDate, String owed) {
+    given(outstandingFees.owedOn(policy, navDate)).willReturn(new BigDecimal(owed));
+  }
+
   private static FeeChargedToFundPolicy.Resolver resolver(
       TulevaFund fund, FeeType feeType, boolean chargedToFund) {
     return new FeeChargedToFundPolicy.Resolver(
@@ -97,10 +99,8 @@ class FeeAccrualPositionSyncJobTest {
     var navDate = LocalDate.of(2025, 3, 10);
     given(fundPositionRepository.findDistinctNavDatesByFund(any())).willReturn(List.of());
     given(fundPositionRepository.findDistinctNavDatesByFund(TKF100)).willReturn(List.of(navDate));
-    given(feeAccrualRepository.getUnsettledAccrualByDate(TKF100, MANAGEMENT, navDate))
-        .willReturn(Map.of(ACCRUAL_DAY, new BigDecimal("52.08")));
-    given(feeAccrualRepository.getUnsettledAccrualByDate(TKF100, DEPOT, navDate))
-        .willReturn(Map.of(ACCRUAL_DAY, new BigDecimal("6.85")));
+    givenOwed(resolver(TKF100, MANAGEMENT, CHARGED_TO_FUND), navDate, "52.08");
+    givenOwed(resolver(TKF100, DEPOT, CHARGED_TO_FUND), navDate, "6.85");
     given(feeChargedToFundPolicy.resolverFor(TUK75, MANAGEMENT))
         .willThrow(new IllegalStateException("Gap in the fee policy"));
 
@@ -118,10 +118,8 @@ class FeeAccrualPositionSyncJobTest {
     given(fundPositionRepository.findDistinctNavDatesByFund(any())).willReturn(List.of());
     given(fundPositionRepository.findDistinctNavDatesByFund(TKF100)).willReturn(List.of(navDate));
 
-    given(feeAccrualRepository.getUnsettledAccrualByDate(TKF100, MANAGEMENT, navDate))
-        .willReturn(Map.of(ACCRUAL_DAY, new BigDecimal("52.08")));
-    given(feeAccrualRepository.getUnsettledAccrualByDate(TKF100, DEPOT, navDate))
-        .willReturn(Map.of(ACCRUAL_DAY, new BigDecimal("6.85")));
+    givenOwed(resolver(TKF100, MANAGEMENT, CHARGED_TO_FUND), navDate, "52.08");
+    givenOwed(resolver(TKF100, DEPOT, CHARGED_TO_FUND), navDate, "6.85");
 
     syncJob.sync(7);
 
@@ -155,17 +153,16 @@ class FeeAccrualPositionSyncJobTest {
     given(fundPositionRepository.findDistinctNavDatesByFund(any()))
         .willReturn(List.of(oldDate, recentDate));
 
-    given(feeAccrualRepository.getUnsettledAccrualByDate(any(), any(), eq(recentDate)))
-        .willReturn(Map.of());
+    given(outstandingFees.owedOn(any(), eq(recentDate))).willReturn(ZERO);
 
     syncJob.sync(7);
 
-    verify(feeAccrualRepository).getUnsettledAccrualByDate(TKF100, MANAGEMENT, recentDate);
-    verify(feeAccrualRepository, never()).getUnsettledAccrualByDate(any(), any(), eq(oldDate));
+    verify(outstandingFees).owedOn(resolver(TKF100, MANAGEMENT, CHARGED_TO_FUND), recentDate);
+    verify(outstandingFees, never()).owedOn(any(), eq(oldDate));
   }
 
   @Test
-  void sync_reportsZeroForAFeeTheFundIsNotCharged() {
+  void sync_asksWhatIsOwedUnderEachFeesOwnPolicy() {
     given(clock.instant()).willReturn(NOW);
     given(clock.getZone()).willReturn(ZONE);
     given(feeChargedToFundPolicy.resolverFor(TKF100, DEPOT))
@@ -174,8 +171,8 @@ class FeeAccrualPositionSyncJobTest {
     var navDate = LocalDate.of(2025, 3, 10);
     given(fundPositionRepository.findDistinctNavDatesByFund(any())).willReturn(List.of());
     given(fundPositionRepository.findDistinctNavDatesByFund(TKF100)).willReturn(List.of(navDate));
-    given(feeAccrualRepository.getUnsettledAccrualByDate(TKF100, MANAGEMENT, navDate))
-        .willReturn(Map.of(ACCRUAL_DAY, new BigDecimal("52.08")));
+    givenOwed(resolver(TKF100, MANAGEMENT, CHARGED_TO_FUND), navDate, "52.08");
+    givenOwed(resolver(TKF100, DEPOT, BORNE_BY_TULEVA), navDate, "0");
 
     syncJob.sync(7);
 
@@ -184,9 +181,6 @@ class FeeAccrualPositionSyncJobTest {
             List.of(
                 feeAccrualPosition(navDate, "Management Fee Accrual", new BigDecimal("-52.08")),
                 feeAccrualPosition(navDate, "Depot Fee Accrual", BigDecimal.ZERO)));
-    // The accrual IS read now; the policy is applied per accrual date afterwards. Skipping the
-    // read was only safe while one day's answer stood for the whole month.
-    verify(feeAccrualRepository).getUnsettledAccrualByDate(TKF100, DEPOT, navDate);
   }
 
   @Test
@@ -199,7 +193,7 @@ class FeeAccrualPositionSyncJobTest {
         .willReturn(
             List.of(
                 LocalDate.of(2025, 3, 10), LocalDate.of(2025, 3, 11), LocalDate.of(2025, 3, 12)));
-    given(feeAccrualRepository.getUnsettledAccrualByDate(any(), any(), any())).willReturn(Map.of());
+    given(outstandingFees.owedOn(any(), any())).willReturn(ZERO);
 
     syncJob.sync(7);
 

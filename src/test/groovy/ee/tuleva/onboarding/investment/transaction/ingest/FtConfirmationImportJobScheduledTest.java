@@ -13,6 +13,8 @@ class FtConfirmationImportJobScheduledTest {
   @MockitoBean FtConfirmationS3Source s3Source;
   @MockitoBean FtConfirmationPdfParser parser;
   @MockitoBean FtConfirmationVerificationService verificationService;
+  @MockitoBean FtUnconfirmedTradeCheck unconfirmedTradeCheck;
+  @MockitoBean FtUnreadableConfirmationWarning unreadableWarning;
   @MockitoBean Clock clock;
 
   @Test

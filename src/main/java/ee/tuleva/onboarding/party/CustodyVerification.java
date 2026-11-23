@@ -28,11 +28,16 @@ public record CustodyVerification(
     if (child == null) {
       return evidence;
     }
+    return withCitizenships(evidence, child);
+  }
+
+  static Map<String, Object> withCitizenships(
+      Map<String, Object> evidence, PopulationRegisterPerson person) {
     var enriched = new LinkedHashMap<String, Object>(evidence);
-    if (child.citizenship() != null) {
-      enriched.put(CITIZENSHIP, child.citizenship());
+    if (person.citizenship() != null) {
+      enriched.put(CITIZENSHIP, person.citizenship());
     }
-    enriched.put(CITIZENSHIPS, child.citizenships());
+    enriched.put(CITIZENSHIPS, person.citizenships());
     return unmodifiableMap(enriched);
   }
 

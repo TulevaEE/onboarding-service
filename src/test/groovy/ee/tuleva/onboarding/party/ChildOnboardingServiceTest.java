@@ -5,14 +5,17 @@ import static ee.tuleva.onboarding.event.TrackableEventType.MINOR_CUSTODY_VERIFI
 import static ee.tuleva.onboarding.party.ChildOnboardingService.CUSTODY_MAX_AGE;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.NO_CUSTODY;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.OK;
+import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY_CUSTODY;
 import static ee.tuleva.onboarding.populationregister.CustodyValidity.VALID;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
+import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.INACTIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
@@ -22,6 +25,7 @@ import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.populationregister.CustodyRight;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
+import ee.tuleva.onboarding.populationregister.PopulationRegisterResult;
 import ee.tuleva.onboarding.user.NameChangeBasis;
 import java.time.Clock;
 import java.time.Instant;
@@ -30,6 +34,8 @@ import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,6 +56,7 @@ class ChildOnboardingServiceTest {
   @Mock private AmlService amlService;
   @Mock private SanctionAndPepScreener sanctionAndPepScreener;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
+  @Mock private ParentChildLinkService parentChildLinkService;
 
   private final Clock clock = Clock.fixed(Instant.parse("2026-05-22T00:00:00Z"), ZoneOffset.UTC);
 
@@ -65,6 +72,7 @@ class ChildOnboardingServiceTest {
             amlService,
             sanctionAndPepScreener,
             applicationEventPublisher,
+            parentChildLinkService,
             clock);
   }
 
@@ -321,5 +329,201 @@ class ChildOnboardingServiceTest {
     expected.put("citizenships", List.of("EE", "RU"));
     expected.put("guardianPersonalCode", PARENT);
     verify(amlService).addCustodyRightCheck(CHILD, true, expected);
+  }
+
+  private static final UUID GUARDIAN_LINK_ID =
+      UUID.fromString("22222222-2222-2222-2222-222222222222");
+  private static final UUID WARD_MESSAGE_ID =
+      UUID.fromString("33333333-3333-3333-3333-333333333333");
+
+  private final ParentChildLink guardianship =
+      ParentChildLink.builder()
+          .id(GUARDIAN_LINK_ID)
+          .parentPersonalCode(PARENT)
+          .childPersonalCode(ADULT)
+          .relationshipType(GUARDIAN)
+          .validUntil(LocalDate.of(2029, 3, 31))
+          .build();
+
+  private final PopulationRegisterPerson ward =
+      new PopulationRegisterPerson(
+          ADULT, "WARD", "PERSON", LocalDate.of(1999, 12, 31), ALIVE, "EE", List.of("EE", "FI"));
+
+  private final PopulationRegisterPerson deceasedWard =
+      new PopulationRegisterPerson(
+          ADULT, "WARD", "PERSON", LocalDate.of(1999, 12, 31), INACTIVE, "EE", List.of("EE"));
+
+  private void givenAnActiveGuardianshipOf(PopulationRegisterPerson registeredWard) {
+    given(parentChildLinkService.findActiveGuardianship(PARENT, ADULT))
+        .willReturn(Optional.of(guardianship));
+    given(custodyVerificationService.fetchWard(PARENT, ADULT, CUSTODY_MAX_AGE))
+        .willReturn(new PopulationRegisterResult<>(registeredWard, WARD_MESSAGE_ID));
+  }
+
+  @Test
+  void activeGuardianship_verifiesTheWardFromTheRegisterIdentityWithoutAskingForCustody() {
+    givenAnActiveGuardianshipOf(ward);
+
+    ChildOnboardingResult result = service.onboardChild(parent, ADULT);
+
+    assertThat(result)
+        .isEqualTo(new ChildOnboardingResult(true, "WARD", "PERSON", LocalDate.of(1999, 12, 31)));
+    verify(custodyVerificationService, never()).verify(any(), any(), any());
+    verify(custodyVerificationService, never()).verifyFresh(any(), any(), any());
+  }
+
+  @Test
+  void activeGuardianship_recordsASuccessfulCustodyCheckWithTheWardsRegisterCitizenships() {
+    givenAnActiveGuardianshipOf(ward);
+    given(custodyVerificationService.fetchGuardianCitizenship(PARENT, CUSTODY_MAX_AGE))
+        .willReturn("EE");
+
+    service.onboardChild(parent, ADULT);
+
+    verify(amlService)
+        .addCustodyRightCheck(
+            ADULT,
+            true,
+            Map.of(
+                "outcome",
+                "GUARDIAN_LINK",
+                "childPersonalCode",
+                ADULT,
+                "guardianPersonalCode",
+                PARENT,
+                "guardianCitizenship",
+                "EE",
+                "guardianLinkId",
+                GUARDIAN_LINK_ID.toString(),
+                "guardianLinkValidUntil",
+                "2029-03-31",
+                "childResponseMessageId",
+                WARD_MESSAGE_ID.toString(),
+                "citizenship",
+                "EE",
+                "citizenships",
+                List.of("EE", "FI")));
+  }
+
+  @Test
+  void activeGuardianship_recordsTheCustodyCheckWithoutGuardianCitizenshipWhenItIsUnknown() {
+    givenAnActiveGuardianshipOf(ward);
+    given(custodyVerificationService.fetchGuardianCitizenship(PARENT, CUSTODY_MAX_AGE))
+        .willReturn(null);
+
+    service.onboardChild(parent, ADULT);
+
+    verify(amlService)
+        .addCustodyRightCheck(
+            ADULT,
+            true,
+            Map.of(
+                "outcome",
+                "GUARDIAN_LINK",
+                "childPersonalCode",
+                ADULT,
+                "guardianPersonalCode",
+                PARENT,
+                "guardianLinkId",
+                GUARDIAN_LINK_ID.toString(),
+                "guardianLinkValidUntil",
+                "2029-03-31",
+                "childResponseMessageId",
+                WARD_MESSAGE_ID.toString(),
+                "citizenship",
+                "EE",
+                "citizenships",
+                List.of("EE", "FI")));
+  }
+
+  @Test
+  void activeGuardianship_seedsTheWardsOnboardingAndScreensBothWithTheirRegisterCitizenships() {
+    givenAnActiveGuardianshipOf(ward);
+    given(custodyVerificationService.fetchGuardianCitizenship(PARENT, CUSTODY_MAX_AGE))
+        .willReturn("RU");
+
+    service.onboardChild(parent, ADULT);
+
+    verify(childSavingsOnboarding).seedIfAbsent(ADULT);
+    verify(sanctionAndPepScreener)
+        .addSanctionAndPepCheckIfMissing(
+            new PersonImpl(ADULT, "WARD", "PERSON"), Countries.of("EE", "FI"));
+    verify(sanctionAndPepScreener)
+        .addSanctionAndPepCheckIfMissing(
+            new PersonImpl(PARENT, "Jordan", "Valdma"), Countries.of("RU"));
+  }
+
+  @Test
+  void activeGuardianship_neitherRegistersALegalRepresentationNorPublishesAnyEvent() {
+    givenAnActiveGuardianshipOf(ward);
+
+    service.onboardChild(parent, ADULT);
+
+    verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any(), any());
+    verifyNoInteractions(applicationEventPublisher);
+  }
+
+  @Test
+  void activeGuardianshipOfAWardTheRegisterReportsNotAlive_recordsAFailedCustodyCheckForReview() {
+    givenAnActiveGuardianshipOf(deceasedWard);
+
+    ChildOnboardingResult result = service.onboardChild(parent, ADULT);
+
+    assertThat(result).isEqualTo(ChildOnboardingResult.underReview());
+    verify(amlService)
+        .addCustodyRightCheck(
+            ADULT,
+            false,
+            Map.of(
+                "outcome",
+                "CHILD_NOT_ALIVE",
+                "childPersonalCode",
+                ADULT,
+                "guardianLinkId",
+                GUARDIAN_LINK_ID.toString(),
+                "guardianLinkValidUntil",
+                "2029-03-31",
+                "childResponseMessageId",
+                WARD_MESSAGE_ID.toString()));
+  }
+
+  @Test
+  void activeGuardianshipOfAWardTheRegisterReportsNotAlive_neitherSeedsNorScreensNorPublishes() {
+    givenAnActiveGuardianshipOf(deceasedWard);
+
+    service.onboardChild(parent, ADULT);
+
+    verifyNoInteractions(childSavingsOnboarding, sanctionAndPepScreener, applicationEventPublisher);
+    verify(custodyVerificationService, never()).fetchGuardianCitizenship(any(), any());
+  }
+
+  @Test
+  void guardianOfAMinor_verifiesCustodyInThePopulationRegisterWithoutConsultingGuardianLinks() {
+    var evidence = Map.<String, Object>of("outcome", "OK", "childPersonalCode", CHILD);
+    given(custodyVerificationService.verify(PARENT, CHILD, CUSTODY_MAX_AGE))
+        .willReturn(new CustodyVerification(OK, child, evidence));
+
+    ChildOnboardingResult result = service.onboardChild(parent, CHILD);
+
+    assertThat(result).isEqualTo(ChildOnboardingResult.verified(child));
+    verify(parentChildLinkService, never()).findActiveGuardianship(any(), any());
+    verify(parentChildLinkRegistrationService)
+        .register(PARENT, CHILD, "MARI", "MAASIKAS", NameChangeBasis.populationRegister());
+    verify(applicationEventPublisher)
+        .publishEvent(new ChildOnboardedEvent(PARENT, CHILD, "MARI", "MAASIKAS"));
+  }
+
+  @Test
+  void adultWithoutAnActiveGuardianship_verifiesCustodyInThePopulationRegister() {
+    given(parentChildLinkService.findActiveGuardianship(PARENT, ADULT))
+        .willReturn(Optional.empty());
+    given(custodyVerificationService.verify(PARENT, ADULT, CUSTODY_MAX_AGE))
+        .willReturn(
+            CustodyVerification.notVerified(
+                NO_CUSTODY, Map.of("outcome", "NO_CUSTODY", "childPersonalCode", ADULT)));
+
+    ChildOnboardingResult result = service.onboardChild(parent, ADULT);
+
+    assertThat(result).isEqualTo(ChildOnboardingResult.underReview());
   }
 }

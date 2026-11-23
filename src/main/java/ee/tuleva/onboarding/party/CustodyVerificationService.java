@@ -43,6 +43,11 @@ public class CustodyVerificationService {
     }
   }
 
+  public PopulationRegisterResult<PopulationRegisterPerson> fetchWard(
+      String guardianPersonalCode, String wardPersonalCode, Duration maxAge) {
+    return populationRegisterClient.fetchPerson(guardianPersonalCode, wardPersonalCode, maxAge);
+  }
+
   public List<Guardian> findGuardiansWithAssetManagement(
       String childPersonalCode, String requesterPersonalCode) {
     Map<String, Guardian> byCode = new LinkedHashMap<>();

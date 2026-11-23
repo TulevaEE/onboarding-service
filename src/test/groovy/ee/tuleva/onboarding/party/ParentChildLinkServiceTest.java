@@ -419,4 +419,27 @@ class ParentChildLinkServiceTest {
 
     assertThat(service.findCurrentRepresentatives()).containsExactly(link);
   }
+
+  @Test
+  void findsTheActiveGuardianLinkToTheWardAsOfToday() {
+    var guardianship = ParentChildLink.builder().id(LINK_ID).relationshipType(GUARDIAN).build();
+    given(
+            parentChildLinkRepository
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE), TODAY))
+        .willReturn(List.of(aLink(), guardianship));
+
+    assertThat(service.findActiveGuardianship(PARENT, CHILD)).containsSame(guardianship);
+  }
+
+  @Test
+  void findsNoActiveGuardianshipWhenTheOnlyActiveLinkIsALegalRepresentation() {
+    given(
+            parentChildLinkRepository
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE), TODAY))
+        .willReturn(List.of(aLink()));
+
+    assertThat(service.findActiveGuardianship(PARENT, CHILD)).isEmpty();
+  }
 }

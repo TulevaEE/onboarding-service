@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 class FeePaymentAllocationTest {
 
   private static final BigDecimal THRESHOLD = new BigDecimal("0.02");
+  private static final BigDecimal RAISED_THRESHOLD = new BigDecimal("0.10");
+  private static final LocalDate THRESHOLD_RAISED_ON = LocalDate.of(2026, 11, 2);
   private static final LocalDate AUGUST = LocalDate.of(2026, 8, 1);
   private static final LocalDate SEPTEMBER = LocalDate.of(2026, 9, 1);
   private static final LocalDate OCTOBER = LocalDate.of(2026, 10, 1);
@@ -187,6 +189,31 @@ class FeePaymentAllocationTest {
             month(SEPTEMBER, "1000.00", "999.50", "0.50", null, paid("2026-10-01", "0.50")),
             month(OCTOBER, "1000.00", "1000.00", "0", "2026-11-02", paid("2026-11-02", "0")),
             unpaid(NOVEMBER, "300.00"));
+  }
+
+  @Test
+  void eachDebitIsJudgedByTheThresholdInForceOnTheDayItIsBooked() {
+    var months =
+        FeePaymentAllocation.allocate(
+            List.of(unpaid(SEPTEMBER, "1000.00"), unpaid(OCTOBER, "1000.00")),
+            List.of(debit("2026-10-01", "999.95"), debit("2026-11-02", "1000.00")),
+            FeePaymentAllocationTest::thresholdInForceOn);
+
+    assertThat(months)
+        .containsExactly(
+            month(
+                SEPTEMBER,
+                "1000.00",
+                "1000.00",
+                "0",
+                "2026-11-02",
+                paid("2026-10-01", "0.05"),
+                paid("2026-11-02", "0")),
+            month(OCTOBER, "1000.00", "999.95", "0", "2026-11-02", paid("2026-11-02", "0")));
+  }
+
+  private static BigDecimal thresholdInForceOn(LocalDate bookedOn) {
+    return bookedOn.isBefore(THRESHOLD_RAISED_ON) ? THRESHOLD : RAISED_THRESHOLD;
   }
 
   private static List<FeeMonthBalance> allocate(

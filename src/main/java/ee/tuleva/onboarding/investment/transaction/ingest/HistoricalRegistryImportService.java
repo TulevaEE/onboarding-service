@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.transaction.SettlementSource.HISTORICAL_IMPORT;
-import static ee.tuleva.onboarding.investment.transaction.ingest.TransactionExecutionMapper.navDateOfAnEtfFill;
 
 import ee.tuleva.onboarding.investment.transaction.BatchStatus;
 import ee.tuleva.onboarding.investment.transaction.HistoricalImportResult;
@@ -11,7 +9,6 @@ import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatch;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatchRepository;
-import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
@@ -20,9 +17,6 @@ import ee.tuleva.onboarding.investment.transaction.ingest.HistoricalRegistryCsvP
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -31,7 +25,6 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,8 +34,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class HistoricalRegistryImportService {
 
-  private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
-
   static final String SOURCE_HISTORICAL_IMPORT = "HISTORICAL_IMPORT";
   static final String CREATED_BY_HISTORICAL_IMPORT = "historical-import";
 
@@ -51,6 +42,7 @@ public class HistoricalRegistryImportService {
   private final TransactionExecutionRepository executionRepository;
   private final TransactionSettlementService settlementService;
   private final HistoricalRegistryCsvParser csvParser;
+  private final HistoricalExecutionWriter executionWriter;
   private final Clock clock;
 
   @Transactional
@@ -93,7 +85,7 @@ public class HistoricalRegistryImportService {
       }
       TransactionOrder order = orderRepository.save(toOrder(row, batch));
       if (row.hasExecutionData()) {
-        executionRepository.save(toExecution(row, order));
+        executionWriter.write(row, order);
         executionsCreated++;
       }
       if (row.orderStatus() == OrderStatus.SETTLED) {
@@ -154,30 +146,6 @@ public class HistoricalRegistryImportService {
         .expectedSettlementDate(row.expectedSettlementDate())
         .comment(row.comment())
         .build();
-  }
-
-  private TransactionExecution toExecution(ParsedRow row, TransactionOrder order) {
-    return TransactionExecution.builder()
-        .orderId(order.getId())
-        .brokerTransactionId(row.brokerTransactionId())
-        .executionTimestamp(row.executionTimestamp())
-        .navDate(navDateOfAnEtfFill(row.instrumentType(), row.executionTimestamp()))
-        .executedQuantity(row.executedQuantity())
-        .unitPrice(row.unitPrice())
-        .totalConsideration(row.totalConsideration())
-        .settlementAmount(row.settlementAmount())
-        .commissionAmount(row.commissionAmount())
-        .scheduledSettlementDate(row.actualSettlementDate())
-        .reportedDate(reportedDate(row))
-        .source(SOURCE_HISTORICAL_IMPORT)
-        .modifiedBy(CREATED_BY_HISTORICAL_IMPORT)
-        .build();
-  }
-
-  private @Nullable LocalDate reportedDate(ParsedRow row) {
-    Instant known =
-        row.executionTimestamp() == null ? row.orderTimestamp() : row.executionTimestamp();
-    return known == null ? row.actualSettlementDate() : LocalDate.ofInstant(known, TALLINN);
   }
 
   private HistoricalImportResult abortedResult(

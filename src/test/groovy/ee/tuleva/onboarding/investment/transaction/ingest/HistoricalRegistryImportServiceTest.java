@@ -55,6 +55,7 @@ class HistoricalRegistryImportServiceTest {
             executionRepository,
             settlementService,
             csvParser,
+            new HistoricalExecutionWriter(executionRepository),
             clock);
   }
 

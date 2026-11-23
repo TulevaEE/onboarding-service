@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.check.health;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.HEALTH_CHECK_ALERT_POSTING;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.check.health.SlackPostFailure.NOT_SENT;
+import static ee.tuleva.onboarding.investment.check.health.SlackPostFailure.PAYLOAD_REFUSED;
 import static ee.tuleva.onboarding.investment.check.health.SlackPostFailure.UNCERTAIN;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
@@ -28,8 +29,6 @@ class HealthCheckAlertPostingJob {
   private static final Duration FIRST_GAP_AFTER_AN_UNCERTAIN_POST = Duration.ofMinutes(1);
   private static final Duration LONGEST_GAP_SO_AN_UNCERTAIN_ALERT_IS_STILL_TRIED_EVERY_HOUR =
       Duration.ofMinutes(60);
-  private static final String NOT_POSTED_WITHIN_THE_RETRY_WINDOW =
-      "not posted within 24 hours of its state being found";
 
   private final OperationsNotificationService notificationService;
   private final HealthCheckAlertRepository alertRepository;
@@ -42,7 +41,7 @@ class HealthCheckAlertPostingJob {
     var notPosted = alertRepository.findNotPosted();
     notPosted.stream()
         .filter(alert -> alert.foundBefore(giveUpFoundBefore))
-        .forEach(alert -> giveUp(alert, alert.attempts(), NOT_POSTED_WITHIN_THE_RETRY_WINDOW));
+        .forEach(this::giveUpAtTheRetryLimit);
     notPosted.stream()
         .filter(alert -> !alert.foundBefore(giveUpFoundBefore))
         .limit(SLACK_POSTS_AT_70_SECONDS_EACH_THAT_LEAVE_HALF_THE_10_MINUTE_LOCK)
@@ -90,7 +89,15 @@ class HealthCheckAlertPostingJob {
 
   private boolean claimed(HealthCheckAlert alert, Instant now) {
     try {
-      return alertRepository.claimAttempt(alert.id(), alert.attempts(), now);
+      if (alertRepository.claimAttempt(alert.id(), alert.attempts(), now)) {
+        return true;
+      }
+      log.warn(
+          "Health check alert claimed by another run or no longer waiting, stopping this run:"
+              + " alertId={}, seenAttempts={}",
+          alert.id(),
+          alert.attempts());
+      return false;
     } catch (RuntimeException e) {
       log.warn(
           "Health check alert attempt not counted, so it is not posted this run: alertId={},"
@@ -109,10 +116,7 @@ class HealthCheckAlertPostingJob {
         yield false;
       }
       case PAYLOAD_REFUSED -> {
-        giveUp(
-            alert,
-            alert.attempts() + 1,
-            "Slack refused its payload: " + SlackPostFailure.describe(e));
+        giveUpOnARefusedPayload(alert, e);
         yield true;
       }
       case UNCERTAIN -> {
@@ -143,12 +147,19 @@ class HealthCheckAlertPostingJob {
         alert.foundAt(),
         NOT_SENT,
         SlackPostFailure.describe(e));
+    var claimedAttempts = alert.attempts() + 1;
     try {
       var earlierAttemptAt = alert.lastAttemptAt();
-      if (earlierAttemptAt == null) {
-        alertRepository.refundFirstAttempt(alert.id());
-      } else {
-        alertRepository.refundAttempt(alert.id(), alert.attempts() + 1, earlierAttemptAt);
+      var refunded =
+          earlierAttemptAt == null
+              ? alertRepository.refundFirstAttempt(alert.id())
+              : alertRepository.refundAttempt(alert.id(), claimedAttempts, earlierAttemptAt);
+      if (!refunded) {
+        log.warn(
+            "Health check alert attempt not refunded, its attempt count changed meanwhile:"
+                + " alertId={}, claimedAttempts={}",
+            alert.id(),
+            claimedAttempts);
       }
     } catch (RuntimeException dbError) {
       log.warn(
@@ -171,25 +182,45 @@ class HealthCheckAlertPostingJob {
     }
   }
 
-  private void giveUp(HealthCheckAlert alert, int attempts, String why) {
+  private void giveUpAtTheRetryLimit(HealthCheckAlert alert) {
+    if (givenUp(alert)) {
+      log.error(
+          "Health check alert given up after it was retried until the 24-hour limit:"
+              + " alertId={}, provider={}, reportDate={}, foundAt={},"
+              + " postsThatMayHaveReachedSlack={}",
+          alert.id(),
+          alert.provider(),
+          alert.reportDate(),
+          alert.foundAt(),
+          alert.attempts());
+    }
+  }
+
+  private void giveUpOnARefusedPayload(HealthCheckAlert alert, RuntimeException e) {
+    if (givenUp(alert)) {
+      log.error(
+          "Health check alert given up, Slack refused its payload: alertId={}, provider={},"
+              + " reportDate={}, foundAt={}, attempts={}, failure={}, cause={}",
+          alert.id(),
+          alert.provider(),
+          alert.reportDate(),
+          alert.foundAt(),
+          alert.attempts() + 1,
+          PAYLOAD_REFUSED,
+          SlackPostFailure.describe(e));
+    }
+  }
+
+  private boolean givenUp(HealthCheckAlert alert) {
     try {
-      if (alertRepository.giveUp(alert.id())) {
-        log.error(
-            "Health check alert given up, never confirmed posted to Slack: why={}, alertId={},"
-                + " provider={}, reportDate={}, foundAt={}, attempts={}",
-            why,
-            alert.id(),
-            alert.provider(),
-            alert.reportDate(),
-            alert.foundAt(),
-            attempts);
-      }
+      return alertRepository.giveUp(alert.id());
     } catch (RuntimeException e) {
       log.warn(
           "Health check alert not marked as given up, trying again next run: alertId={},"
               + " cause={}",
           alert.id(),
           mostSpecificCause(e));
+      return false;
     }
   }
 

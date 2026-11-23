@@ -257,6 +257,7 @@ class HealthCheckAlertPostingJobTest {
         HttpServerErrorException.create(
             INTERNAL_SERVER_ERROR, "Internal Server Error", HttpHeaders.EMPTY, new byte[0], UTF_8),
         slack(REQUEST_TIMEOUT, ""),
+        slack(BAD_REQUEST, "invalid_blocks"),
         new RestClientException("anything else"));
   }
 

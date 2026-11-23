@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.HttpServerErrorException
 import org.springframework.web.client.ResourceAccessException
+import org.springframework.web.client.RestClientException
 import spock.lang.Specification
 import spock.lang.Unroll
 
@@ -51,6 +52,15 @@ class SlackPostFailureSpec extends Specification {
     "Slack limits the rate"                       | slack(TOO_MANY_REQUESTS, "rate_limited")                       || NOT_SENT
     "Slack answers 400 about its own team"        | slack(BAD_REQUEST, "no_team")                                  || NOT_SENT
     "Slack answers 400 about the webhook"         | slack(BAD_REQUEST, "no_service_id")                            || NOT_SENT
+    "Slack answers 400 about the token"           | slack(BAD_REQUEST, "invalid_token")                            || NOT_SENT
+    "Slack answers 400 that the hook is off"      | slack(BAD_REQUEST, "no_active_hooks")                          || NOT_SENT
+    "Slack answers 400 that the hook is gone"     | slack(BAD_REQUEST, "no_service")                               || NOT_SENT
+    "Slack answers 400 that the team is off"      | slack(BAD_REQUEST, "team_disabled")                            || NOT_SENT
+    "Slack answers 400 about the channel"         | slack(BAD_REQUEST, "channel_not_found")                        || NOT_SENT
+    "Slack answers 400 that it is archived"       | slack(BAD_REQUEST, "channel_is_archived")                      || NOT_SENT
+    "Slack answers 400 that it is prohibited"     | slack(BAD_REQUEST, "action_prohibited")                        || NOT_SENT
+    "Slack answers 400 about #general"            | slack(BAD_REQUEST, "posting_to_general_channel_denied")        || NOT_SENT
+    "Slack answers 400 about the user"            | slack(BAD_REQUEST, "user_not_found")                           || NOT_SENT
     "Slack does not know the token"               | slack(UNAUTHORIZED, "")                                        || NOT_SENT
     "Slack forbids the post"                      | slack(FORBIDDEN, "action_prohibited")                          || NOT_SENT
     "Slack finds the token invalid"               | slack(FORBIDDEN, "invalid_token")                              || NOT_SENT
@@ -71,30 +81,47 @@ class SlackPostFailureSpec extends Specification {
     "Slack fails"                                 | server(INTERNAL_SERVER_ERROR)                                  || UNCERTAIN
     "a gateway in front of Slack fails"           | server(BAD_GATEWAY)                                            || UNCERTAIN
     "Slack times the request out"                 | slack(REQUEST_TIMEOUT, "")                                     || UNCERTAIN
+    "Slack answers 400 about invalid blocks"      | slack(BAD_REQUEST, "invalid_blocks")                           || UNCERTAIN
+    "Slack answers 400 about invalid attachments" | slack(BAD_REQUEST, "invalid_attachments")                      || UNCERTAIN
+    "Slack answers 400 with no body"              | slack(BAD_REQUEST, "")                                         || UNCERTAIN
+    "a proxy answers 400 with an HTML page"       | slack(BAD_REQUEST, "<html><body>Bad Request</body></html>")    || UNCERTAIN
+    "reading the answer fails after the request"  | afterTheRequest(new IllegalStateException("closed"))           || UNCERTAIN
   }
 
-  def "aFailureIsDescribedByItsMostSpecificCauseWithoutTheWebhookUrl"() {
+  def "aFailedHttpAnswerIsDescribedWithSlacksBodyAndWithoutTheWebhookUrl"() {
     given:
-    def timedOut = new ResourceAccessException(
-        "I/O error on POST request for \"" + WEBHOOK + "\": Read timed out",
-        new SocketTimeoutException("Read timed out"))
     def refused = HttpClientErrorException.create(
-        "400 Bad Request on POST request for \"" + WEBHOOK + "\": \"invalid_payload\"",
+        "400 Bad Request on POST request for \"" + WEBHOOK + "\"",
         BAD_REQUEST, "Bad Request", HttpHeaders.EMPTY, "invalid_payload".getBytes(UTF_8), UTF_8)
 
     expect:
-    with(SlackPostFailure.describe(timedOut)) {
-      startsWith(SocketTimeoutException.name)
-      !contains(WEBHOOK_SECRET_PART)
-    }
     with(SlackPostFailure.describe(refused)) {
       startsWith(HttpClientErrorException.BadRequest.name)
+      contains("invalid_payload")
+      !contains(WEBHOOK_SECRET_PART)
+    }
+  }
+
+  def "aFailureWhoseCauseNamesTheWebhookUrlIsDescribedWithoutIt"() {
+    given:
+    def reset = new ResourceAccessException(
+        "I/O error on POST request for \"" + WEBHOOK + "\": Connection reset",
+        new SocketException("Connection reset by " + WEBHOOK))
+
+    expect:
+    with(SlackPostFailure.describe(reset)) {
+      startsWith(SocketException.name)
+      contains("Connection reset")
       !contains(WEBHOOK_SECRET_PART)
     }
   }
 
   private static ResourceAccessException io(IOException cause) {
     new ResourceAccessException("I/O error on POST request for \"" + WEBHOOK + "\": " + cause.message, cause)
+  }
+
+  private static RestClientException afterTheRequest(RuntimeException cause) {
+    new RestClientException("Error while extracting response", cause)
   }
 
   private static HttpClientErrorException slack(HttpStatus status, String body) {

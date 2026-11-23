@@ -10,21 +10,24 @@ import ee.tuleva.onboarding.error.RestResponseErrorHandler
 import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationHandler
 import io.micrometer.observation.ObservationRegistry
-import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.function.Supplier
+import org.apache.hc.client5.http.CircularRedirectException
+import org.apache.hc.client5.http.ClientProtocolException
 import org.apache.hc.client5.http.ConnectTimeoutException
 import org.apache.hc.client5.http.HttpHostConnectException
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.autoconfigure.context.ConfigurationPropertiesAutoConfiguration
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder
 import org.springframework.boot.http.client.HttpClientSettings
 import org.springframework.boot.http.client.autoconfigure.HttpClientAutoConfiguration
+import org.springframework.boot.http.client.autoconfigure.imperative.ImperativeHttpClientAutoConfiguration
 import org.springframework.boot.restclient.autoconfigure.RestTemplateAutoConfiguration
 import org.springframework.boot.restclient.observation.ObservationRestTemplateCustomizer
-import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.core.env.Environment
+import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.http.client.observation.DefaultClientRequestObservationConvention
 import org.springframework.test.web.client.MockRestServiceServer
@@ -34,6 +37,7 @@ import org.springframework.web.client.HttpServerErrorException
 import org.springframework.web.client.ResourceAccessException
 import org.springframework.web.client.RestClientException
 import org.springframework.web.client.RestClientResponseException
+import org.springframework.web.client.UnknownHttpStatusCodeException
 import spock.lang.Specification
 import spock.lang.Timeout
 import tools.jackson.databind.json.JsonMapper
@@ -45,7 +49,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.TRADING
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING
-import static ee.tuleva.onboarding.notification.slack.SlackService.SAME_SETTINGS_AS_SHARED_HTTP_CLIENTS
+import static org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder.httpComponents
 import static org.springframework.http.HttpMethod.POST
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*
 import static org.springframework.http.HttpStatus.BAD_REQUEST
@@ -73,9 +77,9 @@ class SlackServiceSpec extends Specification {
   MockRestServiceServer server
 
   def setup() {
-    def restTemplate = SlackService.restTemplateKeepingTheWebhookUrlPrivate(SAME_SETTINGS_AS_SHARED_HTTP_CLIENTS)
-    server = MockRestServiceServer.bindTo(restTemplate).build()
-    slackService = new SlackService(restTemplate, webhookConfiguration, environment)
+    def restClient = SlackService.restClientOutsideTheSharedSetup(httpComponents(), HttpClientSettings.defaults())
+    server = MockRestServiceServer.bindTo(restClient).build()
+    slackService = new SlackService(restClient.build(), webhookConfiguration, environment)
   }
 
   def "should send message to Slack if webhook URL is present"() {
@@ -232,9 +236,10 @@ class SlackServiceSpec extends Specification {
 
   def "a post to a port nobody listens on never carries the webhook path, since HttpClient5 names only the host and port"() {
     given:
-    def closedPort = new ServerSocket(0).withCloseable { it.localPort }
-    webhookConfiguration.webhooks = [trading: "http://localhost:${closedPort}${WEBHOOK_PATH}".toString()]
-    def overRealHttpClient = new SlackService(webhookConfiguration, environment)
+    def reservedPort = new Socket()
+    reservedPort.bind(new InetSocketAddress(InetAddress.loopbackAddress, 0))
+    webhookConfiguration.webhooks = [trading: "http://127.0.0.1:${reservedPort.localPort}${WEBHOOK_PATH}".toString()]
+    def overRealHttpClient = slackServiceOverRealHttpClient()
 
     when:
     overRealHttpClient.sendMessage("Orders NOT sent", TRADING, ERROR)
@@ -243,10 +248,133 @@ class SlackServiceSpec extends Specification {
     def failure = thrown(ResourceAccessException)
     failure.cause instanceof HttpHostConnectException
     !printedWithEveryCause(failure).contains(WEBHOOK_PATH)
+
+    cleanup:
+    reservedPort.close()
+  }
+
+  def "an I/O error that names the webhook is replaced by one that names only its class, so the post never carries the webhook URL"() {
+    given:
+    webhookConfiguration.webhooks = [trading: WEBHOOK_URL]
+    def circularRedirect = "Circular redirect to '" + WEBHOOK_URL + "'"
+    server.expect(requestTo(WEBHOOK_URL))
+        .andRespond(withException(new ClientProtocolException(circularRedirect, new CircularRedirectException(circularRedirect))))
+
+    when:
+    slackService.sendMessage("Orders NOT sent", TRADING, ERROR)
+
+    then:
+    def failure = thrown(ResourceAccessException)
+    failure.cause.class == IOException
+    !printedWithEveryCause(failure).contains(WEBHOOK_PATH)
+  }
+
+  def "a webhook without a scheme fails without carrying the webhook path"() {
+    given:
+    webhookConfiguration.webhooks = [trading: "hooks.slack.com" + WEBHOOK_PATH]
+    def overRealHttpClient = slackServiceOverRealHttpClient()
+
+    when:
+    overRealHttpClient.sendMessage("Orders NOT sent", TRADING, ERROR)
+
+    then:
+    def failure = thrown(RuntimeException)
+    !printedWithEveryCause(failure).contains(WEBHOOK_PATH)
+  }
+
+  def "a webhook that is not a valid URI is refused before any request, and the refusal never carries the webhook path: #invalidPart"() {
+    given:
+    def invalidPath = "/services/T000/B000/" + invalidPart
+    webhookConfiguration.webhooks = [trading: "https://hooks.slack.com" + invalidPath]
+
+    when:
+    slackService.sendMessage("Orders NOT sent", TRADING, ERROR)
+
+    then:
+    def failure = thrown(IllegalArgumentException)
+    !printedWithEveryCause(failure).contains(invalidPath)
+    server.verify()
+
+    where:
+    invalidPart << ["not-a-real-{token", "not a real token"]
+  }
+
+  def "a blank webhook counts as missing, so nothing is posted outside production: '#blank'"() {
+    given:
+    webhookConfiguration.webhooks = [aml: blank]
+    environment.matchesProfiles("production") >> false
+
+    when:
+    slackService.sendMessage("Test Message", AML)
+
+    then:
+    noExceptionThrown()
+    server.verify()
+
+    where:
+    blank << ["", "  "]
+  }
+
+  def "a blank webhook counts as missing, so in production the post fails for having no webhook: '#blank'"() {
+    given:
+    webhookConfiguration.webhooks = [aml: blank]
+    environment.matchesProfiles("production") >> true
+
+    when:
+    slackService.sendMessage("Test Message", AML)
+
+    then:
+    thrown(IllegalStateException)
+    server.verify()
+
+    where:
+    blank << ["", "  "]
+  }
+
+  def "any other answer Slack gives keeps its type, status, headers and body, and never carries the webhook URL: #answer.class.simpleName"() {
+    given:
+    webhookConfiguration.webhooks = [trading: WEBHOOK_URL]
+    server.expect(requestTo(WEBHOOK_URL)).andRespond({ request -> throw answer } as ResponseCreator)
+
+    when:
+    slackService.sendMessage("Orders NOT sent", TRADING, ERROR)
+
+    then:
+    def failure = thrown(RestClientResponseException)
+    failure.class == answer.class
+    failure.statusCode == answer.statusCode
+    failure.statusText == answer.statusText
+    failure.responseHeaders.contentType == answer.responseHeaders.contentType
+    failure.responseBodyAsString == answer.responseBodyAsString
+    !printedWithEveryCause(failure).contains(WEBHOOK_PATH)
+
+    where:
+    answer << [
+        new UnknownHttpStatusCodeException("599 Unknown on POST request for \"" + WEBHOOK_URL + "\"", 599, "Unknown", textHeaders(), "rollup".getBytes(UTF_8), UTF_8),
+        new RestClientResponseException("418 on POST request for \"" + WEBHOOK_URL + "\"", 418, "I'm a teapot", textHeaders(), "short".getBytes(UTF_8), UTF_8)
+    ]
+  }
+
+  def "a post failing in any other way keeps a cause that does not name the webhook, and never carries the webhook URL"() {
+    given:
+    def cause = new IllegalStateException("Response body could not be read")
+    webhookConfiguration.webhooks = [trading: WEBHOOK_URL]
+    server.expect(requestTo(WEBHOOK_URL)).andRespond({ request ->
+      throw new RestClientException("Error while extracting response from ${request.URI}", cause)
+    } as ResponseCreator)
+
+    when:
+    slackService.sendMessage("Orders NOT sent", TRADING, ERROR)
+
+    then:
+    def failure = thrown(RestClientException)
+    failure.class == RestClientException
+    failure.cause.is(cause)
+    !printedWithEveryCause(failure).contains(WEBHOOK_PATH)
   }
 
   @Timeout(10)
-  def "a post Slack never answers fails on the read timeout with a socket timeout, and never carries the webhook path"() {
+  def "a Slack post follows the shared spring.http.clients settings, so an overridden read timeout applies to Slack too"() {
     given:
     def silentSlack = new ServerSocket(0, 50, InetAddress.loopbackAddress)
     def held = new CopyOnWriteArrayList<Socket>()
@@ -258,14 +386,17 @@ class SlackServiceSpec extends Specification {
         }
       }
     }
-    webhookConfiguration.webhooks = [trading: "http://127.0.0.1:${silentSlack.localPort}${WEBHOOK_PATH}".toString()]
-    def overRealHttpClient = new SlackService(
-        SlackService.restTemplateKeepingTheWebhookUrlPrivate(SAME_SETTINGS_AS_SHARED_HTTP_CLIENTS.withReadTimeout(Duration.ofMillis(300))),
-        webhookConfiguration,
-        environment)
+    def application = new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(
+            ConfigurationPropertiesAutoConfiguration, HttpClientAutoConfiguration, ImperativeHttpClientAutoConfiguration))
+        .withUserConfiguration(SlackWebhookConfiguration)
+        .withBean(SlackService)
+        .withPropertyValues(
+            "spring.http.clients.read-timeout=300ms",
+            "slack.webhooks.trading=http://127.0.0.1:${silentSlack.localPort}${WEBHOOK_PATH}".toString())
 
     when:
-    overRealHttpClient.sendMessage("Orders NOT sent", TRADING, ERROR)
+    application.run { context -> context.getBean(SlackService).sendMessage("Orders NOT sent", TRADING, ERROR) }
 
     then:
     def failure = thrown(ResourceAccessException)
@@ -277,7 +408,7 @@ class SlackServiceSpec extends Specification {
     held.each { it.close() }
   }
 
-  def "a post failing in any other way never carries the webhook URL"() {
+  def "a post failing in any other way replaces a cause that names the webhook, and never carries the webhook URL"() {
     given:
     webhookConfiguration.webhooks = [trading: WEBHOOK_URL]
     server.expect(requestTo(WEBHOOK_URL)).andRespond({ request ->
@@ -290,21 +421,8 @@ class SlackServiceSpec extends Specification {
     then:
     def failure = thrown(RestClientException)
     failure.class == RestClientException
+    failure.cause.class == IOException
     !printedWithEveryCause(failure).contains(WEBHOOK_PATH)
-  }
-
-  def "a Slack post waits as long as the shared HTTP clients configured in spring.http.clients do"() {
-    given:
-    def sharedHttpClients = new ApplicationContextRunner()
-        .withInitializer(new ConfigDataApplicationContextInitializer())
-        .withConfiguration(AutoConfigurations.of(HttpClientAutoConfiguration))
-
-    when:
-    def sharedSettings = null
-    sharedHttpClients.run { context -> sharedSettings = context.getBean(HttpClientSettings) }
-
-    then:
-    SAME_SETTINGS_AS_SHARED_HTTP_CLIENTS == sharedSettings
   }
 
   def "a Slack post sends its JSON in one piece with a Content-Length"() {
@@ -312,7 +430,7 @@ class SlackServiceSpec extends Specification {
     def received = new CopyOnWriteArrayList<Map<String, String>>()
     def slack = localSlack(received)
     webhookConfiguration.webhooks = [trading: webhookOf(slack)]
-    def overRealHttpClient = new SlackService(webhookConfiguration, environment)
+    def overRealHttpClient = slackServiceOverRealHttpClient()
 
     when:
     overRealHttpClient.sendMessage("Orders sent", TRADING)
@@ -356,7 +474,11 @@ class SlackServiceSpec extends Specification {
     def observationRegistry = ObservationRegistry.create()
     observationRegistry.observationConfig().observationHandler(observations)
     new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(ConfigurationPropertiesAutoConfiguration, RestTemplateAutoConfiguration))
+        .withConfiguration(AutoConfigurations.of(
+            ConfigurationPropertiesAutoConfiguration,
+            HttpClientAutoConfiguration,
+            ImperativeHttpClientAutoConfiguration,
+            RestTemplateAutoConfiguration))
         .withUserConfiguration(RestTemplateConfiguration, SlackWebhookConfiguration)
         .withBean(RestResponseErrorHandler, { new RestResponseErrorHandler(JsonMapper.builder().build()) } as Supplier)
         .withBean(ObservationRestTemplateCustomizer, {
@@ -398,6 +520,16 @@ class SlackServiceSpec extends Specification {
     void onStart(Observation.Context context) {
       started << context.name
     }
+  }
+
+  private SlackService slackServiceOverRealHttpClient() {
+    new SlackService(webhookConfiguration, environment, ClientHttpRequestFactoryBuilder.detect(), HttpClientSettings.defaults())
+  }
+
+  private static HttpHeaders textHeaders() {
+    def headers = new HttpHeaders()
+    headers.contentType = MediaType.parseMediaType("text/plain;charset=UTF-8")
+    headers
   }
 
   private static String printedWithEveryCause(Throwable failure) {

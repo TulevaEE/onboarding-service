@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
@@ -19,6 +20,9 @@ import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
+import ee.tuleva.onboarding.investment.fees.FeeMonthBalance;
+import ee.tuleva.onboarding.investment.fees.OutstandingFees;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -44,6 +48,8 @@ class CashSettlementCheckerIT {
   @Autowired private CashSettlementChecker checker;
   @Autowired private PensionFundStatementProcessor processor;
   @Autowired private FeeAccrualRepository feeAccrualRepository;
+  @Autowired private OutstandingFees outstandingFees;
+  @Autowired private FeeChargedToFundPolicy feeChargedToFundPolicy;
 
   @Test
   void aPensionFundsFeePaymentBesideAnotherPaymentToTheManagerClearsTheMonthItPays() {
@@ -65,6 +71,12 @@ class CashSettlementCheckerIT {
             managerDebit("other-11", new BigDecimal("-50.00"), "BR tasud TUK75")),
         TUK75_ACCOUNT);
 
+    assertThat(
+            outstandingFees.monthsOn(
+                feeChargedToFundPolicy.resolverFor(TUK75, MANAGEMENT), DECEMBER_1))
+        .filteredOn(month -> month.feeMonth().equals(NOVEMBER))
+        .extracting(FeeMonthBalance::paid, FeeMonthBalance::owed, FeeMonthBalance::clearedOn)
+        .containsExactly(tuple(NOVEMBER_FEE, ZERO, DECEMBER_1));
     assertThat(checker.check(TUK75, DECEMBER_2))
         .extracting(FeeCheckFinding::fund, FeeCheckFinding::severity, FeeCheckFinding::identifiers)
         .containsExactly(tuple(TUK75, PASS, List.of()));

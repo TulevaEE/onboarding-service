@@ -24,22 +24,20 @@ import org.springframework.stereotype.Component;
 @Profile({"production", "staging"})
 class FeeSettlementCheckJob {
 
-  private static final int SETTLEMENT_SETTLED_BY_BUSINESS_DAY = 3;
+  private static final int BUSINESS_DAY_AFTER_THE_NAV_RUN_THAT_SETTLES_A_FIRST_BUSINESS_DAY_DEBIT =
+      3;
 
   private final FeeCheckService feeCheckService;
   private final OutstandingFees outstandingFees;
   private final BusinessDays businessDays;
   private final Clock clock;
 
-  // The third business day, not the second. Month m's fee is settled by the NAV run whose position
-  // date is the day its debit was booked: the second business day's run (11:00 for TUK75/TUK00,
-  // 15:20 for TUV100/TKF100) when the depositary debits on the first. Checking at 10:00 on the
-  // second business day would find every fund's month still awaiting its debit.
   @Scheduled(cron = "0 0 10 1-14 * *", zone = TIMEZONE)
   @SchedulerLock(name = "FeeSettlementCheckJob", lockAtMostFor = "PT30M", lockAtLeastFor = "PT5M")
   void checkClosedMonthIfReady() {
     var today = LocalDate.now(clock);
-    if (!businessDays.isOnOrAfterNthBusinessDayOfMonth(today, SETTLEMENT_SETTLED_BY_BUSINESS_DAY)) {
+    if (!businessDays.isOnOrAfterNthBusinessDayOfMonth(
+        today, BUSINESS_DAY_AFTER_THE_NAV_RUN_THAT_SETTLES_A_FIRST_BUSINESS_DAY_DEBIT)) {
       return;
     }
     runForClosedMonth(today);

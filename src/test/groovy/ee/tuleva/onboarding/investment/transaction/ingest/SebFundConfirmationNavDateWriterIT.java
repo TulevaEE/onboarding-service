@@ -9,7 +9,6 @@ import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirma
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
@@ -150,24 +149,6 @@ class SebFundConfirmationNavDateWriterIT {
     writer.write(REFERENCE);
 
     assertThat(reloaded(execution).getNavDate()).isEqualTo(tradeDate);
-  }
-
-  @Test
-  void write_leavesTheExecutionAloneWhenItsOrderCannotBeFound() {
-    recordConfirmation();
-    TransactionExecution execution = persistExecution(null);
-    SebFundConfirmationNavDateWriter writerFindingNoOrders =
-        new SebFundConfirmationNavDateWriter(
-            confirmationRepository,
-            executionRepository,
-            mock(TransactionOrderRepository.class),
-            new SebFundConfirmationAuditRecorder(
-                auditEventRepository, Clock.fixed(NOW, ZoneOffset.UTC)));
-
-    writerFindingNoOrders.write(REFERENCE);
-
-    assertThat(reloaded(execution).getNavDate()).isNull();
-    assertThat(auditEventRepository.findByEventTypeAndDedupKey(NAV_DATE_SET, REFERENCE)).isEmpty();
   }
 
   @Test

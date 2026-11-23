@@ -40,7 +40,7 @@ record PreviousContactNotice(EmailType type, List<Recipient> recipients) {
     if (changedFields.isEmpty()) {
       return new PreviousContactNotice(CONTACT_DETAILS_CHANGED, List.of());
     }
-    var whatChanged = new HashMap<>(nameMergeVars(user));
+    var whatChanged = new HashMap<>(firstNameOnly(user));
     whatChanged.put("emailChanged", changedFields.contains(EMAIL));
     whatChanged.put("phoneChanged", changedFields.contains(PHONE));
     Stream<Recipient> previousAddresses =
@@ -53,7 +53,7 @@ record PreviousContactNotice(EmailType type, List<Recipient> recipients) {
   }
 
   static PreviousContactNotice ofWithdrawal(User user, List<String> replacedEmails) {
-    var mergeVars = nameMergeVars(user);
+    var mergeVars = firstNameOnly(user);
     return new PreviousContactNotice(
         PREVIOUS_CONTACT_ACTIVITY,
         replacedEmails.stream().map(email -> new Recipient(email, mergeVars)).toList());
@@ -68,10 +68,8 @@ record PreviousContactNotice(EmailType type, List<Recipient> recipients) {
     return Stream.of(new Recipient(currentEmail, with(whatChanged, "previousAddress", false)));
   }
 
-  private static Map<String, Object> nameMergeVars(User user) {
-    return Map.of(
-        "fname", Names.formatted(user.getFirstName()),
-        "lname", Names.formatted(user.getLastName()));
+  private static Map<String, Object> firstNameOnly(User user) {
+    return Map.of("fname", Names.formatted(user.getFirstName()));
   }
 
   private static Map<String, Object> with(Map<String, Object> mergeVars, String key, Object value) {

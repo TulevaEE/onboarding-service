@@ -276,6 +276,50 @@ class PortfolioCostBasisSelfHealIT {
     }
   }
 
+  @Test
+  @Transactional(propagation = NOT_SUPPORTED)
+  void rebuildFromBaselinePostsAnOversellOnceAndClearsItOnceWhenTheMissingBuyIsAdded() {
+    LocalDate buyDate = LocalDate.of(2026, 5, 4);
+    LocalDate sellDate = LocalDate.of(2026, 6, 10);
+    LocalDate today = LocalDate.of(2026, 6, 15);
+    try {
+      seedBaseline();
+      seedExecutionOnDate(ISIN_BOUGHT_AFTER_THE_BASELINE, SELL, sellDate, "5279.0000");
+      RecordingNotificationService notifications = new RecordingNotificationService();
+      PortfolioCostBasisSelfHealJob job = jobOn(today, notifications);
+
+      assertThatThrownBy(job::rebuildFromBaseline).isInstanceOf(IllegalStateException.class);
+      assertThatThrownBy(job::rebuildFromBaseline).isInstanceOf(IllegalStateException.class);
+
+      seedExecutionOnDate(ISIN_BOUGHT_AFTER_THE_BASELINE, BUY, buyDate, "8000.0000");
+      job.rebuildFromBaseline();
+      job.rebuildFromBaseline();
+
+      assertThat(
+              costBasisRepository.findByFundIsinAndInstrumentIsinAndAsOfDate(
+                  FUND_ISIN, ISIN_BOUGHT_AFTER_THE_BASELINE, sellDate))
+          .get()
+          .returns(new BigDecimal("2721.0000"), PortfolioCostBasis::getQuantity);
+      assertThat(notifications.sent())
+          .extracting(Sent::message)
+          .containsExactly(
+              "🔴 TUK75 soetusmaksumus 10.06.2026: IE000I9HGDZ3 müük 5279 ühikut, teadaolev"
+                  + " positsioon 0\n"
+                  + "Fondi soetusmaksumus on sellest päevast alates vale, kuni see on"
+                  + " parandamata\n"
+                  + "Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see; öine"
+                  + " ümberarvutus parandab ülejäänu",
+              "✅ TUK75 soetusmaksumus 10.06.2026: IE000I9HGDZ3 müük ei ületa enam positsiooni,"
+                  + " soetusmaksumus on ümber arvutatud");
+      assertThat(
+              Stream.of(OVERSELL_FOUND, OVERSELL_CLEARED, OVERSELL_POSTED)
+                  .map(auditEventRepository::countByEventType))
+          .containsExactly(1L, 1L, 2L);
+    } finally {
+      deleteCommittedRows(today);
+    }
+  }
+
   private PortfolioCostBasisSelfHealJob jobOn(
       LocalDate today, RecordingNotificationService notifications) {
     ZoneId tallinn = ZoneId.of("Europe/Tallinn");

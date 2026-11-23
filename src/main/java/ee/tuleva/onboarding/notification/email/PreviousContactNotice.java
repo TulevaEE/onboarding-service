@@ -52,7 +52,7 @@ record PreviousContactNotice(EmailType type, List<Recipient> recipients) {
             .toList());
   }
 
-  static PreviousContactNotice ofWithdrawal(User user, List<String> replacedEmails) {
+  static PreviousContactNotice ofActivity(User user, List<String> replacedEmails) {
     var mergeVars = firstNameOnly(user);
     return new PreviousContactNotice(
         PREVIOUS_CONTACT_ACTIVITY,

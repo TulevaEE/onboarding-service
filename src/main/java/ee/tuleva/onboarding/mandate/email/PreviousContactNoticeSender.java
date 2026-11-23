@@ -18,7 +18,7 @@ class PreviousContactNoticeSender {
   public void sendWithdrawalNotice(MandateBatchSignatureStored event) {
     try {
       if (MandateEmailType.containsWithdrawal(event.mandateBatch())) {
-        previousContactNotices.sendWithdrawalNotice(event.user(), event.locale(), event.signedAt());
+        previousContactNotices.sendActivityNotice(event.user(), event.locale(), event.signedAt());
       }
     } catch (RuntimeException e) {
       log.error("Failed to notify previous contact: userId={}", event.user().getId(), e);

@@ -78,6 +78,7 @@ class OrderBankSettlement {
       }
       case BankDating.AlreadyByTheBank() -> BankSettlementOutcome.ALREADY_FROM_BANK;
       case BankDating.Redated(PreviousSettlement previous) -> {
+        takeTheBanksUnitsWhereSebRoundedThem(order, bookedPieces);
         auditRecorder.recordSettlementRedatedByBank(order, bookingDate, previous);
         yield previous.reportDate().equals(bookingDate)
             ? BankSettlementOutcome.SAME_DATE

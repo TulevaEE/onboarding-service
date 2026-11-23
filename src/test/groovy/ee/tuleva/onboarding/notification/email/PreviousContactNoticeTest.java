@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.notification.email;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
-import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMergeVars;
 import static ee.tuleva.onboarding.notification.email.EmailType.CONTACT_DETAILS_CHANGED;
 import static ee.tuleva.onboarding.notification.email.EmailType.PREVIOUS_CONTACT_ACTIVITY;
 import static ee.tuleva.onboarding.user.ContactField.EMAIL;
@@ -20,6 +19,8 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 class PreviousContactNoticeTest {
+
+  private static final Map<String, Object> FIRST_NAME_ONLY = Map.of("fname", "Jordan");
 
   private static final Instant CHANGED_AT = Instant.parse("2026-11-20T10:00:00Z");
 
@@ -40,8 +41,7 @@ class PreviousContactNoticeTest {
                 List.of(
                     new Recipient(
                         "old@example.com",
-                        nameMergeVarsAnd(
-                            user,
+                        firstNameAnd(
                             Map.of(
                                 "emailChanged", true,
                                 "phoneChanged", false,
@@ -78,8 +78,7 @@ class PreviousContactNoticeTest {
                 List.of(
                     new Recipient(
                         "current@example.com",
-                        nameMergeVarsAnd(
-                            user,
+                        firstNameAnd(
                             Map.of(
                                 "emailChanged", false,
                                 "phoneChanged", true,
@@ -101,11 +100,9 @@ class PreviousContactNoticeTest {
     assertThat(notice.recipients())
         .containsExactly(
             new Recipient(
-                "old@example.com",
-                nameMergeVarsAnd(user, with(phoneChanged, "previousAddress", true))),
+                "old@example.com", firstNameAnd(with(phoneChanged, "previousAddress", true))),
             new Recipient(
-                "current@example.com",
-                nameMergeVarsAnd(user, with(phoneChanged, "previousAddress", false))));
+                "current@example.com", firstNameAnd(with(phoneChanged, "previousAddress", false))));
   }
 
   @Test
@@ -127,8 +124,7 @@ class PreviousContactNoticeTest {
                 List.of(
                     new Recipient(
                         "old@example.com",
-                        nameMergeVarsAnd(
-                            user,
+                        firstNameAnd(
                             Map.of(
                                 "emailChanged", true,
                                 "phoneChanged", true,
@@ -151,8 +147,7 @@ class PreviousContactNoticeTest {
         .containsExactly(
             new Recipient(
                 "Mari@Example.com",
-                nameMergeVarsAnd(
-                    user,
+                firstNameAnd(
                     Map.of(
                         "emailChanged", false,
                         "phoneChanged", true,
@@ -195,7 +190,7 @@ class PreviousContactNoticeTest {
   }
 
   @Test
-  void aSignedWithdrawalIsNoticedAtEveryReplacedAddressWithNothingButTheName() {
+  void aSignedWithdrawalIsNoticedAtEveryReplacedAddressWithNothingButTheFirstName() {
     var user = userWithEmail("new@example.com");
 
     var notice =
@@ -206,8 +201,8 @@ class PreviousContactNoticeTest {
             new PreviousContactNotice(
                 PREVIOUS_CONTACT_ACTIVITY,
                 List.of(
-                    new Recipient("old@example.com", getNameMergeVars(user)),
-                    new Recipient("older@example.com", getNameMergeVars(user)))));
+                    new Recipient("old@example.com", FIRST_NAME_ONLY),
+                    new Recipient("older@example.com", FIRST_NAME_ONLY))));
   }
 
   @Test
@@ -232,8 +227,8 @@ class PreviousContactNoticeTest {
     return extended;
   }
 
-  private static Map<String, Object> nameMergeVarsAnd(User user, Map<String, Object> flags) {
-    var mergeVars = new HashMap<>(getNameMergeVars(user));
+  private static Map<String, Object> firstNameAnd(Map<String, Object> flags) {
+    var mergeVars = new HashMap<>(FIRST_NAME_ONLY);
     mergeVars.putAll(flags);
     return mergeVars;
   }

@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.notification.email;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
-import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMergeVars;
 import static ee.tuleva.onboarding.notification.email.EmailType.CONTACT_DETAILS_CHANGED;
 import static ee.tuleva.onboarding.notification.email.EmailType.PREVIOUS_CONTACT_ACTIVITY;
 import static ee.tuleva.onboarding.user.ContactChangeSource.SELF_SERVICE;
@@ -18,7 +17,6 @@ import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.user.ContactChange;
 import ee.tuleva.onboarding.user.ContactDetailsChanged;
 import ee.tuleva.onboarding.user.RecentlyReplacedEmails;
-import ee.tuleva.onboarding.user.User;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -35,6 +33,8 @@ import org.springframework.context.i18n.LocaleContextHolder;
 
 @ExtendWith(MockitoExtension.class)
 class PreviousContactNoticesTest {
+
+  private static final Map<String, Object> FIRST_NAME_ONLY = Map.of("fname", "Jordan");
 
   private static final List<String> TAGS = List.of("previous_contact");
   private static final Instant SIGNED_AT = Instant.parse("2026-11-21T09:00:00Z");
@@ -72,8 +72,7 @@ class PreviousContactNoticesTest {
             emailService.newMandrillMessage(
                 "old@example.com",
                 "contact_details_changed_en",
-                nameMergeVarsAnd(
-                    user,
+                firstNameAnd(
                     Map.of("emailChanged", true, "phoneChanged", false, "previousAddress", true)),
                 TAGS))
         .willReturn(message);
@@ -105,7 +104,7 @@ class PreviousContactNoticesTest {
   }
 
   @Test
-  void aSignedWithdrawalIsSentToEveryReplacedAddressInItsLanguageWithOnlyTheNameAndNoBatch() {
+  void aSignedWithdrawalIsSentToEveryReplacedAddressInItsLanguageWithOnlyTheFirstNameAndNoBatch() {
     var user = sampleUserNonMember().email("new@example.com").build();
     given(recentlyReplacedEmails.of(user.getIdOrThrow(), SIGNED_AT))
         .willReturn(List.of("old@example.com", "older@example.com"));
@@ -113,11 +112,11 @@ class PreviousContactNoticesTest {
     var toOlder = new MandrillMessage();
     given(
             emailService.newMandrillMessage(
-                "old@example.com", "previous_contact_activity_et", getNameMergeVars(user), TAGS))
+                "old@example.com", "previous_contact_activity_et", FIRST_NAME_ONLY, TAGS))
         .willReturn(toOld);
     given(
             emailService.newMandrillMessage(
-                "older@example.com", "previous_contact_activity_et", getNameMergeVars(user), TAGS))
+                "older@example.com", "previous_contact_activity_et", FIRST_NAME_ONLY, TAGS))
         .willReturn(toOlder);
     given(emailService.send(user, toOld, "previous_contact_activity_et"))
         .willReturn(Optional.of(accepted("old-message")));
@@ -144,11 +143,11 @@ class PreviousContactNoticesTest {
     var toOlder = new MandrillMessage();
     given(
             emailService.newMandrillMessage(
-                "old@example.com", "previous_contact_activity_en", getNameMergeVars(user), TAGS))
+                "old@example.com", "previous_contact_activity_en", FIRST_NAME_ONLY, TAGS))
         .willReturn(toOld);
     given(
             emailService.newMandrillMessage(
-                "older@example.com", "previous_contact_activity_en", getNameMergeVars(user), TAGS))
+                "older@example.com", "previous_contact_activity_en", FIRST_NAME_ONLY, TAGS))
         .willReturn(toOlder);
     given(emailService.send(user, toOld, "previous_contact_activity_en"))
         .willReturn(Optional.of(accepted("old-message")));
@@ -174,7 +173,7 @@ class PreviousContactNoticesTest {
     var message = new MandrillMessage();
     given(
             emailService.newMandrillMessage(
-                "old@example.com", "previous_contact_activity_en", getNameMergeVars(user), TAGS))
+                "old@example.com", "previous_contact_activity_en", FIRST_NAME_ONLY, TAGS))
         .willReturn(message);
     given(emailService.send(user, message, "previous_contact_activity_en"))
         .willReturn(Optional.empty());
@@ -195,8 +194,8 @@ class PreviousContactNoticesTest {
     then(emailPersistenceService).shouldHaveNoInteractions();
   }
 
-  private static Map<String, Object> nameMergeVarsAnd(User user, Map<String, Object> flags) {
-    var mergeVars = new HashMap<>(getNameMergeVars(user));
+  private static Map<String, Object> firstNameAnd(Map<String, Object> flags) {
+    var mergeVars = new HashMap<>(FIRST_NAME_ONLY);
     mergeVars.putAll(flags);
     return mergeVars;
   }

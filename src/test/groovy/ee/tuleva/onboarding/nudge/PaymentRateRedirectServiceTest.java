@@ -116,7 +116,55 @@ class PaymentRateRedirectServiceTest {
   }
 
   @Test
-  void aPersonAlreadyAssignedThisSeasonIsAnsweredWithoutAnyEligibilityLookup() {
+  void aTreatmentPersonFirstSentSevenCalendarDaysAgoWhoStillQualifiesIsSentASecondTime() {
+    Instant now = Instant.parse("2026-11-17T07:00:00Z");
+    Instant beforeTheEleventh = Instant.parse("2026-11-10T22:00:00Z");
+    given(nudgeExposureRepository.hasAssignment(user.getId(), KEY, 2026)).willReturn(true);
+    given(nudgeExposureRepository.isDueForSecondShowing(user.getId(), KEY, 2026, beforeTheEleventh))
+        .willReturn(true);
+    given(eligibility.isEligible(user)).willReturn(true);
+    given(
+            nudgeExposureRepository.recordSecondShowing(
+                user.getId(), KEY, 2026, beforeTheEleventh, now))
+        .willReturn(true);
+
+    assertThat(serviceOn("2026-11-17").assign(person("38888880000")))
+        .isEqualTo(PaymentRateRedirect.to(TREATMENT, 2026));
+  }
+
+  @Test
+  void aTreatmentPersonWhoNoLongerQualifiesIsNotSentAndKeepsTheSecondShowingUnused() {
+    Instant beforeTheEleventh = Instant.parse("2026-11-10T22:00:00Z");
+    given(nudgeExposureRepository.hasAssignment(user.getId(), KEY, 2026)).willReturn(true);
+    given(nudgeExposureRepository.isDueForSecondShowing(user.getId(), KEY, 2026, beforeTheEleventh))
+        .willReturn(true);
+    given(eligibility.isEligible(user)).willReturn(false);
+
+    assertThat(serviceOn("2026-11-17").assign(person("38888880000")))
+        .isEqualTo(PaymentRateRedirect.no());
+    verify(nudgeExposureRepository, never())
+        .recordSecondShowing(anyLong(), anyString(), anyInt(), any(), any());
+  }
+
+  @Test
+  void aSecondShowingAlreadyTakenBySimultaneousLoginIsNotRepeated() {
+    Instant now = Instant.parse("2026-11-17T07:00:00Z");
+    Instant beforeTheEleventh = Instant.parse("2026-11-10T22:00:00Z");
+    given(nudgeExposureRepository.hasAssignment(user.getId(), KEY, 2026)).willReturn(true);
+    given(nudgeExposureRepository.isDueForSecondShowing(user.getId(), KEY, 2026, beforeTheEleventh))
+        .willReturn(true);
+    given(eligibility.isEligible(user)).willReturn(true);
+    given(
+            nudgeExposureRepository.recordSecondShowing(
+                user.getId(), KEY, 2026, beforeTheEleventh, now))
+        .willReturn(false);
+
+    assertThat(serviceOn("2026-11-17").assign(person("38888880000")))
+        .isEqualTo(PaymentRateRedirect.no());
+  }
+
+  @Test
+  void aPersonAlreadyAssignedButNotDueForASecondShowingIsAnsweredWithoutAnyEligibilityLookup() {
     given(nudgeExposureRepository.hasAssignment(user.getId(), "SECOND_PILLAR_PAYMENT_RATE", 2026))
         .willReturn(true);
 

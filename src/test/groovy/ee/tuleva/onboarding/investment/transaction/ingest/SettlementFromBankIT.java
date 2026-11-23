@@ -485,7 +485,7 @@ class SettlementFromBankIT {
   }
 
   @Test
-  void anOrderSettledByAbsence_keepsSebsUnitsWhenTheBankDatesIt() {
+  void anOrderTheImportSettledByAbsenceFirst_takesTheBanksUnitsWhenTheBankDatesIt() {
     TransactionOrder order = orderInEuros(BUY, "209025.86");
     TransactionExecution piece = piece(order, "DLA0553690", "12345678.91", "209025.86");
     settledEarlier(order, LocalDate.of(2026, 2, 16), PENDING_REPORT_ABSENCE);
@@ -494,11 +494,31 @@ class SettlementFromBankIT {
     settleFromTheBank();
 
     assertThat(executionRepository.findById(piece.getId()).orElseThrow().getExecutedQuantity())
-        .isEqualByComparingTo("12345678.91");
+        .isEqualByComparingTo("12345678.912");
     assertThat(
             auditEventRepository.findByOrderIdAndEventType(
                 order.getId(), EXECUTION_UNITS_FROM_BANK))
-        .isEmpty();
+        .singleElement()
+        .satisfies(
+            event ->
+                assertThat(event.getPayload())
+                    .containsEntry("sebUnits", "12345678.91")
+                    .containsEntry("bankUnits", "12345678.912"));
+    assertThat(pendingTriggers()).containsExactly(REBUILD_FROM_BASELINE);
+  }
+
+  @Test
+  void anOrderTheBankAlreadyDated_isLeftAsItIs() {
+    TransactionOrder order = orderInEuros(BUY, "209025.86");
+    TransactionExecution piece = piece(order, "DLA0553690", "12345678.91", "209025.86");
+    settledEarlier(order, LocalDate.of(2026, 2, 12), BANK_STATEMENT);
+    bankBooks("DLA0553690", INDEX_FUND, "-209025.86", "12345678.912", LocalDate.of(2026, 2, 12));
+
+    settleFromTheBank();
+
+    assertThat(executionRepository.findById(piece.getId()).orElseThrow().getExecutedQuantity())
+        .isEqualByComparingTo("12345678.91");
+    assertThat(pendingTriggers()).doesNotContain(REBUILD_FROM_BASELINE);
   }
 
   @Test

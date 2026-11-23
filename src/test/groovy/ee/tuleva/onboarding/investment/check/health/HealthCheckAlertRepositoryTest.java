@@ -33,7 +33,7 @@ class HealthCheckAlertRepositoryTest {
     var earlier = repository.recordNotPosted(SEB, REPORT_DATE, "earlier", NINE);
     var posted = repository.recordNotPosted(SEB, REPORT_DATE, "posted", NINE);
     var givenUp = repository.recordNotPosted(SEB, REPORT_DATE, "given up", NINE);
-    repository.claimAttempt(earlier, FIVE_PAST_NINE);
+    repository.claimAttempt(earlier, 0, FIVE_PAST_NINE);
     repository.markPosted(posted, FIVE_PAST_NINE);
     repository.giveUp(givenUp);
 
@@ -56,22 +56,34 @@ class HealthCheckAlertRepositoryTest {
   void aClaimCountsTheAttemptAndItsTimeOnlyWhileTheAlertWaits() {
     var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE);
 
-    var first = repository.claimAttempt(id, FIVE_PAST_NINE);
-    var second = repository.claimAttempt(id, TEN_PAST_NINE);
+    var first = repository.claimAttempt(id, 0, FIVE_PAST_NINE);
+    var second = repository.claimAttempt(id, 1, TEN_PAST_NINE);
     repository.giveUp(id);
-    var afterGivingUp = repository.claimAttempt(id, TEN_PAST_NINE);
+    var afterGivingUp = repository.claimAttempt(id, 2, TEN_PAST_NINE);
 
     assertThat(List.of(first, second, afterGivingUp)).containsExactly(true, true, false);
     assertThat(row(id)).isEqualTo("GIVEN_UP, attempts 2, last " + TEN_PAST_NINE + ", posted null");
   }
 
   @Test
+  void aClaimWithAStaleAttemptCountFailsSoTwoRunsCannotBothPostOneAlert() {
+    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE);
+
+    var firstRun = repository.claimAttempt(id, 0, FIVE_PAST_NINE);
+    var overlappingRun = repository.claimAttempt(id, 0, TEN_PAST_NINE);
+
+    assertThat(List.of(firstRun, overlappingRun)).containsExactly(true, false);
+    assertThat(row(id))
+        .isEqualTo("NOT_POSTED, attempts 1, last " + FIVE_PAST_NINE + ", posted null");
+  }
+
+  @Test
   void aRefundTakesTheAttemptBackAndRestoresTheEarlierAttemptTime() {
     var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE);
-    repository.claimAttempt(id, FIVE_PAST_NINE);
-    repository.claimAttempt(id, TEN_PAST_NINE);
+    repository.claimAttempt(id, 0, FIVE_PAST_NINE);
+    repository.claimAttempt(id, 1, TEN_PAST_NINE);
 
-    var refunded = repository.refundAttempt(id, FIVE_PAST_NINE);
+    var refunded = repository.refundAttempt(id, 2, FIVE_PAST_NINE);
 
     assertThat(refunded).isTrue();
     assertThat(row(id))
@@ -81,17 +93,32 @@ class HealthCheckAlertRepositoryTest {
   @Test
   void aRefundOfTheFirstAttemptLeavesTheAlertAsIfNeverTried() {
     var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE);
-    repository.claimAttempt(id, FIVE_PAST_NINE);
+    repository.claimAttempt(id, 0, FIVE_PAST_NINE);
 
-    repository.refundAttempt(id, null);
+    var refunded = repository.refundFirstAttempt(id);
 
+    assertThat(refunded).isTrue();
     assertThat(row(id)).isEqualTo("NOT_POSTED, attempts 0, last null, posted null");
+  }
+
+  @Test
+  void aRefundForAnAttemptCountThatMovedOnChangesNothing() {
+    var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE);
+    repository.claimAttempt(id, 0, FIVE_PAST_NINE);
+    repository.claimAttempt(id, 1, TEN_PAST_NINE);
+
+    var staleRefund = repository.refundAttempt(id, 1, NINE);
+    var staleFirstRefund = repository.refundFirstAttempt(id);
+
+    assertThat(List.of(staleRefund, staleFirstRefund)).containsExactly(false, false);
+    assertThat(row(id))
+        .isEqualTo("NOT_POSTED, attempts 2, last " + TEN_PAST_NINE + ", posted null");
   }
 
   @Test
   void anAlertIsPostedOnceAndRecordsWhen() {
     var id = repository.recordNotPosted(SEB, REPORT_DATE, "warning", NINE);
-    repository.claimAttempt(id, FIVE_PAST_NINE);
+    repository.claimAttempt(id, 0, FIVE_PAST_NINE);
 
     var first = repository.markPosted(id, FIVE_PAST_NINE);
     var second = repository.markPosted(id, TEN_PAST_NINE);
@@ -108,7 +135,7 @@ class HealthCheckAlertRepositoryTest {
     var givenUp = repository.giveUp(id);
     var postedAfter = repository.markPosted(id, TEN_PAST_NINE);
     var givenUpAgain = repository.giveUp(id);
-    var refundedAfter = repository.refundAttempt(id, null);
+    var refundedAfter = repository.refundFirstAttempt(id);
 
     assertThat(List.of(givenUp, postedAfter, givenUpAgain, refundedAfter))
         .containsExactly(true, false, false, false);

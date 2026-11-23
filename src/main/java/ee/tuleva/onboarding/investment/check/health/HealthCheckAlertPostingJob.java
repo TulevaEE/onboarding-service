@@ -38,16 +38,20 @@ class HealthCheckAlertPostingJob {
   @Scheduled(cron = HEALTH_CHECK_ALERT_POSTING, zone = TIMEZONE)
   @SchedulerLock(name = "HealthCheckAlertPostingJob", lockAtMostFor = "10m", lockAtLeastFor = "30s")
   void postAlertsNotYetPosted() {
-    var now = clock.instant();
-    var giveUpFoundBefore = now.minus(RETRY_WINDOW);
+    var giveUpFoundBefore = clock.instant().minus(RETRY_WINDOW);
     var notPosted = alertRepository.findNotPosted();
     notPosted.stream()
         .filter(alert -> alert.foundBefore(giveUpFoundBefore))
-        .forEach(alert -> giveUp(alert, NOT_POSTED_WITHIN_THE_RETRY_WINDOW));
+        .forEach(alert -> giveUp(alert, alert.attempts(), NOT_POSTED_WITHIN_THE_RETRY_WINDOW));
     notPosted.stream()
         .filter(alert -> !alert.foundBefore(giveUpFoundBefore))
         .limit(SLACK_POSTS_AT_70_SECONDS_EACH_THAT_LEAVE_HALF_THE_10_MINUTE_LOCK)
-        .allMatch(alert -> isDue(alert, now) && postedOrGivenUp(alert, now));
+        .allMatch(this::postedOrGivenUpIfDue);
+  }
+
+  private boolean postedOrGivenUpIfDue(HealthCheckAlert alert) {
+    var now = clock.instant();
+    return isDue(alert, now) && postedOrGivenUp(alert, now);
   }
 
   private static boolean isDue(HealthCheckAlert alert, Instant now) {
@@ -86,7 +90,7 @@ class HealthCheckAlertPostingJob {
 
   private boolean claimed(HealthCheckAlert alert, Instant now) {
     try {
-      return alertRepository.claimAttempt(alert.id(), now);
+      return alertRepository.claimAttempt(alert.id(), alert.attempts(), now);
     } catch (RuntimeException e) {
       log.warn(
           "Health check alert attempt not counted, so it is not posted this run: alertId={},"
@@ -105,7 +109,10 @@ class HealthCheckAlertPostingJob {
         yield false;
       }
       case PAYLOAD_REFUSED -> {
-        giveUp(alert, "Slack refused its payload: " + SlackPostFailure.describe(e));
+        giveUp(
+            alert,
+            alert.attempts() + 1,
+            "Slack refused its payload: " + SlackPostFailure.describe(e));
         yield true;
       }
       case UNCERTAIN -> {
@@ -137,7 +144,12 @@ class HealthCheckAlertPostingJob {
         NOT_SENT,
         SlackPostFailure.describe(e));
     try {
-      alertRepository.refundAttempt(alert.id(), alert.lastAttemptAt());
+      var earlierAttemptAt = alert.lastAttemptAt();
+      if (earlierAttemptAt == null) {
+        alertRepository.refundFirstAttempt(alert.id());
+      } else {
+        alertRepository.refundAttempt(alert.id(), alert.attempts() + 1, earlierAttemptAt);
+      }
     } catch (RuntimeException dbError) {
       log.warn(
           "Health check alert attempt not refunded, so its next try waits a gap: alertId={},"
@@ -159,7 +171,7 @@ class HealthCheckAlertPostingJob {
     }
   }
 
-  private void giveUp(HealthCheckAlert alert, String why) {
+  private void giveUp(HealthCheckAlert alert, int attempts, String why) {
     try {
       if (alertRepository.giveUp(alert.id())) {
         log.error(
@@ -170,7 +182,7 @@ class HealthCheckAlertPostingJob {
             alert.provider(),
             alert.reportDate(),
             alert.foundAt(),
-            alert.attempts());
+            attempts);
       }
     } catch (RuntimeException e) {
       log.warn(

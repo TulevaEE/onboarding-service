@@ -5,10 +5,13 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.ZoneOffset.UTC;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
@@ -16,9 +19,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONTENT_TOO_LARGE;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
+import static org.springframework.http.HttpStatus.GONE;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
+import static org.springframework.http.HttpStatus.REQUEST_TIMEOUT;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
+import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.io.IOException;
@@ -31,6 +38,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
@@ -71,19 +79,60 @@ class HealthCheckAlertPostingJobTest {
 
   @BeforeEach
   void attemptsCanBeCounted() {
-    lenient().doReturn(true).when(alertRepository).claimAttempt(anyLong(), any());
+    lenient().doReturn(true).when(alertRepository).claimAttempt(anyLong(), anyInt(), any());
   }
 
   @Test
-  void countsTheAttemptBeforePostingAWaitingAlertWithItsNormalTextAndThenMarksItPosted() {
-    givenNotPosted(waiting(1L, FOUND_AT));
+  void countsTheAttemptItSawBeforePostingAWaitingAlertWithItsNormalTextAndThenMarksItPosted() {
+    givenNotPosted(tried(1L, FOUND_AT, 2, NOW.minus(Duration.ofMinutes(2))));
 
     jobAt(NOW).postAlertsNotYetPosted();
 
     var order = inOrder(alertRepository, notificationService);
-    order.verify(alertRepository).claimAttempt(1L, NOW);
+    order.verify(alertRepository).claimAttempt(1L, 2, NOW);
     order.verify(notificationService).sendMessage(MESSAGE, INVESTMENT);
     order.verify(alertRepository).markPosted(1L, NOW);
+  }
+
+  @Test
+  void anAlertAnotherRunClaimedMeanwhileIsNotPostedAndStopsTheRun() {
+    givenNotPosted(waiting(1L, FOUND_AT), waiting(2L, FOUND_AT.plusSeconds(1)));
+    given(alertRepository.claimAttempt(1L, 0, NOW)).willReturn(false);
+
+    jobAt(NOW).postAlertsNotYetPosted();
+
+    then(notificationService).shouldHaveNoInteractions();
+    then(alertRepository).should(never()).claimAttempt(eq(2L), anyInt(), any());
+  }
+
+  @Test
+  void eachPostIsTimedWhenItGoesOutSoAPostLateInALongRunIsCountedAndLabelledThen() {
+    var clock = new AdvancingClock(NOW);
+    var foundTwoMinutesBeforeTheRun = NOW.minus(Duration.ofMinutes(2));
+    givenNotPosted(
+        LongStream.rangeClosed(1, 4)
+            .mapToObj(
+                id ->
+                    new HealthCheckAlert(
+                        id, SEB, REPORT_DATE, "alert " + id, foundTwoMinutesBeforeTheRun, 0, null))
+            .toArray(HealthCheckAlert[]::new));
+    willAnswer(
+            invocation -> {
+              clock.advance(Duration.ofSeconds(70));
+              return null;
+            })
+        .given(notificationService)
+        .sendMessage(anyString(), any());
+
+    new HealthCheckAlertPostingJob(notificationService, alertRepository, clock)
+        .postAlertsNotYetPosted();
+
+    then(alertRepository).should().claimAttempt(3L, 0, NOW.plus(Duration.ofSeconds(140)));
+    then(alertRepository).should().claimAttempt(4L, 0, NOW.plus(Duration.ofSeconds(210)));
+    then(notificationService).should().sendMessage("alert 3", INVESTMENT);
+    then(notificationService)
+        .should()
+        .sendMessage("alert 4 (found 2026-10-31 08:58, posted late)", INVESTMENT);
   }
 
   @Test
@@ -108,7 +157,7 @@ class HealthCheckAlertPostingJobTest {
   @Test
   void anAlertWhoseAttemptCannotBeCountedIsNotPostedAndStopsTheRun() {
     givenNotPosted(waiting(1L, FOUND_AT), waiting(2L, FOUND_AT.plusSeconds(1)));
-    given(alertRepository.claimAttempt(1L, NOW))
+    given(alertRepository.claimAttempt(1L, 0, NOW))
         .willThrow(new DataAccessResourceFailureException("database down"));
 
     jobAt(NOW).postAlertsNotYetPosted();
@@ -128,10 +177,23 @@ class HealthCheckAlertPostingJobTest {
 
     jobAt(NOW).postAlertsNotYetPosted();
 
-    then(alertRepository).should().refundAttempt(1L, earlierAttempt);
-    then(alertRepository).should(never()).claimAttempt(2L, NOW);
+    then(alertRepository).should().refundAttempt(1L, 3, earlierAttempt);
+    then(alertRepository).should(never()).claimAttempt(eq(2L), anyInt(), any());
     then(alertRepository).should(never()).giveUp(anyLong());
     then(alertRepository).should(never()).markPosted(anyLong(), any());
+  }
+
+  @Test
+  void aFirstPostSlackNeverReceivedLeavesTheAlertAsIfNeverTried() {
+    givenNotPosted(waiting(1L, FOUND_AT));
+    willThrow(io(new ConnectException("Connection refused")))
+        .given(notificationService)
+        .sendMessage(MESSAGE, INVESTMENT);
+
+    jobAt(NOW).postAlertsNotYetPosted();
+
+    then(alertRepository).should().refundFirstAttempt(1L);
+    then(alertRepository).should(never()).refundAttempt(anyLong(), anyInt(), any());
   }
 
   static Stream<RuntimeException> failuresBeforeTheRequestWentOut() {
@@ -140,6 +202,12 @@ class HealthCheckAlertPostingJobTest {
         io(new ConnectTimeoutException("Connect timed out")),
         io(new HttpConnectTimeoutException("HTTP connect timed out")),
         io(new UnknownHostException("hooks.slack.com")),
+        new IllegalStateException("No webhook for slack channel INVESTMENT"),
+        slack(BAD_REQUEST, "no_team"),
+        slack(UNAUTHORIZED, ""),
+        slack(FORBIDDEN, "action_prohibited"),
+        slack(NOT_FOUND, "channel_not_found"),
+        slack(GONE, "channel_is_archived"),
         slack(TOO_MANY_REQUESTS, "rate_limited"));
   }
 
@@ -176,7 +244,7 @@ class HealthCheckAlertPostingJobTest {
     jobAt(NOW).postAlertsNotYetPosted();
 
     then(alertRepository).should().findNotPosted();
-    then(alertRepository).should().claimAttempt(1L, NOW);
+    then(alertRepository).should().claimAttempt(1L, 0, NOW);
     then(alertRepository).shouldHaveNoMoreInteractions();
     then(notificationService).should(times(1)).sendMessage(anyString(), any());
   }
@@ -188,8 +256,7 @@ class HealthCheckAlertPostingJobTest {
         io(new NoHttpResponseException("hooks.slack.com:443 failed to respond")),
         HttpServerErrorException.create(
             INTERNAL_SERVER_ERROR, "Internal Server Error", HttpHeaders.EMPTY, new byte[0], UTF_8),
-        slack(BAD_REQUEST, "no_team"),
-        slack(NOT_FOUND, "channel_not_found"),
+        slack(REQUEST_TIMEOUT, ""),
         new RestClientException("anything else"));
   }
 
@@ -213,7 +280,7 @@ class HealthCheckAlertPostingJobTest {
 
     jobAt(NOW).postAlertsNotYetPosted();
 
-    then(alertRepository).should(never()).claimAttempt(anyLong(), any());
+    then(alertRepository).should(never()).claimAttempt(anyLong(), anyInt(), any());
     then(notificationService).shouldHaveNoInteractions();
   }
 
@@ -247,7 +314,7 @@ class HealthCheckAlertPostingJobTest {
     jobAt(NOW).postAlertsNotYetPosted();
 
     then(notificationService).should(times(4)).sendMessage(anyString(), any());
-    then(alertRepository).should(never()).claimAttempt(5L, NOW);
+    then(alertRepository).should(never()).claimAttempt(eq(5L), anyInt(), any());
   }
 
   @Test
@@ -297,5 +364,33 @@ class HealthCheckAlertPostingJobTest {
   private static HttpClientErrorException slack(HttpStatus status, String body) {
     return HttpClientErrorException.create(
         status, status.getReasonPhrase(), HttpHeaders.EMPTY, body.getBytes(UTF_8), UTF_8);
+  }
+
+  private static final class AdvancingClock extends Clock {
+
+    private Instant now;
+
+    AdvancingClock(Instant start) {
+      now = start;
+    }
+
+    void advance(Duration by) {
+      now = now.plus(by);
+    }
+
+    @Override
+    public ZoneId getZone() {
+      return UTC;
+    }
+
+    @Override
+    public Clock withZone(ZoneId zone) {
+      return this;
+    }
+
+    @Override
+    public Instant instant() {
+      return now;
+    }
   }
 }

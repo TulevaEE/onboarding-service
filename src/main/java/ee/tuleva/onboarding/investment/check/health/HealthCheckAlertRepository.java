@@ -29,6 +29,8 @@ class HealthCheckAlertRepository {
     GIVEN_UP
   }
 
+  private static final int FIRST_ATTEMPT = 1;
+
   private final JdbcClient jdbcClient;
 
   long recordNotPosted(
@@ -74,19 +76,25 @@ class HealthCheckAlertRepository {
         .list();
   }
 
-  boolean claimAttempt(long id, Instant at) {
-    return whileNotPosted(id, "attempts = attempts + 1, last_attempt_at = :at")
+  boolean claimAttempt(long id, int seenAttempts, Instant at) {
+    return whileNotPostedAt(id, seenAttempts, "attempts = attempts + 1, last_attempt_at = :at")
             .param("at", Timestamp.from(at))
             .update()
         == 1;
   }
 
-  boolean refundAttempt(long id, @Nullable Instant previousAttemptAt) {
-    return whileNotPosted(id, "attempts = attempts - 1, last_attempt_at = :previousAttemptAt")
-            .param(
-                "previousAttemptAt",
-                previousAttemptAt == null ? null : Timestamp.from(previousAttemptAt))
+  boolean refundAttempt(long id, int claimedAttempts, Instant previousAttemptAt) {
+    return whileNotPostedAt(
+                id,
+                claimedAttempts,
+                "attempts = attempts - 1, last_attempt_at = :previousAttemptAt")
+            .param("previousAttemptAt", Timestamp.from(previousAttemptAt))
             .update()
+        == 1;
+  }
+
+  boolean refundFirstAttempt(long id) {
+    return whileNotPostedAt(id, FIRST_ATTEMPT, "attempts = 0, last_attempt_at = NULL").update()
         == 1;
   }
 
@@ -110,6 +118,17 @@ class HealthCheckAlertRepository {
                 + " WHERE id = :id AND status = :notPosted")
         .param("id", id)
         .param("notPosted", NOT_POSTED.name());
+  }
+
+  private StatementSpec whileNotPostedAt(long id, int attempts, String assignments) {
+    return jdbcClient
+        .sql(
+            "UPDATE investment_health_check_alert SET "
+                + assignments
+                + " WHERE id = :id AND status = :notPosted AND attempts = :attempts")
+        .param("id", id)
+        .param("notPosted", NOT_POSTED.name())
+        .param("attempts", attempts);
   }
 
   private static @Nullable Instant lastAttemptAt(ResultSet rs) throws SQLException {

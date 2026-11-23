@@ -96,10 +96,18 @@ var SOURCES = {
 
 var RUN_LOCK_WAIT_MS = 10000;
 
+var INLINE_CONFIRMATION_CATCH_UP = {
+    since: new Date("2026-11-16T00:00:00+02:00"),
+    runsFrom: new Date("2026-11-23T00:00:00+02:00"),
+    runsUntil: new Date("2026-11-30T00:00:00+02:00"),
+    doneProperty: "INLINE_CONFIRMATION_CATCH_UP_DONE"
+};
+
 function processNewEmails() {
     if (!runAlone(function () {
         try {
             processEmailsFromDays(2);
+            catchUpInlineConfirmationsOnce(PropertiesService.getScriptProperties(), new Date());
             continueRequestedBackfillUnderTheRunsLock();
         } catch (e) {
             notifySlack(":rotating_light: Uncaught error in `processNewEmails`: `" + e.message +
@@ -109,6 +117,13 @@ function processNewEmails() {
     })) {
         Logger.log("Skipped, another run holds the script lock; the next trigger retries");
     }
+}
+
+function catchUpInlineConfirmationsOnce(props, now) {
+    var catchUp = INLINE_CONFIRMATION_CATCH_UP;
+    if (now < catchUp.runsFrom || now >= catchUp.runsUntil || props.getProperty(catchUp.doneProperty) !== null) return;
+    processEmailsFromDays(daysToReach(catchUp.since, now), { minMessageDate: catchUp.since });
+    props.setProperty(catchUp.doneProperty, now.toISOString());
 }
 
 function processHistoricalEmails() {

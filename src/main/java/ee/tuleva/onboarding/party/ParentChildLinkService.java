@@ -81,6 +81,16 @@ public class ParentChildLinkService implements ChildRepresentations {
         .map(ParentChildLink::getId);
   }
 
+  public Optional<ParentChildLink> findActiveGuardianship(
+      String guardianPersonalCode, String wardPersonalCode) {
+    return parentChildLinkRepository
+        .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+            guardianPersonalCode, wardPersonalCode, Set.of(ACTIVE), today())
+        .stream()
+        .filter(link -> link.getRelationshipType() == GUARDIAN)
+        .findFirst();
+  }
+
   // The parent acting *as* the child: requires the parent to have cleared their own KYC.
   @Override
   public boolean isActiveRepresentation(String parentPersonalCode, String childPersonalCode) {

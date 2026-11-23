@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.kyc.survey;
 
+import static ee.tuleva.onboarding.aml.AmlCheckType.CUSTODY_RIGHT;
 import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
 import static ee.tuleva.onboarding.aml.AmlCheckType.POLITICALLY_EXPOSED_PERSON_AUTO;
 import static ee.tuleva.onboarding.aml.AmlCheckType.SANCTION;
@@ -10,13 +11,21 @@ import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.HIGH;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.MEDIUM;
 import static ee.tuleva.onboarding.kyc.survey.ChildRoleAwareKycIntegrationTest.Assessed.INSIDE_A_TRANSACTION;
 import static ee.tuleva.onboarding.kyc.survey.ChildRoleAwareKycIntegrationTest.Assessed.OUTSIDE_ANY_TRANSACTION;
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
+import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
+import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -29,29 +38,39 @@ import static org.springframework.transaction.support.TransactionSynchronization
 
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
+import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.auth.role.RoleType;
+import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
 import ee.tuleva.onboarding.kyc.TestKycChecker;
 import ee.tuleva.onboarding.kyc.TestKycCheckerConfiguration;
 import ee.tuleva.onboarding.party.ParentChildLink;
+import ee.tuleva.onboarding.party.ParentChildLink.ParentChildLinkBuilder;
 import ee.tuleva.onboarding.party.ParentChildLinkRepository;
-import ee.tuleva.onboarding.party.RepresentationType;
+import ee.tuleva.onboarding.populationregister.PopulationRegisterClient;
+import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
+import ee.tuleva.onboarding.populationregister.PopulationRegisterResult;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -66,6 +85,7 @@ import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -80,6 +100,11 @@ class ChildRoleAwareKycIntegrationTest {
 
   private static final String PARENT_CODE = "47508120049";
   private static final String CHILD_CODE = "61603140009";
+  private static final String GUARDIAN_CODE = "38812121215";
+  private static final String ADULT_WARD_CODE = "48806046007";
+  private static final String MINOR_WARD_CODE = CHILD_CODE;
+  private static final UUID WARD_RESPONSE_MESSAGE_ID =
+      UUID.fromString("44444444-4444-4444-4444-444444444444");
 
   private static final String ONBOARDING_SURVEY =
       """
@@ -164,8 +189,11 @@ class ChildRoleAwareKycIntegrationTest {
   @Autowired private PlatformTransactionManager transactionManager;
   @Autowired private JdbcClient jdbcClient;
   @Autowired private KycSurveyService kycSurveyService;
+  @Autowired private SanctionAndPepScreener sanctionAndPepScreener;
+  @Autowired private Clock clock;
 
   @MockitoBean private PepAndSanctionCheckService pepAndSanctionCheckService;
+  @MockitoBean private PopulationRegisterClient populationRegisterClient;
 
   private static final JsonMapper objectMapper = JsonMapper.builder().build();
 
@@ -202,7 +230,7 @@ class ChildRoleAwareKycIntegrationTest {
         ParentChildLink.builder()
             .parentPersonalCode(PARENT_CODE)
             .childPersonalCode(CHILD_CODE)
-            .relationshipType(RepresentationType.LEGAL_REPRESENTATIVE)
+            .relationshipType(LEGAL_REPRESENTATIVE)
             .validUntil(LocalDate.now().plusYears(2))
             .build());
 
@@ -435,6 +463,208 @@ class ChildRoleAwareKycIntegrationTest {
     assertThat(savingsFundOnboardingRepository.findStatus(child.getPersonalCode(), PERSON))
         .as("child onboarding completes")
         .contains(COMPLETED);
+  }
+
+  @Test
+  void guardianOfAnAdultWard_isVerifiedByTheGuardianLinkWithoutAskingTheRegisterForCustody()
+      throws Exception {
+    var guardian = savedUser(GUARDIAN_CODE, "Guardian", "Person");
+    savedUser(ADULT_WARD_CODE, "Ward", "Person");
+    var guardianLink = parentChildLinkRepository.save(guardianLinkToTheAdultWard().build());
+    givenTheRegisterKnowsTheGuardianAndTheWard();
+
+    openAccountForTheAdultWard(guardian)
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("VERIFIED"))
+        .andExpect(jsonPath("$.firstName").value("WARD"))
+        .andExpect(jsonPath("$.lastName").value("PERSON"))
+        .andExpect(jsonPath("$.dateOfBirth").value("1988-06-04"));
+
+    assertThat(amlCheckRepository.findAllByPersonalCodeAndType(ADULT_WARD_CODE, CUSTODY_RIGHT))
+        .singleElement()
+        .satisfies(
+            check -> {
+              assertThat(check.isSuccess()).isTrue();
+              assertThat(check.getMetadata())
+                  .isEqualTo(
+                      Map.of(
+                          "outcome",
+                          "GUARDIAN_LINK",
+                          "childPersonalCode",
+                          ADULT_WARD_CODE,
+                          "guardianPersonalCode",
+                          GUARDIAN_CODE,
+                          "guardianCitizenship",
+                          "EE",
+                          "guardianLinkId",
+                          guardianLink.getId().toString(),
+                          "guardianLinkValidUntil",
+                          guardianLink.getValidUntil().toString(),
+                          "childResponseMessageId",
+                          WARD_RESPONSE_MESSAGE_ID.toString(),
+                          "citizenship",
+                          "EE",
+                          "citizenships",
+                          List.of("EE", "FI")));
+            });
+    verify(populationRegisterClient, never()).fetchCustodyRights(any(), any());
+    verify(populationRegisterClient, never()).fetchCustodyRightsFresh(any(), any());
+    verify(populationRegisterClient).fetchPerson(eq(GUARDIAN_CODE), eq(ADULT_WARD_CODE), any());
+  }
+
+  @Test
+  void guardianOfAnAdultWard_leavesTheWardsRegisterCitizenshipsForScreeningToRead()
+      throws Exception {
+    var guardian = savedUser(GUARDIAN_CODE, "Guardian", "Person");
+    savedUser(ADULT_WARD_CODE, "Ward", "Person");
+    parentChildLinkRepository.save(guardianLinkToTheAdultWard().build());
+    givenTheRegisterKnowsTheGuardianAndTheWard();
+
+    openAccountForTheAdultWard(guardian).andExpect(status().isOk());
+
+    assertThat(
+            sanctionAndPepScreener.recordedCitizenships(
+                new PersonImpl(ADULT_WARD_CODE, "WARD", "PERSON")))
+        .isEqualTo(Countries.of("EE", "FI"));
+  }
+
+  @Test
+  void guardianOfAnAdultWard_seedsTheWardsOnboardingThatTheChildSurveyActingAsTheWardCompletes()
+      throws Exception {
+    var guardian = savedUser(GUARDIAN_CODE, "Guardian", "Person");
+    savedUser(ADULT_WARD_CODE, "Ward", "Person");
+    parentChildLinkRepository.save(guardianLinkToTheAdultWard().build());
+    givenTheRegisterKnowsTheGuardianAndTheWard();
+
+    openAccountForTheAdultWard(guardian).andExpect(status().isOk());
+    assertThat(savingsFundOnboardingRepository.findStatus(ADULT_WARD_CODE, PERSON))
+        .contains(PENDING);
+    submitSurvey(
+        authenticatedAs(guardian, new Role(RoleType.PERSON, ADULT_WARD_CODE, "Ward Person")),
+        CHILD_SURVEY);
+
+    assertThat(savingsFundOnboardingRepository.findStatus(ADULT_WARD_CODE, PERSON))
+        .contains(COMPLETED);
+  }
+
+  enum LinkThatDoesNotVouchForTheWard {
+    SUSPENDED_GUARDIANSHIP,
+    EXPIRED_GUARDIANSHIP,
+    GUARDIANSHIP_AWAITING_KYC,
+    LEGAL_REPRESENTATION,
+    SOMEONE_ELSES_GUARDIANSHIP
+  }
+
+  @ParameterizedTest
+  @EnumSource(LinkThatDoesNotVouchForTheWard.class)
+  void guardianWithoutACurrentGuardianLink_isRoutedThroughTheRegisterCustodyCheckToReview(
+      LinkThatDoesNotVouchForTheWard link) throws Exception {
+    var guardian = savedUser(GUARDIAN_CODE, "Guardian", "Person");
+    savedUser(ADULT_WARD_CODE, "Ward", "Person");
+    parentChildLinkRepository.save(linkThat(link).build());
+    given(populationRegisterClient.fetchCustodyRights(eq(GUARDIAN_CODE), any()))
+        .willReturn(new PopulationRegisterResult<>(List.of(), UUID.randomUUID()));
+
+    openAccountForTheAdultWard(guardian)
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.status").value("UNDER_REVIEW"));
+
+    verify(populationRegisterClient).fetchCustodyRights(eq(GUARDIAN_CODE), any());
+  }
+
+  @Test
+  void guardianOfAMinorWard_isStillAskedForRegisterCustody() throws Exception {
+    var guardian = savedUser(GUARDIAN_CODE, "Guardian", "Person");
+    parentChildLinkRepository.save(
+        guardianLinkToTheAdultWard().childPersonalCode(MINOR_WARD_CODE).build());
+    given(populationRegisterClient.fetchCustodyRights(eq(GUARDIAN_CODE), any()))
+        .willReturn(new PopulationRegisterResult<>(List.of(), UUID.randomUUID()));
+
+    openAccountFor(guardian, MINOR_WARD_CODE)
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.status").value("UNDER_REVIEW"));
+
+    verify(populationRegisterClient).fetchCustodyRights(eq(GUARDIAN_CODE), any());
+    assertThat(amlCheckRepository.findAllByPersonalCodeAndType(MINOR_WARD_CODE, CUSTODY_RIGHT))
+        .singleElement()
+        .satisfies(check -> assertThat(check.isSuccess()).isFalse());
+  }
+
+  private ParentChildLinkBuilder linkThat(LinkThatDoesNotVouchForTheWard link) {
+    var guardianship = guardianLinkToTheAdultWard();
+    return switch (link) {
+      case SUSPENDED_GUARDIANSHIP -> guardianship.suspendedAt(clock.instant());
+      case EXPIRED_GUARDIANSHIP -> guardianship.validUntil(LocalDate.now(clock));
+      case GUARDIANSHIP_AWAITING_KYC -> guardianship.status(PENDING_KYC);
+      case LEGAL_REPRESENTATION -> guardianship.relationshipType(LEGAL_REPRESENTATIVE);
+      case SOMEONE_ELSES_GUARDIANSHIP -> guardianship.parentPersonalCode(PARENT_CODE);
+    };
+  }
+
+  private ParentChildLinkBuilder guardianLinkToTheAdultWard() {
+    return ParentChildLink.builder()
+        .parentPersonalCode(GUARDIAN_CODE)
+        .childPersonalCode(ADULT_WARD_CODE)
+        .relationshipType(GUARDIAN)
+        .validUntil(LocalDate.now(clock).plusYears(3));
+  }
+
+  private void givenTheRegisterKnowsTheGuardianAndTheWard() {
+    given(populationRegisterClient.fetchPerson(eq(GUARDIAN_CODE), eq(GUARDIAN_CODE), any()))
+        .willReturn(
+            new PopulationRegisterResult<>(
+                new PopulationRegisterPerson(
+                    GUARDIAN_CODE,
+                    "GUARDIAN",
+                    "PERSON",
+                    LocalDate.of(1988, 12, 12),
+                    ALIVE,
+                    "EE",
+                    List.of("EE")),
+                UUID.randomUUID()));
+    given(populationRegisterClient.fetchPerson(eq(GUARDIAN_CODE), eq(ADULT_WARD_CODE), any()))
+        .willReturn(
+            new PopulationRegisterResult<>(
+                new PopulationRegisterPerson(
+                    ADULT_WARD_CODE,
+                    "WARD",
+                    "PERSON",
+                    LocalDate.of(1988, 6, 4),
+                    ALIVE,
+                    "EE",
+                    List.of("EE", "FI")),
+                WARD_RESPONSE_MESSAGE_ID));
+  }
+
+  private ResultActions openAccountForTheAdultWard(User guardian) throws Exception {
+    return openAccountFor(guardian, ADULT_WARD_CODE);
+  }
+
+  private ResultActions openAccountFor(User guardian, String wardPersonalCode) throws Exception {
+    return mockMvc.perform(
+        post("/v1/me/children")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(
+                """
+                { "childPersonalCode": "%s" }
+                """
+                    .formatted(wardPersonalCode))
+            .with(csrf())
+            .with(
+                authentication(
+                    authenticatedAs(
+                        guardian, new Role(RoleType.PERSON, GUARDIAN_CODE, "Guardian Person")))));
+  }
+
+  private User savedUser(String personalCode, String firstName, String lastName) {
+    return userRepository.save(
+        sampleUserNonMember()
+            .id(null)
+            .personalCode(personalCode)
+            .firstName(firstName)
+            .lastName(lastName)
+            .email(firstName.toLowerCase() + "@example.com")
+            .build());
   }
 
   private void submitOnboardingSurvey(Authentication as) throws Exception {

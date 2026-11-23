@@ -295,6 +295,16 @@ class CustodyVerificationServiceTest {
     assertThat(service.findGuardiansWithAssetManagement(CHILD, PARENT)).isEmpty();
   }
 
+  @Test
+  void fetchWard_asksTheRegisterOnlyForTheWardsIdentityOnTheGuardiansBehalf() {
+    given(populationRegisterClient.fetchPerson(PARENT, CHILD, MAX_AGE))
+        .willReturn(new PopulationRegisterResult<>(aliveChild, CHILD_MESSAGE_ID));
+
+    assertThat(service.fetchWard(PARENT, CHILD, MAX_AGE))
+        .isEqualTo(new PopulationRegisterResult<>(aliveChild, CHILD_MESSAGE_ID));
+    verify(populationRegisterClient, never()).fetchCustodyRights(any(), any(Duration.class));
+  }
+
   private void givenCustodyRights(CustodyRight... rights) {
     given(populationRegisterClient.fetchCustodyRights(PARENT, MAX_AGE))
         .willReturn(new PopulationRegisterResult<>(List.of(rights), CUSTODY_MESSAGE_ID));

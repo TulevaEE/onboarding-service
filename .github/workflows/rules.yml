@@ -62,10 +62,12 @@ env:
     src/main/java/ee/tuleva/onboarding/investment/fees/FeeAccrualBuilder.java
     src/main/java/ee/tuleva/onboarding/investment/fees/FeeChargedToFundPolicy.java
     src/main/java/ee/tuleva/onboarding/investment/fees/ManagementFeeCalculator.java
+    src/main/java/ee/tuleva/onboarding/investment/transaction/BatchConfirmations.java
     src/main/java/ee/tuleva/onboarding/investment/transaction/TransactionAdminService.java
     src/main/java/ee/tuleva/onboarding/investment/transaction/TransactionInputService.java
     src/main/java/ee/tuleva/onboarding/investment/transaction/UnitReceivableReader.java
     src/main/java/ee/tuleva/onboarding/investment/transaction/UnsettledTradeReader.java
+    src/main/java/ee/tuleva/onboarding/investment/transaction/TwoConfirmationsRule.java
     src/main/java/ee/tuleva/onboarding/investment/transaction/calculation/HeadroomRedistribution.java
     src/main/java/ee/tuleva/onboarding/investment/transaction/calculation/TradeCalculationEngine.java
     src/main/java/ee/tuleva/onboarding/kyb/screener/CompanySanctionScreener.java

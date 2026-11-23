@@ -47,6 +47,11 @@ env:
     src/main/java/ee/tuleva/onboarding/investment/check/limit/OwnershipLimitChecker.java
     src/main/java/ee/tuleva/onboarding/investment/check/limit/PositionLimitChecker.java
     src/main/java/ee/tuleva/onboarding/investment/check/limit/ReserveLimitChecker.java
+    src/main/java/ee/tuleva/onboarding/investment/check/rebalance/Deviation.java
+    src/main/java/ee/tuleva/onboarding/investment/check/rebalance/NavWeights.java
+    src/main/java/ee/tuleva/onboarding/investment/check/rebalance/RebalanceRules.java
+    src/main/java/ee/tuleva/onboarding/investment/check/rebalance/RebalanceWindow.java
+    src/main/java/ee/tuleva/onboarding/investment/check/rebalance/RebalanceWindows.java
     src/main/java/ee/tuleva/onboarding/investment/check/tracking/ConsecutiveBreachTracker.java
     src/main/java/ee/tuleva/onboarding/investment/check/tracking/EscalationRule.java
     src/main/java/ee/tuleva/onboarding/investment/check/tracking/NavReportHold.java

@@ -35,20 +35,24 @@ const contactDetailsChanged = {
 const previousContactActivity = {
   et: {
     required: [
-      'Sinu Tuleva kontol allkirjastati avaldus kogutud raha väljamaksmiseks.',
+      'Sinu Tuleva kontol esitati avaldus kogutud raha väljamaksmiseks.',
       'Saatsime selle kirja sinu varasemale e-posti aadressile, sest sinu kontaktandmed muutusid hiljuti.',
-      'Kui allkirjastasid avalduse ise, ei pea sa midagi tegema.',
+      'Kui esitasid avalduse ise, ei pea sa midagi tegema.',
       'Kui see polnud sina, võta meiega kohe ühendust: tuleva@tuleva.ee või 644&nbsp;5100',
     ],
+    submitted: 'esitati',
+    signed: 'allkirj',
     applicationTypes: ['fondipension', 'osali', 'sammas', 'tagasivõt'],
   },
   en: {
     required: [
-      'An application to pay out your savings was signed in your Tuleva account.',
+      'An application to pay out your savings was submitted in your Tuleva account.',
       'We are sending this to your previous email address because your contact details changed recently.',
-      'If you signed it yourself, there is nothing you need to do.',
+      'If you submitted it yourself, there is nothing you need to do.',
       "If it wasn't you, contact us right away: tuleva@tuleva.ee or 644&nbsp;5100",
     ],
+    submitted: 'submitted',
+    signed: 'signed',
     applicationTypes: ['fund pension', 'partial', 'pillar', 'redemption'],
   },
 };
@@ -110,12 +114,15 @@ for (const [language, copy] of Object.entries(contactDetailsChanged)) {
 for (const [language, copy] of Object.entries(previousContactActivity)) {
   const name = `previous_contact_activity_${language}`;
 
-  test(`${name}: says a payout application was signed and why this address hears of it, without naming which application`, () => {
+  test(`${name}: says a payout application was submitted and why this address hears of it, without naming which application`, () => {
     const body = text(renderMergeLanguage(html(name), { FNAME: 'Mari' }));
     for (const sentence of copy.required) {
       assert.ok(body.includes(sentence), `missing: ${sentence}`);
     }
     const subject = manifest.templates[name].subject.toLowerCase();
+    assert.ok(subject.includes(copy.submitted), `subject must say the application was submitted: ${subject}`);
+    assert.ok(!body.toLowerCase().includes(copy.signed), 'body must not say signed, a savings fund redemption is submitted');
+    assert.ok(!subject.includes(copy.signed), 'subject must not say signed, a savings fund redemption is submitted');
     for (const applicationType of copy.applicationTypes) {
       assert.ok(!body.toLowerCase().includes(applicationType), `body must not name: ${applicationType}`);
       assert.ok(!subject.includes(applicationType), `subject must not name: ${applicationType}`);

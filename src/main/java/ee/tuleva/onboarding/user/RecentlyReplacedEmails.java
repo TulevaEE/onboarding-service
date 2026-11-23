@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
@@ -19,6 +20,7 @@ public class RecentlyReplacedEmails {
   private final ContactChangeRepository contactChangeRepository;
   private final ContactChangeProperties properties;
 
+  @Transactional(readOnly = true)
   public List<String> of(Long userId, Instant asOf) {
     Instant from = asOf.minus(properties.replacedEmailNoticeWindow());
     return List.copyOf(

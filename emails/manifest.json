@@ -131,12 +131,12 @@
       "from_name": "Tuleva"
     },
     "previous_contact_activity_en": {
-      "subject": "A payout application was signed in your Tuleva account",
+      "subject": "A payout application was submitted in your Tuleva account",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
     "previous_contact_activity_et": {
-      "subject": "Sinu Tuleva kontol allkirjastati väljamakse avaldus",
+      "subject": "Sinu Tuleva kontol esitati väljamakse avaldus",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -280,6 +280,36 @@
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
+    "savings_fund_redemption_child_en": {
+      "subject": "We received your request to redeem your child's fund units",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_redemption_child_et": {
+      "subject": "Saime kätte avalduse lapse osakute tagasivõtmiseks",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_redemption_company_en": {
+      "subject": "We received your request to redeem your company's fund units",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_redemption_company_et": {
+      "subject": "Saime kätte avalduse ettevõtte osakute tagasivõtmiseks",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_redemption_person_en": {
+      "subject": "We received your request to redeem fund units",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_redemption_person_et": {
+      "subject": "Saime kätte sinu avalduse osakute tagasivõtmiseks",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
     "second_pillar_mandate_en": {
       "subject": "Important information about your 2nd pillar and a copy of the application",
       "from_email": "tuleva@tuleva.ee",
@@ -405,12 +435,15 @@
     "listing_reply_to_buyer": "Sent to the owner of a member capital buy listing when another member responds, with the responder's contact details.",
     "listing_reply_to_seller": "Sent to the owner of a member capital sell listing when another member responds, with the responder's contact details.",
     "membership": "Sent as soon as a person becomes a Tuleva member, right after the membership application is completed.",
-    "previous_contact_activity": "Sent as a security notice the moment a person signs a batch of applications that includes a withdrawal application, to the email addresses they replaced within the configured window (contact-change.replaced-email-notice-window in onboarding-service). It goes out when the batch is signed, whatever Pensionikeskus decides about the applications. It names the person and says a payout application was signed, without saying which, and asks them to contact us right away if it wasn't them.",
+    "previous_contact_activity": "Sent as a security notice the moment a person signs a batch of applications that includes a withdrawal application, or requests a redemption from Tuleva Additional Investment Fund (for themselves, a child or a company), to the email addresses they replaced within the configured window (contact-change.replaced-email-notice-window in onboarding-service). A pension application batch is noticed when it is signed, whatever Pensionikeskus decides about it; a redemption once its request is saved. It names the person and says a payout application was submitted, without saying which, and asks them to contact us right away if it wasn't them.",
     "savings_fund_payment_cancelled": "Sent when a savings fund payment is cancelled before units are issued and the money is sent back to the payer.",
     "savings_fund_payment_failed": "Sent when a savings fund payment fails our checks and the money is returned to the payer.",
     "savings_fund_payment_success_child": "Sent to the parent when their bank transfer to a child's savings fund account is matched and units are issued.",
     "savings_fund_payment_success_company": "Sent to the representative when a bank transfer to a company's savings fund account is matched and units are issued.",
     "savings_fund_payment_success_person": "Sent when a bank transfer to the saver's own savings fund account is matched and units are issued.",
+    "savings_fund_redemption_child": "Sent to the person who requests a redemption from a child's savings fund account, right after the request is saved. Names the child (RECIPIENTNAME) when their name is on file, and gives the same request facts as savings_fund_redemption_person.",
+    "savings_fund_redemption_company": "Sent to the board member who requests a redemption from a company's savings fund account, right after the request is saved. Names the company (RECIPIENTNAME) when it is on file, and gives the same request facts as savings_fund_redemption_person.",
+    "savings_fund_redemption_person": "Sent right after a saver requests a redemption from their own savings fund account: the units to be redeemed (fundUnits), their approximate value (amount, the final sum depends on the NAV on the dealing day), the masked bank account it is paid to (iban), when it is expected to be paid (payoutDeadline; a payout held for review can be later) and until when the request can usually be cancelled in the Tuleva account (cancellationDeadline; not while the request is frozen for review), both in Estonian time, and who to contact if it wasn't them.",
     "second_pillar_mandate": "Sent right after signing a second pillar fund transfer or fund selection application, with the signed application attached.",
     "second_pillar_payment_rate": "Sent right after signing a second pillar contribution rate change application, with the signed application attached.",
     "second_pillar_rejoin": "Sent right after signing the II pillar rejoin (the application for making contributions, plus the contribution rate (paymentRateChange) and the fund selection (fundSelection) only when they change), with the signed applications attached, when contributions start and until when the rejoin can be canceled in the Tuleva account (cancellationDeadline, the end of its filing window). The email names where contributions go: the chosen Tuleva stock or bond fund (selectedTulevaStockFund, selectedTulevaBondFund), another manager's fund by name (selectedOtherFund, selectedFundName), or the Tuleva stock or bond fund already on file from the registry snapshot (keptTulevaStockFund, keptTulevaBondFund), else the old fund, and the contribution rate (paymentRate), worded as the saver's choice only when they filed a rate change.",

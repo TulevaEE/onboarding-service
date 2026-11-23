@@ -6,12 +6,12 @@
     <mj-section padding-top="12px">
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
-        <mj-text>Sinu Tuleva kontol allkirjastati avaldus kogutud raha väljamaksmiseks.</mj-text>
+        <mj-text>Sinu Tuleva kontol esitati avaldus kogutud raha väljamaksmiseks.</mj-text>
         <mj-text>
           Saatsime selle kirja sinu varasemale e-posti aadressile, sest sinu kontaktandmed
           muutusid hiljuti.
         </mj-text>
-        <mj-text>Kui allkirjastasid avalduse ise, ei pea sa midagi tegema.</mj-text>
+        <mj-text>Kui esitasid avalduse ise, ei pea sa midagi tegema.</mj-text>
         <mj-text>
           Kui see polnud sina, võta meiega kohe ühendust:
           <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või

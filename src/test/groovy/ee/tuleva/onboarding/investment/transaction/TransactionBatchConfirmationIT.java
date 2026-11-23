@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.CONFIRMED;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
+import static ee.tuleva.onboarding.investment.transaction.OrderType.NAV;
+import static ee.tuleva.onboarding.investment.transaction.OrderType.RISK;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -91,7 +93,7 @@ class TransactionBatchConfirmationIT {
   void thePortfolioManagersOrderTypeChangeGoesOutOnTheTwoConfirmations() {
     TransactionOrder order = draftOrderInABatchPreparedBy(PORTFOLIO_MANAGER);
     Long batchId = order.getBatch().getId();
-    service.setOrderType(order.getId(), OrderType.NAV, PORTFOLIO_MANAGER);
+    service.setOrderType(order.getId(), NAV, PORTFOLIO_MANAGER);
     service.giveFirstConfirmation(batchId, currentVersion(batchId), PORTFOLIO_MANAGER);
 
     service.confirmAndFinalize(batchId, currentVersion(batchId), FUND_MANAGER);
@@ -104,7 +106,7 @@ class TransactionBatchConfirmationIT {
     TransactionOrder order = draftOrderInABatchPreparedBy(PORTFOLIO_MANAGER);
     Long batchId = order.getBatch().getId();
     service.giveFirstConfirmation(batchId, currentVersion(batchId), PORTFOLIO_MANAGER);
-    service.setOrderType(order.getId(), OrderType.NAV, FUND_MANAGER);
+    service.setOrderType(order.getId(), NAV, FUND_MANAGER);
 
     service.confirmAndFinalize(batchId, currentVersion(batchId), FUND_MANAGER);
 
@@ -143,7 +145,7 @@ class TransactionBatchConfirmationIT {
     TransactionOrder order = draftOrderInABatchPreparedBy(PORTFOLIO_MANAGER);
     Long batchId = order.getBatch().getId();
     Long reviewedVersion = currentVersion(batchId);
-    service.setOrderType(order.getId(), OrderType.RISK, FUND_MANAGER);
+    service.setOrderType(order.getId(), RISK, FUND_MANAGER);
 
     assertRefusedAndStillADraft(
         () -> service.giveFirstConfirmation(batchId, reviewedVersion, PORTFOLIO_MANAGER),
@@ -158,7 +160,7 @@ class TransactionBatchConfirmationIT {
     TransactionOrder order = draftOrderInABatchPreparedBy(PORTFOLIO_MANAGER);
     Long batchId = order.getBatch().getId();
     Long reviewedVersion = currentVersion(batchId);
-    service.setOrderType(order.getId(), OrderType.RISK, PORTFOLIO_MANAGER);
+    service.setOrderType(order.getId(), RISK, PORTFOLIO_MANAGER);
     service.giveFirstConfirmation(batchId, currentVersion(batchId), PORTFOLIO_MANAGER);
 
     assertRefusedAndStillADraft(
@@ -182,8 +184,7 @@ class TransactionBatchConfirmationIT {
                           TransactionBatch loadedBeforeTheChange =
                               batchRepository.findById(batchId).orElseThrow();
                           changeInItsOwnTransaction.executeWithoutResult(
-                              change ->
-                                  service.setOrderType(order.getId(), OrderType.NAV, FUND_MANAGER));
+                              change -> service.setOrderType(order.getId(), NAV, FUND_MANAGER));
                           batchRepository.lockAgainstConcurrentChange(loadedBeforeTheChange);
                         }))
         .isInstanceOf(ObjectOptimisticLockingFailureException.class);
@@ -204,9 +205,7 @@ class TransactionBatchConfirmationIT {
                           TransactionBatch readBeforeTheChange =
                               batchRepository.findById(batchId).orElseThrow();
                           changeInItsOwnTransaction.executeWithoutResult(
-                              change ->
-                                  service.setOrderType(
-                                      order.getId(), OrderType.RISK, FUND_MANAGER));
+                              change -> service.setOrderType(order.getId(), RISK, FUND_MANAGER));
                           readBeforeTheChange.setStatus(CONFIRMED);
                           batchRepository.saveAndFlush(readBeforeTheChange);
                         }))

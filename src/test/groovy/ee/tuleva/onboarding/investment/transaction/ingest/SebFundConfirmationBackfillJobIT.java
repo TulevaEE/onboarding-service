@@ -55,6 +55,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 @DataJpaTest
@@ -174,6 +175,23 @@ class SebFundConfirmationBackfillJobIT {
     s3Holds(Map.of(OTHER_TRADE, pdf("DLA0000002", "06/01/26")), FIRST_UPLOAD, OTHER_TRADE);
     given(s3Client.getObjectAsBytes(requestFor(FIRST_UPLOAD)))
         .willThrow(SdkClientException.create("S3 unavailable"));
+
+    assertThatThrownBy(job::backfill)
+        .isInstanceOfSatisfying(
+            SebFundConfirmationBackfillIncompleteException.class,
+            failure ->
+                assertThat(failure.leftOut())
+                    .isEqualTo(new LeftOut(List.of(), List.of(FIRST_UPLOAD))));
+
+    assertThat(recorded("DLA0000002")).isPresent();
+    assertThat(recorded("DLA0000001")).isEmpty();
+  }
+
+  @Test
+  void backfill_recordsTheOtherPdfsAndThenFailsTheTriggerNamingAPdfThatVanishedBeforeItsDownload() {
+    s3Holds(Map.of(OTHER_TRADE, pdf("DLA0000002", "06/01/26")), FIRST_UPLOAD, OTHER_TRADE);
+    given(s3Client.getObjectAsBytes(requestFor(FIRST_UPLOAD)))
+        .willThrow(NoSuchKeyException.builder().build());
 
     assertThatThrownBy(job::backfill)
         .isInstanceOfSatisfying(

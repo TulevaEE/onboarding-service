@@ -89,8 +89,13 @@ class SebFundConfirmationBackfillJob {
       failed.add(key);
       return Optional.empty();
     }
+    if (bytes.isEmpty()) {
+      log.warn("SEB fund confirmation PDF disappeared before the backfill fetched it: key={}", key);
+      failed.add(key);
+      return Optional.empty();
+    }
     try {
-      return bytes.map(pdf -> new SebFundConfirmationUpload(key, parser.parse(pdf)));
+      return Optional.of(new SebFundConfirmationUpload(key, parser.parse(bytes.get())));
     } catch (RuntimeException e) {
       log.error("SEB fund confirmation backfill could not read: key={}", key, e);
       unreadable.add(key);

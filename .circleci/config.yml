@@ -457,6 +457,7 @@ workflows:
           tag: 'latest,ecs-latest,${CIRCLE_SHA1}'
           attach_workspace: true
           workspace_root: .
+          extra_build_args: --pull
           filters:
             branches:
               only: master

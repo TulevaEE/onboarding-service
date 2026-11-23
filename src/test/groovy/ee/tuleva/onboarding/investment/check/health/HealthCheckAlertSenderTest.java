@@ -4,15 +4,13 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -22,16 +20,19 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataAccessResourceFailureException;
-import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.ResourceAccessException;
 
 @ExtendWith(MockitoExtension.class)
 class HealthCheckAlertSenderTest {
 
   private static final LocalDate REPORT_DATE = LocalDate.of(2026, 10, 30);
   private static final Instant FOUND_AT = Instant.parse("2026-10-31T07:00:00Z");
-  private static final long ALERT_ID = 7L;
   private static final String MESSAGE =
       "Import warning: SEB 2026-10-30 — TUV100 not imported\nFunds: TUV100 not in the report";
+  private static final RuntimeException CONNECTION_REFUSED =
+      new ResourceAccessException("I/O error", new ConnectException("Connection refused"));
+  private static final RuntimeException NO_ANSWER =
+      new ResourceAccessException("I/O error", new SocketTimeoutException("Read timed out"));
 
   @Mock OperationsNotificationService notificationService;
   @Mock HealthCheckAlertRepository alertRepository;
@@ -46,68 +47,77 @@ class HealthCheckAlertSenderTest {
   }
 
   @Test
-  void anAlertIsRecordedBeforeItIsPostedAndMarkedPostedAfter() {
-    given(alertRepository.recordNotPosted(SEB, REPORT_DATE, MESSAGE, FOUND_AT))
-        .willReturn(ALERT_ID);
+  void anAlertSlackTakesIsPostedRightAwayAndLeavesNoRow() {
+    var raised = sender.send(SEB, REPORT_DATE, MESSAGE);
+
+    assertThat(raised).isTrue();
+    then(notificationService).should().sendMessage(MESSAGE, INVESTMENT);
+    then(alertRepository).should().anyNotPosted();
+    then(alertRepository).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void anAlertSlackDoesNotTakeIsLeftForTheRetryRunWithTheTimeItsStateWasFound() {
+    willThrow(CONNECTION_REFUSED).given(notificationService).sendMessage(MESSAGE, INVESTMENT);
 
     var raised = sender.send(SEB, REPORT_DATE, MESSAGE);
 
     assertThat(raised).isTrue();
-    var order = inOrder(alertRepository, notificationService);
-    order.verify(alertRepository).recordNotPosted(SEB, REPORT_DATE, MESSAGE, FOUND_AT);
-    order.verify(notificationService).sendMessage(MESSAGE, INVESTMENT);
-    order.verify(alertRepository).markPosted(ALERT_ID, FOUND_AT);
+    then(alertRepository).should().recordNotPosted(SEB, REPORT_DATE, MESSAGE, FOUND_AT, 0);
   }
 
   @Test
-  void anAlertSlackDoesNotTakeStaysNotPostedForTheRetryRun() {
-    given(alertRepository.recordNotPosted(SEB, REPORT_DATE, MESSAGE, FOUND_AT))
-        .willReturn(ALERT_ID);
-    willThrow(new RestClientException("Slack is down"))
-        .given(notificationService)
-        .sendMessage(MESSAGE, INVESTMENT);
+  void anAlertSlackGaveNoAnswerToIsLeftForTheRetryRunWithOneUnansweredPost() {
+    willThrow(NO_ANSWER).given(notificationService).sendMessage(MESSAGE, INVESTMENT);
 
     var raised = sender.send(SEB, REPORT_DATE, MESSAGE);
 
     assertThat(raised).isTrue();
-    then(alertRepository).should(never()).markPosted(anyLong(), any());
+    then(alertRepository).should().recordNotPosted(SEB, REPORT_DATE, MESSAGE, FOUND_AT, 1);
   }
 
   @Test
-  void anAlertThatCannotBeRecordedIsStillPostedRightAway() {
-    given(alertRepository.recordNotPosted(SEB, REPORT_DATE, MESSAGE, FOUND_AT))
+  void anAlertFoundWhileOthersWaitIsQueuedBehindThemWithoutBeingPosted() {
+    given(alertRepository.anyNotPosted()).willReturn(true);
+
+    var raised = sender.send(SEB, REPORT_DATE, MESSAGE);
+
+    assertThat(raised).isTrue();
+    then(alertRepository).should().recordNotPosted(SEB, REPORT_DATE, MESSAGE, FOUND_AT, 0);
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void anAlertThatCannotBeQueuedBehindOthersIsPostedRightAway() {
+    given(alertRepository.anyNotPosted()).willReturn(true);
+    given(alertRepository.recordNotPosted(SEB, REPORT_DATE, MESSAGE, FOUND_AT, 0))
         .willThrow(new DataAccessResourceFailureException("database down"));
 
     var raised = sender.send(SEB, REPORT_DATE, MESSAGE);
 
     assertThat(raised).isTrue();
     then(notificationService).should().sendMessage(MESSAGE, INVESTMENT);
-    then(alertRepository).should(never()).markPosted(anyLong(), any());
   }
 
   @Test
-  void anAlertThatCanBeNeitherRecordedNorPostedIsNotRaised() {
-    given(alertRepository.recordNotPosted(SEB, REPORT_DATE, MESSAGE, FOUND_AT))
+  void anAlertWhoseQueueCannotBeReadIsPostedRightAway() {
+    given(alertRepository.anyNotPosted())
         .willThrow(new DataAccessResourceFailureException("database down"));
-    willThrow(new RestClientException("Slack is down"))
-        .given(notificationService)
-        .sendMessage(MESSAGE, INVESTMENT);
+
+    var raised = sender.send(SEB, REPORT_DATE, MESSAGE);
+
+    assertThat(raised).isTrue();
+    then(notificationService).should().sendMessage(MESSAGE, INVESTMENT);
+  }
+
+  @Test
+  void anAlertThatCanBeNeitherPostedNorRecordedIsNotRaised() {
+    willThrow(CONNECTION_REFUSED).given(notificationService).sendMessage(MESSAGE, INVESTMENT);
+    given(alertRepository.recordNotPosted(SEB, REPORT_DATE, MESSAGE, FOUND_AT, 0))
+        .willThrow(new DataAccessResourceFailureException("database down"));
 
     var raised = sender.send(SEB, REPORT_DATE, MESSAGE);
 
     assertThat(raised).isFalse();
-  }
-
-  @Test
-  void aPostedAlertThatCannotBeMarkedPostedIsStillRaised() {
-    given(alertRepository.recordNotPosted(SEB, REPORT_DATE, MESSAGE, FOUND_AT))
-        .willReturn(ALERT_ID);
-    given(alertRepository.markPosted(ALERT_ID, FOUND_AT))
-        .willThrow(new DataAccessResourceFailureException("database down"));
-
-    var raised = sender.send(SEB, REPORT_DATE, MESSAGE);
-
-    assertThat(raised).isTrue();
-    then(notificationService).should().sendMessage(MESSAGE, INVESTMENT);
   }
 }

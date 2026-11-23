@@ -404,8 +404,7 @@ class HealthCheckNotifierTest {
 
     assertThat(notified).isTrue();
     verify(alertRepository)
-        .recordNotPosted(eq(SEB), eq(DATE), startsWith("IMPORT BLOCKED"), eq(NOW));
-    verify(alertRepository, never()).markPosted(anyLong(), any());
+        .recordNotPosted(eq(SEB), eq(DATE), startsWith("IMPORT BLOCKED"), eq(NOW), eq(0));
   }
 
   @Test

@@ -2,94 +2,104 @@ package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.HEALTH_CHECK_ALERT_RETRY;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
+import static ee.tuleva.onboarding.investment.check.health.SlackPostFailure.NO_ANSWER;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
-import static org.springframework.http.HttpStatus.BAD_REQUEST;
-import static org.springframework.http.HttpStatus.CONTENT_TOO_LARGE;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.List;
+import java.util.function.LongPredicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 class HealthCheckAlertRetryJob {
 
-  private static final Duration DIRECT_POST_TIME_LONGER_THAN_SLACK_CONNECT_PLUS_READ_TIMEOUT =
-      Duration.ofMinutes(2);
   private static final Duration RETRY_WINDOW = Duration.ofHours(24);
-  private static final int SLACK_POSTS_THAT_FIT_THE_5_MINUTE_LOCK_AT_70_SECONDS_EACH = 4;
-  private static final List<HttpStatus> SLACK_REFUSES_THE_PAYLOAD_ITSELF_WITH =
-      List.of(BAD_REQUEST, CONTENT_TOO_LARGE);
+  private static final int SLACK_POSTS_AT_70_SECONDS_EACH_THAT_LEAVE_HALF_THE_10_MINUTE_LOCK = 4;
+  private static final int UNANSWERED_POSTS_AFTER_WHICH_IT_MAY_ALREADY_BE_IN_THE_CHANNEL = 2;
   private static final String NOT_POSTED_WITHIN_THE_RETRY_WINDOW =
       "not posted within 24 hours of its state being found";
+  private static final String SLACK_REFUSED_ITS_PAYLOAD = "Slack refused its payload";
+  private static final String SLACK_GAVE_NO_ANSWER_TWICE =
+      "Slack gave no answer twice, so it may already be in the channel";
 
   private final OperationsNotificationService notificationService;
   private final HealthCheckAlertRepository alertRepository;
   private final Clock clock;
 
   @Scheduled(cron = HEALTH_CHECK_ALERT_RETRY, zone = TIMEZONE)
-  @SchedulerLock(name = "HealthCheckAlertRetryJob", lockAtMostFor = "5m", lockAtLeastFor = "30s")
+  @SchedulerLock(name = "HealthCheckAlertRetryJob", lockAtMostFor = "10m", lockAtLeastFor = "30s")
   void postAlertsNotYetPosted() {
-    var now = clock.instant();
-    var giveUpFoundBefore = now.minus(RETRY_WINDOW);
-    var notPosted =
-        alertRepository.findNotPostedFoundBefore(
-            now.minus(DIRECT_POST_TIME_LONGER_THAN_SLACK_CONNECT_PLUS_READ_TIMEOUT));
+    var giveUpFoundBefore = clock.instant().minus(RETRY_WINDOW);
+    var notPosted = alertRepository.findNotPosted();
     notPosted.stream()
         .filter(alert -> alert.foundBefore(giveUpFoundBefore))
-        .forEach(alert -> giveUp(alert, NOT_POSTED_WITHIN_THE_RETRY_WINDOW));
-    var oldestFirst =
-        notPosted.stream()
-            .filter(alert -> !alert.foundBefore(giveUpFoundBefore))
-            .limit(SLACK_POSTS_THAT_FIT_THE_5_MINUTE_LOCK_AT_70_SECONDS_EACH)
-            .toList();
-    for (var alert : oldestFirst) {
-      if (!postedOrRefused(alert)) {
-        return;
-      }
-    }
+        .forEach(
+            alert -> giveUp(alert, NOT_POSTED_WITHIN_THE_RETRY_WINDOW, alertRepository::giveUp));
+    notPosted.stream()
+        .filter(alert -> !alert.foundBefore(giveUpFoundBefore))
+        .limit(SLACK_POSTS_AT_70_SECONDS_EACH_THAT_LEAVE_HALF_THE_10_MINUTE_LOCK)
+        .allMatch(this::postedOrGivenUp);
   }
 
-  private boolean postedOrRefused(HealthCheckAlert alert) {
+  private boolean postedOrGivenUp(HealthCheckAlert alert) {
     try {
       notificationService.sendMessage(alert.lateMessage(), INVESTMENT);
-    } catch (HttpClientErrorException e) {
-      if (isRefusalOfThePayloadItself(e)) {
-        giveUp(alert, "Slack refused it with " + e.getStatusCode());
-        return true;
-      }
-      keepForTheNextRun(alert, e);
-      return false;
     } catch (RuntimeException e) {
-      keepForTheNextRun(alert, e);
-      return false;
+      var failure = SlackPostFailure.of(e);
+      return switch (failure) {
+        case PAYLOAD_REFUSED -> {
+          giveUp(alert, SLACK_REFUSED_ITS_PAYLOAD + ": " + e, alertRepository::giveUp);
+          yield true;
+        }
+        case NO_ANSWER -> {
+          slackGaveNoAnswer(alert, e);
+          yield false;
+        }
+        case NOT_TAKEN -> {
+          keepForTheNextRun(alert, failure, e);
+          yield false;
+        }
+      };
     }
     markPosted(alert);
     return true;
   }
 
-  private static boolean isRefusalOfThePayloadItself(HttpClientErrorException e) {
-    return SLACK_REFUSES_THE_PAYLOAD_ITSELF_WITH.stream()
-        .anyMatch(status -> status.isSameCodeAs(e.getStatusCode()));
+  private void slackGaveNoAnswer(HealthCheckAlert alert, RuntimeException e) {
+    if (alert.unansweredPosts() + 1
+        >= UNANSWERED_POSTS_AFTER_WHICH_IT_MAY_ALREADY_BE_IN_THE_CHANNEL) {
+      giveUp(alert, SLACK_GAVE_NO_ANSWER_TWICE, alertRepository::giveUpAfterUnansweredPost);
+      return;
+    }
+    keepForTheNextRun(alert, NO_ANSWER, e);
+    try {
+      alertRepository.recordUnansweredPost(alert.id());
+    } catch (RuntimeException dbError) {
+      log.warn(
+          "Health check alert Slack gave no answer to not counted, it may be posted more than"
+              + " twice: alertId={}, error={}",
+          alert.id(),
+          dbError.toString());
+    }
   }
 
-  private static void keepForTheNextRun(HealthCheckAlert alert, RuntimeException e) {
+  private static void keepForTheNextRun(
+      HealthCheckAlert alert, SlackPostFailure failure, RuntimeException e) {
     log.warn(
         "Health check alert not posted to Slack, trying it and the alerts after it again next run:"
-            + " alertId={}, provider={}, reportDate={}, foundAt={}, error={}",
+            + " alertId={}, provider={}, reportDate={}, foundAt={}, failure={}, error={}",
         alert.id(),
         alert.provider(),
         alert.reportDate(),
         alert.foundAt(),
+        failure,
         e.toString());
   }
 
@@ -105,12 +115,12 @@ class HealthCheckAlertRetryJob {
     }
   }
 
-  private void giveUp(HealthCheckAlert alert, String why) {
+  private static void giveUp(HealthCheckAlert alert, String why, LongPredicate giveUpRow) {
     try {
-      if (alertRepository.giveUp(alert.id())) {
+      if (giveUpRow.test(alert.id())) {
         log.error(
-            "Health check alert given up, never posted to Slack: why={}, alertId={}, provider={},"
-                + " reportDate={}, foundAt={}",
+            "Health check alert given up, never confirmed posted to Slack: why={}, alertId={},"
+                + " provider={}, reportDate={}, foundAt={}",
             why,
             alert.id(),
             alert.provider(),

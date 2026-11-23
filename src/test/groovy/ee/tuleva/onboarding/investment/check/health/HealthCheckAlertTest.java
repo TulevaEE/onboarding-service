@@ -21,7 +21,8 @@ class HealthCheckAlertTest {
             "IMPORT BLOCKED: SEB 2026-04-15 — TUK75 not imported, source files need to be fixed\n"
                 + "Funds: TUK75 blocked\n"
                 + "\n🛑 [FAIL] ISIN_MATCH TUK75: TUK75: unknown ISIN",
-            Instant.parse("2026-04-16T06:10:00Z"));
+            Instant.parse("2026-04-16T06:10:00Z"),
+            0);
 
     assertThat(alert.lateMessage())
         .isEqualTo(
@@ -39,7 +40,8 @@ class HealthCheckAlertTest {
             SEB,
             REPORT_DATE,
             "✅ Import cleared: SEB 2026-04-15",
-            Instant.parse("2026-01-16T06:10:00Z"));
+            Instant.parse("2026-01-16T06:10:00Z"),
+            0);
 
     assertThat(alert.lateMessage())
         .isEqualTo("✅ Import cleared: SEB 2026-04-15 (found 2026-01-16 08:10, posted late)");

@@ -24,6 +24,8 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
@@ -42,6 +44,7 @@ import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.net.SocketTimeoutException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -57,6 +60,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
 
 @DataJpaTest
@@ -212,15 +216,15 @@ class FundMissingFromReportIntegrationTest {
   }
 
   @Test
-  void aMissingFundWhoseSlackPostFailsIsPostedOnceByALaterRetryRunSayingWhenItWasFound() {
+  void aMissingFundWhoseSlackPostFailsIsPostedOnceByTheNextRetryRunSayingWhenItWasFound() {
     importReport("2026-10-31T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
     slackIsDown();
 
     var missingReported = importReport("2026-10-31T07:00:00Z", complete(TUK75, TUK00, TKF100));
-    var sameStateReported = importReport("2026-10-31T07:05:00Z", complete(TUK75, TUK00, TKF100));
+    var sameStateReported = importReport("2026-10-31T07:00:30Z", complete(TUK75, TUK00, TKF100));
     slackIsBack();
-    retryAt("2026-10-31T07:06:00Z");
-    retryAt("2026-10-31T07:07:00Z");
+    retryAt("2026-10-31T07:01:00Z");
+    retryAt("2026-10-31T07:02:00Z");
 
     assertThat(missingReported).isTrue();
     assertThat(sameStateReported).isFalse();
@@ -237,15 +241,17 @@ class FundMissingFromReportIntegrationTest {
   }
 
   @Test
-  void aClearedLineWhoseSlackPostFailsIsPostedLaterAndAWarningPostedOnTimeIsNotPostedAgain() {
+  void aClearedLineWhoseSlackPostFailsIsPostedLaterAndAWarningPostedOnTimeLeavesNoRow() {
     importReport("2026-10-31T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
     importReport("2026-10-31T07:00:00Z", complete(TUK75, TUK00, TKF100));
+    var rowsAfterTheWarningWasPosted = alertStatuses();
     slackIsDown();
 
     var backReported = importReport("2026-10-31T07:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
     slackIsBack();
-    retryAt("2026-10-31T07:33:00Z");
+    retryAt("2026-10-31T07:31:00Z");
 
+    assertThat(rowsAfterTheWarningWasPosted).isEmpty();
     assertThat(backReported).isTrue();
     verify(notificationService)
         .sendMessage(
@@ -255,7 +261,63 @@ class FundMissingFromReportIntegrationTest {
                 contains("\n[CLEARED] FUND_IN_REPORT TUV100")),
             eq(INVESTMENT));
     verifyNoMoreInteractions(notificationService);
+    assertThat(alertStatuses()).containsExactly("POSTED");
+  }
+
+  @Test
+  void anAlertFoundWhileAnOlderOneWaitsIsQueuedBehindItAndPostedAfterIt() {
+    importReport("2026-10-31T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+    slackIsDown();
+    importReport("2026-10-31T07:00:00Z", complete(TUK75, TUK00, TKF100));
+    slackIsBack();
+
+    var backReported = importReport("2026-10-31T07:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+
+    assertThat(backReported).isTrue();
+    then(notificationService).shouldHaveNoInteractions();
+
+    retryAt("2026-10-31T07:31:00Z");
+
+    var inOrder = inOrder(notificationService);
+    inOrder
+        .verify(notificationService)
+        .sendMessage(
+            startsWith(
+                "Import warning: SEB 2026-10-30 — TUV100 not imported"
+                    + " (found 2026-10-31 09:00, posted late)\n"),
+            eq(INVESTMENT));
+    inOrder
+        .verify(notificationService)
+        .sendMessage(
+            startsWith("✅ Import cleared: SEB 2026-10-30 (found 2026-10-31 09:30, posted late)\n"),
+            eq(INVESTMENT));
+    verifyNoMoreInteractions(notificationService);
     assertThat(alertStatuses()).containsExactly("POSTED", "POSTED");
+  }
+
+  @Test
+  void anAlertSlackGivesNoAnswerToTwiceIsGivenUpAfterExactlyTwoPosts() {
+    importReport("2026-10-31T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+    willThrow(
+            new ResourceAccessException(
+                "I/O error on POST request: Read timed out",
+                new SocketTimeoutException("Read timed out")))
+        .given(notificationService)
+        .sendMessage(anyString(), eq(INVESTMENT));
+
+    importReport("2026-10-31T07:00:00Z", complete(TUK75, TUK00, TKF100));
+    retryAt("2026-10-31T07:01:00Z");
+    retryAt("2026-10-31T07:02:00Z");
+    retryAt("2026-10-31T07:03:00Z");
+
+    verify(notificationService, times(2)).sendMessage(anyString(), eq(INVESTMENT));
+    assertThat(alertStatuses()).containsExactly("GIVEN_UP");
+    assertThat(
+            jdbcClient
+                .sql("SELECT unanswered_posts FROM investment_health_check_alert")
+                .query(Integer.class)
+                .single())
+        .isEqualTo(2);
   }
 
   @Test

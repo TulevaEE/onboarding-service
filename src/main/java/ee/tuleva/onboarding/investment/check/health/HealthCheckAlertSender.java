@@ -7,7 +7,6 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -17,68 +16,74 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class HealthCheckAlertSender {
 
+  private static final int NO_POST_LEFT_UNANSWERED = 0;
+
   private final OperationsNotificationService notificationService;
   private final HealthCheckAlertRepository alertRepository;
   private final Clock clock;
 
   boolean send(ReportProvider provider, LocalDate reportDate, String message) {
     var foundAt = clock.instant();
-    var alertId = recorded(provider, reportDate, message, foundAt);
-    if (!postedToSlack(provider, reportDate, message)) {
-      if (alertId.isEmpty()) {
-        log.error(
-            "Health check alert neither recorded nor posted to Slack, it is lost:"
-                + " provider={}, reportDate={}, foundAt={}, message={}",
-            provider,
-            reportDate,
-            foundAt,
-            message);
-      }
-      return alertId.isPresent();
+    if (alertsAreWaiting()
+        && recorded(provider, reportDate, message, foundAt, NO_POST_LEFT_UNANSWERED)) {
+      return true;
     }
-    alertId.ifPresent(this::markPosted);
-    return true;
-  }
-
-  private Optional<Long> recorded(
-      ReportProvider provider, LocalDate reportDate, String message, Instant foundAt) {
-    try {
-      return Optional.of(alertRepository.recordNotPosted(provider, reportDate, message, foundAt));
-    } catch (RuntimeException e) {
-      log.warn(
-          "Health check alert not recorded, so a failed Slack post is not retried:"
-              + " provider={}, reportDate={}, error={}",
-          provider,
-          reportDate,
-          e.toString());
-      return Optional.empty();
-    }
-  }
-
-  private boolean postedToSlack(ReportProvider provider, LocalDate reportDate, String message) {
     try {
       notificationService.sendMessage(message, INVESTMENT);
       return true;
     } catch (RuntimeException e) {
+      var failure = SlackPostFailure.of(e);
       log.warn(
-          "Health check alert not posted to Slack, the retry run posts it if it was recorded:"
-              + " provider={}, reportDate={}, error={}",
+          "Health check alert not posted to Slack, leaving it for the retry run:"
+              + " provider={}, reportDate={}, failure={}, error={}",
           provider,
           reportDate,
+          failure,
+          e.toString());
+      if (recorded(provider, reportDate, message, foundAt, failure.unansweredPosts())) {
+        return true;
+      }
+      log.error(
+          "Health check alert neither confirmed posted to Slack nor recorded for the retry run:"
+              + " provider={}, reportDate={}, foundAt={}, failure={}, message={}",
+          provider,
+          reportDate,
+          foundAt,
+          failure,
+          message);
+      return false;
+    }
+  }
+
+  private boolean alertsAreWaiting() {
+    try {
+      return alertRepository.anyNotPosted();
+    } catch (RuntimeException e) {
+      log.warn(
+          "Health check alerts waiting for the retry run could not be read, posting right away:"
+              + " error={}",
           e.toString());
       return false;
     }
   }
 
-  private void markPosted(long alertId) {
+  private boolean recorded(
+      ReportProvider provider,
+      LocalDate reportDate,
+      String message,
+      Instant foundAt,
+      int unansweredPosts) {
     try {
-      alertRepository.markPosted(alertId, clock.instant());
+      alertRepository.recordNotPosted(provider, reportDate, message, foundAt, unansweredPosts);
+      return true;
     } catch (RuntimeException e) {
       log.warn(
-          "Health check alert posted to Slack but not marked as posted, the retry run may post it"
-              + " again: alertId={}, error={}",
-          alertId,
+          "Health check alert not recorded for the retry run: provider={}, reportDate={},"
+              + " error={}",
+          provider,
+          reportDate,
           e.toString());
+      return false;
     }
   }
 }

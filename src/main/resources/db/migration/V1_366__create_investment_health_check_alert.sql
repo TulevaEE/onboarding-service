@@ -6,6 +6,7 @@ CREATE TABLE investment_health_check_alert (
     found_at    timestamptz NOT NULL,
     status      text        NOT NULL,
     posted_at   timestamptz,
+    unanswered_posts integer NOT NULL,
 
     CONSTRAINT investment_health_check_alert_pkey PRIMARY KEY (id),
     CONSTRAINT investment_health_check_alert_status

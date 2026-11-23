@@ -9,7 +9,12 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
 record HealthCheckAlert(
-    long id, ReportProvider provider, LocalDate reportDate, String message, Instant foundAt) {
+    long id,
+    ReportProvider provider,
+    LocalDate reportDate,
+    String message,
+    Instant foundAt,
+    int unansweredPosts) {
 
   private static final DateTimeFormatter FOUND_TIME =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.of(TIMEZONE));

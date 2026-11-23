@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.*;
 import static java.math.BigDecimal.ZERO;
+import static java.math.RoundingMode.HALF_UP;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.fund.FundAccounts;
@@ -222,7 +223,7 @@ public class TransactionExportService {
         Row row = sheet.createRow(rowIndex++);
         row.createCell(0).setCellValue(bbgByIsin.getOrDefault(aggregation.isin, ""));
         row.createCell(1).setCellValue(aggregation.transactionType.name());
-        row.createCell(2).setCellValue(aggregation.totalQuantity.doubleValue());
+        row.createCell(2).setCellValue(wholeUnitsAsInTheGasOrderFile(aggregation.totalQuantity));
         createDateCell(row, 3, tradeDate, dateStyle);
         if (aggregation.settlementDate != null) {
           createDateCell(row, 4, aggregation.settlementDate, dateStyle);
@@ -251,8 +252,12 @@ public class TransactionExportService {
 
   private void createFundQuantityCell(Row row, int column, BigDecimal quantity) {
     if (quantity.signum() != 0) {
-      row.createCell(column).setCellValue(quantity.doubleValue());
+      row.createCell(column).setCellValue(wholeUnitsAsInTheGasOrderFile(quantity));
     }
+  }
+
+  private static double wholeUnitsAsInTheGasOrderFile(BigDecimal quantity) {
+    return quantity.setScale(0, HALF_UP).doubleValue();
   }
 
   private void createDateCell(Row row, int column, LocalDate date, CellStyle style) {

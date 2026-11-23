@@ -77,6 +77,7 @@ class SebPendingTransactionReconciliationIT {
   @Autowired private CsvToJsonConverter csvConverter;
   @Autowired private EntityManager entityManager;
   @Autowired private InvestmentReportService reportService;
+  @Autowired private SebFundConfirmationRecorder confirmationRecorder;
 
   private SebReplayListings listings = new SebReplayListings();
 
@@ -133,6 +134,44 @@ class SebPendingTransactionReconciliationIT {
 
     TransactionOrder reloaded = orderRepository.findById(order.getId()).orElseThrow();
     assertThat(reloaded.getOrderStatus()).isEqualTo(EXECUTED);
+  }
+
+  @Test
+  void reconcile_givesTheNewExecutionThePricingDateOfItsRecordedSebConfirmationOnceAcrossReruns() {
+    LocalDate pricingDate = LocalDate.of(2026, 2, 11);
+    confirmationRecorder.record(
+        new SebFundConfirmationUpload(
+            "seb-confirmations/DLA0000000-001.pdf",
+            new SebFundConfirmation(
+                TKF100,
+                "DLA0000000",
+                Instant.parse("2026-02-10T09:00:00Z"),
+                pricingDate,
+                LocalDate.of(2026, 2, 17),
+                "IE00BFG1TM61",
+                BUY,
+                new BigDecimal("2669.9"),
+                new BigDecimal("34.37656841"),
+                new BigDecimal("91782.00"),
+                new BigDecimal("0.00"),
+                new BigDecimal("91782.00"))));
+
+    reconciliationService.reconcile(report, LOCK_HELD);
+    reconciliationService.reconcile(report, LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    TransactionExecution execution = executionRepository.findAllByOrderId(order.getId()).getFirst();
+    assertThat(execution.getNavDate()).isEqualTo(pricingDate);
+    assertThat(
+            auditEventRepository.findByEventTypeAndDedupKey(
+                "SEB_FUND_CONFIRMATION_NAV_DATE_SET", "DLA0000000"))
+        .singleElement()
+        .satisfies(
+            event ->
+                assertThat(event.getPayload())
+                    .containsEntry("executionId", String.valueOf(execution.getId()))
+                    .containsEntry("navDate", "2026-02-11"));
   }
 
   @Test

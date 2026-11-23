@@ -33,7 +33,14 @@ class SebFundConfirmationS3Source {
   private final Clock clock;
 
   List<String> recentKeys() {
-    Instant uploadedAfter = clock.instant().minus(LOOKBACK);
+    return keysUploadedAfter(clock.instant().minus(LOOKBACK));
+  }
+
+  List<String> allKeys() {
+    return keysUploadedAfter(Instant.EPOCH);
+  }
+
+  private List<String> keysUploadedAfter(Instant uploadedAfter) {
     List<S3Object> objects = new ArrayList<>();
     @Nullable String continuationToken = null;
     do {

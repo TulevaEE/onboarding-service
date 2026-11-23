@@ -23,6 +23,7 @@ import ee.tuleva.onboarding.investment.event.RunPevaRavaFlowRecalcRequested;
 import ee.tuleva.onboarding.investment.event.RunPevaRavaPhaseUpdateRequested;
 import ee.tuleva.onboarding.investment.event.RunPortfolioCostBasisRebuildFromBaselineRequested;
 import ee.tuleva.onboarding.investment.event.RunR16FlowRecalcRequested;
+import ee.tuleva.onboarding.investment.event.RunSebFundConfirmationBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationRequested;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReportReconciliationRequested;
@@ -106,6 +107,18 @@ class JobTriggerPollerTest {
     poller.poll();
 
     then(eventPublisher).should().publishEvent(new RunSettlementFromBankRequested());
+    thenCompleted(trigger);
+  }
+
+  @Test
+  void aSebFundConfirmationBackfillTriggerRecordsEveryConfirmationKeptInS3() {
+    var trigger =
+        JobTrigger.builder().jobName("SebFundConfirmationBackfillJob").status("PENDING").build();
+    givenPending(trigger);
+
+    poller.poll();
+
+    then(eventPublisher).should().publishEvent(new RunSebFundConfirmationBackfillRequested());
     thenCompleted(trigger);
   }
 

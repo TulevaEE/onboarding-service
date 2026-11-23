@@ -32,6 +32,7 @@ class SebFundConfirmationAuditRecorder {
   static final String MISNAMED_ALERTED = "SEB_FUND_CONFIRMATION_MISNAMED_ALERTED";
   static final String CHECK_FAILURE_ALERTED = "SEB_FUND_CONFIRMATION_CHECK_FAILURE_ALERTED";
   static final String NAV_DATE_SET = "SEB_FUND_CONFIRMATION_NAV_DATE_SET";
+  static final String REPLACED = "SEB_FUND_CONFIRMATION_REPLACED";
   private static final String SYSTEM_ACTOR = "system";
   private static final String STATUS = "status";
   private static final String FINDINGS = "findings";
@@ -101,7 +102,7 @@ class SebFundConfirmationAuditRecorder {
   }
 
   void recordNavDateSet(
-      SebFundConfirmation confirmation,
+      RecordedSebFundConfirmation confirmation,
       TransactionExecution execution,
       @Nullable LocalDate replacedNavDate) {
     Map<String, Object> payload = new LinkedHashMap<>();
@@ -119,6 +120,23 @@ class SebFundConfirmationAuditRecorder {
             .payload(payload)
             .createdAt(clock.instant())
             .build());
+  }
+
+  void recordReplaced(RecordedSebFundConfirmation previous, RecordedSebFundConfirmation latest) {
+    Map<String, Object> payload = recordedFields(latest);
+    payload.put("previous", recordedFields(previous));
+    save(REPLACED, latest.tradeReference(), SYSTEM_ACTOR, payload);
+  }
+
+  private static Map<String, Object> recordedFields(RecordedSebFundConfirmation confirmation) {
+    Map<String, Object> fields = new LinkedHashMap<>();
+    fields.put("fund", confirmation.fund().name());
+    fields.put("isin", confirmation.isin());
+    fields.put("side", confirmation.side().name());
+    fields.put("orderReceivedAt", confirmation.orderReceivedAt().toString());
+    fields.put("pricingDate", confirmation.pricingDate().toString());
+    fields.put("sourceFileKey", confirmation.sourceFileKey());
+    return fields;
   }
 
   boolean alreadyAlertedToday(SebFundConfirmationCheckFailure failure) {

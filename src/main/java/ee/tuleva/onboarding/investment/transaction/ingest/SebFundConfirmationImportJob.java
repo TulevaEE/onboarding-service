@@ -26,20 +26,19 @@ import org.springframework.stereotype.Component;
 class SebFundConfirmationImportJob {
 
   static final String JOB_ACTOR = "seb-fund-confirmation-import-job";
+  static final String LOCK = "SebFundConfirmationImportJob";
 
   private final SebFundConfirmationS3Source s3Source;
   private final SebFundConfirmationPdfParser parser;
   private final SebFundConfirmationVerificationService verificationService;
   private final SebFundConfirmationMissingFinder missingFinder;
   private final SebFundConfirmationAuditRecorder auditRecorder;
+  private final SebFundConfirmationRecorder confirmationRecorder;
   private final SebFundConfirmationNavDateWriter navDateWriter;
   private final SebFundConfirmationDigest digest;
 
   @Scheduled(cron = IMPORT_BUSINESS_HOURS, zone = TIMEZONE)
-  @SchedulerLock(
-      name = "SebFundConfirmationImportJob",
-      lockAtMostFor = "15m",
-      lockAtLeastFor = "1m")
+  @SchedulerLock(name = LOCK, lockAtMostFor = "15m", lockAtLeastFor = "1m")
   public void run() {
     List<SebFundConfirmationCheckFailure> failures = new ArrayList<>();
     List<String> keys;
@@ -54,14 +53,11 @@ class SebFundConfirmationImportJob {
 
     List<SebFundConfirmationOutcome> outcomes =
         uploads.latestByReference().values().stream()
-            .map(confirmation -> verify(confirmation, failures))
+            .map(upload -> verify(upload.confirmation(), failures))
             .flatMap(Optional::stream)
             .toList();
     outcomes.forEach(outcome -> record(outcome, failures));
-    uploads
-        .latestByReference()
-        .values()
-        .forEach(confirmation -> writeNavDate(confirmation, failures));
+    uploads.latestByReference().values().forEach(upload -> keepPricingDate(upload, failures));
 
     digest.publish(
         outcomes,
@@ -94,7 +90,9 @@ class SebFundConfirmationImportJob {
                 .misnamed()
                 .add(new MisnamedSebFundConfirmation(key, nameReference, read.tradeReference()));
           }
-          uploads.latestByReference().put(read.tradeReference(), read);
+          uploads
+              .latestByReference()
+              .put(read.tradeReference(), new SebFundConfirmationUpload(key, read));
         });
   }
 
@@ -172,11 +170,12 @@ class SebFundConfirmationImportJob {
     }
   }
 
-  private void writeNavDate(
-      SebFundConfirmation confirmation, List<SebFundConfirmationCheckFailure> failures) {
-    String reference = confirmation.tradeReference();
+  private void keepPricingDate(
+      SebFundConfirmationUpload upload, List<SebFundConfirmationCheckFailure> failures) {
+    String reference = upload.tradeReference();
     try {
-      navDateWriter.write(confirmation);
+      confirmationRecorder.record(upload);
+      navDateWriter.write(reference);
     } catch (OptimisticLockingFailureException e) {
       log.info(
           "SEB fund confirmation pricing date left for the next run, execution changed meanwhile:"
@@ -214,7 +213,7 @@ class SebFundConfirmationImportJob {
   }
 
   private record Uploads(
-      Map<String, SebFundConfirmation> latestByReference,
+      Map<String, SebFundConfirmationUpload> latestByReference,
       Set<String> confirmedReferences,
       List<UnreadableSebFundConfirmation> unreadable,
       List<MisnamedSebFundConfirmation> misnamed) {

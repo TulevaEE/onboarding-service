@@ -65,6 +65,7 @@ class SebPendingTransactionReconciliationServiceTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private TransactionMatchingPolicy matchingPolicy;
   @Mock private InvestmentReportService reportService;
+  @Mock private SebFundConfirmationNavDateWriter navDateWriter;
 
   // Real collaborators so we exercise the actual extraction + mapping pipeline
   private final SebPendingTransactionExtractor extractor = new SebPendingTransactionExtractor();
@@ -81,7 +82,8 @@ class SebPendingTransactionReconciliationServiceTest {
     ReconciliationAuditRecorder auditRecorder =
         new ReconciliationAuditRecorder(auditEventRepository, clock);
     SebExecutionUpserter executionUpserter =
-        new SebExecutionUpserter(mapper, executionRepository, orderRepository, auditRecorder);
+        new SebExecutionUpserter(
+            mapper, executionRepository, orderRepository, auditRecorder, navDateWriter);
     SebMatchedRowConsistencyChecker consistencyChecker =
         new SebMatchedRowConsistencyChecker(resolver, auditRecorder);
     SebMatchedRowProcessor matchedRowProcessor =

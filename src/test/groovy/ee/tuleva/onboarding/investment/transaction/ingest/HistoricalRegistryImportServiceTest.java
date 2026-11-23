@@ -33,6 +33,7 @@ class HistoricalRegistryImportServiceTest {
   @Mock private TransactionExecutionRepository executionRepository;
   @Mock private TransactionSettlementService settlementService;
   @Mock private InstrumentReferenceService instrumentReferenceService;
+  @Mock private SebFundConfirmationNavDateWriter navDateWriter;
   @Mock private Clock clock;
 
   private HistoricalRegistryImportService importService;
@@ -55,7 +56,7 @@ class HistoricalRegistryImportServiceTest {
             executionRepository,
             settlementService,
             csvParser,
-            new HistoricalExecutionWriter(executionRepository),
+            new HistoricalExecutionWriter(executionRepository, navDateWriter),
             clock);
   }
 

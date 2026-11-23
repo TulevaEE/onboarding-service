@@ -22,9 +22,12 @@ class HistoricalExecutionWriter {
   private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
 
   private final TransactionExecutionRepository executionRepository;
+  private final SebFundConfirmationNavDateWriter navDateWriter;
 
   void write(ParsedRow row, TransactionOrder order) {
-    executionRepository.save(toExecution(row, order));
+    TransactionExecution execution = toExecution(row, order);
+    executionRepository.save(execution);
+    navDateWriter.writeTo(execution, order);
   }
 
   private TransactionExecution toExecution(ParsedRow row, TransactionOrder order) {

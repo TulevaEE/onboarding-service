@@ -34,12 +34,6 @@ class SebFundConfirmationRegistryCheck {
         .orElse(RegistryComparison.NOT_IN_REGISTRY);
   }
 
-  Optional<TransactionExecution> executionOfTheSameTrade(SebFundConfirmation confirmation) {
-    return registered(confirmation)
-        .filter(trade -> isTheSameTrade(confirmation, trade.order()))
-        .map(RegisteredTrade::execution);
-  }
-
   private Optional<RegisteredTrade> registered(SebFundConfirmation confirmation) {
     return executionRepository
         .findByBrokerTransactionId(confirmation.tradeReference())
@@ -48,10 +42,6 @@ class SebFundConfirmationRegistryCheck {
                 orderRepository
                     .findById(execution.getOrderId())
                     .map(order -> new RegisteredTrade(execution, order)));
-  }
-
-  private static boolean isTheSameTrade(SebFundConfirmation confirmation, TransactionOrder order) {
-    return tradeDifferences(confirmation, order).list().isEmpty();
   }
 
   private static SebFundConfirmationDifferences tradeDifferences(

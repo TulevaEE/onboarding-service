@@ -2318,74 +2318,82 @@ describe("SEB sends some files as inline parts", () => {
 });
 
 describe("the one-off catch-up of inline confirmations since the 16.11 backfill", () => {
-  const REGULAR_QUERY = "to:funds@tuleva.ee has:attachment newer_than:2d";
-  const inlineConfirmation = {
+  const CONFIRMATIONS_SINCE_16_NOVEMBER = "to:funds@tuleva.ee has:attachment newer_than:10d from:(" + SOURCES.SEB_CONFIRMATION.senders[0] + ")";
+  const inlineConfirmation = (date) => ({
     ...noRecipients,
     getId: () => "18f0a00000000021",
-    getDate: () => new Date("2026-11-19T14:45:00Z"),
+    getDate: () => date,
     getFrom: () => "SEB <" + SOURCES.SEB_CONFIRMATION.senders[0] + ">",
     getAttachments: (options = {}) =>
       options.includeInlineImages === false ? [] : [{ getName: () => "DLA1234567-001.pdf", getBytes: () => [37, 80, 68, 70] }],
-  };
-  const withAThreadFrom19November = () =>
+  });
+  const withConfirmationsFoundByTheCatchUp = (messages, properties = {}) =>
     installAppsScriptFakes({
-      properties: { AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret" },
-      threads: (query) => (query === REGULAR_QUERY ? [] : [fakeThread([inlineConfirmation], [])]),
+      properties: { AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret", ...properties },
+      threads: (query) => (query === CONFIRMATIONS_SINCE_16_NOVEMBER ? [fakeThread(messages, [])] : []),
     });
 
-  test("the first regular run after the deploy searches back to the backfill once and uploads the missed confirmation", () => {
+  test("the first regular run from 23.11 uploads the inline confirmations e-mailed since 16.11 through the backfill and records the catch-up", () => {
     jest.setSystemTime(new Date("2026-11-24T08:00:00Z"));
-    const fakes = withAThreadFrom19November();
+    const fakes = withConfirmationsFoundByTheCatchUp([inlineConfirmation(new Date("2026-11-19T14:45:00Z"))]);
 
     processNewEmails();
 
-    expect(fakes.queries).toEqual([REGULAR_QUERY, "to:funds@tuleva.ee has:attachment newer_than:10d"]);
     expect(fakes.s3Keys).toEqual(["seb-confirmations/DLA1234567-001.pdf"]);
     expect(fakes.props.INLINE_CONFIRMATION_CATCH_UP_DONE).toBe("2026-11-24T08:00:00.000Z");
+    expect(fakes.props.SEB_CONFIRMATION_BACKFILL_REQUESTED).toBeUndefined();
   });
 
-  test("an e-mail from before the backfill's day, which the backfill covered, is left alone", () => {
+  test("a confirmation e-mailed before 16.11, which the backfill already uploaded, is left alone", () => {
     jest.setSystemTime(new Date("2026-11-24T08:00:00Z"));
-    const backfilled = { ...inlineConfirmation, getDate: () => new Date("2026-11-15T14:45:00Z") };
-    const fakes = installAppsScriptFakes({
-      properties: { AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret" },
-      threads: (query) => (query === REGULAR_QUERY ? [] : [fakeThread([backfilled], [])]),
+    const fakes = withConfirmationsFoundByTheCatchUp([inlineConfirmation(new Date("2026-11-15T14:45:00Z"))]);
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual([]);
+  });
+
+  test("a run after the catch-up was recorded does not request it again", () => {
+    jest.setSystemTime(new Date("2026-11-24T08:05:00Z"));
+    const fakes = withConfirmationsFoundByTheCatchUp([inlineConfirmation(new Date("2026-11-19T14:45:00Z"))], {
+      INLINE_CONFIRMATION_CATCH_UP_DONE: "2026-11-24T08:00:00.000Z",
     });
 
     processNewEmails();
 
     expect(fakes.s3Keys).toEqual([]);
-    expect(fakes.props.INLINE_CONFIRMATION_CATCH_UP_DONE).toBe("2026-11-24T08:00:00.000Z");
   });
 
-  test("a run after the catch-up is done searches only the regular two days", () => {
-    jest.setSystemTime(new Date("2026-11-24T08:05:00Z"));
-    const fakes = installAppsScriptFakes({
-      properties: { AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret", INLINE_CONFIRMATION_CATCH_UP_DONE: "2026-11-24T08:00:00.000Z" },
-    });
-
-    processNewEmails();
-
-    expect(fakes.queries).toEqual([REGULAR_QUERY]);
-  });
-
-  test("a catch-up that fails is not marked done, so the next run tries it again", () => {
+  test("a backfill that fails stays requested, so the next run continues it", () => {
     jest.setSystemTime(new Date("2026-11-24T08:00:00Z"));
-    const fakes = withAThreadFrom19November();
+    const fakes = withConfirmationsFoundByTheCatchUp([inlineConfirmation(new Date("2026-11-19T14:45:00Z"))]);
     fakes.s3.status = 403;
 
     expect(() => processNewEmails()).toThrow();
 
-    expect(fakes.props.INLINE_CONFIRMATION_CATCH_UP_DONE).toBeUndefined();
+    expect(fakes.props.SEB_CONFIRMATION_BACKFILL_REQUESTED).toBe("yes");
+    expect(fakes.props.SEB_CONFIRMATION_BACKFILL_RESUME_FROM).toBe("2026-11-15T22:00:00.000Z");
   });
 
-  test("a run once the catch-up's days are over searches only the regular two days", () => {
-    jest.setSystemTime(new Date("2026-11-30T00:00:00+02:00"));
-    const fakes = withAThreadFrom19November();
+  test("a backfill already under way is left to finish from where it is, since it reaches the present anyway", () => {
+    jest.setSystemTime(new Date("2026-11-24T08:00:00Z"));
+    const fakes = withConfirmationsFoundByTheCatchUp([], {
+      SEB_CONFIRMATION_BACKFILL_REQUESTED: "yes",
+      SEB_CONFIRMATION_BACKFILL_RESUME_FROM: "2026-11-10T00:00:00.000Z",
+    });
+    fakes.s3.status = 403;
 
     processNewEmails();
 
-    expect(fakes.queries).toEqual([REGULAR_QUERY]);
+    expect(fakes.queries).toContain("to:funds@tuleva.ee has:attachment newer_than:16d from:(" + SOURCES.SEB_CONFIRMATION.senders[0] + ")");
+  });
+
+  test("a run before 23.11 requests nothing", () => {
+    const fakes = withConfirmationsFoundByTheCatchUp([inlineConfirmation(new Date("2026-11-01T14:45:00Z"))]);
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual([]);
     expect(fakes.props.INLINE_CONFIRMATION_CATCH_UP_DONE).toBeUndefined();
   });
 });

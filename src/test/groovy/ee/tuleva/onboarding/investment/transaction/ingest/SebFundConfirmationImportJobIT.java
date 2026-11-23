@@ -480,9 +480,10 @@ class SebFundConfirmationImportJobIT {
             clock,
             properties),
         auditRecorder,
-        new SebFundConfirmationRecorder(confirmationRepository(), auditRecorder, clock),
-        new SebFundConfirmationNavDateWriter(
-            confirmationRepository(), executionRepository, orderRepository, auditRecorder),
+        new SebFundConfirmationPricingDateKeeper(
+            new SebFundConfirmationRecorder(confirmationRepository(), auditRecorder, clock),
+            new SebFundConfirmationNavDateWriter(
+                confirmationRepository(), executionRepository, orderRepository, auditRecorder)),
         new SebFundConfirmationDigest(notificationService, auditRecorder, properties));
   }
 

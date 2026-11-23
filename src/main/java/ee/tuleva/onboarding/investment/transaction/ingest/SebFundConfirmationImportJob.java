@@ -15,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -33,8 +32,7 @@ class SebFundConfirmationImportJob {
   private final SebFundConfirmationVerificationService verificationService;
   private final SebFundConfirmationMissingFinder missingFinder;
   private final SebFundConfirmationAuditRecorder auditRecorder;
-  private final SebFundConfirmationRecorder confirmationRecorder;
-  private final SebFundConfirmationNavDateWriter navDateWriter;
+  private final SebFundConfirmationPricingDateKeeper pricingDateKeeper;
   private final SebFundConfirmationDigest digest;
 
   @Scheduled(cron = IMPORT_BUSINESS_HOURS, zone = TIMEZONE)
@@ -57,7 +55,10 @@ class SebFundConfirmationImportJob {
             .flatMap(Optional::stream)
             .toList();
     outcomes.forEach(outcome -> record(outcome, failures));
-    uploads.latestByReference().values().forEach(upload -> keepPricingDate(upload, failures));
+    uploads
+        .latestByReference()
+        .values()
+        .forEach(upload -> pricingDateKeeper.keep(upload).ifPresent(failures::add));
 
     digest.publish(
         outcomes,
@@ -167,29 +168,6 @@ class SebFundConfirmationImportJob {
       failures.add(
           new SebFundConfirmationCheckFailure(
               "tehingu " + reference + " tulemuse salvestamine", reason(e)));
-    }
-  }
-
-  private void keepPricingDate(
-      SebFundConfirmationUpload upload, List<SebFundConfirmationCheckFailure> failures) {
-    String reference = upload.tradeReference();
-    try {
-      confirmationRecorder.record(upload);
-      navDateWriter.write(reference);
-    } catch (OptimisticLockingFailureException e) {
-      log.info(
-          "SEB fund confirmation pricing date left for the next run, execution changed meanwhile:"
-              + " tradeReference={}",
-          reference);
-    } catch (RuntimeException e) {
-      log.error(
-          "SEB fund confirmation pricing date not written: tradeReference={}, error={}",
-          reference,
-          e.getMessage(),
-          e);
-      failures.add(
-          new SebFundConfirmationCheckFailure(
-              "tehingu " + reference + " hinnapäeva salvestamine", reason(e)));
     }
   }
 

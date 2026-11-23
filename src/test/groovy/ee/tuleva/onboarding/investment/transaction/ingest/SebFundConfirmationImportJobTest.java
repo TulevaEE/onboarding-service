@@ -63,8 +63,7 @@ class SebFundConfirmationImportJobTest {
             verificationService,
             missingFinder,
             auditRecorder,
-            confirmationRecorder,
-            navDateWriter,
+            new SebFundConfirmationPricingDateKeeper(confirmationRecorder, navDateWriter),
             digest);
     given(s3Source.recentKeys()).willReturn(List.of(FIRST_KEY, SECOND_KEY));
     given(s3Source.get(FIRST_KEY)).willReturn(Optional.of(FIRST_PDF));

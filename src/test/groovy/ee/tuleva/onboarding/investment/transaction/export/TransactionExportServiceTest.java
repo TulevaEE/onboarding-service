@@ -354,6 +354,32 @@ class TransactionExportServiceTest {
   }
 
   @Test
+  void generateFtEtfExport_roundsEachQuantityToWholeUnitsLikeTheGasFile() throws Exception {
+    var batch = buildBatch();
+    var tkf = buildOrder(batch, TKF100, "IE00FT", BUY, ETF, FT, new BigDecimal("100000"), null);
+    tkf.setOrderQuantity(new BigDecimal("100.500000"));
+    var tuk75 = buildOrder(batch, TUK75, "IE00FT", BUY, ETF, FT, new BigDecimal("200000"), null);
+    tuk75.setOrderQuantity(new BigDecimal("200.400000"));
+
+    byte[] xlsx =
+        service.generateFtEtfExport(
+            List.of(tkf, tuk75),
+            Map.of("IE00FT", "iShares ESG MSCI"),
+            Map.of("IE00FT", "ESGM GY"),
+            LocalDate.of(2026, 11, 17));
+
+    try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(xlsx))) {
+      var dataRow = workbook.getSheetAt(0).getRow(1);
+      assertThat(
+              List.of(
+                  dataRow.getCell(2).getNumericCellValue(),
+                  dataRow.getCell(8).getNumericCellValue(),
+                  dataRow.getCell(9).getNumericCellValue()))
+          .containsExactly(301.0, 101.0, 200.0);
+    }
+  }
+
+  @Test
   void generateFtEtfExport_withEmptyOrders_returnsEmptySheet() throws Exception {
     byte[] xlsx =
         service.generateFtEtfExport(List.of(), Map.of(), Map.of(), LocalDate.of(2026, 1, 15));

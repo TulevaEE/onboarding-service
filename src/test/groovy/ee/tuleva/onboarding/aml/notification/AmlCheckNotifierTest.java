@@ -2,14 +2,16 @@ package ee.tuleva.onboarding.aml.notification;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
@@ -67,8 +69,23 @@ class AmlCheckNotifierTest {
       "Should not send Slack message when the AML check is one of the listed types but succeeded")
   void onAmlCheckCreated_inListButNotFailed_noSlackMessage() {
     AmlCheckCreatedEvent event = mock(AmlCheckCreatedEvent.class);
-    when(event.getAmlCheckType()).thenReturn(RISK_LEVEL);
+    when(event.getAmlCheckType()).thenReturn(SANCTION);
     when(event.isFailed()).thenReturn(false);
+
+    notifier.onAmlCheckCreated(event);
+
+    verify(notificationService, never()).sendMessage(anyString(), any());
+  }
+
+  @ParameterizedTest
+  @EnumSource(
+      value = AmlCheckType.class,
+      names = {"RISK_LEVEL", "TKF_RISK_LEVEL"})
+  void onAmlCheckCreated_riskLevelChecksNothingCreatesAnyMore_noSlackMessage(
+      AmlCheckType checkType) {
+    AmlCheckCreatedEvent event = mock(AmlCheckCreatedEvent.class);
+    given(event.getAmlCheckType()).willReturn(checkType);
+    given(event.isFailed()).willReturn(true);
 
     notifier.onAmlCheckCreated(event);
 
@@ -127,34 +144,5 @@ class AmlCheckNotifierTest {
     verify(notificationService).sendMessage(captor.capture(), eq(AML));
     org.junit.jupiter.api.Assertions.assertEquals(
         "Running AML checks job: numberOfRecords=10", captor.getValue());
-  }
-
-  @Test
-  @DisplayName("Should always send Slack message with row counts after an AML risk level job run")
-  void onAmlRiskLevelJobRun_sendsSlackMessage() {
-    AmlRiskLevelJobRunEvent event = mock(AmlRiskLevelJobRunEvent.class);
-    when(event.getLabel()).thenReturn("III pillar");
-    when(event.getHighRiskRowCount()).thenReturn(3);
-    when(event.getAmlChecksCreatedCount()).thenReturn(2);
-
-    notifier.onAmlRiskLevelJobRun(event);
-
-    ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
-    verify(notificationService).sendMessage(captor.capture(), eq(AML));
-    org.junit.jupiter.api.Assertions.assertEquals(
-        "Ran III pillar risk level job: highRiskRecordCount=3, amlChecksCreatedCount=2",
-        captor.getValue());
-  }
-
-  @Test
-  void onAmlRiskLevelJobFailed_sendsAnErrorNamingThePillarAndReason() {
-    notifier.onAmlRiskLevelJobFailed(
-        new AmlRiskLevelJobFailedEvent("TKF", "ResourceAccessException: request timed out"));
-
-    verify(notificationService)
-        .sendMessage(
-            "Risk level job failed: pillar=TKF, reason=ResourceAccessException: request timed out",
-            AML,
-            ERROR);
   }
 }

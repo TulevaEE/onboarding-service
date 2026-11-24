@@ -21,15 +21,12 @@ import org.junit.jupiter.api.Timeout.ThreadMode;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 class AmlServiceConfigurationTest {
 
-  private final AmlServiceConfiguration configuration = new AmlServiceConfiguration();
   private final Logger logger = (Logger) LoggerFactory.getLogger(AmlServiceConfiguration.class);
   private final ListAppender<ILoggingEvent> logAppender = new ListAppender<>();
 
@@ -62,25 +59,9 @@ class AmlServiceConfigurationTest {
           AmlServiceConfiguration.amlServiceRestClient(RestClient.builder(), properties);
 
       assertThatThrownBy(
-              () -> restClient.get().uri("/v1/risk-levels/tkf").retrieve().toBodilessEntity())
+              () -> restClient.get().uri("/v1/register-requester").retrieve().toBodilessEntity())
           .isInstanceOf(ResourceAccessException.class);
     }
-  }
-
-  @Test
-  void startsWithoutAnApiToken() {
-    var properties =
-        new AmlServiceProperties(
-            "https://aml-service.test",
-            "",
-            ofSeconds(5),
-            ofSeconds(60),
-            ofSeconds(1),
-            ofSeconds(2),
-            ofSeconds(1),
-            ofSeconds(5));
-
-    assertThat(configuration.amlServiceClient(RestClient.builder(), properties)).isNotNull();
   }
 
   @ParameterizedTest
@@ -90,7 +71,7 @@ class AmlServiceConfigurationTest {
         .withPropertyValues("spring.profiles.active=" + profiles)
         .run(
             context -> {
-              assertThat(context).hasSingleBean(AmlServiceClient.class);
+              assertThat(context).hasSingleBean(AmlServiceProperties.class);
               assertThat(logAppender.list)
                   .extracting(ILoggingEvent::getLevel)
                   .containsExactly(WARN);
@@ -104,7 +85,7 @@ class AmlServiceConfigurationTest {
             "aml-service.api-token=test-api-token-of-at-least-thirty-two-characters")
         .run(
             context -> {
-              assertThat(context).hasSingleBean(AmlServiceClient.class);
+              assertThat(context).hasSingleBean(AmlServiceProperties.class);
               assertThat(logAppender.list).isEmpty();
             });
   }
@@ -117,7 +98,7 @@ class AmlServiceConfigurationTest {
         .run(
             context -> {
               assertThat(context).hasNotFailed();
-              assertThat(context).doesNotHaveBean(AmlServiceClient.class);
+              assertThat(context).doesNotHaveBean(AmlServiceProperties.class);
               assertThat(logAppender.list).isEmpty();
             });
   }
@@ -125,7 +106,6 @@ class AmlServiceConfigurationTest {
   private ApplicationContextRunner contextRunner() {
     return new ApplicationContextRunner()
         .withUserConfiguration(AmlServiceConfiguration.class)
-        .withConfiguration(AutoConfigurations.of(RestClientAutoConfiguration.class))
         .withPropertyValues(
             "aml-service.url=https://aml-service.test",
             "aml-service.connect-timeout=5s",

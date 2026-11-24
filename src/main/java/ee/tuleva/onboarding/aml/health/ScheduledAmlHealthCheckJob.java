@@ -22,6 +22,8 @@ public class ScheduledAmlHealthCheckJob {
   private static final Set<AmlCheckType> SKIPPED_CHECK_TYPES =
       Set.of(
           AmlCheckType.POLITICALLY_EXPOSED_PERSON_OVERRIDE,
+          AmlCheckType.RISK_LEVEL,
+          AmlCheckType.TKF_RISK_LEVEL,
           AmlCheckType.RISK_LEVEL_OVERRIDE,
           AmlCheckType.RISK_LEVEL_OVERRIDE_CONFIRMATION,
           AmlCheckType.TKF_RISK_LEVEL_OVERRIDE,

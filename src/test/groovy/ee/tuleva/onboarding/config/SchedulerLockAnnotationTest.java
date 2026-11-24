@@ -18,7 +18,6 @@ class SchedulerLockAnnotationTest {
           ee.tuleva.onboarding.aml.ScheduledAmlCheckJob.class,
           ee.tuleva.onboarding.aml.health.AmlHealthThresholdCache.class,
           ee.tuleva.onboarding.aml.health.ScheduledAmlHealthCheckJob.class,
-          ee.tuleva.onboarding.aml.risklevel.ScheduledRiskLevelCheckJob.class,
           ee.tuleva.onboarding.analytics.transaction.exchange
               .ScheduledExchangeTransactionSynchronizationJob.class,
           ee.tuleva.onboarding.analytics.transaction.fund.ScheduledFundTransactionSynchronizationJob
@@ -85,7 +84,6 @@ class SchedulerLockAnnotationTest {
     var scheduledJobs =
         new Class<?>[] {
           ee.tuleva.onboarding.aml.ScheduledAmlCheckJob.class,
-          ee.tuleva.onboarding.aml.risklevel.ScheduledRiskLevelCheckJob.class,
           ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller.class,
           ee.tuleva.onboarding.savings.fund.issuing.IssuingJob.class,
           ee.tuleva.onboarding.accounting.GeneralLedgerSyncJob.class,

@@ -1,13 +1,6 @@
 The risk rules live in aml-service; this package asks it and records or acts on its answers. There
 is no switch back to the SQL in `database-administration` that computed them before.
 
-`ScheduledRiskLevelCheckJob` runs after aml-service's nightly batch. It takes each family's risk
-levels from aml-service (`GET /v1/risk-levels/third-pillar` and `/tkf`), refuses a run not of its
-own Tallinn date, and writes them as `RISK_LEVEL` and `TKF_RISK_LEVEL` checks. A family whose fetch
-fails (a refused run, an HTTP error, a timeout, a missing token or value) writes nothing that night;
-one whose write fails keeps the rows written before the failure. Either is reported as failed in
-the AML Slack channel, and the other family still runs.
-
 `EffectiveRiskLevels.riskLevel`, which the redemption verification job asks before a payout, asks
 aml-service's `GET /v1/risk-levels/effective/{personalCode}`, with the specialist's overrides and
 the related-persons chain applied; the person is high risk when any family's `effective` level is
@@ -37,7 +30,8 @@ when its TKF level was assessed after the hit's check was recorded. The assessme
 decision's `decidedAt`: the computed level comes from a batch decision, and the hit counts only
 from the next one. Until then, and whenever there is no assessment time, it is retried as an unavailable
 level and then held with `PEP`, not `RISK_LEVEL_UNAVAILABLE`, which stays for a level aml-service
-could not give. `DevRiskLevels` counts its level as assessed now.
+could not give. In dev and staging `DevRiskLevels` holds no person's or company's payout and counts
+its level as assessed now.
 
 `EffectiveRiskLevels.isHighRiskCompany` asks the same of a company's payout, onboarded or not,
 through `GET /v1/risk-levels/effective/companies/{registryCode}`; a company whose KYB re-screening
@@ -57,12 +51,14 @@ before asking, and `AmlServiceKycChecker` refuses to ask inside a transaction. T
 published only if the survey is still the person's latest (`created_time`, then `id`, as aml-service
 orders them), so an older submission's late answer does not overwrite a newer one's; without a
 lock, both are still written if the older one's publishing stalls through the newer one's whole
-call. The call has its own timeouts (`aml-service.kyc-onboarding-*`) and the nightly fetch's retry
-on a 5xx or I/O error, which together bound how long a hanging aml-service holds up a submission.
+call. The call has its own timeouts (`aml-service.kyc-onboarding-*`) and the retry of
+`AmlServiceConfiguration.amlServiceRetryTemplate` on a 5xx or I/O error, which together bound how
+long a hanging aml-service holds up a submission.
 Open-in-view holds the request's connection through the call, so with the screening before it a
 slow submission can still exceed Hikari's leak-detection threshold (a warning). A failure fails the
 submission, with the survey and screenings already committed and no `KYC_CHECK` row; a 404 (no such
-user or no KYC survey) is not retried.
+user or no KYC survey) is not retried. In dev and staging `DevKycChecker` passes every KYC check as
+`LOW`, its metadata saying nothing was assessed.
 
 A person's savings fund onboarding held for review (`ON_HOLD`), or rejected, moves on by the
 reviewer's decision recorded in aml-service. `OnboardingReviewJob` (savings module) asks
@@ -83,12 +79,9 @@ I/O error (retried once), any other 4xx, a missing token or an answer without a 
 throws, and the run looks up no one either. In dev and staging `DevRegisterRequester` designates no
 one.
 
-Staging runs no aml-service, so in the `dev` and `staging` profiles nothing asks it: the nightly job
-does not run, and the KYC check and the payout hold get a mock in its place. `DevKycChecker` passes
-every KYC check as `LOW`, its metadata saying nothing was assessed, and `DevRiskLevels` holds no
-person's or company's payout, and `DevRegisterRequester` lets no automatic guardian lookup run.
-Every other profile gets the real ones above, so a missing profile cannot quietly give production
-the fail-open mock.
+Staging runs no aml-service, so in the `dev` and `staging` profiles nothing asks it: each client
+gets the mock named in its section in its place. Every other profile gets the real ones, so a
+missing profile cannot quietly give production the fail-open mock.
 
 The `db/dev` stand-ins for the old risk views (`V1_173.1`, `V1_173.2`) are applied migrations, so
 they stay, but nothing reads them.

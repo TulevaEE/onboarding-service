@@ -46,6 +46,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Import({
   InstrumentOcfServiceIT.Json.class,
   InstrumentOcfService.class,
+  AgreementRates.class,
   InstrumentFeeAgreementRepository.class,
   InstrumentFeeRateRepository.class,
   MonthVolumeReader.class,

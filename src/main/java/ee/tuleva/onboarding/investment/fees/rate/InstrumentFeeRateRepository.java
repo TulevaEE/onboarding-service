@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.fees.rate;
 
+import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.fees.rate.InstrumentFeeAgreementRepository.THE_AGREEMENT_OF_EACH_ISIN_VALID_ON_THE_DATE;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toMap;
@@ -9,6 +10,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,6 +24,10 @@ import org.springframework.stereotype.Repository;
 class InstrumentFeeRateRepository {
 
   private final JdbcClient jdbcClient;
+
+  static Instant closeOf(YearMonth period) {
+    return period.plusMonths(1).atDay(1).atStartOfDay(ZoneId.of(TIMEZONE)).toInstant();
+  }
 
   InstrumentRate append(ComputedRate rate) {
     var keyHolder = new GeneratedKeyHolder();

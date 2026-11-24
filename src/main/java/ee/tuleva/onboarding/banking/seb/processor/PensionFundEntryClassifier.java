@@ -107,7 +107,7 @@ public class PensionFundEntryClassifier {
     }
     if (managementCompanies.isManagementCompany(details.getName())) {
       return entry.amount().signum() < 0
-          ? managementCompanyDebit(entry.remittanceInformation())
+          ? classifyManagementCompanyDebit(entry.remittanceInformation())
           : managementCompanyCredit(entry.remittanceInformation());
     }
     if (sebAccountConfiguration.getRegistrarIbans().contains(details.getIban())) {
@@ -122,7 +122,7 @@ public class PensionFundEntryClassifier {
     return new Unclassified("unknown counterparty");
   }
 
-  private Classification managementCompanyDebit(@Nullable String remittanceInformation) {
+  Classification classifyManagementCompanyDebit(@Nullable String remittanceInformation) {
     if (managementCompanies.isManagementFeeDescription(remittanceInformation)) {
       return new ManagementFeePayment();
     }

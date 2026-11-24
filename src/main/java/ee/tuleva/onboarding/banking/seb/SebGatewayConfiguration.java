@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier;
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundStatementProcessor;
 import ee.tuleva.onboarding.banking.seb.processor.SebStatementRouter;
 import ee.tuleva.onboarding.banking.seb.processor.SuspenseReclassificationService;
+import ee.tuleva.onboarding.banking.seb.processor.UnderlyingFundFeeMoveService;
 import ee.tuleva.onboarding.banking.seb.reconciliation.SebReconciliator;
 import java.io.File;
 import java.security.KeyStore;
@@ -63,6 +64,7 @@ import org.springframework.web.client.RestClient;
   PensionFundEntryClassifier.class,
   PensionFundStatementProcessor.class,
   SuspenseReclassificationService.class,
+  UnderlyingFundFeeMoveService.class,
   SebStatementRouter.class,
   SebReconciliator.class,
   SebStatementFetcher.class,

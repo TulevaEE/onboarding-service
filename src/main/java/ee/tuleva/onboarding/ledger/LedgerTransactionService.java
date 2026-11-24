@@ -94,6 +94,12 @@ class LedgerTransactionService {
         transactionType, accountName);
   }
 
+  List<LedgerTransaction> findReferencedByTransactionTypeAndAccountName(
+      TransactionType transactionType, String accountName) {
+    return ledgerTransactionRepository.findReferencedByTransactionTypeAndAccountName(
+        transactionType, accountName);
+  }
+
   Optional<LedgerTransaction> findByExternalReferenceAndTransactionType(
       UUID externalReference, TransactionType transactionType) {
     return ledgerTransactionRepository.findByExternalReferenceAndTransactionType(

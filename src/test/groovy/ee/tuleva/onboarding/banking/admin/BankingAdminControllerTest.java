@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -17,9 +20,15 @@ import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
 import ee.tuleva.onboarding.banking.seb.processor.SuspenseReclassificationService;
+import ee.tuleva.onboarding.banking.seb.processor.UnderlyingFundFeeMoveService;
+import ee.tuleva.onboarding.banking.seb.processor.UnderlyingFundFeeMoveService.UnderlyingFundFeeMovePlan;
+import ee.tuleva.onboarding.ledger.BookedManagementFeePayment;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -62,6 +71,7 @@ class BankingAdminControllerTest {
 
   @MockitoBean private BankAccounts bankAccounts;
   @MockitoBean private SuspenseReclassificationService suspenseReclassificationService;
+  @MockitoBean private UnderlyingFundFeeMoveService underlyingFundFeeMoveService;
 
   @Test
   void fetchSebHistory_withoutFundCode_fetchesEveryFundsAccounts() throws Exception {
@@ -238,5 +248,68 @@ class BankingAdminControllerTest {
                 .header("X-Admin-Token", "wrong-token")
                 .param("fundCode", "TUK75"))
         .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void previewUnderlyingFundFeeMoves_returnsThePaymentsWithCountAndSum_andMovesNothing()
+      throws Exception {
+    var aprilPayment =
+        new BookedManagementFeePayment(
+            UUID.fromString("00000000-0000-0000-0000-000000000415"),
+            Instant.parse("2026-04-15T20:59:59.999999Z"),
+            new BigDecimal("50.00"),
+            "BR tasud TUK75");
+    given(underlyingFundFeeMoveService.preview(TulevaFund.TUK75))
+        .willReturn(new UnderlyingFundFeeMovePlan(TulevaFund.TUK75, List.of(aprilPayment), 0));
+
+    mockMvc
+        .perform(
+            post("/admin/underlying-fund-fee-moves/preview")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.fund").value("TUK75"))
+        .andExpect(jsonPath("$.count").value(1))
+        .andExpect(jsonPath("$.sum").value(50.0))
+        .andExpect(jsonPath("$.alreadyMoved").value(0))
+        .andExpect(
+            jsonPath("$.payments[0].externalReference")
+                .value("00000000-0000-0000-0000-000000000415"))
+        .andExpect(jsonPath("$.payments[0].bookingDate").value("2026-04-15"))
+        .andExpect(jsonPath("$.payments[0].amount").value(50.0));
+    verify(underlyingFundFeeMoveService, never()).move(TulevaFund.TUK75);
+  }
+
+  @Test
+  void moveUnderlyingFundFees_returnsWhatItMovedAndWhatWasMovedBefore() throws Exception {
+    given(underlyingFundFeeMoveService.move(TulevaFund.TUK75))
+        .willReturn(new UnderlyingFundFeeMovePlan(TulevaFund.TUK75, List.of(), 2));
+
+    mockMvc
+        .perform(
+            post("/admin/underlying-fund-fee-moves")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.fund").value("TUK75"))
+        .andExpect(jsonPath("$.count").value(0))
+        .andExpect(jsonPath("$.sum").value(0))
+        .andExpect(jsonPath("$.alreadyMoved").value(2));
+  }
+
+  @Test
+  void underlyingFundFeeMoves_withInvalidToken_returnsUnauthorizedAndMovesNothing()
+      throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/underlying-fund-fee-moves")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("fundCode", "TUK75"))
+        .andExpect(status().isUnauthorized());
+
+    verifyNoInteractions(underlyingFundFeeMoveService);
   }
 }

@@ -9,6 +9,8 @@ import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
 import ee.tuleva.onboarding.banking.seb.processor.SuspenseReclassificationService;
+import ee.tuleva.onboarding.banking.seb.processor.UnderlyingFundFeeMoveService;
+import ee.tuleva.onboarding.banking.seb.processor.UnderlyingFundFeeMoveService.UnderlyingFundFeeMovePlan;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
@@ -37,6 +39,7 @@ public class BankingAdminController {
   private final BankAccounts bankAccounts;
   private final ApplicationEventPublisher eventPublisher;
   private final SuspenseReclassificationService suspenseReclassificationService;
+  private final UnderlyingFundFeeMoveService underlyingFundFeeMoveService;
 
   @PostMapping("/fetch-seb-history")
   public String fetchSebHistory(
@@ -84,6 +87,27 @@ public class BankingAdminController {
         "fund", fund.name(),
         "reclassified", result.reclassified(),
         "remaining", result.remaining());
+  }
+
+  @PostMapping("/underlying-fund-fee-moves/preview")
+  public UnderlyingFundFeeMovePlan previewUnderlyingFundFeeMoves(
+      @RequestHeader("X-Admin-Token") String token, @RequestParam String fundCode) {
+
+    tokenValidator.validate(token);
+
+    return underlyingFundFeeMoveService.preview(parseFundCode(fundCode));
+  }
+
+  @PostMapping("/underlying-fund-fee-moves")
+  public UnderlyingFundFeeMovePlan moveUnderlyingFundFees(
+      @RequestHeader("X-Admin-Token") String token, @RequestParam String fundCode) {
+
+    tokenValidator.validate(token);
+
+    var fund = parseFundCode(fundCode);
+    log.info("Admin triggered underlying fund fee moves: fund={}", fund);
+
+    return underlyingFundFeeMoveService.move(fund);
   }
 
   private List<BankAccount> fundAccounts(@Nullable String fundCode) {

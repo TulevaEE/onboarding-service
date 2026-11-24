@@ -6,6 +6,13 @@
     <mj-section padding-top="12px">
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+        <mj-raw>*|IF:followsPaymentArrived|*</mj-raw>
+        <mj-text>
+          A few days ago I wrote to you about your second pillar fees. If you have not had a
+          chance to look yet, it only takes a few minutes.
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/2nd-pillar-fees?language=en&utm_content=nudge_second_pillar">Check your fees</mj-button>
+        <mj-raw>*|ELSE:|*</mj-raw>
         <mj-text>
           You have started saving in Tuleva’s third pillar fund, with low fees and a fact-based
           investment strategy. Your second pillar is currently invested elsewhere.
@@ -21,9 +28,10 @@
             index fund:
           </strong>
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/login?language=en&utm_content=nudge_second_pillar">
+        <mj-button href="https://pension.tuleva.ee/2nd-pillar-fees?language=en&utm_content=nudge_second_pillar">
           Check your second pillar
         </mj-button>
+        <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>
 

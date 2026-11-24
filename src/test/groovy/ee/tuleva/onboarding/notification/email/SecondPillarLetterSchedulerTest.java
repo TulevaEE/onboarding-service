@@ -43,7 +43,7 @@ class SecondPillarLetterSchedulerTest {
             emailService.newMandrillMessage(
                 recipient.getEmail(),
                 "third_pillar_suggest_second_et",
-                Map.of("fname", "Mari", "lname", "Maasikas"),
+                Map.of("fname", "Mari", "lname", "Maasikas", "followsPaymentArrived", true),
                 List.of("pillar_3.1", "suggest_2", "payment_arrived")))
         .willReturn(letter);
   }
@@ -68,12 +68,12 @@ class SecondPillarLetterSchedulerTest {
   }
 
   @Test
-  void tagsTheLetterWithWhatTriggeredIt() {
+  void tagsTheLetterWithWhatTriggeredItAndWritesItAsAFirstAskAfterAMandate() {
     given(
             emailService.newMandrillMessage(
                 recipient.getEmail(),
                 "third_pillar_suggest_second_en",
-                Map.of("fname", "Mari", "lname", "Maasikas"),
+                Map.of("fname", "Mari", "lname", "Maasikas", "followsPaymentArrived", false),
                 List.of("pillar_3.1", "suggest_2", "mandate")))
         .willReturn(letter);
 
@@ -81,6 +81,14 @@ class SecondPillarLetterSchedulerTest {
 
     verify(emailService)
         .send(recipient, letter, "third_pillar_suggest_second_en", now.plus(3, DAYS));
+  }
+
+  @Test
+  void writesTheLetterAsAReminderAfterThePaymentArrivedEmail() {
+    scheduler.schedule(recipient, Locale.of("et"), PAYMENT_ARRIVED);
+
+    verify(emailService)
+        .send(recipient, letter, "third_pillar_suggest_second_et", now.plus(3, DAYS));
   }
 
   @Test

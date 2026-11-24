@@ -46,7 +46,7 @@ public class SecondPillarLetterScheduler {
         emailService.newMandrillMessage(
             recipient.getEmail(),
             templateName,
-            nameMergeVars(recipient),
+            mergeVars(recipient, trigger),
             List.of("pillar_3.1", "suggest_2", trigger.getTag()));
     emailService
         .send(recipient, message, templateName, Instant.now(clock).plus(3, DAYS))
@@ -61,9 +61,10 @@ public class SecondPillarLetterScheduler {
             () -> log.error("Second pillar letter failed to schedule: trigger={}", trigger));
   }
 
-  private static Map<String, Object> nameMergeVars(Person recipient) {
+  private static Map<String, Object> mergeVars(Person recipient, Trigger trigger) {
     return Map.of(
         "fname", Names.formatted(recipient.getFirstName()),
-        "lname", Names.formatted(recipient.getLastName()));
+        "lname", Names.formatted(recipient.getLastName()),
+        "followsPaymentArrived", trigger == Trigger.PAYMENT_ARRIVED);
   }
 }

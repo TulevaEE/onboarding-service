@@ -6,6 +6,13 @@
     <mj-section padding-top="12px">
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-raw>*|IF:followsPaymentArrived|*</mj-raw>
+        <mj-text>
+          Paar päeva tagasi kirjutasin sulle II&nbsp;samba tasudest. Kui sa ei jõudnud veel
+          vaadata, saad seda teha mõne minutiga.
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/2nd-pillar-fees?utm_content=nudge_second_pillar">Vaatan oma tasud üle</mj-button>
+        <mj-raw>*|ELSE:|*</mj-raw>
         <mj-text>
           Alustasid kogumist Tuleva madalate tasudega III&nbsp;samba fondis. II&nbsp;sambasse
           kogud praegu mujal.
@@ -20,7 +27,8 @@
             indeksfondis:
           </strong>
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/login?utm_content=nudge_second_pillar">Vaatan järele</mj-button>
+        <mj-button href="https://pension.tuleva.ee/2nd-pillar-fees?utm_content=nudge_second_pillar">Vaatan järele</mj-button>
+        <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>
 

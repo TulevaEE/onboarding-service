@@ -17,7 +17,7 @@
           Kanname raha kontole *|iban|* eeldatavalt hiljemalt *|payoutDeadline|*.
         </mj-text>
         <mj-text>
-          Üldjuhul saad avalduse Tuleva kontol tühistada kuni *|cancellationDeadline|*.
+          Avalduse saad tühistada Tuleva kontol kuni *|cancellationDeadline|*.
         </mj-text>
       </mj-column>
     </mj-section>

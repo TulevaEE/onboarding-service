@@ -76,6 +76,10 @@ public class LedgerEntry {
     return metadata == null ? Map.of() : metadata;
   }
 
+  boolean isOn(String accountName) {
+    return accountName.equals(account.getName());
+  }
+
   boolean isUserFundUnit() {
     return assetType == FUND_UNIT && account.isUserAccount();
   }

@@ -53,11 +53,12 @@ class UnderlyingFundFeeMovesTest {
     var underlyingFeeBefore = balance(UNDERLYING_FUND_MANAGEMENT_FEE, TUK75);
     var cashBefore = balance(FUND_INVESTMENT_CASH_CLEARING, TUK75);
 
-    var move = underlyingFundFeeMoves.move(TUK75, payment);
+    var move = underlyingFundFeeMoves.move(payment);
 
     assertThat(payment)
         .isEqualTo(
             new BookedManagementFeePayment(
+                TUK75,
                 externalReference,
                 END_OF_APRIL_PAYMENT_DAY_IN_TALLINN,
                 new BigDecimal("50.00"),
@@ -84,10 +85,10 @@ class UnderlyingFundFeeMovesTest {
         TUK75, new BigDecimal("50.00"), externalReference, "BR tasud TUK75", APRIL_PAYMENT_DAY);
     var payment = paymentWith(TUK75, externalReference);
     assertThat(underlyingFundFeeMoves.isMoved(payment)).isFalse();
-    var firstMove = underlyingFundFeeMoves.move(TUK75, payment);
+    var firstMove = underlyingFundFeeMoves.move(payment);
     var managementFeeAfterFirstMove = balance(MANAGEMENT_FEE, TUK75);
 
-    var secondMove = underlyingFundFeeMoves.move(TUK75, payment);
+    var secondMove = underlyingFundFeeMoves.move(payment);
 
     assertThat(underlyingFundFeeMoves.isMoved(payment)).isTrue();
     assertThat(secondMove.getId()).isEqualTo(firstMove.getId());
@@ -115,6 +116,7 @@ class UnderlyingFundFeeMovesTest {
     assertThat(paymentWith(TUK00, externalReference))
         .isEqualTo(
             new BookedManagementFeePayment(
+                TUK00,
                 externalReference,
                 END_OF_APRIL_PAYMENT_DAY_IN_TALLINN,
                 new BigDecimal("30.00"),

@@ -47,7 +47,7 @@ public class UnderlyingFundFeeMoveService {
 
   public UnderlyingFundFeeMovePlan move(TulevaFund fund) {
     var plan = preview(fund);
-    plan.payments().forEach(payment -> underlyingFundFeeMoves.move(fund, payment));
+    plan.payments().forEach(underlyingFundFeeMoves::move);
     log.info(
         "Moved underlying fund fees off the management fee: fund={}, moved={}, sum={}, alreadyMoved={}",
         fund,

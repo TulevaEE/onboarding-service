@@ -255,6 +255,7 @@ class BankingAdminControllerTest {
       throws Exception {
     var aprilPayment =
         new BookedManagementFeePayment(
+            TulevaFund.TUK75,
             UUID.fromString("00000000-0000-0000-0000-000000000415"),
             Instant.parse("2026-04-15T20:59:59.999999Z"),
             new BigDecimal("50.00"),

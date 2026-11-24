@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -26,13 +27,14 @@ public class UnderlyingFundFeeMoves {
 
   private final LedgerTransactionService transactionService;
   private final LedgerService ledgerService;
+  private final JdbcClient jdbcClient;
 
   public List<BookedManagementFeePayment> findManagementFeePayments(TulevaFund fund) {
     var managementFeeAccount = SystemAccount.MANAGEMENT_FEE.getAccountName(fund);
     return transactionService
         .findReferencedByTransactionTypeAndAccountName(MANAGEMENT_FEE_PAYMENT, managementFeeAccount)
         .stream()
-        .map(payment -> booked(payment, managementFeeAccount))
+        .map(payment -> booked(fund, payment, managementFeeAccount))
         .sorted(comparing(BookedManagementFeePayment::transactionDate))
         .toList();
   }
@@ -43,14 +45,26 @@ public class UnderlyingFundFeeMoves {
   }
 
   @Transactional
-  public LedgerTransaction move(TulevaFund fund, BookedManagementFeePayment payment) {
+  public LedgerTransaction move(BookedManagementFeePayment payment) {
+    lockUntilCommit(payment.externalReference());
     return transactionService
         .findByExternalReferenceAndTransactionType(
             payment.externalReference(), UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT)
-        .orElseGet(() -> bookMove(fund, payment));
+        .orElseGet(() -> bookMove(payment));
   }
 
-  private LedgerTransaction bookMove(TulevaFund fund, BookedManagementFeePayment payment) {
+  private void lockUntilCommit(UUID externalReference) {
+    jdbcClient
+        .sql("SELECT pg_advisory_xact_lock(:key)")
+        .param(
+            "key",
+            externalReference.getMostSignificantBits()
+                ^ externalReference.getLeastSignificantBits())
+        .query((rs, rowNum) -> 0)
+        .optional();
+  }
+
+  private LedgerTransaction bookMove(BookedManagementFeePayment payment) {
     var bankDescription =
         requireNonNull(
             payment.bankDescription(),
@@ -66,16 +80,19 @@ public class UnderlyingFundFeeMoves {
             DESCRIPTION.getKey(),
             "Moved from the management fee: " + bankDescription),
         new LedgerEntryDto(
-            ledgerService.getSystemAccount(SystemAccount.UNDERLYING_FUND_MANAGEMENT_FEE, fund),
+            ledgerService.getSystemAccount(
+                SystemAccount.UNDERLYING_FUND_MANAGEMENT_FEE, payment.fund()),
             payment.amount()),
         new LedgerEntryDto(
-            ledgerService.getSystemAccount(SystemAccount.MANAGEMENT_FEE, fund),
+            ledgerService.getSystemAccount(SystemAccount.MANAGEMENT_FEE, payment.fund()),
             payment.amount().negate()));
   }
 
-  private BookedManagementFeePayment booked(LedgerTransaction payment, String accountName) {
+  private BookedManagementFeePayment booked(
+      TulevaFund fund, LedgerTransaction payment, String accountName) {
     var externalReference = requireNonNull(payment.getExternalReference());
     return new BookedManagementFeePayment(
+        fund,
         externalReference,
         payment.getTransactionDate(),
         amountOn(payment, accountName),
@@ -92,7 +109,7 @@ public class UnderlyingFundFeeMoves {
 
   private static BigDecimal amountOn(LedgerTransaction payment, String accountName) {
     return payment.getEntries().stream()
-        .filter(entry -> accountName.equals(entry.getAccount().getName()))
+        .filter(entry -> entry.isOn(accountName))
         .map(LedgerEntry::getAmount)
         .reduce(ZERO, BigDecimal::add);
   }

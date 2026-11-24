@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -9,6 +10,7 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
 public record BookedManagementFeePayment(
+    TulevaFund fund,
     UUID externalReference,
     Instant transactionDate,
     BigDecimal amount,

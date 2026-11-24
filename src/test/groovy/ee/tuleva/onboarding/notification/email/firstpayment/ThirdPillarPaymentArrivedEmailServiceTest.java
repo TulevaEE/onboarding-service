@@ -66,7 +66,7 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
     given(userService.findByPersonalCode(PERSONAL_CODE)).willReturn(Optional.of(user));
   }
 
-  private static FirstThirdPillarPayment payment(boolean hasTulevaUser) {
+  private static FirstThirdPillarPayment accountHolderPayment() {
     return new FirstThirdPillarPayment(
         PERSONAL_CODE,
         "First",
@@ -75,15 +75,38 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
         "EST",
         new BigDecimal("100.00"),
         PAYMENT_DATE,
-        hasTulevaUser);
+        true);
   }
 
-  private static Map<String, Object> baseMergeVars(boolean hasTulevaUser) {
+  private static FirstThirdPillarPayment registryOnlyPayment() {
+    return new FirstThirdPillarPayment(
+        PERSONAL_CODE,
+        "First",
+        "Last",
+        "first.last@example.com",
+        "EST",
+        new BigDecimal("100.00"),
+        PAYMENT_DATE,
+        false);
+  }
+
+  private static Map<String, Object> accountHolderMergeVars() {
+    Map<String, Object> vars = nameAndPaymentDateMergeVars();
+    vars.put("hasTulevaUser", true);
+    return vars;
+  }
+
+  private static Map<String, Object> registryOnlyMergeVars() {
+    Map<String, Object> vars = nameAndPaymentDateMergeVars();
+    vars.put("hasTulevaUser", false);
+    return vars;
+  }
+
+  private static Map<String, Object> nameAndPaymentDateMergeVars() {
     Map<String, Object> vars = new HashMap<>();
     vars.put("fname", "First");
     vars.put("lname", "Last");
     vars.put("paymentDate", "16.08.2026");
-    vars.put("hasTulevaUser", hasTulevaUser);
     return vars;
   }
 
@@ -95,7 +118,7 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
     given(response.getId()).willReturn("mandrill-id");
     given(response.getStatus()).willReturn("sent");
     given(emailService.send(any(), any(), any())).willReturn(Optional.of(response));
-    var payment = payment(true);
+    var payment = accountHolderPayment();
 
     boolean result = service.send(payment);
 
@@ -109,10 +132,10 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
     acceptedByMandrill();
     given(nudgeDecisionService.decideOffline(user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
         .willReturn(NudgeDecision.of(NudgeKey.NONE));
-    Map<String, Object> expected = baseMergeVars(true);
+    Map<String, Object> expected = accountHolderMergeVars();
     expected.putAll(NudgeDecision.of(NudgeKey.NONE).mergeVars(Locale.of("et")));
 
-    service.send(payment(true));
+    service.send(accountHolderPayment());
 
     verify(emailService)
         .newMandrillMessage(
@@ -121,7 +144,7 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
             expected,
             List.of("third_pillar_payment_arrived"));
     verify(emailPersistenceService)
-        .save(payment(true), "mandrill-id", THIRD_PILLAR_PAYMENT_ARRIVED, "sent", null);
+        .save(accountHolderPayment(), "mandrill-id", THIRD_PILLAR_PAYMENT_ARRIVED, "sent", null);
   }
 
   @Test
@@ -129,7 +152,7 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
     given(nudgeDecisionService.decideOffline(any(), any()))
         .willReturn(NudgeDecision.of(NudgeKey.NONE));
 
-    boolean result = service.send(payment(true));
+    boolean result = service.send(accountHolderPayment());
 
     assertThat(result).isFalse();
     verifyNoInteractions(emailPersistenceService);
@@ -139,7 +162,7 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
   void doesNotSendWhenTheClaimIsAlreadyTaken() {
     given(claims.claim(PERSONAL_CODE)).willReturn(false);
 
-    assertThat(service.send(payment(true))).isFalse();
+    assertThat(service.send(accountHolderPayment())).isFalse();
     verifyNoInteractions(emailService, nudgeDecisionService);
   }
 
@@ -147,10 +170,10 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
   void rendersTheDecidedNudgeForAnAccountHolder() {
     given(nudgeDecisionService.decideOffline(user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
         .willReturn(NudgeDecision.of(NudgeKey.SECOND_PILLAR_TRANSFER));
-    Map<String, Object> expected = baseMergeVars(true);
+    Map<String, Object> expected = accountHolderMergeVars();
     expected.putAll(NudgeDecision.of(NudgeKey.SECOND_PILLAR_TRANSFER).mergeVars(Locale.of("et")));
 
-    service.send(payment(true));
+    service.send(accountHolderPayment());
 
     verify(emailService)
         .newMandrillMessage(
@@ -162,13 +185,13 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
 
   @Test
   void asksThePersonWithoutAnAccountToLogInInstead() {
-    service.send(payment(false));
+    service.send(registryOnlyPayment());
 
     verify(emailService)
         .newMandrillMessage(
             "first.last@example.com",
             "third_pillar_payment_arrived_et",
-            baseMergeVars(false),
+            registryOnlyMergeVars(),
             List.of("third_pillar_payment_arrived", "nudge_log_in"));
     verifyNoInteractions(nudgeDecisionService);
   }
@@ -183,7 +206,7 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
   @Test
   void handsARegistryOnlyPayerWhoseSecondPillarIsElsewhereToTheLetterScheduler() {
     acceptedByMandrill();
-    var payment = payment(false);
+    var payment = registryOnlyPayment();
     given(
             nudgeDecisionService.decideForRegistryOnly(
                 payment, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
@@ -197,7 +220,7 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
   @Test
   void doesNotScheduleTheSecondPillarLetterForARegistryOnlyPayerWhoHasNoSecondPillar() {
     acceptedByMandrill();
-    var payment = payment(false);
+    var payment = registryOnlyPayment();
     given(
             nudgeDecisionService.decideForRegistryOnly(
                 payment, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
@@ -214,7 +237,7 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
     given(nudgeDecisionService.decideOffline(user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
         .willReturn(NudgeDecision.of(NudgeKey.NONE));
 
-    service.send(payment(true));
+    service.send(accountHolderPayment());
 
     verify(nudgeDecisionService, never()).decideForRegistryOnly(any(), any());
     verifyNoInteractions(secondPillarLetter);
@@ -223,7 +246,7 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
   @Test
   void stillReportsTheArrivedEmailAsSentWhenTheLetterDecisionFails() {
     acceptedByMandrill();
-    var payment = payment(false);
+    var payment = registryOnlyPayment();
     given(
             nudgeDecisionService.decideForRegistryOnly(
                 payment, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
@@ -238,13 +261,13 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
   void sendsWithoutANudgeWhenTheAccountCannotBeLoaded() {
     given(userService.findByPersonalCode(PERSONAL_CODE)).willReturn(Optional.empty());
 
-    service.send(payment(true));
+    service.send(accountHolderPayment());
 
     verify(emailService)
         .newMandrillMessage(
             "first.last@example.com",
             "third_pillar_payment_arrived_et",
-            baseMergeVars(true),
+            accountHolderMergeVars(),
             List.of("third_pillar_payment_arrived"));
   }
 
@@ -253,13 +276,13 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
     given(nudgeDecisionService.decideOffline(user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
         .willThrow(new IllegalStateException("EPIS down"));
 
-    service.send(payment(true));
+    service.send(accountHolderPayment());
 
     verify(emailService)
         .newMandrillMessage(
             "first.last@example.com",
             "third_pillar_payment_arrived_et",
-            baseMergeVars(true),
+            accountHolderMergeVars(),
             List.of("third_pillar_payment_arrived"));
   }
 }

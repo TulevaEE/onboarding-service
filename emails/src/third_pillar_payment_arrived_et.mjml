@@ -22,11 +22,24 @@
         <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-raw>*|IF:suggestSecondPillar|*</mj-raw>
+        <mj-text>
+          II&nbsp;sambasse kogud praegu mujal. Oled III&nbsp;samba puhul juba valinud madala
+          tasuga indeksfondi. Tasub vaadata, kas sinu II&nbsp;samba fond järgib samu põhimõtteid:
+          madalad tasud ja lai hajutatus.
+        </mj-text>
+        <mj-text>
+          Sa ei pea Tulevas eraldi kontot looma, see on sul juba olemas.
+          <strong>Vaata järele, kui palju maksad täna aastas oma II&nbsp;samba tasudeks:</strong>
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/2nd-pillar-fees?utm_content=nudge_second_pillar">Vaatan oma tasud üle</mj-button>
+        <mj-raw>*|ELSE:|*</mj-raw>
         <mj-text>
           Oma III&nbsp;samba ja muu pensionivara käekäiku saad igal ajal ise vaadata Tulevast.
           Sa ei pea Tulevas eraldi kontot looma, see on sul juba olemas. Logi lihtsalt sisse:
         </mj-text>
         <mj-button href="https://pension.tuleva.ee/login?utm_content=nudge_log_in">Login kontole</mj-button>
+        <mj-raw>*|END:IF|*</mj-raw>
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

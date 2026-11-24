@@ -4,8 +4,10 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
 import static ee.tuleva.onboarding.notification.email.SecondPillarLetterScheduler.Trigger.PAYMENT_ARRIVED;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -31,6 +33,8 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 class ThirdPillarPaymentArrivedEmailServiceTest {
 
@@ -184,8 +188,38 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
   }
 
   @Test
-  void asksThePersonWithoutAnAccountToLogInInstead() {
-    service.send(registryOnlyPayment());
+  void asksAPayerWithoutAnAccountWhoseSecondPillarIsElsewhereToCheckTheirFees() {
+    acceptedByMandrill();
+    var payment = registryOnlyPayment();
+    given(
+            nudgeDecisionService.decideForRegistryOnly(
+                payment, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .willReturn(NudgeDecision.secondPillarTransfer(null));
+    Map<String, Object> expected = registryOnlyMergeVars();
+    expected.putAll(NudgeDecision.secondPillarTransfer(null).mergeVars(Locale.of("et")));
+
+    service.send(payment);
+
+    verify(emailService)
+        .newMandrillMessage(
+            "first.last@example.com",
+            "third_pillar_payment_arrived_et",
+            expected,
+            List.of("third_pillar_payment_arrived", "nudge_second_pillar"));
+    verify(emailPersistenceService)
+        .save(payment, "mandrill-id", THIRD_PILLAR_PAYMENT_ARRIVED, "sent", "nudge_second_pillar");
+  }
+
+  @ParameterizedTest
+  @EnumSource(value = NudgeKey.class, mode = EXCLUDE, names = "SECOND_PILLAR_TRANSFER")
+  void asksAPayerWithoutAnAccountOnlyToLogInWhenTheirSecondPillarIsNotElsewhere(NudgeKey key) {
+    var payment = registryOnlyPayment();
+    given(
+            nudgeDecisionService.decideForRegistryOnly(
+                payment, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .willReturn(NudgeDecision.of(key));
+
+    service.send(payment);
 
     verify(emailService)
         .newMandrillMessage(
@@ -193,7 +227,6 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
             "third_pillar_payment_arrived_et",
             registryOnlyMergeVars(),
             List.of("third_pillar_payment_arrived", "nudge_log_in"));
-    verifyNoInteractions(nudgeDecisionService);
   }
 
   private void acceptedByMandrill() {
@@ -244,7 +277,7 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
   }
 
   @Test
-  void stillReportsTheArrivedEmailAsSentWhenTheLetterDecisionFails() {
+  void sendsTheLogInVersionWithoutTheLetterWhenTheRegistryDecisionFails() {
     acceptedByMandrill();
     var payment = registryOnlyPayment();
     given(
@@ -253,8 +286,44 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
         .willThrow(new IllegalStateException("registry unavailable"));
 
     assertThat(service.send(payment)).isTrue();
+    verify(emailService)
+        .newMandrillMessage(
+            "first.last@example.com",
+            "third_pillar_payment_arrived_et",
+            registryOnlyMergeVars(),
+            List.of("third_pillar_payment_arrived", "nudge_log_in"));
     verify(emailPersistenceService)
         .save(payment, "mandrill-id", THIRD_PILLAR_PAYMENT_ARRIVED, "sent", "nudge_log_in");
+    verifyNoInteractions(secondPillarLetter);
+  }
+
+  @Test
+  void stillReportsTheArrivedEmailAsSentWhenTheLetterFailsToSchedule() {
+    acceptedByMandrill();
+    var payment = registryOnlyPayment();
+    given(
+            nudgeDecisionService.decideForRegistryOnly(
+                payment, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .willReturn(NudgeDecision.secondPillarTransfer(null));
+    willThrow(new IllegalStateException("Mandrill unavailable"))
+        .given(secondPillarLetter)
+        .schedule(payment, Locale.of("et"), PAYMENT_ARRIVED);
+
+    assertThat(service.send(payment)).isTrue();
+    verify(emailPersistenceService)
+        .save(payment, "mandrill-id", THIRD_PILLAR_PAYMENT_ARRIVED, "sent", "nudge_second_pillar");
+  }
+
+  @Test
+  void doesNotScheduleTheLetterWhenTheArrivedEmailFailsToSend() {
+    var payment = registryOnlyPayment();
+    given(
+            nudgeDecisionService.decideForRegistryOnly(
+                payment, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .willReturn(NudgeDecision.secondPillarTransfer(null));
+
+    assertThat(service.send(payment)).isFalse();
+    verifyNoInteractions(secondPillarLetter);
   }
 
   @Test

@@ -228,6 +228,47 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
   }
 
   @Test
+  void asksARegistryOnlyPayerWhoseSecondPillarIsElsewhereToCheckTheirFeesInTheArrivedEmail() {
+    given(nudgeDecisionService.decideForRegistryOnly(any(Person.class), any(NudgeContext.class)))
+        .willReturn(NudgeDecision.secondPillarTransfer(null));
+    saveUnitOwner(REGISTRY_ONLY, "registry.only@example.com", "EST", "LXK75");
+    saveOwnPayment(REGISTRY_ONLY, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
+
+    job.run();
+
+    verify(emailService, times(1))
+        .newMandrillMessage(
+            eq("registry.only@example.com"),
+            eq("third_pillar_payment_arrived_et"),
+            argThat(
+                mergeVars ->
+                    Boolean.TRUE.equals(mergeVars.get("suggestSecondPillar"))
+                        && Boolean.FALSE.equals(mergeVars.get("hasTulevaUser"))),
+            eq(java.util.List.of("third_pillar_payment_arrived", "nudge_second_pillar")));
+    assertThat(arrivedNudges()).containsExactly("nudge_second_pillar");
+    assertThat(letterNudges()).containsExactly("nudge_second_pillar");
+  }
+
+  @Test
+  void asksARegistryOnlyPayerWithNoSecondPillarOnlyToLogInInTheArrivedEmail() {
+    saveUnitOwner(REGISTRY_ONLY, builder -> builder.email("no.second.pillar@example.com"));
+    saveOwnPayment(REGISTRY_ONLY, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
+
+    job.run();
+
+    verify(emailService, times(1))
+        .newMandrillMessage(
+            eq("no.second.pillar@example.com"),
+            eq("third_pillar_payment_arrived_et"),
+            argThat(
+                mergeVars ->
+                    !mergeVars.containsKey("suggestSecondPillar")
+                        && !mergeVars.containsKey("suggestSecondPillarStart")),
+            eq(java.util.List.of("third_pillar_payment_arrived", "nudge_log_in")));
+    assertThat(arrivedNudges()).containsExactly("nudge_log_in");
+  }
+
+  @Test
   void doesNotScheduleTheSecondPillarLetterForARegistryOnlyPayerWithNoSecondPillar() {
     saveUnitOwner(REGISTRY_ONLY, builder -> builder.email("no.second.pillar@example.com"));
     saveOwnPayment(REGISTRY_ONLY, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
@@ -450,6 +491,14 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
     return jdbcClient
         .sql("SELECT nudge FROM email WHERE type = :type")
         .param("type", THIRD_PILLAR_SUGGEST_SECOND.name())
+        .query(String.class)
+        .list();
+  }
+
+  private java.util.List<String> arrivedNudges() {
+    return jdbcClient
+        .sql("SELECT nudge FROM email WHERE type = :type")
+        .param("type", THIRD_PILLAR_PAYMENT_ARRIVED.name())
         .query(String.class)
         .list();
   }

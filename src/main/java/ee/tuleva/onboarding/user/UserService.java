@@ -41,8 +41,9 @@ public class UserService {
 
   public User createNewUser(User user) {
     log.info("Creating new user");
+    User createdUser;
     try {
-      return userRepository.save(user);
+      createdUser = userRepository.save(user);
     } catch (DataIntegrityViolationException e) {
       User existing =
           userRepository.findByPersonalCode(user.getPersonalCode()).orElseThrow(() -> e);
@@ -51,6 +52,8 @@ public class UserService {
           existing.getId());
       return existing;
     }
+    applicationEventPublisher.publishEvent(new UserCreatedEvent(createdUser));
+    return createdUser;
   }
 
   @Transactional

@@ -311,6 +311,7 @@ class UserServiceSpec extends Specification {
 
     then:
     createdUser == user
+    1 * applicationEventPublisher.publishEvent(new UserCreatedEvent(user))
   }
 
   def "returns the concurrently created user when the personal code is already taken"() {
@@ -325,6 +326,7 @@ class UserServiceSpec extends Specification {
 
     then:
     createdUser == winner
+    0 * applicationEventPublisher.publishEvent(_)
   }
 
   def "rethrows when the personal code is taken but the user cannot be found"() {

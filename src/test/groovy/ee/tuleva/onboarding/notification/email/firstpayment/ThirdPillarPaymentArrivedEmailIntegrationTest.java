@@ -17,6 +17,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
+import com.microtripit.mandrillapp.lutung.view.MandrillScheduledMessageInfo;
 import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionRepository;
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwner;
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerRepository;
@@ -31,6 +32,7 @@ import ee.tuleva.onboarding.nudge.NudgeDecisionService;
 import ee.tuleva.onboarding.nudge.NudgeKey;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
+import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -43,6 +45,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest
 @TestPropertySource(
@@ -72,6 +76,8 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
   @Autowired private JdbcClient jdbcClient;
   @Autowired private ThirdPillarPaymentArrivedClaims claims;
   @Autowired private ThirdPillarPaymentArrivedEmailService paymentArrivedEmailService;
+  @Autowired private UserService userService;
+  @Autowired private PlatformTransactionManager transactionManager;
 
   @MockitoBean private EmailService emailService;
   @MockitoBean private NudgeDecisionService nudgeDecisionService;
@@ -250,6 +256,55 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             eq(java.util.List.of("third_pillar_payment_arrived", "nudge_second_pillar")));
     assertThat(arrivedNudges()).containsExactly("nudge_second_pillar");
     assertThat(letterNudges()).containsExactly("nudge_second_pillar");
+  }
+
+  @Test
+  void cancelsTheSecondPillarLetterWhenARegistryOnlyPayerCreatesAnAccountBeforeItGoesOut() {
+    scheduleTheSecondPillarLetterForARegistryOnlyPayer();
+
+    userService.createNewUser(registryOnlyAccount());
+
+    verify(emailService).cancelScheduledEmail("letter-id");
+    assertThat(letterStatuses()).containsExactly(EmailStatus.CANCELLED.name());
+  }
+
+  @Test
+  void keepsTheSecondPillarLetterWhenCreatingTheAccountRollsBack() {
+    scheduleTheSecondPillarLetterForARegistryOnlyPayer();
+
+    new TransactionTemplate(transactionManager)
+        .executeWithoutResult(
+            transaction -> {
+              userService.createNewUser(registryOnlyAccount());
+              transaction.setRollbackOnly();
+            });
+
+    verify(emailService, never()).cancelScheduledEmail(any());
+    assertThat(letterStatuses()).containsExactly(EmailStatus.SCHEDULED.name());
+  }
+
+  private void scheduleTheSecondPillarLetterForARegistryOnlyPayer() {
+    given(nudgeDecisionService.decideForRegistryOnly(any(Person.class), any(NudgeContext.class)))
+        .willReturn(NudgeDecision.secondPillarTransfer(null));
+    var scheduled = org.mockito.Mockito.mock(MandrillMessageStatus.class);
+    given(scheduled.getId()).willReturn("letter-id");
+    given(scheduled.getStatus()).willReturn("scheduled");
+    given(emailService.send(any(Person.class), any(), any(), any(Instant.class)))
+        .willReturn(Optional.of(scheduled));
+    given(emailService.cancelScheduledEmail("letter-id"))
+        .willReturn(Optional.of(new MandrillScheduledMessageInfo()));
+    saveUnitOwner(REGISTRY_ONLY, "registry.only@example.com", "EST", "LXK75");
+    saveOwnPayment(REGISTRY_ONLY, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
+    job.run();
+  }
+
+  private static User registryOnlyAccount() {
+    return User.builder()
+        .firstName("Registry")
+        .lastName("Person")
+        .personalCode(REGISTRY_ONLY)
+        .active(true)
+        .build();
   }
 
   @Test
@@ -493,6 +548,14 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
   private java.util.List<String> letterNudges() {
     return jdbcClient
         .sql("SELECT nudge FROM email WHERE type = :type")
+        .param("type", THIRD_PILLAR_SUGGEST_SECOND.name())
+        .query(String.class)
+        .list();
+  }
+
+  private java.util.List<String> letterStatuses() {
+    return jdbcClient
+        .sql("SELECT status FROM email WHERE type = :type")
         .param("type", THIRD_PILLAR_SUGGEST_SECOND.name())
         .query(String.class)
         .list();

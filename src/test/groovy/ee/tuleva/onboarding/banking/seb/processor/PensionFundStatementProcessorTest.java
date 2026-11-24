@@ -238,7 +238,7 @@ class PensionFundStatementProcessorTest {
     var entry =
         entryWithCounterparty(
             new BigDecimal("-50.00"),
-            "BR tasud TUK75",
+            "Kulude hüvitamine",
             "Tuleva Fondid AS",
             "EE001234567890123488",
             "ICDT");
@@ -256,7 +256,7 @@ class PensionFundStatementProcessorTest {
             eq(LocalDate.of(2025, 10, 1)),
             eq(
                 new UnclassifiedEntryDetails(
-                    "Tuleva Fondid AS", "EE001234567890123488", "BR tasud TUK75", "ICDT")));
+                    "Tuleva Fondid AS", "EE001234567890123488", "Kulude hüvitamine", "ICDT")));
     verify(fundBankLedger, never()).recordManagementFeePayment(any(), any(), any(), any(), any());
     var externalReference = UUID.nameUUIDFromBytes((TUK75_IBAN + ":entry-ref-1").getBytes(UTF_8));
     verify(paymentCheckService)
@@ -266,6 +266,34 @@ class PensionFundStatementProcessorTest {
             externalReference.toString(),
             "debit not stated as a management fee is held in suspense, book it with a ledger adjustment: fund=TUK75, amount=-50.00, bookingDate=2025-10-01, externalReference="
                 + externalReference);
+  }
+
+  @Test
+  void underlyingFundManagementFeePayment_isRecordedOnItsOwnExpenseAccountWithoutAFinding() {
+    var entry =
+        entryWithCounterparty(
+            new BigDecimal("-50.00"),
+            "BR tasud TUK75",
+            "Tuleva Fondid AS",
+            "EE001234567890123488",
+            "ICDT");
+    given(classifier.classify(entry))
+        .willReturn(new PensionFundEntryClassifier.UnderlyingFundManagementFeePayment());
+
+    processor.process(statementWith(entry), TUK75_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordUnderlyingFundManagementFeePayment(
+            eq(TUK75),
+            eq(new BigDecimal("-50.00")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)),
+            eq("BR tasud TUK75"));
+    verify(fundBankLedger, never()).recordManagementFeePayment(any(), any(), any(), any(), any());
+    verify(fundBankLedger, never())
+        .recordUnclassifiedBankEntry(any(), any(), any(), any(), any(), any());
+    verifyNoInteractions(paymentCheckService);
   }
 
   @Test

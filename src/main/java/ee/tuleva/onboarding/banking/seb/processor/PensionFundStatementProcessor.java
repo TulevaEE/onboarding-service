@@ -146,6 +146,14 @@ public class PensionFundStatementProcessor {
       case PensionFundEntryClassifier.ManagementFeePayment() ->
           fundBankLedger.recordManagementFeePayment(
               fund, amount.negate(), externalReference, entry.remittanceInformation(), bookingDate);
+      case PensionFundEntryClassifier.UnderlyingFundManagementFeePayment() ->
+          fundBankLedger.recordUnderlyingFundManagementFeePayment(
+              fund,
+              amount,
+              externalReference,
+              account.ledgerAccount(),
+              bookingDate,
+              entry.remittanceInformation());
       case PensionFundEntryClassifier.RegistrarContribution() ->
           fundBankLedger.recordRegistrarContribution(
               fund, amount, externalReference, bookingDate, entry.remittanceInformation());

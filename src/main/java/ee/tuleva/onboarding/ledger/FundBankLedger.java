@@ -133,6 +133,34 @@ public class FundBankLedger {
   }
 
   @Transactional
+  public LedgerTransaction recordUnderlyingFundManagementFeePayment(
+      TulevaFund fund,
+      BigDecimal amount,
+      UUID externalReference,
+      SystemAccount clearingAccount,
+      LocalDate bookingDate,
+      String description) {
+    LedgerAccount underlyingFundFeeAccount =
+        getSystemAccount(SystemAccount.UNDERLYING_FUND_MANAGEMENT_FEE, fund);
+    LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount, fund);
+
+    Map<String, Object> metadata =
+        Map.of(
+            OPERATION_TYPE.getKey(),
+            UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT.name(),
+            DESCRIPTION.getKey(),
+            description);
+
+    return ledgerTransactionService.createTransaction(
+        UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT,
+        transactionDate(bookingDate),
+        externalReference,
+        metadata,
+        entry(underlyingFundFeeAccount, amount.negate()),
+        entry(clearingLedgerAccount, amount));
+  }
+
+  @Transactional
   public LedgerTransaction recordBankAdjustment(
       TulevaFund fund,
       BigDecimal amount,
@@ -252,6 +280,7 @@ public class FundBankLedger {
       case REGISTRAR_CONTRIBUTION, REGISTRAR_PAYOUT -> SystemAccount.REGISTRAR_CASH_SETTLEMENT;
       case MANAGEMENT_FEE_PAYMENT -> SystemAccount.MANAGEMENT_FEE;
       case MANAGEMENT_FEE_REBATE -> SystemAccount.MANAGEMENT_FEE_REBATE;
+      case UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT -> SystemAccount.UNDERLYING_FUND_MANAGEMENT_FEE;
       case OWN_ACCOUNT_TRANSFER -> SystemAccount.OWN_ACCOUNT_TRANSFER;
       case BANK_FEE -> SystemAccount.BANK_FEE;
       default ->

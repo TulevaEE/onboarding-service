@@ -20,6 +20,8 @@ public class PensionFundEntryClassifier {
       REMITTANCE_PHRASES_THAT_MAKE_A_MANAGEMENT_COMPANY_CREDIT_A_REBATE =
           List.of("rebate", "kickback", "br tasud");
 
+  private static final String REMITTANCE_PHRASE_OF_AN_UNDERLYING_FUND_MANAGEMENT_FEE = "br tasud";
+
   private final TradeSettlementParser tradeSettlementParser;
   private final SebAccountConfiguration sebAccountConfiguration;
   private final ManagementCompanies managementCompanies;
@@ -32,6 +34,7 @@ public class PensionFundEntryClassifier {
           UnrecognisedManagementCompanyCredit,
           UnrecognisedManagementCompanyDebit,
           ManagementFeePayment,
+          UnderlyingFundManagementFeePayment,
           RegistrarContribution,
           RegistrarPayout,
           OwnAccountTransfer,
@@ -51,6 +54,8 @@ public class PensionFundEntryClassifier {
   public record UnrecognisedManagementCompanyDebit() implements Classification {}
 
   public record ManagementFeePayment() implements Classification {}
+
+  public record UnderlyingFundManagementFeePayment() implements Classification {}
 
   public record RegistrarContribution() implements Classification {}
 
@@ -118,9 +123,19 @@ public class PensionFundEntryClassifier {
   }
 
   private Classification managementCompanyDebit(@Nullable String remittanceInformation) {
-    return managementCompanies.isManagementFeeDescription(remittanceInformation)
-        ? new ManagementFeePayment()
-        : new UnrecognisedManagementCompanyDebit();
+    if (managementCompanies.isManagementFeeDescription(remittanceInformation)) {
+      return new ManagementFeePayment();
+    }
+    if (isUnderlyingFundManagementFee(remittanceInformation)) {
+      return new UnderlyingFundManagementFeePayment();
+    }
+    return new UnrecognisedManagementCompanyDebit();
+  }
+
+  private static boolean isUnderlyingFundManagementFee(@Nullable String remittanceInformation) {
+    return remittanceInformation != null
+        && comparableWording(remittanceInformation)
+            .contains(REMITTANCE_PHRASE_OF_AN_UNDERLYING_FUND_MANAGEMENT_FEE);
   }
 
   private static Classification managementCompanyCredit(@Nullable String remittanceInformation) {

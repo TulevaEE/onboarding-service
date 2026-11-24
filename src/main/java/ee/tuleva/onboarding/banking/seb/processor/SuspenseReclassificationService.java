@@ -11,6 +11,7 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.OWN_
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REGISTRAR_CONTRIBUTION;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REGISTRAR_PAYOUT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRADE_SETTLEMENT;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.UNCLASSIFIED_BANK_ENTRY;
 import static java.util.Objects.requireNonNull;
 
@@ -86,6 +87,13 @@ public class SuspenseReclassificationService {
           reclassifyInto(MANAGEMENT_FEE_PAYMENT, fund, cashAmount, externalReference, bookingDate);
       case PensionFundEntryClassifier.ManagementFeeRebate() ->
           reclassifyInto(MANAGEMENT_FEE_REBATE, fund, cashAmount, externalReference, bookingDate);
+      case PensionFundEntryClassifier.UnderlyingFundManagementFeePayment() ->
+          reclassifyInto(
+              UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT,
+              fund,
+              cashAmount,
+              externalReference,
+              bookingDate);
       case PensionFundEntryClassifier.OwnAccountTransfer() ->
           reclassifyInto(OWN_ACCOUNT_TRANSFER, fund, cashAmount, externalReference, bookingDate);
       case PensionFundEntryClassifier.BankFee() ->

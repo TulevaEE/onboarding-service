@@ -3,8 +3,10 @@ package ee.tuleva.onboarding.banking.seb.processor;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNRECOGNISED_MANAGEMENT_COMPANY_DEBIT;
+import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.MANAGEMENT_FEE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.UNCLASSIFIED_BANK_ENTRY;
+import static ee.tuleva.onboarding.ledger.SystemAccount.UNDERLYING_FUND_MANAGEMENT_FEE;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -51,7 +53,7 @@ class PensionFundStatementProcessorIT {
     processor.process(
         statementWith(
             managerDebit("fee-04", new BigDecimal("-1234.56"), "TUK75 valitsemistasu 04/2026"),
-            managerDebit("other-04", new BigDecimal("-50.00"), "BR tasud TUK75")),
+            managerDebit("other-04", new BigDecimal("-50.00"), "Kulude hüvitamine")),
         TUK75_ACCOUNT);
 
     assertThat(balance(MANAGEMENT_FEE)).isEqualByComparingTo(new BigDecimal("1234.56"));
@@ -63,6 +65,23 @@ class PensionFundStatementProcessorIT {
             PaymentCheckEvent::getExternalKey)
         .containsExactly(
             tuple(UNRECOGNISED_MANAGEMENT_COMPANY_DEBIT, WARNING, externalReferenceOf("other-04")));
+  }
+
+  @Test
+  void aPaymentToTheManagerForBlackRockFeesIsAnUnderlyingFundFee_notTheManagementFeeNorSuspense() {
+    processor.process(
+        statementWith(
+            managerDebit("fee-04", new BigDecimal("-1234.56"), "TUK75 valitsemistasu 04/2026"),
+            managerDebit("br-04", new BigDecimal("-50.00"), "BR tasud TUK75")),
+        TUK75_ACCOUNT);
+
+    assertThat(balance(MANAGEMENT_FEE)).isEqualByComparingTo(new BigDecimal("1234.56"));
+    assertThat(balance(UNDERLYING_FUND_MANAGEMENT_FEE))
+        .isEqualByComparingTo(new BigDecimal("50.00"));
+    assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(balance(FUND_INVESTMENT_CASH_CLEARING))
+        .isEqualByComparingTo(new BigDecimal("-1284.56"));
+    assertThat(paymentCheckEventRepository.findAll()).isEmpty();
   }
 
   private static String externalReferenceOf(String externalId) {

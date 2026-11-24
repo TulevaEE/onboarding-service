@@ -110,13 +110,28 @@ class SuspenseReclassificationServiceTest {
 
   @Test
   void reclassify_leavesAManagerDebitNotStatedAsAManagementFeeInSuspense() {
-    parkManagerEntry("-50.00", "BR tasud TUK75");
+    parkManagerEntry("-50.00", "Kulude hüvitamine");
 
     var result = service.reclassify(TUK75);
 
     assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(0, 1));
     assertThat(balance(SystemAccount.MANAGEMENT_FEE)).isEqualByComparingTo(BigDecimal.ZERO);
     assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(new BigDecimal("50.00"));
+  }
+
+  @Test
+  void reclassify_movesAParkedManagerDebitForBlackRockFeesToTheUnderlyingFundManagementFee() {
+    parkManagerEntry("-50.00", "BR tasud TUK75");
+
+    var result = service.reclassify(TUK75);
+
+    assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(1, 0));
+    assertThat(balance(SystemAccount.UNDERLYING_FUND_MANAGEMENT_FEE))
+        .isEqualByComparingTo(new BigDecimal("50.00"));
+    assertThat(balance(SystemAccount.MANAGEMENT_FEE)).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))
+        .isZero();
   }
 
   @Test

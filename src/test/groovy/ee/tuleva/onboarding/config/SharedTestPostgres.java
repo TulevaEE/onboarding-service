@@ -43,11 +43,6 @@ final class SharedTestPostgres {
           execute(bootstrap, "DROP DATABASE IF EXISTS " + name);
           execute(bootstrap, "CREATE DATABASE " + name);
           Flyway.configure(SharedTestPostgres.class.getClassLoader())
-              .configuration(
-                  Map.of(
-                      "flyway.postgresql.transactional.lock",
-                      environment.getRequiredProperty(
-                          "spring.flyway.postgresql.transactional-lock")))
               .dataSource(bootstrap.urlFor(name), bootstrap.username(), bootstrap.password())
               .locations(environment.getRequiredProperty("spring.flyway.locations", String[].class))
               .load()

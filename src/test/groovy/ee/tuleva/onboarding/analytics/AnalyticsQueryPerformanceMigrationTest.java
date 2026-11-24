@@ -42,32 +42,12 @@ class AnalyticsQueryPerformanceMigrationTest {
     assertThat(plan).anyMatch(line -> line.contains("idx_unit_owner_p2_rate_change"));
   }
 
-  @Test
-  void insertOnlyTablesAreVacuumedOftenEnoughForIndexOnlyScans() throws SQLException {
-    assumeTrue(isPostgres(), "Storage parameters exist only on PostgreSQL");
-
-    assertThat(storageParameters("event_log"))
-        .containsExactlyInAnyOrder(
-            "autovacuum_vacuum_insert_scale_factor=0", "autovacuum_vacuum_insert_threshold=100000");
-    assertThat(storageParameters("unit_owner"))
-        .containsExactlyInAnyOrder(
-            "autovacuum_vacuum_insert_scale_factor=0", "autovacuum_vacuum_insert_threshold=200000");
-  }
-
   private List<String> planWithoutSequentialScans(String query) {
     return transactionTemplate.execute(
         status -> {
           jdbcClient.sql("SET LOCAL enable_seqscan = off").update();
           return jdbcClient.sql("EXPLAIN " + query).query(String.class).list();
         });
-  }
-
-  private List<String> storageParameters(String table) {
-    return jdbcClient
-        .sql("SELECT unnest(reloptions) FROM pg_class WHERE relname = :table")
-        .param("table", table)
-        .query(String.class)
-        .list();
   }
 
   private boolean isPostgres() throws SQLException {

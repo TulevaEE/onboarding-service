@@ -26,6 +26,10 @@ final class OrderUnits {
         price, scale(instrumentType), roundingMode(instrumentType, transactionType));
   }
 
+  static BigDecimal sellableAtMost(InstrumentType instrumentType, BigDecimal units) {
+    return units.setScale(scale(instrumentType), FLOOR);
+  }
+
   static boolean fitsAnOrder(InstrumentType instrumentType, @Nullable BigDecimal quantity) {
     if (quantity == null || quantity.signum() <= 0) {
       return false;

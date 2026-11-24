@@ -36,7 +36,7 @@ public class TransactionOrderFactory {
       TradePrepPricing pricing) {
     var input = result.input();
     List<TransactionOrder> orders = new ArrayList<>();
-    SaleSizing saleSizing = new SaleSizing(input.sellableUnits(), input.positions());
+    SaleSizing saleSizing = new SaleSizing(result.fund(), input.sellableUnits(), input.positions());
     Map<String, @Nullable TradePrepPrice> priceResolutions = new LinkedHashMap<>();
 
     for (TradeCalculation trade : result.trades()) {

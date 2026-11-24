@@ -305,6 +305,27 @@ class TransactionOrderFactoryTest {
         .singleElement()
         .returns(null, TransactionOrder::getOrderQuantity)
         .returns(new BigDecimal("100000"), TransactionOrder::getOrderAmount);
+    assertThat(calculated.sizedSales()).isEmpty();
+  }
+
+  @Test
+  void createOrders_aFullFundSaleSellsTheUnitsLeftFlooredToTheSixDecimalsAnOrderHolds() {
+    var input =
+        holding(
+            InstrumentType.FUND,
+            List.of(
+                new PositionSnapshot(
+                    "IE00ETF",
+                    new BigDecimal("100000"),
+                    new BigDecimal("1234.56789050"),
+                    new BigDecimal("81"))),
+            Map.of("IE00ETF", new SellableUnits(new BigDecimal("1234.56789050"), BigDecimal.ZERO)));
+
+    var calculated = sellOn(input, "-100000", manual("81"));
+
+    assertThat(calculated.orders())
+        .singleElement()
+        .returns(new BigDecimal("1234.567890"), TransactionOrder::getOrderQuantity);
   }
 
   @Test
@@ -540,7 +561,7 @@ class TransactionOrderFactoryTest {
             batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT, noResolvedPrices());
 
     assertThat(calculated.orders().getFirst())
-        .returns(new BigDecimal("1234.567"), TransactionOrder::getOrderQuantity)
+        .returns(new BigDecimal("1234.567000"), TransactionOrder::getOrderQuantity)
         .returns(new BigDecimal("15061.72"), TransactionOrder::getOrderAmount);
   }
 

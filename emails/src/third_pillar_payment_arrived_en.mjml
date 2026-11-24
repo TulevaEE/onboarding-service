@@ -23,16 +23,15 @@
         <mj-raw>*|ELSE:|*</mj-raw>
         <mj-raw>*|IF:suggestSecondPillar|*</mj-raw>
         <mj-text>
-          Your second pillar is currently invested elsewhere. For your third pillar you have
-          already chosen a low-fee index fund. It is worth checking whether your second pillar
-          fund follows the same principles: low fees and broad diversification.
+          For your third pillar, you chose a low-fee index fund. Your second pillar is currently
+          invested elsewhere. It is worth checking whether that fund follows the same principles:
+          low fees and broad diversification.
         </mj-text>
         <mj-text>
-          You do not need to create a separate account with us, you already have one.
-          <strong>Check how much you're currently paying annually in fees for your second
-          pillar:</strong>
+          <strong>Check how much you currently pay in second pillar fees each year.</strong> To do
+          so, log in to Tuleva. You do not need to create a separate account, you already have one.
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/2nd-pillar-fees?language=en&utm_content=nudge_second_pillar">Check out your fees</mj-button>
+        <mj-button href="https://pension.tuleva.ee/2nd-pillar-fees?language=en&utm_content=nudge_second_pillar">Check your fees</mj-button>
         <mj-raw>*|ELSE:|*</mj-raw>
         <mj-text>
           You can see how your third pillar and your other pension savings are doing at Tuleva

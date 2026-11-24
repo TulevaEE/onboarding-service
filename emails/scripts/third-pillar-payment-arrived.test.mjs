@@ -9,15 +9,15 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const copy = {
   et: {
-    secondPillarElsewhere: 'II&nbsp;sambasse kogud praegu mujal.',
-    alreadyHasAnAccount: 'Sa ei pea Tulevas eraldi kontot looma, see on sul juba olemas.',
+    secondPillarElsewhere: 'Sinu II&nbsp;sammas kogub praegu mujal.',
+    alreadyHasAnAccount: 'Eraldi kontot pole vaja luua, see on sul juba olemas.',
     feesLink: 'href="https://pension.tuleva.ee/2nd-pillar-fees?utm_content=nudge_second_pillar"',
     logInLink: 'href="https://pension.tuleva.ee/login?utm_content=nudge_log_in"',
     firstPillarDisclaimer: 'II&nbsp;sambasse makstud sotsiaalmaks vähendab veidi I&nbsp;sammast',
   },
   en: {
     secondPillarElsewhere: 'Your second pillar is currently invested elsewhere.',
-    alreadyHasAnAccount: 'You do not need to create a separate account with us, you already have one.',
+    alreadyHasAnAccount: 'You do not need to create a separate account, you already have one.',
     feesLink:
       'href="https://pension.tuleva.ee/2nd-pillar-fees?language=en&utm_content=nudge_second_pillar"',
     logInLink: 'href="https://pension.tuleva.ee/login?language=en&utm_content=nudge_log_in"',

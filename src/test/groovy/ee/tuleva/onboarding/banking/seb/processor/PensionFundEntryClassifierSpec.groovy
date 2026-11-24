@@ -95,6 +95,7 @@ class PensionFundEntryClassifierSpec extends Specification {
     "management company BlackRock fees split across whitespace" | entry("ESCT", 38531.70, "Tuleva Fondid AS", OTHER_IBAN, "BR  tasud\nTUK75") | new ManagementFeeRebate()
     "management company damage compensation goes to suspense" | entry("ESCT", 7178.00, "Tuleva Fondid AS", OTHER_IBAN, "Kahju hüvitamine fondile") | new UnrecognisedManagementCompanyCredit()
     "management company debit for BlackRock fees is an underlying fund management fee" | entry("BOOK", -1500.00, "Tuleva Fondid AS", OTHER_IBAN, "BR tasud") | new UnderlyingFundManagementFeePayment()
+    "management company book debit for another expense goes to suspense" | entry("BOOK", -250.00, "Tuleva Fondid AS", OTHER_IBAN, "Kulude hüvitamine") | new UnrecognisedManagementCompanyDebit()
     "management company debit for BlackRock fees in capitals" | entry("ICDT", -50.00, "Tuleva Fondid AS", OTHER_IBAN, "TUK75 BR TASUD") | new UnderlyingFundManagementFeePayment()
     "management company debit for BlackRock fees split across whitespace" | entry("ICDT", -50.00, "Tuleva Fondid AS", OTHER_IBAN, "BR  tasud\nTUK75") | new UnderlyingFundManagementFeePayment()
     "management company debit stated as a management fee too stays a management fee payment" | entry("ICDT", -742.34, "Tuleva Fondid AS", OTHER_IBAN, "Valitsemistasu ja BR tasud 02/2026") | new ManagementFeePayment()

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.BANK_FEE;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
@@ -160,14 +161,14 @@ class FundBankLedgerTest {
             BOOKING_DATE,
             description);
 
-    assertThat(transaction.getTransactionType())
-        .isEqualTo(LedgerTransaction.TransactionType.UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT);
+    assertThat(transaction.getTransactionType()).isEqualTo(UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT);
     assertThat(transaction.getMetadata().get("operationType"))
         .isEqualTo("UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT");
     assertThat(transaction.getMetadata().get("description")).isEqualTo(description);
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
     assertThat(
-            deltaSince(underlyingFeeBefore, getSystemAccount(UNDERLYING_FUND_MANAGEMENT_FEE, TUK75)))
+            deltaSince(
+                underlyingFeeBefore, getSystemAccount(UNDERLYING_FUND_MANAGEMENT_FEE, TUK75)))
         .isEqualByComparingTo(new BigDecimal("50.00"));
     assertThat(
             deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))

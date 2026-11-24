@@ -16,11 +16,11 @@ import org.jspecify.annotations.Nullable;
 @RequiredArgsConstructor
 public class PensionFundEntryClassifier {
 
+  private static final String REMITTANCE_PHRASE_OF_UNDERLYING_FUND_FEES = "br tasud";
+
   private static final List<String>
       REMITTANCE_PHRASES_THAT_MAKE_A_MANAGEMENT_COMPANY_CREDIT_A_REBATE =
-          List.of("rebate", "kickback", "br tasud");
-
-  private static final String REMITTANCE_PHRASE_OF_AN_UNDERLYING_FUND_MANAGEMENT_FEE = "br tasud";
+          List.of("rebate", "kickback", REMITTANCE_PHRASE_OF_UNDERLYING_FUND_FEES);
 
   private final TradeSettlementParser tradeSettlementParser;
   private final SebAccountConfiguration sebAccountConfiguration;
@@ -135,7 +135,7 @@ public class PensionFundEntryClassifier {
   private static boolean isUnderlyingFundManagementFee(@Nullable String remittanceInformation) {
     return remittanceInformation != null
         && comparableWording(remittanceInformation)
-            .contains(REMITTANCE_PHRASE_OF_AN_UNDERLYING_FUND_MANAGEMENT_FEE);
+            .contains(REMITTANCE_PHRASE_OF_UNDERLYING_FUND_FEES);
   }
 
   private static Classification managementCompanyCredit(@Nullable String remittanceInformation) {

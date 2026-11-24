@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.REGISTRAR_CASH_SETTLEMEN
 import static ee.tuleva.onboarding.ledger.SystemAccount.SECURITIES_CUSTODY;
 import static ee.tuleva.onboarding.ledger.SystemAccount.TRADE_CASH_SETTLEMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.UNCLASSIFIED_BANK_ENTRY;
+import static ee.tuleva.onboarding.ledger.SystemAccount.UNDERLYING_FUND_MANAGEMENT_FEE;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -126,8 +127,7 @@ class SuspenseReclassificationServiceTest {
     var result = service.reclassify(TUK75);
 
     assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(1, 0));
-    assertThat(balance(SystemAccount.UNDERLYING_FUND_MANAGEMENT_FEE))
-        .isEqualByComparingTo(new BigDecimal("50.00"));
+    assertThat(balance(UNDERLYING_FUND_MANAGEMENT_FEE)).isEqualByComparingTo(new BigDecimal("50.00"));
     assertThat(balance(SystemAccount.MANAGEMENT_FEE)).isEqualByComparingTo(BigDecimal.ZERO);
     assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(BigDecimal.ZERO);
     assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))

@@ -43,9 +43,12 @@ public class ThirdPillarPaymentArrivedEmailService {
       return false;
     }
 
-    Optional<NudgeDecision> decision = decisionFor(payment);
+    Optional<NudgeDecision> decision =
+        payment.hasTulevaUser() ? decisionFor(payment) : secondPillarTransferFor(payment);
     String nudge =
-        payment.hasTulevaUser() ? decision.map(NudgeDecision::emailTag).orElse(null) : LOG_IN_NUDGE;
+        payment.hasTulevaUser()
+            ? decision.map(NudgeDecision::emailTag).orElse(null)
+            : decision.map(NudgeDecision::emailTag).orElse(LOG_IN_NUDGE);
     String templateName = THIRD_PILLAR_PAYMENT_ARRIVED.getTemplateName(payment.emailLanguage());
     var message =
         emailService.newMandrillMessage(
@@ -65,7 +68,7 @@ public class ThirdPillarPaymentArrivedEmailService {
                   THIRD_PILLAR_PAYMENT_ARRIVED,
                   response.getStatus(),
                   nudge);
-              if (!payment.hasTulevaUser()) {
+              if (!payment.hasTulevaUser() && suggestsSecondPillarTransfer(decision)) {
                 scheduleSecondPillarLetter(payment, response.getId());
               }
               return true;
@@ -80,9 +83,6 @@ public class ThirdPillarPaymentArrivedEmailService {
   }
 
   private Optional<NudgeDecision> decisionFor(FirstThirdPillarPayment payment) {
-    if (!payment.hasTulevaUser()) {
-      return Optional.empty();
-    }
     try {
       return userService
           .findByPersonalCode(payment.personalCode())
@@ -96,19 +96,33 @@ public class ThirdPillarPaymentArrivedEmailService {
     }
   }
 
+  private Optional<NudgeDecision> secondPillarTransferFor(FirstThirdPillarPayment payment) {
+    try {
+      return Optional.of(
+              nudgeDecisionService.decideForRegistryOnly(
+                  payment, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+          .filter(decision -> decision.key() == SECOND_PILLAR_TRANSFER);
+    } catch (RuntimeException e) {
+      log.error(
+          "Sending the payment arrived email without the second pillar suggestion or letter, the"
+              + " registry decision failed",
+          e);
+      return Optional.empty();
+    }
+  }
+
+  private static boolean suggestsSecondPillarTransfer(Optional<NudgeDecision> decision) {
+    return decision.map(NudgeDecision::key).filter(SECOND_PILLAR_TRANSFER::equals).isPresent();
+  }
+
   private void scheduleSecondPillarLetter(
       FirstThirdPillarPayment payment, String arrivedMessageId) {
     try {
-      NudgeDecision decision =
-          nudgeDecisionService.decideForRegistryOnly(
-              payment, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED);
-      if (decision.key() == SECOND_PILLAR_TRANSFER) {
-        secondPillarLetter.schedule(
-            payment, Locale.forLanguageTag(payment.emailLanguage()), PAYMENT_ARRIVED);
-      }
+      secondPillarLetter.schedule(
+          payment, Locale.forLanguageTag(payment.emailLanguage()), PAYMENT_ARRIVED);
     } catch (RuntimeException e) {
       log.error(
-          "Second pillar letter skipped, the decision or scheduling failed: arrivedMessageId={}",
+          "Second pillar letter skipped, scheduling failed: arrivedMessageId={}",
           arrivedMessageId,
           e);
     }

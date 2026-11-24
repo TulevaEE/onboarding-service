@@ -98,12 +98,17 @@
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true
     },
-    "no account": {
+    "no account, second pillar elsewhere": {
       "FNAME": "Mari",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": false,
       "suggestSecondPillar": true,
       "anyPillarSuggestion": true
+    },
+    "no account, second pillar not elsewhere (log in)": {
+      "FNAME": "Mari",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": false
     }
   }
 }

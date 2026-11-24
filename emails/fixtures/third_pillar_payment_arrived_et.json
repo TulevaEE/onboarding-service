@@ -98,12 +98,17 @@
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true
     },
-    "kontota": {
+    "kontota, II sammas mujal": {
       "FNAME": "Mari",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": false,
       "suggestSecondPillar": true,
       "anyPillarSuggestion": true
+    },
+    "kontota, II sammas pole mujal (logi sisse)": {
+      "FNAME": "Mari",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": false
     }
   }
 }

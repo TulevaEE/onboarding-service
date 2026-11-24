@@ -103,13 +103,14 @@ for (const name of distTemplates.filter((template) =>
     }
   });
 
-  test(`${name}: a variant with a nudge shows exactly one nudge button, and a variant without one shows none`, () => {
+  test(`${name}: a variant with a nudge, or for a saver without an account, shows exactly one nudge button, and any other variant shows none`, () => {
     const html = readFileSync(join(distDir, `${name}.html`), 'utf8');
     const fixture = JSON.parse(readFileSync(join(root, 'fixtures', `${name}.json`), 'utf8'));
     for (const [variant, vars] of Object.entries(fixture.variants)) {
       const nudgeFlags = Object.keys(vars).filter((key) => key.startsWith('suggest') && vars[key]);
+      const asksToLogInOrNudges = nudgeFlags.length > 0 || vars.hasTulevaUser === false;
       const nudgeLinks = renderMergeLanguage(html, vars).match(/utm_content=nudge_\w+/g) ?? [];
-      assert.equal(nudgeLinks.length, nudgeFlags.length > 0 ? 1 : 0, `variant "${variant}": ${nudgeLinks.join(', ')}`);
+      assert.equal(nudgeLinks.length, asksToLogInOrNudges ? 1 : 0, `variant "${variant}": ${nudgeLinks.join(', ')}`);
     }
   });
 }

@@ -5,6 +5,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -31,18 +32,25 @@ class InstrumentFeeAccrualRepository {
     accruals.forEach(accrual -> insert(accrual, calculatedAt));
   }
 
-  boolean holdsProvisionalAccrualsBetween(LocalDate firstDay, LocalDate lastDay) {
+  Optional<LocalDate> firstDayOutOfStepWithItsMonthsRates(LocalDate firstDay, LocalDate lastDay) {
     return jdbcClient
-            .sql(
-                """
-            SELECT COUNT(*) FROM investment_instrument_fee_accrual
-            WHERE rate_status = 'PROVISIONAL' AND accrual_date BETWEEN :firstDay AND :lastDay
-            """)
-            .param("firstDay", firstDay)
-            .param("lastDay", lastDay)
-            .query(Long.class)
-            .single()
-        > 0;
+        .sql(
+            """
+                SELECT MIN(a.accrual_date) FROM investment_instrument_fee_accrual a
+                WHERE a.accrual_date BETWEEN :firstDay AND :lastDay
+                  AND (a.rate_status = 'PROVISIONAL'
+                       OR a.instrument_fee_rate_id <> (
+                         SELECT r.id FROM investment_instrument_fee_rate r
+                         WHERE r.instrument_fee_id = a.instrument_fee_id
+                           AND r.period_start <= a.accrual_date
+                           AND r.period_end >= a.accrual_date
+                         ORDER BY r.created_at DESC, r.id DESC
+                         LIMIT 1))
+                """)
+        .param("firstDay", firstDay)
+        .param("lastDay", lastDay)
+        .query(LocalDate.class)
+        .optional();
   }
 
   private void insert(InstrumentFeeAccrual accrual, Instant calculatedAt) {

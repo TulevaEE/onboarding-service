@@ -96,12 +96,30 @@ class SebHoldingsTest {
     assertThat(holdings.settledUnitsOf(ISIN)).isEmpty();
   }
 
+  @Test
+  void anOpenTradeOfTheFundWithoutAnIsinLeavesTheSettledUnitsUnknown() {
+    var holdings =
+        holdings(
+            Map.of(ISIN, new BigDecimal("1000.000")),
+            new OpenTrades(List.of(trade(TUK75, BUY, null, "50.000")), Set.of(), List.of()));
+
+    assertThat(holdings.everyRowIsRead()).isFalse();
+    assertThat(holdings.settledUnitsOf(ISIN)).isEmpty();
+  }
+
+  @Test
+  void anInstrumentSebNeitherHoldsNorTradesHasUnknownRatherThanZeroSettledUnits() {
+    var holdings = holdings(Map.of(), new OpenTrades(List.of(), Set.of(), List.of()));
+
+    assertThat(holdings.settledUnitsOf(ISIN)).isEmpty();
+  }
+
   private static SebHoldings holdings(Map<String, BigDecimal> positionUnits, OpenTrades trades) {
     return new SebHoldings(TUK75, POSITION_DATE, positionUnits, trades);
   }
 
   private static OpenTrade trade(
-      TulevaFund fund, TransactionType side, String isin, @Nullable String quantity) {
+      TulevaFund fund, TransactionType side, @Nullable String isin, @Nullable String quantity) {
     return new OpenTrade(
         fund,
         side,

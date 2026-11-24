@@ -40,20 +40,25 @@ class AgreementRates {
 
   ComputedRate ofTheMonth(InstrumentFeeAgreement agreement, YearMonth period) {
     return compute(
-        agreement, period, funds -> volumeReader.volumeOf(agreement.isin(), funds, period));
+        agreement,
+        period,
+        funds -> volumeReader.volumeOf(agreement.isin(), funds, period),
+        period.atEndOfMonth());
   }
 
   ComputedRate soFar(InstrumentFeeAgreement agreement, LocalDate day) {
     return compute(
         agreement,
         YearMonth.from(day),
-        funds -> volumeReader.volumeSoFar(agreement.isin(), funds, day));
+        funds -> volumeReader.volumeSoFar(agreement.isin(), funds, day),
+        day);
   }
 
   private ComputedRate compute(
       InstrumentFeeAgreement agreement,
       YearMonth period,
-      Function<List<TulevaFund>, Optional<MonthVolume>> volumeOf) {
+      Function<List<TulevaFund>, Optional<MonthVolume>> volumeOf,
+      LocalDate exchangeRateDateWithoutAVolume) {
     AgreementTerms terms;
     try {
       terms = AgreementTerms.of(jsonMapper.readValue(agreement.rebateTerms(), TERMS));
@@ -61,11 +66,11 @@ class AgreementRates {
       return couldNotBeApplied(agreement, period, unreadableTerms, null, null);
     }
     if (!terms.needTheMonthsVolume(agreement.rebateKind()) || terms.volumeFunds().isEmpty()) {
-      return applied(agreement, period, terms, null);
+      return applied(agreement, period, terms, null, exchangeRateDateWithoutAVolume);
     }
     return volumeOf
         .apply(terms.volumeFunds())
-        .map(volume -> applied(agreement, period, terms, volume))
+        .map(volume -> applied(agreement, period, terms, volume, exchangeRateDateWithoutAVolume))
         .orElseGet(
             () ->
                 publishedFallback(
@@ -82,8 +87,12 @@ class AgreementRates {
       InstrumentFeeAgreement agreement,
       YearMonth period,
       AgreementTerms terms,
-      @Nullable MonthVolume volume) {
-    var eurUsd = terms.needAnExchangeRate() ? eurUsdOn(rateDate(volume, period)) : null;
+      @Nullable MonthVolume volume,
+      LocalDate exchangeRateDateWithoutAVolume) {
+    var eurUsd =
+        terms.needAnExchangeRate()
+            ? eurUsdOn(rateDate(volume, exchangeRateDateWithoutAVolume))
+            : null;
     AgreementOutcome outcome;
     try {
       outcome =
@@ -172,9 +181,10 @@ class AgreementRates {
         agreement.id());
   }
 
-  private static LocalDate rateDate(@Nullable MonthVolume volume, YearMonth period) {
+  private static LocalDate rateDate(
+      @Nullable MonthVolume volume, LocalDate exchangeRateDateWithoutAVolume) {
     var navDate = volume == null ? null : volume.navDate();
-    return navDate == null ? period.atEndOfMonth() : navDate;
+    return navDate == null ? exchangeRateDateWithoutAVolume : navDate;
   }
 
   private @Nullable BigDecimal eurUsdOn(LocalDate date) {

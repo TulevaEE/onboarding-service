@@ -23,14 +23,16 @@ record SebHoldings(
 
   boolean everyRowIsRead() {
     return openTrades.unattributedClientNames().isEmpty()
-        && !openTrades.fundsWithIncompleteRows().contains(fund);
+        && !openTrades.fundsWithIncompleteRows().contains(fund)
+        && openTrades.of(fund).stream().map(OpenTrade::isin).allMatch(Objects::nonNull);
   }
 
   Optional<BigDecimal> settledUnitsOf(String isin) {
     var openTradesOfTheInstrument =
         openTrades.of(fund).stream().filter(trade -> isin.equals(trade.isin())).toList();
     if (!everyRowIsRead()
-        || openTradesOfTheInstrument.stream().map(OpenTrade::quantity).anyMatch(Objects::isNull)) {
+        || openTradesOfTheInstrument.stream().map(OpenTrade::quantity).anyMatch(Objects::isNull)
+        || (openTradesOfTheInstrument.isEmpty() && !positionUnits.containsKey(isin))) {
       return Optional.empty();
     }
     return Optional.of(

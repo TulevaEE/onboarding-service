@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 class InstrumentFeeAccrualService {
 
   static final int RECALCULATED_DAYS_AS_LATE_REPORTS_AND_PRICES_ARRIVE = 7;
+  static final int CLOSED_MONTHS_KEPT_IN_STEP_WITH_THEIR_RATES = 3;
 
   private final AccrualRates accrualRates;
   private final ProviderAgreementRepository providerAgreementRepository;
@@ -45,24 +47,28 @@ class InstrumentFeeAccrualService {
   private LocalDate firstDayToRecalculate(LocalDate yesterday) {
     var lateInputsWindowStart =
         yesterday.minusDays(RECALCULATED_DAYS_AS_LATE_REPORTS_AND_PRICES_ARRIVE - 1L);
-    var previousMonth = YearMonth.from(yesterday).minusMonths(1);
-    var previousMonthAwaitsItsResolvedRates =
-        accrualRepository.holdsProvisionalAccrualsBetween(
-            previousMonth.atDay(1), previousMonth.atEndOfMonth());
-    return previousMonthAwaitsItsResolvedRates
-            && previousMonth.atDay(1).isBefore(lateInputsWindowStart)
-        ? previousMonth.atDay(1)
-        : lateInputsWindowStart;
+    var thisMonth = YearMonth.from(yesterday);
+    return accrualRepository
+        .firstDayOutOfStepWithItsMonthsRates(
+            thisMonth.minusMonths(CLOSED_MONTHS_KEPT_IN_STEP_WITH_THEIR_RATES).atDay(1),
+            thisMonth.atDay(1).minusDays(1))
+        .map(day -> YearMonth.from(day).atDay(1))
+        .filter(monthStart -> monthStart.isBefore(lateInputsWindowStart))
+        .orElse(lateInputsWindowStart);
   }
 
   private AccrualRun accrue(LocalDate firstDay, LocalDate lastDay) {
-    var accruedOrNot =
-        firstDay.datesUntil(lastDay.plusDays(1)).collect(partitioningBy(this::accrued));
+    var isinsWithoutAProviderAgreement = accrualRates.isinsWithoutAProviderAgreementOn(lastDay);
+    var days =
+        firstDay.isAfter(lastDay)
+            ? Stream.<LocalDate>empty()
+            : firstDay.datesUntil(lastDay.plusDays(1));
+    var accruedOrNot = days.collect(partitioningBy(this::accrued));
     var run =
         new AccrualRun(
             requireNonNull(accruedOrNot.get(true)),
             requireNonNull(accruedOrNot.get(false)),
-            accrualRates.isinsWithoutAProviderAgreementOn(lastDay));
+            isinsWithoutAProviderAgreement);
     log.info(
         "Instrument fee accruals calculated: firstDay={}, lastDay={}, accruedDays={},"
             + " failedDays={}, isinsWithoutAProviderAgreement={}",

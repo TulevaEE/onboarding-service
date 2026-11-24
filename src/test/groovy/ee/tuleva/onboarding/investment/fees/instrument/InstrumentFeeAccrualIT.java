@@ -305,6 +305,14 @@ class InstrumentFeeAccrualIT {
   }
 
   @Test
+  void aBackfillFromAfterYesterdayAccruesNothing() {
+    var run = service.accrueSince(LocalDate.of(2026, 12, 1));
+
+    assertThat(run.accruedDays()).isEmpty();
+    assertThat(run.failedDays()).isEmpty();
+  }
+
+  @Test
   void theRecentDaysAreTheWeekEndingYesterdayInTallinn() {
     var run = service.accrueTheRecentDays();
 

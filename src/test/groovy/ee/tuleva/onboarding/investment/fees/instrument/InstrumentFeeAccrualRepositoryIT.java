@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.fees.instrument;
 import static ee.tuleva.onboarding.investment.fees.instrument.AccrualMethod.DAILY_HOLDING;
 import static ee.tuleva.onboarding.investment.fees.instrument.UnitsSource.NAV_REPORT;
 import static ee.tuleva.onboarding.investment.fees.rate.RateStatus.PROVISIONAL;
+import static ee.tuleva.onboarding.investment.fees.rate.RateStatus.RESOLVED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
@@ -82,6 +83,10 @@ class InstrumentFeeAccrualRepositoryIT {
         .param("isin", ISIN)
         .update();
     jdbcClient
+        .sql("DELETE FROM investment_instrument_fee_rate WHERE isin = :isin")
+        .param("isin", ISIN)
+        .update();
+    jdbcClient
         .sql("DELETE FROM investment_instrument_fee WHERE isin = :isin")
         .param("isin", ISIN)
         .update();
@@ -126,12 +131,62 @@ class InstrumentFeeAccrualRepositoryIT {
   }
 
   @Test
-  void provisionalAccrualsAreFoundOnlyWithinTheirDays() {
+  void aProvisionalAccrualIsOutOfStepWithItsMonthsRates() {
     repository.replaceTheFundsDay(TUK75, DAY, List.of(accrual(TUK75, "0.00050000")), CALCULATED_AT);
 
-    assertThat(repository.holdsProvisionalAccrualsBetween(DAY, DAY)).isTrue();
-    assertThat(repository.holdsProvisionalAccrualsBetween(DAY.plusDays(1), DAY.plusDays(30)))
-        .isFalse();
+    assertThat(repository.firstDayOutOfStepWithItsMonthsRates(DAY.minusDays(30), DAY))
+        .contains(DAY);
+    assertThat(repository.firstDayOutOfStepWithItsMonthsRates(DAY.plusDays(1), DAY.plusDays(30)))
+        .isEmpty();
+  }
+
+  @Test
+  void anAccrualOnTheMonthsNewestRateIsInStep() {
+    var rateId = aRateRow();
+    repository.replaceTheFundsDay(
+        TUK75, DAY, List.of(resolvedAccrual(TUK75, rateId)), CALCULATED_AT);
+
+    assertThat(repository.firstDayOutOfStepWithItsMonthsRates(DAY.minusDays(30), DAY)).isEmpty();
+  }
+
+  @Test
+  void anAccrualOnARateTheMonthHasSinceReplacedIsOutOfStep() {
+    var supersededRateId = aRateRow();
+    repository.replaceTheFundsDay(
+        TUK75, DAY, List.of(resolvedAccrual(TUK75, supersededRateId)), CALCULATED_AT);
+    aRateRow();
+
+    assertThat(repository.firstDayOutOfStepWithItsMonthsRates(DAY.minusDays(30), DAY))
+        .contains(DAY);
+  }
+
+  private InstrumentFeeAccrual resolvedAccrual(TulevaFund fund, long rateId) {
+    return new InstrumentFeeAccrual(
+        fund,
+        DAY,
+        new AccrualRate(
+            instrumentFeeId,
+            ISIN,
+            providerAgreementId,
+            RESOLVED,
+            rateId,
+            new BigDecimal("0.00050000"),
+            ZERO),
+        new ProviderAgreementVersion(versionId, providerAgreementId, DAILY_HOLDING),
+        new Holding(new BigDecimal("1000.000"), DAY, NAV_REPORT, null),
+        new InstrumentPrice(new BigDecimal("12.34"), DAY, "BLACKROCK"));
+  }
+
+  private long aRateRow() {
+    return inserted(
+        """
+        INSERT INTO investment_instrument_fee_rate
+          (isin, period_start, period_end, published_ocf, rebate_rate, invoiced_fee_rate,
+           net_ocf, rate_basis, rebate_kind, instrument_fee_id)
+        VALUES ('%s', DATE '2026-11-01', DATE '2026-11-30', 0.00070000, 0.00050000, 0.00000000,
+                0.00020000, 'AGREEMENT', 'FIXED', %d)
+        """
+            .formatted(ISIN, instrumentFeeId));
   }
 
   private InstrumentFeeAccrual accrual(TulevaFund fund, String rebateRate) {

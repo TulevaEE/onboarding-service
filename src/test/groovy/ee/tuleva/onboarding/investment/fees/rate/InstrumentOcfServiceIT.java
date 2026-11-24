@@ -17,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
@@ -725,6 +726,19 @@ class InstrumentOcfServiceIT {
               assertThat(rate.status()).isEqualTo(PROVISIONAL);
               assertThat(rate.rebateRate()).isEqualByComparingTo("0.000225");
             });
+  }
+
+  @Test
+  void aProvisionalRateTakesTheExchangeRateOfTheDayWhenNoVolumeDatesIt() {
+    givenAnAgreement(
+        "TIERED_VOLUME",
+        "{\"threshold\":\"110000000\",\"currency\":\"USD\",\"rateBelow\":\"0.0002\","
+            + "\"rateAbove\":\"0.0001\"}");
+    linkedToAProviderAgreement();
+
+    accrualRates.on(APRIL_29);
+
+    then(fundValueProvider).should().getLatestValue("EURUSD.FOREX", APRIL_29);
   }
 
   @Test

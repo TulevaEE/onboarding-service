@@ -72,14 +72,18 @@ class JobTriggerPoller {
           Map.entry("InstrumentFeeRateJob", RunInstrumentFeeRateResolveRequested::new),
           Map.entry("RiskIndicatorJob", () -> new RunRiskIndicatorRequested(28)),
           Map.entry("RiskIndicatorBackfillJob", () -> new RunRiskIndicatorRequested(120)),
-          Map.entry("KidCalculationJob", RunKidCalculationRequested::new));
+          Map.entry("KidCalculationJob", RunKidCalculationRequested::new),
+          Map.entry(
+              RunInstrumentFeeAccrualRequested.JOB_NAME, RunInstrumentFeeAccrualRequested::new));
 
   static final Map<String, Function<LocalDate, Object>> TAKING_A_DATE =
       Map.of(
           RunSebPendingTransactionReconciliationBackfillRequested.JOB_NAME,
           RunSebPendingTransactionReconciliationBackfillRequested::new,
           RunSebPendingTransactionReportReconciliationRequested.JOB_NAME,
-          RunSebPendingTransactionReportReconciliationRequested::new);
+          RunSebPendingTransactionReportReconciliationRequested::new,
+          RunInstrumentFeeAccrualBackfillRequested.JOB_NAME,
+          RunInstrumentFeeAccrualBackfillRequested::new);
 
   private static final Duration STAYS_PENDING_WHILE_ITS_JOB_IS_BUSY_FOR_AT_MOST =
       Duration.ofHours(6);

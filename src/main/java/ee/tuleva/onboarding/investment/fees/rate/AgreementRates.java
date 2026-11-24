@@ -8,10 +8,14 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.investment.fees.rate.AgreementOutcome.Computed;
 import ee.tuleva.onboarding.investment.fees.rate.AgreementOutcome.Uncomputable;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -35,6 +39,21 @@ class AgreementRates {
   private final JsonMapper jsonMapper;
 
   ComputedRate ofTheMonth(InstrumentFeeAgreement agreement, YearMonth period) {
+    return compute(
+        agreement, period, funds -> volumeReader.volumeOf(agreement.isin(), funds, period));
+  }
+
+  ComputedRate soFar(InstrumentFeeAgreement agreement, LocalDate day) {
+    return compute(
+        agreement,
+        YearMonth.from(day),
+        funds -> volumeReader.volumeSoFar(agreement.isin(), funds, day));
+  }
+
+  private ComputedRate compute(
+      InstrumentFeeAgreement agreement,
+      YearMonth period,
+      Function<List<TulevaFund>, Optional<MonthVolume>> volumeOf) {
     AgreementTerms terms;
     try {
       terms = AgreementTerms.of(jsonMapper.readValue(agreement.rebateTerms(), TERMS));
@@ -44,8 +63,8 @@ class AgreementRates {
     if (!terms.needTheMonthsVolume(agreement.rebateKind()) || terms.volumeFunds().isEmpty()) {
       return applied(agreement, period, terms, null);
     }
-    return volumeReader
-        .volumeOf(agreement.isin(), terms.volumeFunds(), period)
+    return volumeOf
+        .apply(terms.volumeFunds())
         .map(volume -> applied(agreement, period, terms, volume))
         .orElseGet(
             () ->

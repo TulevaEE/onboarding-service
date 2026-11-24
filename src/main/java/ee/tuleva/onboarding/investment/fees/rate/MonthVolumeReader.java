@@ -27,14 +27,45 @@ class MonthVolumeReader {
   private final PublicHolidays publicHolidays;
 
   Optional<MonthVolume> volumeOf(String isin, List<TulevaFund> funds, YearMonth month) {
-    var publishedNavDates = publishedNavDatesByFund(funds, month);
+    var publishedNavDates = publishedNavDatesByFund(funds, month.atDay(1), month.atEndOfMonth());
     requireTheLastNavOfEachFundThatPublishedInTheMonth(publishedNavDates, month);
-    var navDatesNewestFirst =
+    return volumeOnTheNewestHoldingOf(
+        isin,
+        funds,
         publishedNavDates.values().stream()
             .flatMap(List::stream)
             .distinct()
             .sorted(Comparator.reverseOrder())
-            .toList();
+            .toList());
+  }
+
+  Optional<MonthVolume> volumeSoFar(String isin, List<TulevaFund> funds, LocalDate day) {
+    var monthStart = YearMonth.from(day).atDay(1);
+    var thisMonth = navDatesEveryFundPublishedNewestFirst(funds, monthStart, day);
+    var navDates =
+        thisMonth.isEmpty()
+            ? navDatesEveryFundPublishedNewestFirst(
+                    funds, monthStart.minusMonths(1), monthStart.minusDays(1))
+                .stream()
+                .limit(1)
+                .toList()
+            : thisMonth;
+    return volumeOnTheNewestHoldingOf(isin, funds, navDates);
+  }
+
+  private List<LocalDate> navDatesEveryFundPublishedNewestFirst(
+      List<TulevaFund> funds, LocalDate from, LocalDate to) {
+    var publishedNavDates = publishedNavDatesByFund(funds, from, to).values();
+    return publishedNavDates.stream()
+        .flatMap(List::stream)
+        .distinct()
+        .filter(navDate -> publishedNavDates.stream().allMatch(dates -> dates.contains(navDate)))
+        .sorted(Comparator.reverseOrder())
+        .toList();
+  }
+
+  private Optional<MonthVolume> volumeOnTheNewestHoldingOf(
+      String isin, List<TulevaFund> funds, List<LocalDate> navDatesNewestFirst) {
     if (navDatesNewestFirst.isEmpty()) {
       return Optional.empty();
     }
@@ -48,14 +79,12 @@ class MonthVolumeReader {
   }
 
   private Map<TulevaFund, List<LocalDate>> publishedNavDatesByFund(
-      List<TulevaFund> funds, YearMonth month) {
+      List<TulevaFund> funds, LocalDate from, LocalDate to) {
     return funds.stream()
         .collect(
             toMap(
                 identity(),
-                fund ->
-                    fundNavQueryService.findPublishedNavDatesBetween(
-                        fund.getCode(), month.atDay(1), month.atEndOfMonth()),
+                fund -> fundNavQueryService.findPublishedNavDatesBetween(fund.getCode(), from, to),
                 (first, second) -> first,
                 LinkedHashMap::new));
   }

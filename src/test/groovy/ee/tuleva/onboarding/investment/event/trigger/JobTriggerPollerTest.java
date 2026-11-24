@@ -17,6 +17,8 @@ import static org.mockito.Mockito.never;
 import ee.tuleva.onboarding.investment.event.JobBusyException;
 import ee.tuleva.onboarding.investment.event.RunFeeCheckRequested;
 import ee.tuleva.onboarding.investment.event.RunFeeSettlementCheckRequested;
+import ee.tuleva.onboarding.investment.event.RunInstrumentFeeAccrualBackfillRequested;
+import ee.tuleva.onboarding.investment.event.RunInstrumentFeeAccrualRequested;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
 import ee.tuleva.onboarding.investment.event.RunOverdueSettlementRequested;
 import ee.tuleva.onboarding.investment.event.RunPevaRavaFlowRecalcRequested;
@@ -176,6 +178,34 @@ class JobTriggerPollerTest {
         .should()
         .publishEvent(
             new RunSebPendingTransactionReconciliationBackfillRequested(LocalDate.of(2026, 5, 8)));
+    thenCompleted(trigger);
+  }
+
+  @Test
+  void anInstrumentFeeAccrualBackfillTriggerAccruesFromTheDateItNames() {
+    var trigger =
+        JobTrigger.builder()
+            .jobName("InstrumentFeeAccrualBackfillJob:2026-03-01")
+            .status("PENDING")
+            .build();
+    givenPending(trigger);
+
+    poller.poll();
+
+    then(eventPublisher)
+        .should()
+        .publishEvent(new RunInstrumentFeeAccrualBackfillRequested(LocalDate.of(2026, 3, 1)));
+    thenCompleted(trigger);
+  }
+
+  @Test
+  void anInstrumentFeeAccrualTriggerRecalculatesTheRecentDays() {
+    var trigger = JobTrigger.builder().jobName("InstrumentFeeAccrualJob").status("PENDING").build();
+    givenPending(trigger);
+
+    poller.poll();
+
+    then(eventPublisher).should().publishEvent(new RunInstrumentFeeAccrualRequested());
     thenCompleted(trigger);
   }
 

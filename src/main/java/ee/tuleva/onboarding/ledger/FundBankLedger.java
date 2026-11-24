@@ -263,7 +263,7 @@ public class FundBankLedger {
         .orElseThrow(
             () ->
                 new IllegalArgumentException(
-                    "Unsupported reclassification target: %s".formatted(targetType)));
+                    "Unsupported reclassification target: targetType=%s".formatted(targetType)));
   }
 
   @Transactional

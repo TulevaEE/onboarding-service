@@ -5,7 +5,10 @@ import ee.tuleva.onboarding.notification.email.EmailType
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
 import ee.tuleva.onboarding.user.User
+import ee.tuleva.onboarding.user.UserCreatedEvent
 import spock.lang.Specification
+
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 
 class ScheduledEmailCancellerSpec extends Specification {
 
@@ -28,5 +31,16 @@ class ScheduledEmailCancellerSpec extends Specification {
     pillar | callCount
     2      | 1
     3      | 0
+  }
+
+  def "cancels the pending second pillar letter when its recipient creates an account"() {
+    given:
+    User user = sampleUser().build()
+
+    when:
+    scheduledEmailCanceller.cancelSecondPillarLetter(new UserCreatedEvent(user))
+
+    then:
+    1 * emailPersistenceService.cancel(user, EmailType.THIRD_PILLAR_SUGGEST_SECOND)
   }
 }

@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.SizedSale.Kind.FULL;
 import static ee.tuleva.onboarding.investment.transaction.SizedSale.Kind.PARTIAL;
 import static java.math.BigDecimal.ZERO;
+import static java.math.RoundingMode.FLOOR;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.stream.Collectors.toMap;
 
@@ -13,9 +15,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+@Slf4j
 @NullMarked
 final class SaleSizing {
 
@@ -44,17 +48,26 @@ final class SaleSizing {
   }
 
   Optional<SizedOrder> size(
-      TransactionType transactionType, String isin, BigDecimal amount, OrderQuantity sized) {
+      TransactionType transactionType,
+      InstrumentType instrumentType,
+      String isin,
+      BigDecimal amount,
+      OrderQuantity sized) {
     BigDecimal quantity = sized.quantity();
     BigDecimal price = priceOf(sized);
     if (transactionType != TransactionType.SELL || quantity == null || price == null) {
       return Optional.of(new SizedOrder(amount, sized));
     }
-    return sizeSale(isin, amount, sized, quantity, price);
+    return sizeSale(instrumentType, isin, amount, sized, quantity, price);
   }
 
   private Optional<SizedOrder> sizeSale(
-      String isin, BigDecimal amount, OrderQuantity sized, BigDecimal quantity, BigDecimal price) {
+      InstrumentType instrumentType,
+      String isin,
+      BigDecimal amount,
+      OrderQuantity sized,
+      BigDecimal quantity,
+      BigDecimal price) {
     SellableUnits sellable = sellableUnits.getOrDefault(isin, NOT_IN_THE_REPORT);
     SizedSale.Kind kind = sellsWhatIsLeft(isin, amount) ? FULL : PARTIAL;
     BigDecimal reportUnits = sellable.held();
@@ -62,9 +75,12 @@ final class SaleSizing {
       sizedSales.add(
           new SizedSale(
               isin, null, sellable.pendingSells(), quantity, price, amount, amount, null));
-      return quantity.signum() == 0 ? Optional.empty() : Optional.of(new SizedOrder(amount, sized));
+      if (quantity.signum() == 0) {
+        return Optional.empty();
+      }
+      return Optional.of(new SizedOrder(amount, unsizedIfEtf(instrumentType, isin, sized)));
     }
-    BigDecimal left = unitsLeft.getOrDefault(isin, sellable.allowed());
+    BigDecimal left = unitsLeft.getOrDefault(isin, sellableAs(instrumentType, sellable.allowed()));
     BigDecimal units = kind == FULL ? left : quantity.min(left);
     unitsLeft.put(isin, left.subtract(units));
     if (kind == PARTIAL && units.compareTo(quantity) == 0 && units.signum() > 0) {
@@ -79,6 +95,20 @@ final class SaleSizing {
         : Optional.of(
             new SizedOrder(
                 orderAmount, new OrderQuantity(units, sized.stalePriceComment(), sized.price())));
+  }
+
+  private static BigDecimal sellableAs(InstrumentType instrumentType, BigDecimal allowed) {
+    return instrumentType == ETF ? allowed.setScale(0, FLOOR) : allowed;
+  }
+
+  private OrderQuantity unsizedIfEtf(
+      InstrumentType instrumentType, String isin, OrderQuantity sized) {
+    if (instrumentType != ETF) {
+      return sized;
+    }
+    log.warn(
+        "ETF sale has no held units to size against, leaving its quantity unset: isin={}", isin);
+    return new OrderQuantity(null, sized.stalePriceComment(), sized.price());
   }
 
   private boolean sellsWhatIsLeft(String isin, BigDecimal amount) {

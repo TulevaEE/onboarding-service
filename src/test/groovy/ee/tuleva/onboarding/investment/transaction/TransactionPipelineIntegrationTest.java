@@ -22,6 +22,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
+import static java.math.RoundingMode.FLOOR;
 import static java.math.RoundingMode.HALF_UP;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.UUID.randomUUID;
@@ -796,7 +797,7 @@ class TransactionPipelineIntegrationTest {
             .findFirst()
             .orElseThrow();
     assertThat(order.orderQuantity())
-        .isEqualByComparingTo(order.orderAmount().divide(new BigDecimal("5.00"), 6, HALF_UP));
+        .isEqualByComparingTo(order.orderAmount().divide(new BigDecimal("5.00"), 0, FLOOR));
     assertThat(response.confirmedPriceDeviations())
         .containsExactly(new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("5.00")));
     assertThat(response.calculationSnapshot())
@@ -1106,7 +1107,7 @@ class TransactionPipelineIntegrationTest {
             .findFirst()
             .orElseThrow();
     assertThat(order.orderQuantity())
-        .isEqualByComparingTo(order.orderAmount().divide(new BigDecimal("44"), 6, HALF_UP));
+        .isEqualByComparingTo(order.orderAmount().divide(new BigDecimal("44"), 0, FLOOR));
   }
 
   @Test

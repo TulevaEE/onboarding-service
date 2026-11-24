@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.transaction.TradePrepPricingFixture.noResolvedPrices;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
+import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -18,6 +19,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,6 +59,7 @@ class TransactionOrderFactoryTest {
     return FundTransactionInput.builder()
         .fund(TUV100)
         .positions(positions)
+        .sellableUnits(heldWithNothingInSentSales(positions))
         .modelWeights(List.of())
         .grossPortfolioValue(new BigDecimal("600000"))
         .cashBuffer(new BigDecimal("10000"))
@@ -68,6 +71,16 @@ class TransactionOrderFactoryTest {
         .instrumentTypes(instrumentTypes)
         .orderVenues(orderVenues)
         .build();
+  }
+
+  private static Map<String, SellableUnits> heldWithNothingInSentSales(
+      List<PositionSnapshot> positions) {
+    return positions.stream()
+        .collect(
+            toMap(
+                position -> Objects.requireNonNull(position.isin()),
+                position -> new SellableUnits(position.quantity(), BigDecimal.ZERO),
+                SellableUnits::togetherWith));
   }
 
   private static FundCalculationResult resultWith(
@@ -254,9 +267,11 @@ class TransactionOrderFactoryTest {
   }
 
   @Test
-  void createOrders_aReportRowWithoutUnitsIsSizedOnItsAmountAndNotedWithoutSayingWhetherItIsFull() {
+  void
+      createOrders_aFundReportRowWithoutUnitsIsSizedOnItsAmountAndNotedWithoutSayingWhetherItIsFull() {
     var input =
         holding(
+            InstrumentType.FUND,
             List.of(new PositionSnapshot("IE00ETF", new BigDecimal("100000"), null, null)),
             Map.of("IE00ETF", new SellableUnits(null, BigDecimal.ZERO)));
 
@@ -278,9 +293,25 @@ class TransactionOrderFactoryTest {
   }
 
   @Test
-  void createOrders_aSaleOfARowWithoutUnitsTooSmallForAnyUnitWritesNoOrder() {
+  void createOrders_anEtfReportRowWithoutUnitsLeavesTheSaleUnsizedSoTheBatchCannotBeSent() {
     var input =
         holding(
+            List.of(new PositionSnapshot("IE00ETF", new BigDecimal("100000"), null, null)),
+            Map.of("IE00ETF", new SellableUnits(null, BigDecimal.ZERO)));
+
+    var calculated = sellOn(input, "-100000", manual("95"));
+
+    assertThat(calculated.orders())
+        .singleElement()
+        .returns(null, TransactionOrder::getOrderQuantity)
+        .returns(new BigDecimal("100000"), TransactionOrder::getOrderAmount);
+  }
+
+  @Test
+  void createOrders_aFundSaleOfARowWithoutUnitsTooSmallForAnyUnitWritesNoOrder() {
+    var input =
+        holding(
+            InstrumentType.FUND,
             List.of(new PositionSnapshot("IE00ETF", new BigDecimal("100000"), null, null)),
             Map.of("IE00ETF", new SellableUnits(null, BigDecimal.ZERO)));
 
@@ -291,15 +322,22 @@ class TransactionOrderFactoryTest {
   }
 
   @Test
-  void createOrders_aPartialSaleTooSmallForAnyUnitWritesNoOrder() {
-    var calculated = sellOn(thousandUnits(BigDecimal.ZERO), "-0.00004", manual("100"));
+  void createOrders_aPartialFundSaleTooSmallForAnyUnitWritesNoOrder() {
+    var calculated =
+        sellOn(thousandUnits(InstrumentType.FUND, BigDecimal.ZERO), "-0.00004", manual("100"));
 
     assertThat(calculated.orders()).isEmpty();
     assertThat(calculated.droppedSales()).containsExactly("IE00ETF");
   }
 
   private static FundTransactionInput thousandUnits(BigDecimal inSentSales) {
+    return thousandUnits(InstrumentType.ETF, inSentSales);
+  }
+
+  private static FundTransactionInput thousandUnits(
+      InstrumentType instrumentType, BigDecimal inSentSales) {
     return holding(
+        instrumentType,
         List.of(
             new PositionSnapshot(
                 "IE00ETF",
@@ -344,6 +382,13 @@ class TransactionOrderFactoryTest {
 
   private static FundTransactionInput holding(
       List<PositionSnapshot> positions, Map<String, SellableUnits> sellable) {
+    return holding(InstrumentType.ETF, positions, sellable);
+  }
+
+  private static FundTransactionInput holding(
+      InstrumentType instrumentType,
+      List<PositionSnapshot> positions,
+      Map<String, SellableUnits> sellable) {
     return FundTransactionInput.builder()
         .fund(TUV100)
         .positions(positions)
@@ -356,7 +401,7 @@ class TransactionOrderFactoryTest {
         .minTransactionThreshold(new BigDecimal("5000"))
         .positionLimits(Map.of())
         .fastSellIsins(Set.of())
-        .instrumentTypes(Map.of("IE00ETF", InstrumentType.ETF))
+        .instrumentTypes(Map.of("IE00ETF", instrumentType))
         .orderVenues(Map.of("IE00ETF", OrderVenue.FT))
         .build();
   }
@@ -481,8 +526,7 @@ class TransactionOrderFactoryTest {
   }
 
   @Test
-  void
-      createOrders_fundSaleOfTheWholeHolding_isSizedFromItsAmountSincePendingFundSalesAreNotInTheHeldUnits() {
+  void createOrders_fundSaleOfTheWholeHolding_sellsTheUnitsLeftAfterSentSales() {
     var input =
         inputWith(
             Map.of("IE00FUND", InstrumentType.FUND),
@@ -495,8 +539,9 @@ class TransactionOrderFactoryTest {
         factory.createOrders(
             batch(), resultWith(input, trades), AS_OF_DATE, CREATED_AT, noResolvedPrices());
 
-    assertThat(calculated.orders().getFirst().getOrderQuantity())
-        .isEqualTo(new BigDecimal("1229.508197"));
+    assertThat(calculated.orders().getFirst())
+        .returns(new BigDecimal("1234.567"), TransactionOrder::getOrderQuantity)
+        .returns(new BigDecimal("15061.72"), TransactionOrder::getOrderAmount);
   }
 
   @Test

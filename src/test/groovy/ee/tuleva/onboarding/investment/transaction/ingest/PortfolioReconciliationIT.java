@@ -1,24 +1,23 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.Compared;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.HoldingDifference;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatch;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatchRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
-import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
-
-import ee.tuleva.onboarding.investment.position.FundPosition;
-import ee.tuleva.onboarding.investment.position.FundPositionRepository;
-import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.Compared;
-import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.HoldingDifference;
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
 import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisRefresh;
 import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisRefresher;

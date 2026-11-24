@@ -14,7 +14,6 @@ final class OrderUnits {
 
   private static final int ETF_UNIT_SCALE = 0;
   private static final int FUND_UNIT_SCALE = 6;
-  private static final BigDecimal HOLDING_LEFT_BELOW_A_CENT_IS_SOLD_WHOLE = new BigDecimal("0.01");
 
   private OrderUnits() {}
 
@@ -34,12 +33,6 @@ final class OrderUnits {
     return instrumentType != ETF || quantity.remainder(BigDecimal.ONE).signum() == 0;
   }
 
-  static BigDecimal etfSaleWithin(
-      PositionSnapshot holding, BigDecimal heldUnits, BigDecimal units, BigDecimal orderAmount) {
-    BigDecimal wholeHeldUnits = heldUnits.setScale(ETF_UNIT_SCALE, FLOOR);
-    return sellsWholeHolding(orderAmount, holding) ? wholeHeldUnits : units.min(wholeHeldUnits);
-  }
-
   private static int scale(InstrumentType instrumentType) {
     return instrumentType == ETF ? ETF_UNIT_SCALE : FUND_UNIT_SCALE;
   }
@@ -50,13 +43,5 @@ final class OrderUnits {
       return HALF_UP;
     }
     return transactionType == BUY ? FLOOR : CEILING;
-  }
-
-  private static boolean sellsWholeHolding(BigDecimal orderAmount, PositionSnapshot holding) {
-    return holding
-            .marketValue()
-            .subtract(orderAmount)
-            .compareTo(HOLDING_LEFT_BELOW_A_CENT_IS_SOLD_WHOLE)
-        <= 0;
   }
 }

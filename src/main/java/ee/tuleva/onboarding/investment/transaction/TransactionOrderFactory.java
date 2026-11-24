@@ -39,9 +39,7 @@ public class TransactionOrderFactory {
     SaleSizing saleSizing = new SaleSizing(input.sellableUnits(), input.positions());
     Map<String, @Nullable TradePrepPrice> priceResolutions = new LinkedHashMap<>();
 
-    List<TradeCalculation> trades = result.trades();
-    for (int index = 0; index < trades.size(); index++) {
-      TradeCalculation trade = trades.get(index);
+    for (TradeCalculation trade : result.trades()) {
       if (trade.tradeAmount().compareTo(ZERO) == 0) {
         continue;
       }
@@ -55,6 +53,7 @@ public class TransactionOrderFactory {
       var sized =
           saleSizing.size(
               transactionType,
+              instrumentType,
               isin,
               engineAmount,
               resolveOrderQuantity(
@@ -64,8 +63,7 @@ public class TransactionOrderFactory {
       }
       var orderAmount = sized.get().amount();
       var orderQuantity = sized.get().quantity();
-      BigDecimal quantity =
-          withinTheSoldHolding(input, index, trade, instrumentType, orderQuantity.quantity());
+      BigDecimal quantity = orderQuantity.quantity();
       if (quantity != null && quantity.signum() == 0) {
         log.warn(
             "Skipping an order that rounds to zero units: fund={}, isin={}, side={}, amount={}",
@@ -159,34 +157,6 @@ public class TransactionOrderFactory {
             ? describeIfStale(isin, index.resolved(), pricing.stalenessReference(asOfDate))
             : null;
     return new OrderQuantity(quantity, stalePriceComment, price);
-  }
-
-  @Nullable
-  private static BigDecimal withinTheSoldHolding(
-      FundTransactionInput input,
-      int index,
-      TradeCalculation trade,
-      InstrumentType instrumentType,
-      @Nullable BigDecimal units) {
-    if (units == null || instrumentType != InstrumentType.ETF || trade.tradeAmount().signum() > 0) {
-      return units;
-    }
-    List<PositionSnapshot> positions = input.positions();
-    PositionSnapshot holding =
-        index < positions.size() && Objects.equals(positions.get(index).isin(), trade.isin())
-            ? positions.get(index)
-            : null;
-    BigDecimal heldUnits = holding == null ? null : holding.quantity();
-    if (holding == null || heldUnits == null) {
-      log.warn(
-          "ETF sale has no held units to size against, leaving its quantity unset:"
-              + " fund={}, isin={}, amount={}",
-          input.fund(),
-          trade.isin(),
-          trade.tradeAmount().abs().toPlainString());
-      return null;
-    }
-    return OrderUnits.etfSaleWithin(holding, heldUnits, units, trade.tradeAmount().abs());
   }
 
   @Nullable

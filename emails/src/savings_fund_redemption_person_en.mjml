@@ -18,7 +18,7 @@
           time).
         </mj-text>
         <mj-text>
-          You can usually cancel the request in your Tuleva account until
+          You can cancel the request in your Tuleva account until
           *|cancellationDeadline|* (Estonian time).
         </mj-text>
       </mj-column>

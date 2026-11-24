@@ -30,7 +30,7 @@ const copy = {
       'Tere,&nbsp;Mari',
       'Võtame tagasi 1\u00a0157,40741 osakut, mis on praegu väärt umbes 1\u00a0250,50&nbsp;€. Täpne summa sõltub osakute puhasväärtusest (NAV) tehingupäeval.',
       'Kanname raha kontole EE47 **** **** **** 5685 eeldatavalt hiljemalt 01.10.2025 16:00.',
-      'Üldjuhul saad avalduse Tuleva kontol tühistada kuni 30.09.2025 16:00.',
+      'Avalduse saad tühistada Tuleva kontol kuni 30.09.2025 16:00.',
       'Kui see polnud sina, võta meiega kohe ühendust: tuleva@tuleva.ee või 644&nbsp;5100',
     ],
     request: {
@@ -53,7 +53,7 @@ const copy = {
       'Hello,&nbsp;Mari',
       'We will redeem 1,157.40741 units, currently worth about 1,250.50&nbsp;€. The exact amount depends on the net asset value (NAV) of the units on the dealing day.',
       'We expect to pay the money to the account EE47 **** **** **** 5685 by 01.10.2025 16:00 (Estonian time).',
-      'You can usually cancel the request in your Tuleva account until 30.09.2025 16:00 (Estonian time).',
+      'You can cancel the request in your Tuleva account until 30.09.2025 16:00 (Estonian time).',
       "If it wasn't you, contact us right away: tuleva@tuleva.ee or 644&nbsp;5100",
     ],
     request: {

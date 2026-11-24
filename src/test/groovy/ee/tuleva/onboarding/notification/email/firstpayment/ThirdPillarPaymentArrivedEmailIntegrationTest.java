@@ -217,7 +217,10 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
 
     verify(emailService, times(1))
         .newMandrillMessage(
-            eq("registry.only@example.com"), eq("third_pillar_suggest_second_et"), any(), any());
+            eq("registry.only@example.com"),
+            eq("third_pillar_suggest_second_et"),
+            argThat(mergeVars -> Boolean.TRUE.equals(mergeVars.get("followsPaymentArrived"))),
+            any());
     verify(emailService, times(1))
         .send(
             argThat((Person person) -> REGISTRY_ONLY.equals(person.getPersonalCode())),

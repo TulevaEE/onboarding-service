@@ -1,7 +1,12 @@
 {
   "variants": {
-    "vaikimisi": {
-      "FNAME": "Mari"
+    "pärast mandaati": {
+      "FNAME": "Mari",
+      "followsPaymentArrived": false
+    },
+    "makse jõudis pärale järel (meeldetuletus)": {
+      "FNAME": "Mari",
+      "followsPaymentArrived": true
     }
   }
 }

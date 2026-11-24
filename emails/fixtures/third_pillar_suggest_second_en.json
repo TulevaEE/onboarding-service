@@ -1,7 +1,12 @@
 {
   "variants": {
-    "default": {
-      "FNAME": "Mari"
+    "after a mandate": {
+      "FNAME": "Mari",
+      "followsPaymentArrived": false
+    },
+    "after payment arrived (reminder)": {
+      "FNAME": "Mari",
+      "followsPaymentArrived": true
     }
   }
 }

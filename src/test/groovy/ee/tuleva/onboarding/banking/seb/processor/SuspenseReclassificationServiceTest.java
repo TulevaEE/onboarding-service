@@ -127,7 +127,8 @@ class SuspenseReclassificationServiceTest {
     var result = service.reclassify(TUK75);
 
     assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(1, 0));
-    assertThat(balance(UNDERLYING_FUND_MANAGEMENT_FEE)).isEqualByComparingTo(new BigDecimal("50.00"));
+    assertThat(balance(UNDERLYING_FUND_MANAGEMENT_FEE))
+        .isEqualByComparingTo(new BigDecimal("50.00"));
     assertThat(balance(SystemAccount.MANAGEMENT_FEE)).isEqualByComparingTo(BigDecimal.ZERO);
     assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(BigDecimal.ZERO);
     assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))

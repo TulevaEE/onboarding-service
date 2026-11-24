@@ -18,6 +18,7 @@ import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,16 @@ import org.springframework.stereotype.Service;
 public class FundBankLedger {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+
+  private static final Map<TransactionType, SystemAccount> RECLASSIFICATION_TARGETS =
+      Map.of(
+          REGISTRAR_CONTRIBUTION, SystemAccount.REGISTRAR_CASH_SETTLEMENT,
+          REGISTRAR_PAYOUT, SystemAccount.REGISTRAR_CASH_SETTLEMENT,
+          MANAGEMENT_FEE_PAYMENT, SystemAccount.MANAGEMENT_FEE,
+          MANAGEMENT_FEE_REBATE, SystemAccount.MANAGEMENT_FEE_REBATE,
+          UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT, SystemAccount.UNDERLYING_FUND_MANAGEMENT_FEE,
+          OWN_ACCOUNT_TRANSFER, SystemAccount.OWN_ACCOUNT_TRANSFER,
+          BANK_FEE, SystemAccount.BANK_FEE);
 
   private final LedgerAccountService ledgerAccountService;
   private final LedgerTransactionService ledgerTransactionService;
@@ -47,18 +58,11 @@ public class FundBankLedger {
     LedgerAccount clearingAccount =
         getSystemAccount(SystemAccount.FUND_INVESTMENT_CASH_CLEARING, fund);
 
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.getKey(),
-            MANAGEMENT_FEE_PAYMENT.name(),
-            DESCRIPTION.getKey(),
-            description);
-
     return ledgerTransactionService.createTransaction(
         MANAGEMENT_FEE_PAYMENT,
         transactionDate(bookingDate),
         externalReference,
-        metadata,
+        describedAs(MANAGEMENT_FEE_PAYMENT, description),
         entry(managementFeeAccount, amount),
         entry(clearingAccount, amount.negate()));
   }
@@ -116,18 +120,11 @@ public class FundBankLedger {
     LedgerAccount rebateIncomeAccount = getSystemAccount(SystemAccount.MANAGEMENT_FEE_REBATE, fund);
     LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount, fund);
 
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.getKey(),
-            MANAGEMENT_FEE_REBATE.name(),
-            DESCRIPTION.getKey(),
-            description);
-
     return ledgerTransactionService.createTransaction(
         MANAGEMENT_FEE_REBATE,
         transactionDate(bookingDate),
         externalReference,
-        metadata,
+        describedAs(MANAGEMENT_FEE_REBATE, description),
         entry(clearingLedgerAccount, amount),
         entry(rebateIncomeAccount, amount.negate()));
   }
@@ -144,18 +141,11 @@ public class FundBankLedger {
         getSystemAccount(SystemAccount.UNDERLYING_FUND_MANAGEMENT_FEE, fund);
     LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount, fund);
 
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.getKey(),
-            UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT.name(),
-            DESCRIPTION.getKey(),
-            description);
-
     return ledgerTransactionService.createTransaction(
         UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT,
         transactionDate(bookingDate),
         externalReference,
-        metadata,
+        describedAs(UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT, description),
         entry(underlyingFundFeeAccount, amount.negate()),
         entry(clearingLedgerAccount, amount));
   }
@@ -259,34 +249,21 @@ public class FundBankLedger {
     LedgerAccount suspenseAccount = getSystemAccount(SystemAccount.UNCLASSIFIED_BANK_ENTRY, fund);
     LedgerAccount targetAccount = getSystemAccount(reclassificationTarget(targetType), fund);
 
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.getKey(),
-            targetType.name(),
-            DESCRIPTION.getKey(),
-            "Reclassified from suspense");
-
     return ledgerTransactionService.createTransaction(
         targetType,
         transactionDate(bookingDate),
         externalReference,
-        metadata,
+        describedAs(targetType, "Reclassified from suspense"),
         entry(suspenseAccount, amount),
         entry(targetAccount, amount.negate()));
   }
 
   private static SystemAccount reclassificationTarget(TransactionType targetType) {
-    return switch (targetType) {
-      case REGISTRAR_CONTRIBUTION, REGISTRAR_PAYOUT -> SystemAccount.REGISTRAR_CASH_SETTLEMENT;
-      case MANAGEMENT_FEE_PAYMENT -> SystemAccount.MANAGEMENT_FEE;
-      case MANAGEMENT_FEE_REBATE -> SystemAccount.MANAGEMENT_FEE_REBATE;
-      case UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT -> SystemAccount.UNDERLYING_FUND_MANAGEMENT_FEE;
-      case OWN_ACCOUNT_TRANSFER -> SystemAccount.OWN_ACCOUNT_TRANSFER;
-      case BANK_FEE -> SystemAccount.BANK_FEE;
-      default ->
-          throw new IllegalArgumentException(
-              "Unsupported reclassification target: %s".formatted(targetType));
-    };
+    return Optional.ofNullable(RECLASSIFICATION_TARGETS.get(targetType))
+        .orElseThrow(
+            () ->
+                new IllegalArgumentException(
+                    "Unsupported reclassification target: %s".formatted(targetType)));
   }
 
   @Transactional
@@ -322,14 +299,11 @@ public class FundBankLedger {
     LedgerAccount registrarAccount =
         getSystemAccount(SystemAccount.REGISTRAR_CASH_SETTLEMENT, fund);
 
-    Map<String, Object> metadata =
-        Map.of(OPERATION_TYPE.getKey(), transactionType.name(), DESCRIPTION.getKey(), description);
-
     return ledgerTransactionService.createTransaction(
         transactionType,
         transactionDate(bookingDate),
         externalReference,
-        metadata,
+        describedAs(transactionType, description),
         entry(cashAccount, amount),
         entry(registrarAccount, amount.negate()));
   }
@@ -379,18 +353,11 @@ public class FundBankLedger {
     LedgerAccount cashAccount = getSystemAccount(SystemAccount.FUND_INVESTMENT_CASH_CLEARING, fund);
     LedgerAccount ownTransferAccount = getSystemAccount(SystemAccount.OWN_ACCOUNT_TRANSFER, fund);
 
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.getKey(),
-            OWN_ACCOUNT_TRANSFER.name(),
-            DESCRIPTION.getKey(),
-            description);
-
     return ledgerTransactionService.createTransaction(
         OWN_ACCOUNT_TRANSFER,
         transactionDate(bookingDate),
         externalReference,
-        metadata,
+        describedAs(OWN_ACCOUNT_TRANSFER, description),
         entry(cashAccount, amount),
         entry(ownTransferAccount, amount.negate()));
   }
@@ -456,6 +423,10 @@ public class FundBankLedger {
       return now;
     }
     return bookingDate.atTime(LocalTime.MAX).atZone(ESTONIAN_ZONE).toInstant().truncatedTo(MICROS);
+  }
+
+  private static Map<String, Object> describedAs(TransactionType type, String description) {
+    return Map.of(OPERATION_TYPE.getKey(), type.name(), DESCRIPTION.getKey(), description);
   }
 
   private LedgerEntryDto entry(LedgerAccount account, BigDecimal amount) {

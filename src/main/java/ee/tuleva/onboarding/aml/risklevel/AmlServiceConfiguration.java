@@ -6,7 +6,6 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.retry.RetryPolicy;
@@ -23,21 +22,17 @@ import org.springframework.web.client.RestClient;
 @EnableConfigurationProperties(AmlServiceProperties.class)
 class AmlServiceConfiguration {
 
-  @Bean
-  AmlServiceClient amlServiceClient(RestClient.Builder builder, AmlServiceProperties properties) {
+  AmlServiceConfiguration(final AmlServiceProperties properties) {
     warnOfWhatAMissingApiTokenStops(properties);
-    return new AmlServiceClient(
-        amlServiceRestClient(builder, properties), amlServiceRetryTemplate(), properties);
   }
 
   private static void warnOfWhatAMissingApiTokenStops(AmlServiceProperties properties) {
     if (properties.configuredApiToken().isEmpty()) {
       log.warn(
-          "aml-service API token is not configured, so every KYC survey submission fails, the"
-              + " nightly risk level run fails, and every person and company redemption that"
-              + " screening does not freeze is held, at its screening deadline at the latest, until"
-              + " it is, and no savings fund onboarding held for review moves on:"
-              + " missing=api-token (AML_SERVICE_API_TOKEN)");
+          "aml-service API token is not configured, so every KYC survey submission fails, every"
+              + " person and company redemption that screening does not freeze is held, at its"
+              + " screening deadline at the latest, until it is, and no savings fund onboarding"
+              + " held for review moves on: missing=api-token (AML_SERVICE_API_TOKEN)");
     }
   }
 

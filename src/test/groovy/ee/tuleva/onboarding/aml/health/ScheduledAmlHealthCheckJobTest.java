@@ -21,6 +21,8 @@ class ScheduledAmlHealthCheckJobTest {
   private static final Set<AmlCheckType> SKIPPED_IN_JOB =
       Set.of(
           AmlCheckType.POLITICALLY_EXPOSED_PERSON_OVERRIDE,
+          AmlCheckType.RISK_LEVEL,
+          AmlCheckType.TKF_RISK_LEVEL,
           AmlCheckType.RISK_LEVEL_OVERRIDE,
           AmlCheckType.RISK_LEVEL_OVERRIDE_CONFIRMATION,
           AmlCheckType.TKF_RISK_LEVEL_OVERRIDE,
@@ -70,7 +72,7 @@ class ScheduledAmlHealthCheckJobTest {
   void checkForDelayedAmlChecks_continues_whenOneTypeCheckFails() {
     // given
     AmlCheckType typeThatCausesError = AmlCheckType.SANCTION; // Not in default SKIPPED_IN_JOB
-    AmlCheckType typeCheckedAfterError = AmlCheckType.RISK_LEVEL; // Not in default SKIPPED_IN_JOB
+    AmlCheckType typeCheckedAfterError = AmlCheckType.KYC_CHECK; // Not in default SKIPPED_IN_JOB
 
     when(mockAmlHealthCheckService.isCheckTypeDelayed(typeThatCausesError))
         .thenThrow(new RuntimeException("Simulated service error for SANCTION"));
@@ -82,6 +84,14 @@ class ScheduledAmlHealthCheckJobTest {
     // then
     verify(mockAmlHealthCheckService).isCheckTypeDelayed(typeThatCausesError);
     verify(mockAmlHealthCheckService).isCheckTypeDelayed(typeCheckedAfterError);
+  }
+
+  @Test
+  void checkForDelayedAmlChecks_doesNotReportTheRiskLevelChecksNothingWritesAnyMoreAsDelayed() {
+    scheduledJob.checkForDelayedAmlChecks();
+
+    verify(mockAmlHealthCheckService, never()).isCheckTypeDelayed(AmlCheckType.RISK_LEVEL);
+    verify(mockAmlHealthCheckService, never()).isCheckTypeDelayed(AmlCheckType.TKF_RISK_LEVEL);
   }
 
   @Test

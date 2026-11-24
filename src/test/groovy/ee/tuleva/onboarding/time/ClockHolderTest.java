@@ -33,11 +33,4 @@ class ClockHolderTest {
 
     assertThat(ClockHolder.aYearAgo()).isEqualTo(NOW.minus(365, ChronoUnit.DAYS));
   }
-
-  @Test
-  void sixMonthsAgoIsExactlyOneHundredEightyDaysBeforeTheConfiguredClock() {
-    ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
-
-    assertThat(ClockHolder.sixMonthsAgo()).isEqualTo(NOW.minus(180, ChronoUnit.DAYS));
-  }
 }

@@ -28,6 +28,9 @@ spring:
   modulith:
     moments:
       enabled: false
+  flyway:
+    postgresql:
+      transactional-lock: false
   security:
     oauth2:
       authorizationserver:

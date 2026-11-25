@@ -20,6 +20,11 @@ public enum TrackableEventType {
   CLICK(true),
   NUDGE_VIEW(true),
   NUDGE_CLICK(true),
+  // Where the person came from (UTM tags, ad click ids, referrer host, landing page), first and
+  // last touch, sent once per visit after login. Values are campaign labels, not personal data.
+  ATTRIBUTION(true),
+  // How a successful login went: the methods tried and why earlier attempts failed.
+  LOGIN_ATTEMPTS(true),
   CAPITAL_TRANSFER_STATE_CHANGE(false),
   SAVINGS_FUND_ONBOARDING_STATUS_CHANGE(false),
   SUBSCRIPTION_BATCH_CREATED(false),

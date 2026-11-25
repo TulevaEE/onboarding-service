@@ -25,6 +25,19 @@ class TrackingControllerSpec extends BaseControllerSpec {
         .andExpect(status().isOk())
   }
 
+  def "POST /t accepts the client-tracked #type event"() {
+    given:
+    def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, trackingController)
+    1 * eventPublisher.publishEvent(new TrackableEvent(sampleAuthenticatedPerson, type, ["visitId": "v1"]))
+    expect:
+    mvc.perform(post("/v1/t")
+        .content("""{"type": "${type}", "data": {"visitId": "v1"}}""")
+        .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+    where:
+    type << [TrackableEventType.ATTRIBUTION, TrackableEventType.LOGIN_ATTEMPTS]
+  }
+
   def "POST /t rejects server-only event types"() {
     given:
     def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, trackingController)

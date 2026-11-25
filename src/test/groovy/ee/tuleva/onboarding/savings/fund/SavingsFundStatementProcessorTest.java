@@ -2,11 +2,20 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.banking.BankAccountType.*;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYOUT_WITHOUT_REQUEST;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNMODELLED_DEBIT;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.PROCESSED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccount;
@@ -17,6 +26,7 @@ import ee.tuleva.onboarding.banking.StatementDebit;
 import ee.tuleva.onboarding.banking.check.payment.OutgoingPaymentMatcher;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
+import ee.tuleva.onboarding.banking.payment.OutgoingPaymentLookup;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
@@ -52,6 +62,7 @@ class SavingsFundStatementProcessorTest {
       new StatementPeriod(LocalDate.of(2026, 1, 12), LocalDate.of(2026, 1, 12));
 
   private BankAccount statementAccount;
+  private SavingFundPayment.Status insertedStatus;
 
   private static final String DEPOSIT_ACCOUNT_IBAN = "EE442200221092874625";
   private static final String FUND_INVESTMENT_IBAN = "EE552200221055544433";
@@ -81,6 +92,8 @@ class SavingsFundStatementProcessorTest {
           redemptionStatusService,
           endToEndIdConverter,
           paymentCheckService);
+  SavingFundPaymentRepository savingFundPaymentRepository = mock(SavingFundPaymentRepository.class);
+  OutgoingPaymentLookup outgoingPaymentLookup = mock(OutgoingPaymentLookup.class);
 
   SavingsFundStatementProcessor processor =
       new SavingsFundStatementProcessor(
@@ -93,7 +106,9 @@ class SavingsFundStatementProcessorTest {
           fundBankLedger,
           paymentCheckService,
           outgoingPaymentMatcher,
-          redemptionPayoutRecorder);
+          redemptionPayoutRecorder,
+          savingFundPaymentRepository,
+          outgoingPaymentLookup);
 
   @Test
   void outgoingToFundAccount_createsLedgerTransferEntryWithBookingDate() {
@@ -286,7 +301,7 @@ class SavingsFundStatementProcessorTest {
             invocation -> {
               Function<SavingFundPayment, SavingFundPayment.Status> onInsert =
                   invocation.getArgument(1);
-              onInsert.apply(payment);
+              insertedStatus = onInsert.apply(payment);
               return null;
             })
         .when(paymentService)
@@ -296,7 +311,7 @@ class SavingsFundStatementProcessorTest {
             invocation -> {
               Function<SavingFundPayment, SavingFundPayment.Status> onInsert =
                   invocation.getArgument(1);
-              onInsert.apply(payment);
+              insertedStatus = onInsert.apply(payment);
               return null;
             })
         .when(paymentService)
@@ -722,5 +737,91 @@ class SavingsFundStatementProcessorTest {
     processor.process(bankStatement, statementAccount);
 
     verify(fundBankLedger, never()).recordManagementFeePayment(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void withdrawalIncoming_fromAnOutsidePayer_isParkedInTheLedgerAndReturnedToThem() {
+    var incomingPayment =
+        aPayment()
+            .amount(new BigDecimal("1006.87"))
+            .remitterIban(EXTERNAL_ACCOUNT_IBAN)
+            .endToEndId("59")
+            .receivedBefore(Instant.parse("2025-10-01T20:59:59.999999Z"))
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(incomingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    given(bankAccounts.find(EXTERNAL_ACCOUNT_IBAN)).willReturn(Optional.empty());
+    given(outgoingPaymentLookup.isOurs("59")).willReturn(false);
+
+    processor.process(bankStatement, statementAccount);
+
+    assertThat(insertedStatus).isEqualTo(TO_BE_RETURNED);
+    verify(savingFundPaymentRepository)
+        .addReturnReason(incomingPayment.getId(), "väljamaksete kontole ei saa sissemakseid teha");
+    verify(savingsFundLedger)
+        .recordUnattributedPayoutAccountReceipt(
+            new BigDecimal("1006.87"), incomingPayment.getId(), LocalDate.of(2025, 10, 1));
+    verifyNoInteractions(paymentCheckService);
+  }
+
+  @Test
+  void withdrawalIncoming_thatIsOurOwnPaymentComingBack_isNotReturnedAgainButRaisesAWarning() {
+    var payoutEndToEndId = endToEndIdConverter.toEndToEndId(UUID.randomUUID());
+    var bouncedPayout =
+        aPayment()
+            .amount(new BigDecimal("500.00"))
+            .remitterIban(EXTERNAL_ACCOUNT_IBAN)
+            .endToEndId(payoutEndToEndId)
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(bouncedPayout, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    given(bankAccounts.find(EXTERNAL_ACCOUNT_IBAN)).willReturn(Optional.empty());
+    given(outgoingPaymentLookup.isOurs(payoutEndToEndId)).willReturn(true);
+
+    processor.process(bankStatement, statementAccount);
+
+    assertThat(insertedStatus).isEqualTo(PROCESSED);
+    verify(savingFundPaymentRepository, never()).addReturnReason(any(), any());
+    verify(savingsFundLedger, never()).recordUnattributedPayoutAccountReceipt(any(), any(), any());
+    verify(paymentCheckService)
+        .record(
+            UNMODELLED_DEBIT,
+            WARNING,
+            String.valueOf(bouncedPayout.getId()),
+            "a payment we sent from the payout account came back to it");
+  }
+
+  @Test
+  void
+      withdrawalOutgoing_returnOfAPaymentReceivedOnThePayoutAccount_isBookedAndFinishesTheReturn() {
+    var originalPayment =
+        aPayment()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("1006.87"))
+            .status(TO_BE_RETURNED)
+            .build();
+    var returnEndToEndId = endToEndIdConverter.toEndToEndId(originalPayment.getId());
+    var returnPayment =
+        aPayment()
+            .amount(new BigDecimal("-1006.87"))
+            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
+            .endToEndId(returnEndToEndId)
+            .receivedBefore(Instant.parse("2026-11-26T09:00:00Z"))
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(returnPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    given(savingFundPaymentRepository.findOriginalPaymentForReturn(returnEndToEndId))
+        .willReturn(Optional.of(originalPayment));
+
+    processor.process(bankStatement, statementAccount);
+
+    assertThat(insertedStatus).isEqualTo(PROCESSED);
+    verify(savingsFundLedger)
+        .bounceBackUnattributedPayoutAccountReceipt(
+            new BigDecimal("1006.87"), originalPayment.getId(), LocalDate.of(2026, 11, 26));
+    verify(savingFundPaymentRepository).changeStatus(originalPayment.getId(), RETURNED);
+    verify(paymentCheckService, never()).record(eq(PAYOUT_WITHOUT_REQUEST), eq(HOLD), any(), any());
+    verify(savingsFundLedger, never()).recordRedemptionPayout(any(), any(), any(), any(), any());
+    verifyNoInteractions(redemptionRequestRepository, redemptionStatusService);
   }
 }

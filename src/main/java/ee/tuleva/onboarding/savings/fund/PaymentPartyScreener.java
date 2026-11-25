@@ -45,7 +45,7 @@ class PaymentPartyScreener {
     return partyOf(idCode).map(party -> screen(party, name)).orElseGet(() -> screenByName(name));
   }
 
-  private static Optional<PartyId> partyOf(@Nullable String idCode) {
+  static Optional<PartyId> partyOf(@Nullable String idCode) {
     if (idCode == null) {
       return Optional.empty();
     }

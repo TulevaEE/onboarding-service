@@ -70,6 +70,7 @@ class PaymentReturningJobTest {
 
     verify(paymentReturningService, never()).createReturn(any());
     verify(transactionTemplate).executeWithoutResult(any());
+    verify(savingFundPaymentRepository).recordPayerNameScreening(payment.getId(), SANCTION_HIT);
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), FROZEN);
     verify(eventPublisher)
         .publishEvent(new SanctionedPaymentFrozenEvent(payment.getId(), new BigDecimal("1006.87")));
@@ -86,6 +87,7 @@ class PaymentReturningJobTest {
 
     verify(paymentReturningService, never()).createReturn(any());
     verify(savingFundPaymentRepository, never()).changeStatus(any(), any());
+    verify(savingFundPaymentRepository, never()).recordPayerNameScreening(any(), any());
     verify(paymentCheckService)
         .recordStoppedPayment(
             RETURN_BLOCKED,
@@ -105,6 +107,7 @@ class PaymentReturningJobTest {
 
     job.runJob();
 
+    verify(savingFundPaymentRepository).recordPayerNameScreening(payment.getId(), screening);
     verify(paymentReturningService).createReturn(payment);
   }
 

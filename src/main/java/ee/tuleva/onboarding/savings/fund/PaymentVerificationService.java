@@ -263,11 +263,7 @@ public class PaymentVerificationService {
   }
 
   Optional<PartyId> parsePartyId(@Nullable String idCode) {
-    if (idCode == null) return Optional.empty();
-    if (personalCodeValidator.isValid(idCode)) return Optional.of(new PartyId(PERSON, idCode));
-    if (registryCodeValidator.isValid(idCode))
-      return Optional.of(new PartyId(LEGAL_ENTITY, idCode));
-    return Optional.empty();
+    return PaymentPartyScreener.partyOf(idCode);
   }
 
   private Optional<String> extractPersonalCode(String text) {

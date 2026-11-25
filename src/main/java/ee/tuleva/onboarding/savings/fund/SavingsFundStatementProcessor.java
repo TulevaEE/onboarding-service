@@ -191,6 +191,7 @@ public class SavingsFundStatementProcessor {
         ? savingFundPaymentRepository
             .findOriginalPaymentForReturn(payment.getEndToEndId())
             .filter(original -> isSavingsFundAccount(original.getBeneficiaryIban(), WITHDRAWAL_EUR))
+            .filter(original -> original.getAmount().compareTo(payment.getAmount().negate()) == 0)
         : Optional.empty();
   }
 

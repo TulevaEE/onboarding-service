@@ -161,4 +161,20 @@ class PaymentReturningJobTest {
 
     verify(paymentReturningService, never()).createReturn(any());
   }
+
+  @Test
+  void runJob_carriesOnWhenScreeningOnePayerFails() {
+    var payment1 = aPayment().status(TO_BE_RETURNED).build();
+    var payment2 = aPayment().status(TO_BE_RETURNED).build();
+    given(savingFundPaymentRepository.findPaymentsWithStatus(TO_BE_RETURNED))
+        .willReturn(List.of(payment1, payment2));
+    willThrow(new IllegalStateException("screening answer unreadable"))
+        .given(payoutAccountPayerScreening)
+        .screen(payment1);
+
+    job.runJob();
+
+    verify(paymentReturningService, never()).createReturn(payment1);
+    verify(paymentReturningService).createReturn(payment2);
+  }
 }

@@ -867,4 +867,42 @@ class SavingsFundStatementProcessorTest {
             debit.getId().toString(),
             "a debit from the payout account matches no redemption request");
   }
+
+  @Test
+  void withdrawalOutgoing_returnOfADifferentAmountThanWasReceived_isNotBookedAsItsReturn() {
+    var originalPayment =
+        aPayment()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("100.00"))
+            .beneficiaryIban(WITHDRAWAL_ACCOUNT_IBAN)
+            .status(RETURNED)
+            .build();
+    var endToEndId = endToEndIdConverter.toEndToEndId(originalPayment.getId());
+    var debit =
+        aPayment()
+            .amount(new BigDecimal("-90.00"))
+            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
+            .endToEndId(endToEndId)
+            .receivedBefore(Instant.parse("2026-11-26T09:00:00Z"))
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(debit, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    given(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
+        .willReturn(Optional.of(originalPayment));
+    given(bankAccounts.find(WITHDRAWAL_ACCOUNT_IBAN))
+        .willReturn(
+            Optional.of(
+                new BankAccount(WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR, TKF100, "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(savingsFundLedger, never())
+        .bounceBackUnattributedPayoutAccountReceipt(any(), any(), any());
+    verify(paymentCheckService)
+        .record(
+            PAYOUT_WITHOUT_REQUEST,
+            HOLD,
+            debit.getId().toString(),
+            "a debit from the payout account matches no redemption request");
+  }
 }

@@ -293,7 +293,7 @@ class SebSavingFundPaymentUpsertionServiceIntegrationTest {
   }
 
   @Test
-  void paymentsFromNonDepositAccountsAreAlsoSavedButDirectlyProcessed() {
+  void aPaymentFromOutsideIntoThePayoutAccountIsMarkedForReturn() {
     // given - XML with WITHDRAWAL_EUR account IBAN
     var withdrawalAccountIban =
         bankAccounts.getIban(TKF100, ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR);
@@ -342,11 +342,12 @@ class SebSavingFundPaymentUpsertionServiceIntegrationTest {
     // when
     processXmlMessage(withdrawalAccountXml);
 
-    // then - payment is created and directly goes to PROCESSED status
     assertThat(repository.findAll()).hasSize(1);
     var savedPayment = repository.findAll().iterator().next();
     assertThat(savedPayment.getAmount()).isEqualByComparingTo(new BigDecimal("200.00"));
-    assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.PROCESSED);
+    assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.TO_BE_RETURNED);
+    assertThat(savedPayment.getReturnReason())
+        .isEqualTo("väljamaksete kontole ei saa sissemakseid teha");
   }
 
   @Test

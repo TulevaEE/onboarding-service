@@ -92,4 +92,24 @@ class AdminTokenValidatorTest {
         .extracting(e -> ((ResponseStatusException) e).getStatusCode())
         .isEqualTo(UNAUTHORIZED);
   }
+
+  @Test
+  void accessDoesNotLetAnEmptyTokenMatchAnUnsetOpsToken() {
+    AdminTokenValidator validator = new AdminTokenValidator(ADMIN_TOKEN, "");
+
+    assertThatThrownBy(() -> validator.access(""))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode())
+        .isEqualTo(UNAUTHORIZED);
+  }
+
+  @Test
+  void accessIsUnavailableWhenNoTokenIsConfigured() {
+    AdminTokenValidator validator = new AdminTokenValidator("", "");
+
+    assertThatThrownBy(() -> validator.access("anything"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode())
+        .isEqualTo(SERVICE_UNAVAILABLE);
+  }
 }

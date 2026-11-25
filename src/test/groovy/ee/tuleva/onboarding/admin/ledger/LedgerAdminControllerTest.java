@@ -124,6 +124,33 @@ class LedgerAdminControllerTest {
   }
 
   @Test
+  void createAdjustments_withOpsToken_recordsTheAdjustment() throws Exception {
+    var transactionId = UUID.randomUUID();
+    when(savingsFundLedger.recordAdjustment(any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(LedgerTransaction.builder().id(transactionId).build());
+
+    mockMvc
+        .perform(
+            post("/admin/adjustments")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    [
+                      {
+                        "debitAccount": "PAYOUTS_CASH_CLEARING",
+                        "creditAccount": "UNRECONCILED_BANK_RECEIPTS",
+                        "amount": 10.00,
+                        "description": "Payment received on the payout account by mistake"
+                      }
+                    ]
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].transactionId").value(transactionId.toString()));
+  }
+
+  @Test
   void createAdjustments_withInvalidToken_returnsUnauthorized() throws Exception {
     mockMvc
         .perform(

@@ -229,6 +229,13 @@ public class SavingsFundLedger {
   }
 
   @Transactional
+  public LedgerTransaction recordUnattributedPayoutAccountReceipt(
+      BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
+    return unattributedRecorder.recordUnattributedPayoutAccountReceipt(
+        amount, externalReference, bookingDate);
+  }
+
+  @Transactional
   public LedgerTransaction reservePaymentForSubscription(
       PartyRef party, BigDecimal amount, UUID externalReference) {
     LedgerParty ledgerParty = accounts.getParty(party);
@@ -301,6 +308,13 @@ public class SavingsFundLedger {
   public LedgerTransaction bounceBackUnattributedPayment(
       BigDecimal amount, UUID externalReference) {
     return unattributedRecorder.bounceBackUnattributedPayment(amount, externalReference);
+  }
+
+  @Transactional
+  public LedgerTransaction bounceBackUnattributedPayoutAccountReceipt(
+      BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
+    return unattributedRecorder.bounceBackUnattributedPayoutAccountReceipt(
+        amount, externalReference, bookingDate);
   }
 
   @Transactional

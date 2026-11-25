@@ -114,6 +114,18 @@ class SavingsFundLedgerExpectationsIT {
   }
 
   @Test
+  void bookedReturn_isTheAmountTheLedgerBookedForAPaymentReturnedFromThePayoutAccount() {
+    var paymentId = randomUUID();
+    savingsFundLedger.recordUnattributedPayoutAccountReceipt(
+        new BigDecimal("1006.87"), paymentId, LocalDate.of(2026, 11, 25));
+    savingsFundLedger.bounceBackUnattributedPayoutAccountReceipt(
+        new BigDecimal("1006.87"), paymentId, LocalDate.of(2026, 11, 26));
+
+    assertThat(expectations.bookedReturn(paymentId))
+        .hasValueSatisfying(amount -> assertThat(amount).isEqualByComparingTo("1006.87"));
+  }
+
+  @Test
   void bookedReturn_isEmptyUntilTheLedgerHasBookedTheReturn() {
     var paymentId = randomUUID();
     savingsFundLedger.recordPaymentReceived(PARTY, new BigDecimal("150.00"), paymentId);

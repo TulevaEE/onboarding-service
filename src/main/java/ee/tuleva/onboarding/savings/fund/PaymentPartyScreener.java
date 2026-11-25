@@ -1,9 +1,14 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+
 import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.kyb.CompanySanctionCheck;
+import ee.tuleva.onboarding.kyb.RegistryCodeValidator;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.personalcode.PersonalCodeValidator;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Screening;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.util.Arrays;
@@ -18,6 +23,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class PaymentPartyScreener {
 
+  private static final PersonalCodeValidator personalCodeValidator = new PersonalCodeValidator();
+  private static final RegistryCodeValidator registryCodeValidator = new RegistryCodeValidator();
+
   private final SanctionAndPepScreener sanctionAndPepScreener;
   private final CompanySanctionCheck companySanctionCheck;
   private final UserRepository userRepository;
@@ -31,6 +39,23 @@ class PaymentPartyScreener {
               .orElseGet(() -> screenByName(party.code(), name));
       case LEGAL_ENTITY -> Screening.of(companySanctionCheck.screeningOutcome(party.code(), name));
     };
+  }
+
+  Screening screenPayer(@Nullable String idCode, String name) {
+    return partyOf(idCode).map(party -> screen(party, name)).orElseGet(() -> screenByName(name));
+  }
+
+  private static Optional<PartyId> partyOf(@Nullable String idCode) {
+    if (idCode == null) {
+      return Optional.empty();
+    }
+    if (personalCodeValidator.isValid(idCode)) {
+      return Optional.of(new PartyId(PERSON, idCode));
+    }
+    if (registryCodeValidator.isValid(idCode)) {
+      return Optional.of(new PartyId(LEGAL_ENTITY, idCode));
+    }
+    return Optional.empty();
   }
 
   Screening screenByName(String name) {

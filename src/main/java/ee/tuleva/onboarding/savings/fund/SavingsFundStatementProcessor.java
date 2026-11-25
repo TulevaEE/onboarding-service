@@ -5,6 +5,9 @@ import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNMODELLED_DEBIT;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.PROCESSED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 
@@ -16,11 +19,13 @@ import ee.tuleva.onboarding.banking.StatementDebit;
 import ee.tuleva.onboarding.banking.check.payment.OutgoingPaymentMatcher;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.SavingsFundStatementReceived;
+import ee.tuleva.onboarding.banking.payment.OutgoingPaymentLookup;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionPayoutRecorder;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -33,6 +38,9 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(prefix = "seb-gateway", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class SavingsFundStatementProcessor {
+  static final String PAYOUT_ACCOUNT_TAKES_NO_DEPOSITS =
+      "väljamaksete kontole ei saa sissemakseid teha";
+
   private final SavingFundPaymentExtractor paymentExtractor;
   private final SavingFundPaymentUpsertionService paymentService;
   private final ManagementCompanies managementCompanies;
@@ -43,6 +51,8 @@ public class SavingsFundStatementProcessor {
   private final PaymentCheckService paymentCheckService;
   private final OutgoingPaymentMatcher outgoingPaymentMatcher;
   private final RedemptionPayoutRecorder redemptionPayoutRecorder;
+  private final SavingFundPaymentRepository savingFundPaymentRepository;
+  private final OutgoingPaymentLookup outgoingPaymentLookup;
 
   @EventListener
   public void onStatementReceived(SavingsFundStatementReceived event) {
@@ -74,8 +84,7 @@ public class SavingsFundStatementProcessor {
   }
 
   private SavingFundPayment.Status processWithdrawalPaymentOnInsert(SavingFundPayment payment) {
-    handleWithdrawalAccountPayment(payment);
-    return SavingFundPayment.Status.PROCESSED;
+    return handleWithdrawalAccountPayment(payment);
   }
 
   private SavingFundPayment.Status processFundInvestmentPaymentOnInsert(SavingFundPayment payment) {
@@ -146,27 +155,64 @@ public class SavingsFundStatementProcessor {
     return payment.getAmount().compareTo(ZERO) < 0;
   }
 
-  private void handleWithdrawalAccountPayment(SavingFundPayment payment) {
+  private SavingFundPayment.Status handleWithdrawalAccountPayment(SavingFundPayment payment) {
     if (ownAccountTransferRecorder.recordOutgoingTransfer(payment, WITHDRAWAL_EUR)) {
-      return;
+      return PROCESSED;
     }
-    if (isOutgoingPayment(payment)) {
+    var returnedPayment = findPaymentThisReturns(payment);
+    if (returnedPayment.isPresent()) {
+      recordReturnLeftPayoutAccount(payment, returnedPayment.get());
+    } else if (isOutgoingPayment(payment)) {
       redemptionPayoutRecorder.recordOutgoingPayout(payment);
     } else if (isIncomingFromFundInvestment(payment)) {
       log.info(
           "Batch transfer received in WITHDRAWAL_EUR from FUND_INVESTMENT_EUR: amount={}",
           payment.getAmount());
-    } else {
+    } else if (outgoingPaymentLookup.isOurs(payment.getEndToEndId())) {
       log.error(
-          "Unhandled WITHDRAWAL_EUR payment: amount={}, remitterIban={}",
-          payment.getAmount(),
-          payment.getRemitterIban());
+          "Payment sent from the payout account came back to it, needs manual handling: paymentId={}, endToEndId={}, amount={}",
+          payment.getId(),
+          payment.getEndToEndId(),
+          payment.getAmount());
       paymentCheckService.record(
           UNMODELLED_DEBIT,
           WARNING,
           String.valueOf(payment.getId()),
-          "an unmodelled movement on the payout account");
+          "a payment we sent from the payout account came back to it");
+    } else {
+      markForReturnToPayer(payment);
+      return TO_BE_RETURNED;
     }
+    return PROCESSED;
+  }
+
+  private Optional<SavingFundPayment> findPaymentThisReturns(SavingFundPayment payment) {
+    return isOutgoingPayment(payment)
+        ? savingFundPaymentRepository.findOriginalPaymentForReturn(payment.getEndToEndId())
+        : Optional.empty();
+  }
+
+  private void recordReturnLeftPayoutAccount(
+      SavingFundPayment returnPayment, SavingFundPayment returnedPayment) {
+    log.info(
+        "Return of a payment received on the payout account left the account: returnedPaymentId={}, amount={}",
+        returnedPayment.getId(),
+        returnPayment.getAmount());
+    savingsFundLedger.bounceBackUnattributedPayoutAccountReceipt(
+        returnedPayment.getAmount(), returnedPayment.getId(), returnPayment.bookingDateOrThrow());
+    if (returnedPayment.getStatus() == TO_BE_RETURNED) {
+      savingFundPaymentRepository.changeStatus(returnedPayment.getId(), RETURNED);
+    }
+  }
+
+  private void markForReturnToPayer(SavingFundPayment payment) {
+    log.info(
+        "Payment received on the payout account, returning it to the payer: paymentId={}, amount={}",
+        payment.getId(),
+        payment.getAmount());
+    savingsFundLedger.recordUnattributedPayoutAccountReceipt(
+        payment.getAmount(), payment.getId(), payment.bookingDateOrThrow());
+    savingFundPaymentRepository.addReturnReason(payment.getId(), PAYOUT_ACCOUNT_TAKES_NO_DEPOSITS);
   }
 
   private boolean isIncomingFromFundInvestment(SavingFundPayment payment) {

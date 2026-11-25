@@ -32,8 +32,23 @@ class UnattributedPaymentLedgerRecorder {
   @Transactional
   LedgerTransaction recordUnattributedPayment(
       BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
+    return recordUnattributedPayment(
+        amount, externalReference, bookingDate, accounts.getIncomingPaymentsClearingAccount());
+  }
+
+  @Transactional
+  LedgerTransaction recordUnattributedPayoutAccountReceipt(
+      BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
+    return recordUnattributedPayment(
+        amount, externalReference, bookingDate, accounts.getPayoutsCashClearingAccount());
+  }
+
+  private LedgerTransaction recordUnattributedPayment(
+      BigDecimal amount,
+      UUID externalReference,
+      LocalDate bookingDate,
+      LedgerAccount receivingCashAccount) {
     LedgerAccount unreconciledAccount = accounts.getUnreconciledBankReceiptsAccount();
-    LedgerAccount incomingPaymentsAccount = accounts.getIncomingPaymentsClearingAccount();
 
     Map<String, Object> metadata = Map.of(OPERATION_TYPE.getKey(), UNATTRIBUTED_PAYMENT.name());
 
@@ -42,12 +57,37 @@ class UnattributedPaymentLedgerRecorder {
         accounts.transactionDate(bookingDate),
         externalReference,
         metadata,
-        accounts.entry(incomingPaymentsAccount, amount),
+        accounts.entry(receivingCashAccount, amount),
         accounts.entry(unreconciledAccount, amount.negate()));
   }
 
   @Transactional
   LedgerTransaction bounceBackUnattributedPayment(BigDecimal amount, UUID externalReference) {
+    return bounceBackUnattributedPayment(
+        amount,
+        externalReference,
+        LocalDate.now(clock),
+        Instant.now(clock),
+        accounts.getIncomingPaymentsClearingAccount());
+  }
+
+  @Transactional
+  LedgerTransaction bounceBackUnattributedPayoutAccountReceipt(
+      BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
+    return bounceBackUnattributedPayment(
+        amount,
+        externalReference,
+        bookingDate,
+        accounts.transactionDate(bookingDate),
+        accounts.getPayoutsCashClearingAccount());
+  }
+
+  private LedgerTransaction bounceBackUnattributedPayment(
+      BigDecimal amount,
+      UUID externalReference,
+      LocalDate bookingDate,
+      Instant transactionDate,
+      LedgerAccount receivingCashAccount) {
     var existing =
         ledgerTransactionService.findByExternalReferenceAndTransactionType(
             externalReference, PAYMENT_BOUNCE_BACK);
@@ -59,28 +99,39 @@ class UnattributedPaymentLedgerRecorder {
       return existing.get();
     }
 
-    ensureUnattributedPaymentRecorded(amount, externalReference);
+    ensureUnattributedPaymentRecorded(amount, externalReference, bookingDate, receivingCashAccount);
 
     LedgerAccount unreconciledAccount = accounts.getUnreconciledBankReceiptsAccount();
-    LedgerAccount incomingPaymentsAccount = accounts.getIncomingPaymentsClearingAccount();
 
     Map<String, Object> metadata = Map.of(OPERATION_TYPE.getKey(), PAYMENT_BOUNCE_BACK.name());
 
     return ledgerTransactionService.createTransaction(
         PAYMENT_BOUNCE_BACK,
-        Instant.now(clock),
+        transactionDate,
         externalReference,
         metadata,
         accounts.entry(unreconciledAccount, amount),
-        accounts.entry(incomingPaymentsAccount, amount.negate()));
+        accounts.entry(receivingCashAccount, amount.negate()));
   }
 
   void ensureUnattributedPaymentRecorded(BigDecimal amount, UUID externalReference) {
+    ensureUnattributedPaymentRecorded(
+        amount,
+        externalReference,
+        LocalDate.now(clock),
+        accounts.getIncomingPaymentsClearingAccount());
+  }
+
+  private void ensureUnattributedPaymentRecorded(
+      BigDecimal amount,
+      UUID externalReference,
+      LocalDate bookingDate,
+      LedgerAccount receivingCashAccount) {
     boolean alreadyRecorded =
         ledgerTransactionService.existsByExternalReferenceAndTransactionType(
             externalReference, UNATTRIBUTED_PAYMENT);
     if (!alreadyRecorded) {
-      recordUnattributedPayment(amount, externalReference);
+      recordUnattributedPayment(amount, externalReference, bookingDate, receivingCashAccount);
     }
   }
 }

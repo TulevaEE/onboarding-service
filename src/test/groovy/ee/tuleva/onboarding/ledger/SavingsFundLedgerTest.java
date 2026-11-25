@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -232,6 +233,70 @@ class SavingsFundLedgerTest {
     assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
         .isEqualByComparingTo(ZERO);
     verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordUnattributedPayoutAccountReceipt_parksCashThatLandedOnThePayoutAccount() {
+    var amount = new BigDecimal("1006.87");
+    var externalReference = randomUUID();
+    var unreconciledBefore = getUnreconciledBankReceiptsAccount().getBalance();
+    var payoutsBefore = getPayoutsCashClearingAccount().getBalance();
+    var incomingBefore = getIncomingPaymentsClearingAccount().getBalance();
+
+    var transaction =
+        savingsFundLedger.recordUnattributedPayoutAccountReceipt(
+            amount, externalReference, LocalDate.of(2026, 11, 25));
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("UNATTRIBUTED_PAYMENT");
+    assertThat(deltaSince(unreconciledBefore, getUnreconciledBankReceiptsAccount()))
+        .isEqualByComparingTo(amount.negate());
+    assertThat(deltaSince(payoutsBefore, getPayoutsCashClearingAccount()))
+        .isEqualByComparingTo(amount);
+    assertThat(deltaSince(incomingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(ZERO);
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void bounceBackUnattributedPayoutAccountReceipt_takesTheCashBackOffThePayoutAccount() {
+    var amount = new BigDecimal("1006.87");
+    var externalReference = randomUUID();
+    var unreconciledBefore = getUnreconciledBankReceiptsAccount().getBalance();
+    var payoutsBefore = getPayoutsCashClearingAccount().getBalance();
+    savingsFundLedger.recordUnattributedPayoutAccountReceipt(
+        amount, externalReference, LocalDate.of(2026, 11, 25));
+
+    var transaction =
+        savingsFundLedger.bounceBackUnattributedPayoutAccountReceipt(
+            amount, externalReference, LocalDate.of(2026, 11, 26));
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_BOUNCE_BACK");
+    assertThat(transaction.getTransactionDate())
+        .isEqualTo(Instant.parse("2026-11-26T21:59:59.999999Z"));
+    assertThat(deltaSince(unreconciledBefore, getUnreconciledBankReceiptsAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(payoutsBefore, getPayoutsCashClearingAccount()))
+        .isEqualByComparingTo(ZERO);
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void bounceBackUnattributedPayoutAccountReceipt_parksTheReceiptFirstWhenMissing() {
+    var amount = new BigDecimal("40.00");
+    var externalReference = randomUUID();
+    var unreconciledBefore = getUnreconciledBankReceiptsAccount().getBalance();
+    var payoutsBefore = getPayoutsCashClearingAccount().getBalance();
+    var incomingBefore = getIncomingPaymentsClearingAccount().getBalance();
+
+    savingsFundLedger.bounceBackUnattributedPayoutAccountReceipt(
+        amount, externalReference, LocalDate.of(2026, 11, 26));
+
+    assertThat(deltaSince(unreconciledBefore, getUnreconciledBankReceiptsAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(payoutsBefore, getPayoutsCashClearingAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(incomingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(ZERO);
   }
 
   @Test

@@ -38,4 +38,25 @@ class OutgoingPaymentLookupTest {
 
     assertThat(lookup().findStatusForSource(SOURCE_ID)).isEmpty();
   }
+
+  @Test
+  void anEndToEndIdWeSentIsOurs() {
+    var payment = OutgoingPayment.builder().endToEndId(END_TO_END_ID).status(EXECUTED).build();
+    given(outgoingPaymentRepository.findByEndToEndId(END_TO_END_ID))
+        .willReturn(Optional.of(payment));
+
+    assertThat(lookup().isOurs(END_TO_END_ID)).isTrue();
+  }
+
+  @Test
+  void anEndToEndIdWeNeverSentIsNotOurs() {
+    given(outgoingPaymentRepository.findByEndToEndId("59")).willReturn(Optional.empty());
+
+    assertThat(lookup().isOurs("59")).isFalse();
+  }
+
+  @Test
+  void aPaymentWithoutAnEndToEndIdIsNotOurs() {
+    assertThat(lookup().isOurs(null)).isFalse();
+  }
 }

@@ -1,12 +1,15 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNATTRIBUTED_PAYMENT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNATTRIBUTED_PAYMENT_RECONCILED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
@@ -27,6 +30,7 @@ public class UnattributedPaymentAttributionService {
   private final SavingsFundLedger savingsFundLedger;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final OutboundReturnVerifier outboundReturnVerifier;
+  private final BankAccounts bankAccounts;
 
   @Transactional
   public SavingFundPayment attribute(UUID paymentId, PartyId partyId, boolean returnCancelled) {
@@ -42,6 +46,11 @@ public class UnattributedPaymentAttributionService {
               + paymentId
               + ", status="
               + payment.getStatus());
+    }
+
+    if (receivedOnPayoutAccount(payment)) {
+      throw new IllegalStateException(
+          "Payment landed on the payout account and can only be returned: paymentId=" + paymentId);
     }
 
     outboundReturnVerifier.verifyAttributable(payment, returnCancelled);
@@ -89,5 +98,12 @@ public class UnattributedPaymentAttributionService {
     paymentRepository.attributeManually(paymentId, partyId);
 
     return paymentRepository.findById(paymentId).orElseThrow();
+  }
+
+  private boolean receivedOnPayoutAccount(SavingFundPayment payment) {
+    return bankAccounts
+        .find(payment.getBeneficiaryIban())
+        .filter(account -> account.matches(TKF100, WITHDRAWAL_EUR))
+        .isPresent();
   }
 }

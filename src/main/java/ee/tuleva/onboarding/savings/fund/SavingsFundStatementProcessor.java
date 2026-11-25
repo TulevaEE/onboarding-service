@@ -170,7 +170,7 @@ public class SavingsFundStatementProcessor {
           payment.getAmount());
     } else if (outgoingPaymentLookup.isOurs(payment.getEndToEndId())) {
       log.error(
-          "Payment sent from the payout account came back to it, needs manual handling: paymentId={}, endToEndId={}, amount={}",
+          "Payment sent by us came back to the payout account, needs manual handling: paymentId={}, endToEndId={}, amount={}",
           payment.getId(),
           payment.getEndToEndId(),
           payment.getAmount());
@@ -188,7 +188,9 @@ public class SavingsFundStatementProcessor {
 
   private Optional<SavingFundPayment> findPaymentThisReturns(SavingFundPayment payment) {
     return isOutgoingPayment(payment)
-        ? savingFundPaymentRepository.findOriginalPaymentForReturn(payment.getEndToEndId())
+        ? savingFundPaymentRepository
+            .findOriginalPaymentForReturn(payment.getEndToEndId())
+            .filter(original -> isSavingsFundAccount(original.getBeneficiaryIban(), WITHDRAWAL_EUR))
         : Optional.empty();
   }
 

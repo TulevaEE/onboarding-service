@@ -33,6 +33,24 @@ public class AdminTokenValidator {
     }
   }
 
+  public AdminAccess access(String token) {
+    if (adminApiToken.isBlank() && opsToken.isBlank()) {
+      throw new ResponseStatusException(SERVICE_UNAVAILABLE, "Admin API not configured");
+    }
+    if (matches(adminApiToken, token)) {
+      return AdminAccess.ADMIN;
+    }
+    if (matches(opsToken, token)) {
+      return AdminAccess.OPS;
+    }
+    throw new ResponseStatusException(UNAUTHORIZED, "Invalid admin token");
+  }
+
+  private static boolean matches(String configured, String token) {
+    return !configured.isBlank()
+        && MessageDigest.isEqual(configured.getBytes(UTF_8), token.getBytes(UTF_8));
+  }
+
   public void validateWithOpsAccess(String token) {
     boolean matchesAdmin =
         !adminApiToken.isBlank()

@@ -628,6 +628,25 @@ class SavingsFundLedgerTest {
   }
 
   @Test
+  void recordAdjustment_recordsWhichCredentialPostedIt() {
+    var transaction =
+        savingsFundLedger.recordAdjustment(
+            "PAYOUTS_CASH_CLEARING",
+            (PartyRef) null,
+            "UNRECONCILED_PAYOUT_ACCOUNT_RECEIPTS",
+            (PartyRef) null,
+            new BigDecimal("10.00"),
+            null,
+            "Payment received on the payout account by mistake",
+            "ops-token");
+
+    assertThat(transaction.getMetadata().get("recordedWith")).isEqualTo("ops-token");
+    assertThat(transaction.getMetadata().get("description"))
+        .isEqualTo("Payment received on the payout account by mistake");
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
   void recordAdjustment_userToSystem_createsCorrectLedgerEntries() {
     var amount = new BigDecimal("25.00");
     var paymentId = randomUUID();

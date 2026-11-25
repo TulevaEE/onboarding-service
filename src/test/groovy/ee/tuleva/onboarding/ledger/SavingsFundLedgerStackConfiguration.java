@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Import;
   UnattributedPaymentLedgerRecorder.class,
   UnitTransferLedgerRecorder.class,
   SavingsFundLedger.class,
+  PayoutAccountReceiptLedger.class,
   LedgerCashAmounts.class,
   ClockConfig.class
 })

@@ -36,6 +36,7 @@ import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.InternalTransferLedger;
 import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.ledger.PartyRef;
+import ee.tuleva.onboarding.ledger.PayoutAccountReceiptLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.party.PartyId;
@@ -94,6 +95,7 @@ class SavingsFundStatementProcessorTest {
           paymentCheckService);
   SavingFundPaymentRepository savingFundPaymentRepository = mock(SavingFundPaymentRepository.class);
   OutgoingPaymentLookup outgoingPaymentLookup = mock(OutgoingPaymentLookup.class);
+  PayoutAccountReceiptLedger payoutAccountReceiptLedger = mock(PayoutAccountReceiptLedger.class);
 
   SavingsFundStatementProcessor processor =
       new SavingsFundStatementProcessor(
@@ -108,7 +110,8 @@ class SavingsFundStatementProcessorTest {
           outgoingPaymentMatcher,
           redemptionPayoutRecorder,
           savingFundPaymentRepository,
-          outgoingPaymentLookup);
+          outgoingPaymentLookup,
+          payoutAccountReceiptLedger);
 
   @Test
   void outgoingToFundAccount_createsLedgerTransferEntryWithBookingDate() {
@@ -758,8 +761,8 @@ class SavingsFundStatementProcessorTest {
     assertThat(insertedStatus).isEqualTo(TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(incomingPayment.getId(), "väljamaksete kontole ei saa sissemakseid teha");
-    verify(savingsFundLedger)
-        .recordUnattributedPayoutAccountReceipt(
+    verify(payoutAccountReceiptLedger)
+        .recordReceipt(
             new BigDecimal("1006.87"), incomingPayment.getId(), LocalDate.of(2025, 10, 1));
     verifyNoInteractions(paymentCheckService);
   }
@@ -782,7 +785,7 @@ class SavingsFundStatementProcessorTest {
 
     assertThat(insertedStatus).isEqualTo(PROCESSED);
     verify(savingFundPaymentRepository, never()).addReturnReason(any(), any());
-    verify(savingsFundLedger, never()).recordUnattributedPayoutAccountReceipt(any(), any(), any());
+    verify(payoutAccountReceiptLedger, never()).recordReceipt(any(), any(), any());
     verify(paymentCheckService)
         .record(
             UNMODELLED_DEBIT,
@@ -821,8 +824,8 @@ class SavingsFundStatementProcessorTest {
     processor.process(bankStatement, statementAccount);
 
     assertThat(insertedStatus).isEqualTo(PROCESSED);
-    verify(savingsFundLedger)
-        .bounceBackUnattributedPayoutAccountReceipt(
+    verify(payoutAccountReceiptLedger)
+        .recordReturn(
             new BigDecimal("1006.87"), originalPayment.getId(), LocalDate.of(2026, 11, 26));
     verify(savingFundPaymentRepository).changeStatus(originalPayment.getId(), RETURNED);
     verify(paymentCheckService, never()).record(eq(PAYOUT_WITHOUT_REQUEST), eq(HOLD), any(), any());
@@ -857,8 +860,7 @@ class SavingsFundStatementProcessorTest {
 
     processor.process(bankStatement, statementAccount);
 
-    verify(savingsFundLedger, never())
-        .bounceBackUnattributedPayoutAccountReceipt(any(), any(), any());
+    verify(payoutAccountReceiptLedger, never()).recordReturn(any(), any(), any());
     verify(savingFundPaymentRepository, never()).changeStatus(any(), any());
     verify(paymentCheckService)
         .record(
@@ -896,8 +898,7 @@ class SavingsFundStatementProcessorTest {
 
     processor.process(bankStatement, statementAccount);
 
-    verify(savingsFundLedger, never())
-        .bounceBackUnattributedPayoutAccountReceipt(any(), any(), any());
+    verify(payoutAccountReceiptLedger, never()).recordReturn(any(), any(), any());
     verify(paymentCheckService)
         .record(
             PAYOUT_WITHOUT_REQUEST,

@@ -22,6 +22,7 @@ import ee.tuleva.onboarding.banking.event.BankMessageEvents.SavingsFundStatement
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentLookup;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
+import ee.tuleva.onboarding.ledger.PayoutAccountReceiptLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionPayoutRecorder;
@@ -53,6 +54,7 @@ public class SavingsFundStatementProcessor {
   private final RedemptionPayoutRecorder redemptionPayoutRecorder;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final OutgoingPaymentLookup outgoingPaymentLookup;
+  private final PayoutAccountReceiptLedger payoutAccountReceiptLedger;
 
   @EventListener
   public void onStatementReceived(SavingsFundStatementReceived event) {
@@ -201,7 +203,7 @@ public class SavingsFundStatementProcessor {
         "Return of a payment received on the payout account left the account: returnedPaymentId={}, amount={}",
         returnedPayment.getId(),
         returnPayment.getAmount());
-    savingsFundLedger.bounceBackUnattributedPayoutAccountReceipt(
+    payoutAccountReceiptLedger.recordReturn(
         returnedPayment.getAmount(), returnedPayment.getId(), returnPayment.bookingDateOrThrow());
     if (returnedPayment.getStatus() == TO_BE_RETURNED) {
       savingFundPaymentRepository.changeStatus(returnedPayment.getId(), RETURNED);
@@ -213,7 +215,7 @@ public class SavingsFundStatementProcessor {
         "Payment received on the payout account, returning it to the payer: paymentId={}, amount={}",
         payment.getId(),
         payment.getAmount());
-    savingsFundLedger.recordUnattributedPayoutAccountReceipt(
+    payoutAccountReceiptLedger.recordReceipt(
         payment.getAmount(), payment.getId(), payment.bookingDateOrThrow());
     savingFundPaymentRepository.addReturnReason(payment.getId(), PAYOUT_ACCOUNT_TAKES_NO_DEPOSITS);
   }

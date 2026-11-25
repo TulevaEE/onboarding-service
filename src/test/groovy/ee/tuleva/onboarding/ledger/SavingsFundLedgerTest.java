@@ -37,6 +37,7 @@ class SavingsFundLedgerTest {
   @Autowired LedgerService ledgerService;
   @Autowired LedgerAccountService ledgerAccountService;
   @Autowired SavingsFundLedger savingsFundLedger;
+  @Autowired PayoutAccountReceiptLedger payoutAccountReceiptLedger;
 
   PartyRef testParty = new PartyRef(PERSON, "38001010001");
 
@@ -236,7 +237,7 @@ class SavingsFundLedgerTest {
   }
 
   @Test
-  void recordUnattributedPayoutAccountReceipt_parksCashThatLandedOnThePayoutAccount() {
+  void payoutAccountReceipt_parksCashThatLandedOnThePayoutAccount() {
     var amount = new BigDecimal("1006.87");
     var externalReference = randomUUID();
     var unreconciledBefore = getUnreconciledPayoutAccountReceiptsAccount().getBalance();
@@ -245,7 +246,7 @@ class SavingsFundLedgerTest {
     var depositParkingBefore = getUnreconciledBankReceiptsAccount().getBalance();
 
     var transaction =
-        savingsFundLedger.recordUnattributedPayoutAccountReceipt(
+        payoutAccountReceiptLedger.recordReceipt(
             amount, externalReference, LocalDate.of(2026, 11, 19));
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("UNATTRIBUTED_PAYMENT");
@@ -261,16 +262,15 @@ class SavingsFundLedgerTest {
   }
 
   @Test
-  void bounceBackUnattributedPayoutAccountReceipt_takesTheCashBackOffThePayoutAccount() {
+  void payoutAccountReturn_takesTheCashBackOffThePayoutAccount() {
     var amount = new BigDecimal("1006.87");
     var externalReference = randomUUID();
     var unreconciledBefore = getUnreconciledPayoutAccountReceiptsAccount().getBalance();
     var payoutsBefore = getPayoutsCashClearingAccount().getBalance();
-    savingsFundLedger.recordUnattributedPayoutAccountReceipt(
-        amount, externalReference, LocalDate.of(2026, 11, 19));
+    payoutAccountReceiptLedger.recordReceipt(amount, externalReference, LocalDate.of(2026, 11, 19));
 
     var transaction =
-        savingsFundLedger.bounceBackUnattributedPayoutAccountReceipt(
+        payoutAccountReceiptLedger.recordReturn(
             amount, externalReference, LocalDate.of(2026, 11, 20));
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_BOUNCE_BACK");
@@ -284,15 +284,14 @@ class SavingsFundLedgerTest {
   }
 
   @Test
-  void bounceBackUnattributedPayoutAccountReceipt_parksTheReceiptFirstWhenMissing() {
+  void payoutAccountReturn_parksTheReceiptFirstWhenMissing() {
     var amount = new BigDecimal("40.00");
     var externalReference = randomUUID();
     var unreconciledBefore = getUnreconciledPayoutAccountReceiptsAccount().getBalance();
     var payoutsBefore = getPayoutsCashClearingAccount().getBalance();
     var incomingBefore = getIncomingPaymentsClearingAccount().getBalance();
 
-    savingsFundLedger.bounceBackUnattributedPayoutAccountReceipt(
-        amount, externalReference, LocalDate.of(2026, 11, 20));
+    payoutAccountReceiptLedger.recordReturn(amount, externalReference, LocalDate.of(2026, 11, 20));
 
     assertThat(deltaSince(unreconciledBefore, getUnreconciledPayoutAccountReceiptsAccount()))
         .isEqualByComparingTo(ZERO);

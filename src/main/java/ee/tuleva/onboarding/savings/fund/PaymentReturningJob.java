@@ -60,7 +60,7 @@ public class PaymentReturningJob {
           }
         }
       } catch (Exception e) {
-        log.error("Payment return failed: paymentId={}", payment.getId(), e);
+        log.error("Payment return, freeze or screening failed: paymentId={}", payment.getId(), e);
       }
     }
     log.info("Payment returning job completed: payments={}", successCount);

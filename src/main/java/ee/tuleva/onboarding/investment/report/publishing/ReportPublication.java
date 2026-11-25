@@ -1,9 +1,6 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
-import java.net.URLDecoder;
 import java.time.YearMonth;
 import java.util.List;
 
@@ -34,7 +31,7 @@ sealed interface ReportPublication {
   static ReportPublication linking(
       TulevaFund fund, String reportUrl, YearMonth month, YearMonth lastMonth) {
     return FundReportMapping.forFund(fund)
-        .reportPeriodNamedBy(filename(reportUrl))
+        .reportPeriodLinkedBy(reportUrl)
         .filter(period -> !period.isAfter(lastMonth))
         .<ReportPublication>map(
             period ->
@@ -44,15 +41,11 @@ sealed interface ReportPublication {
         .orElseGet(() -> new ForeignFile(fund, reportUrl));
   }
 
-  private static String filename(String url) {
-    return URLDecoder.decode(url.substring(url.lastIndexOf('/') + 1), UTF_8);
-  }
-
   record Published(TulevaFund fund, String reportUrl) implements ReportPublication {
 
     @Override
     public String describe() {
-      return "%s: %s".formatted(fund.getCode(), filename(reportUrl));
+      return "%s: %s".formatted(fund.getCode(), FundReportMapping.filenameIn(reportUrl));
     }
   }
 
@@ -62,7 +55,7 @@ sealed interface ReportPublication {
     @Override
     public String describe() {
       return "%s: the fund page links %s, not the %s report"
-          .formatted(fund.getCode(), filename(reportUrl), required);
+          .formatted(fund.getCode(), FundReportMapping.filenameIn(reportUrl), required);
     }
   }
 
@@ -71,7 +64,7 @@ sealed interface ReportPublication {
     @Override
     public String describe() {
       return "%s: the fund page links %s, which is not this fund's investment report"
-          .formatted(fund.getCode(), filename(reportUrl));
+          .formatted(fund.getCode(), FundReportMapping.filenameIn(reportUrl));
     }
   }
 

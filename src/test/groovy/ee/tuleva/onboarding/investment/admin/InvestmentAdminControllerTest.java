@@ -37,6 +37,7 @@ import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -300,7 +301,8 @@ class InvestmentAdminControllerTest {
     var expectedResult =
         new InvestmentReportPublishingResult(
             Map.of("TUK75", "https://tuleva.ee/test.pdf"), true, List.of());
-    given(investmentReportPublisher.publish(YearMonth.of(2026, 3))).willReturn(expectedResult);
+    given(investmentReportPublisher.publish(YearMonth.of(2026, 3), Set.of()))
+        .willReturn(expectedResult);
 
     mockMvc
         .perform(
@@ -312,7 +314,7 @@ class InvestmentAdminControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.emailSent").value(true));
 
-    verify(investmentReportPublisher).publish(YearMonth.of(2026, 3));
+    verify(investmentReportPublisher).publish(YearMonth.of(2026, 3), Set.of());
   }
 
   @Test
@@ -322,7 +324,8 @@ class InvestmentAdminControllerTest {
     given(clock.getZone()).willReturn(ZoneId.of("UTC"));
 
     var expectedResult = new InvestmentReportPublishingResult(Map.of(), false, List.of());
-    given(investmentReportPublisher.publish(YearMonth.of(2026, 3))).willReturn(expectedResult);
+    given(investmentReportPublisher.publish(YearMonth.of(2026, 3), Set.of()))
+        .willReturn(expectedResult);
 
     mockMvc
         .perform(
@@ -331,7 +334,49 @@ class InvestmentAdminControllerTest {
                 .header("X-Admin-Token", "valid-token"))
         .andExpect(status().isOk());
 
-    verify(investmentReportPublisher).publish(YearMonth.of(2026, 3));
+    verify(investmentReportPublisher).publish(YearMonth.of(2026, 3), Set.of());
+  }
+
+  @Test
+  void publishInvestmentReports_replacesOnlyTheUnrecognisedFilesItIsGiven() throws Exception {
+    given(clock.instant()).willReturn(Instant.parse("2026-04-15T10:00:00Z"));
+    given(clock.getZone()).willReturn(ZoneId.of("UTC"));
+    var handNamed = "https://tuleva.ee/wp-content/uploads/2026/04/aruanne-marts.pdf";
+    var anotherHandNamed = "https://tuleva.ee/wp-content/uploads/2026/04/aruanne-marts-2.pdf";
+    given(
+            investmentReportPublisher.publish(
+                YearMonth.of(2026, 3), Set.of(handNamed, anotherHandNamed)))
+        .willReturn(new InvestmentReportPublishingResult(Map.of(), true, List.of()));
+
+    mockMvc
+        .perform(
+            post("/admin/publish-investment-reports")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("month", "3")
+                .param("year", "2026")
+                .param("replaceUnrecognised", handNamed)
+                .param("replaceUnrecognised", anotherHandNamed))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.emailSent").value(true));
+
+    verify(investmentReportPublisher)
+        .publish(YearMonth.of(2026, 3), Set.of(handNamed, anotherHandNamed));
+  }
+
+  @Test
+  void publishInvestmentReports_rejectsReplaceUnrecognisedValuesThatAreNotUrls() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/publish-investment-reports")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("month", "3")
+                .param("year", "2026")
+                .param("replaceUnrecognised", "true"))
+        .andExpect(status().isBadRequest());
+
+    verify(investmentReportPublisher, never()).publish(any(), any());
   }
 
   @Test
@@ -343,7 +388,7 @@ class InvestmentAdminControllerTest {
                 .header("X-Admin-Token", "wrong-token"))
         .andExpect(status().isUnauthorized());
 
-    verify(investmentReportPublisher, never()).publish(any());
+    verify(investmentReportPublisher, never()).publish(any(), any());
   }
 
   @Test
@@ -357,7 +402,7 @@ class InvestmentAdminControllerTest {
                 .param("year", "2026"))
         .andExpect(status().isBadRequest());
 
-    verify(investmentReportPublisher, never()).publish(any());
+    verify(investmentReportPublisher, never()).publish(any(), any());
   }
 
   @Test
@@ -374,7 +419,7 @@ class InvestmentAdminControllerTest {
                 .param("year", "2026"))
         .andExpect(status().isBadRequest());
 
-    verify(investmentReportPublisher, never()).publish(any());
+    verify(investmentReportPublisher, never()).publish(any(), any());
   }
 
   @Test

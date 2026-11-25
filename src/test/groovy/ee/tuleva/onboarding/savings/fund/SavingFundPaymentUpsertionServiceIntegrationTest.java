@@ -9,11 +9,13 @@ import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
+import static ee.tuleva.onboarding.ledger.SystemAccount.UNRECONCILED_PAYOUT_ACCOUNT_RECEIPTS;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedSavingsPaymentTokenWithout;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.CREATED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.PROCESSED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RECEIVED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.util.stream.Collectors.toSet;
@@ -267,7 +269,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
   }
 
   @Test
-  void paymentsFromNonDepositAccountsAreAlsoSavedButDirectlyProcessed() {
+  void aPaymentFromOutsideIntoThePayoutAccountIsParkedInTheLedgerAndMarkedForReturn() {
     // given - XML with WITHDRAWAL_EUR account IBAN
     var withdrawalAccountIban =
         bankAccounts.getIban(TKF100, ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR);
@@ -319,14 +321,20 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     // when
     processXmlMessage(withdrawalAccountXml);
 
-    // then - payment is created and directly goes to PROCESSED status
     var payments =
         paymentsCreatedFromXml(
             paymentIdsBefore, "EE111222333444555666", "Payment to withdrawal account");
     assertThat(payments).hasSize(1);
     var savedPayment = payments.getFirst();
     assertThat(savedPayment.getAmount()).isEqualByComparingTo(new BigDecimal("200.00"));
-    assertThat(savedPayment.getStatus()).isEqualTo(PROCESSED);
+    assertThat(savedPayment.getStatus()).isEqualTo(TO_BE_RETURNED);
+    assertThat(savedPayment.getReturnReason())
+        .isEqualTo("väljamaksete kontole ei saa sissemakseid teha");
+    assertThat(
+            ledgerService
+                .getSystemAccount(UNRECONCILED_PAYOUT_ACCOUNT_RECEIPTS, TKF100)
+                .getBalance())
+        .isEqualByComparingTo(new BigDecimal("-200.00"));
   }
 
   @Test

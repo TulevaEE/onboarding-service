@@ -42,28 +42,21 @@ public class PaymentReturningJob {
         block(payment, blockingReason.get());
         continue;
       }
-      switch (payoutAccountPayerScreening.screen(payment)) {
-        case SANCTION_HIT -> freeze(payment);
-        case UNAVAILABLE ->
-            block(payment, "Payer sanctions screening is unavailable, try again later");
-        case CLEAR, PEP_HIT, NOT_CHECKED -> {
-          if (sendReturn(payment)) {
+      try {
+        switch (payoutAccountPayerScreening.screen(payment)) {
+          case SANCTION_HIT -> freeze(payment);
+          case UNAVAILABLE ->
+              block(payment, "Payer sanctions screening is unavailable, try again later");
+          case CLEAR, PEP_HIT, NOT_CHECKED -> {
+            paymentReturningService.createReturn(payment);
             successCount++;
           }
         }
+      } catch (Exception e) {
+        log.error("Payment return failed: paymentId={}", payment.getId(), e);
       }
     }
     log.info("Payment returning job completed: payments={}", successCount);
-  }
-
-  private boolean sendReturn(SavingFundPayment payment) {
-    try {
-      paymentReturningService.createReturn(payment);
-      return true;
-    } catch (Exception e) {
-      log.error("Payment return failed: paymentId={}", payment.getId(), e);
-      return false;
-    }
   }
 
   private void freeze(SavingFundPayment payment) {

@@ -810,7 +810,7 @@ class SavingsFundStatementProcessorTest {
             .amount(new BigDecimal("-1006.87"))
             .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
             .endToEndId(returnEndToEndId)
-            .receivedBefore(Instant.parse("2026-11-26T09:00:00Z"))
+            .receivedBefore(Instant.parse("2026-11-20T09:00:00Z"))
             .build();
     var bankStatement =
         setupMocksForPaymentWithAccount(returnPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
@@ -826,7 +826,7 @@ class SavingsFundStatementProcessorTest {
     assertThat(insertedStatus).isEqualTo(PROCESSED);
     verify(payoutAccountReceiptLedger)
         .recordReturn(
-            new BigDecimal("1006.87"), originalPayment.getId(), LocalDate.of(2026, 11, 26));
+            new BigDecimal("1006.87"), originalPayment.getId(), LocalDate.of(2026, 11, 20));
     verify(savingFundPaymentRepository).changeStatus(originalPayment.getId(), RETURNED);
     verify(paymentCheckService, never()).record(eq(PAYOUT_WITHOUT_REQUEST), eq(HOLD), any(), any());
     verify(savingsFundLedger, never()).recordRedemptionPayout(any(), any(), any(), any(), any());
@@ -848,7 +848,7 @@ class SavingsFundStatementProcessorTest {
             .amount(new BigDecimal("-75.00"))
             .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
             .endToEndId(endToEndId)
-            .receivedBefore(Instant.parse("2026-11-26T09:00:00Z"))
+            .receivedBefore(Instant.parse("2026-11-20T09:00:00Z"))
             .build();
     var bankStatement =
         setupMocksForPaymentWithAccount(debit, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
@@ -885,7 +885,7 @@ class SavingsFundStatementProcessorTest {
             .amount(new BigDecimal("-90.00"))
             .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
             .endToEndId(endToEndId)
-            .receivedBefore(Instant.parse("2026-11-26T09:00:00Z"))
+            .receivedBefore(Instant.parse("2026-11-20T09:00:00Z"))
             .build();
     var bankStatement =
         setupMocksForPaymentWithAccount(debit, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);

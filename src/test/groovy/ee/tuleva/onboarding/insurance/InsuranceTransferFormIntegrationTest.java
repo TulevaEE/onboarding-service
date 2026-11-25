@@ -5,10 +5,8 @@ import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixt
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
-import static org.mockito.BDDMockito.willReturn;
 import static org.mockito.Mockito.never;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -19,10 +17,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.email.AtMostOnceEmailSender;
+import ee.tuleva.onboarding.notification.email.EmailSendResult;
 import ee.tuleva.onboarding.signature.DigiDocFacade;
 import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
@@ -34,7 +32,6 @@ import jakarta.servlet.http.Cookie;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import org.apache.commons.io.IOUtils;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -54,7 +51,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -74,7 +70,7 @@ class InsuranceTransferFormIntegrationTest {
 
   @MockitoBean private EpisService episService;
   @MockitoBean private SmartIdSigner smartIdSigner;
-  @MockitoSpyBean private EmailService emailService;
+  @MockitoBean private AtMostOnceEmailSender insurerRequestEmailTransport;
 
   private final List<User> createdUsers = new ArrayList<>();
   private User ownerUser;
@@ -120,12 +116,12 @@ class InsuranceTransferFormIntegrationTest {
   }
 
   @Test
-  void signingWithSmartIdEmailsTheSignedFormOnceAndLetsTheOwnerDownloadIt() throws Exception {
+  void signingWithSmartIdEmailsTheSignedFormToTheInsurerOnceAndLetsTheOwnerDownloadIt()
+      throws Exception {
     long id = createCompensaForm();
     stubSmartIdSigningAroundARealContainer();
-    willReturn(Optional.of(new MandrillMessageStatus()))
-        .given(emailService)
-        .send(any(), any(), any());
+    given(insurerRequestEmailTransport.send(any()))
+        .willReturn(new EmailSendResult(EmailSendResult.Outcome.SENT, List.of(), null));
 
     var start =
         mvc.perform(
@@ -138,19 +134,18 @@ class InsuranceTransferFormIntegrationTest {
     pollSmartIdStatus(id, session);
     pollSmartIdStatus(id, session);
 
-    then(emailService)
+    then(insurerRequestEmailTransport)
         .should()
         .send(
-            any(),
             argThat(
                 message ->
-                    message.getTo().getFirst().getEmail().equals(ownerUser.getEmail())
+                    message.getTo().getFirst().getEmail().equals("info@compensalife.ee")
+                        && message.getTo().get(1).getEmail().equals(ownerUser.getEmail())
                         && message
                             .getAttachments()
                             .getFirst()
                             .getName()
-                            .equals("Tuleva_Compensa_avaldus.asice")),
-            eq("insurance_transfer_form_et"));
+                            .equals("Tuleva_Compensa_avaldus.asice")));
     mvc.perform(get("/v1/insurance-transfer-forms/{id}", id).with(authentication(owner)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("SIGNED"))
@@ -212,7 +207,7 @@ class InsuranceTransferFormIntegrationTest {
         .andExpect(jsonPath("$.errors[0].code").value("signature.session.entity.mismatch"));
     mvc.perform(get("/v1/insurance-transfer-forms/{id}", otherForm).with(authentication(owner)))
         .andExpect(jsonPath("$.status").value("CREATED"));
-    then(emailService).should(never()).send(any(), any(), any());
+    then(insurerRequestEmailTransport).should(never()).send(any());
   }
 
   private long createCompensaForm() throws Exception {

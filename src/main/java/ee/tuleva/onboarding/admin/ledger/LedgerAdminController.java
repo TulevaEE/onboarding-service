@@ -42,7 +42,7 @@ public class LedgerAdminController {
   public List<Map<String, String>> createAdjustments(
       @RequestHeader("X-Admin-Token") String token, @RequestBody List<AdjustmentRequest> requests) {
 
-    tokenValidator.validate(token);
+    tokenValidator.validateWithOpsAccess(token);
 
     log.info("Admin triggered adjustments: count={}", requests.size());
 

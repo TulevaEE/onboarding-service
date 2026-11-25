@@ -1,13 +1,17 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toList;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import org.jspecify.annotations.NullMarked;
 
 @NullMarked
-record PositionAdjustments(
-    List<DeductedSale> deductedSales, List<ManualPriceValuation> manualPriceValuations) {
+record PositionAdjustments(List<DeductedSale> deductedSales, List<PriceValuation> priceValuations) {
 
   static final PositionAdjustments NONE = new PositionAdjustments(List.of(), List.of());
 
@@ -16,11 +20,11 @@ record PositionAdjustments(
     if (!deductedSales.isEmpty()) {
       map.put("deductedSales", deductedSales.stream().map(DeductedSale::payload).toList());
     }
-    if (!manualPriceValuations.isEmpty()) {
-      map.put(
-          "manualPriceValuations",
-          manualPriceValuations.stream().map(ManualPriceValuation::payload).toList());
-    }
+    priceValuations.stream()
+        .collect(
+            groupingBy(
+                PriceValuation::kind, TreeMap::new, mapping(PriceValuation::payload, toList())))
+        .forEach((kind, payloads) -> map.put(kind.listKey(), payloads));
     return map;
   }
 }

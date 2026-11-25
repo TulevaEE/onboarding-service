@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
+import static ee.tuleva.onboarding.investment.transaction.PriceValuation.Kind.MANUAL_PRICE;
 import static ee.tuleva.onboarding.investment.transaction.TradePrepPricingFixture.noResolvedPrices;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
@@ -265,12 +266,13 @@ class PositionAssemblerTest {
                     new BigDecimal("225000"),
                     new BigDecimal("15000"),
                     new BigDecimal("15"))));
-    assertThat(assembled.adjustments().manualPriceValuations())
+    assertThat(assembled.adjustments().priceValuations())
         .usingRecursiveComparison(byValue())
         .isEqualTo(
             List.of(
-                new ManualPriceValuation(
+                new PriceValuation(
                     "IE00A",
+                    MANUAL_PRICE,
                     new BigDecimal("15000"),
                     new BigDecimal("300000"),
                     new BigDecimal("15"),
@@ -290,8 +292,8 @@ class PositionAssemblerTest {
         .satisfiesExactly(
             first -> assertThat(first.marketValue()).isEqualByComparingTo("100000"),
             second -> assertThat(second.marketValue()).isEqualByComparingTo("80000"));
-    assertThat(assembled.adjustments().manualPriceValuations())
-        .extracting(ManualPriceValuation::isin)
+    assertThat(assembled.adjustments().priceValuations())
+        .extracting(PriceValuation::isin)
         .containsExactly("IE00B");
   }
 
@@ -306,12 +308,13 @@ class PositionAssemblerTest {
     assertThat(assembled.positions())
         .usingRecursiveComparison(byValue())
         .isEqualTo(List.of(new PositionSnapshot("IE00A", new BigDecimal("100000"), null, null)));
-    assertThat(assembled.adjustments().manualPriceValuations())
+    assertThat(assembled.adjustments().priceValuations())
         .usingRecursiveComparison(byValue())
         .isEqualTo(
             List.of(
-                new ManualPriceValuation(
+                new PriceValuation(
                     "IE00A",
+                    MANUAL_PRICE,
                     null,
                     new BigDecimal("100000"),
                     new BigDecimal("15"),
@@ -374,12 +377,13 @@ class PositionAssemblerTest {
     assertThat(assembled.positions())
         .singleElement()
         .satisfies(position -> assertThat(position.marketValue()).isEqualByComparingTo("3000"));
-    assertThat(assembled.adjustments().manualPriceValuations())
+    assertThat(assembled.adjustments().priceValuations())
         .usingRecursiveComparison(byValue())
         .isEqualTo(
             List.of(
-                new ManualPriceValuation(
+                new PriceValuation(
                     "IE00N",
+                    MANUAL_PRICE,
                     new BigDecimal("200"),
                     new BigDecimal("2800"),
                     new BigDecimal("15"),
@@ -398,12 +402,13 @@ class PositionAssemblerTest {
             purchases(Map.of("IE00A", "25000"), Map.of(), Map.of("IE00A", "25000")),
             manualPrices(Map.of("IE00A", "15")));
 
-    assertThat(assembled.adjustments().manualPriceValuations())
+    assertThat(assembled.adjustments().priceValuations())
         .usingRecursiveComparison(byValue())
         .isEqualTo(
             List.of(
-                new ManualPriceValuation(
+                new PriceValuation(
                     "IE00A",
+                    MANUAL_PRICE,
                     new BigDecimal("1000"),
                     new BigDecimal("39000"),
                     new BigDecimal("15"),

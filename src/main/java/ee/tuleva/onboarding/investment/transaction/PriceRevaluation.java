@@ -10,36 +10,35 @@ import java.util.Objects;
 import org.jspecify.annotations.NullMarked;
 
 @NullMarked
-final class ManualPriceRevaluation {
+final class PriceRevaluation {
 
   private static final int CENTS = 2;
 
-  record Revalued(List<PositionSnapshot> positions, List<ManualPriceValuation> valuations) {}
+  record Revalued(List<PositionSnapshot> positions, List<PriceValuation> valuations) {}
 
-  private final Map<String, BigDecimal> manualPrices;
+  private final Map<String, RevaluationPrice> prices;
   private final Map<String, BigDecimal> valuesWithoutUnits;
 
-  private ManualPriceRevaluation(
-      Map<String, BigDecimal> manualPrices, Map<String, BigDecimal> valuesWithoutUnits) {
-    this.manualPrices = manualPrices;
+  private PriceRevaluation(
+      Map<String, RevaluationPrice> prices, Map<String, BigDecimal> valuesWithoutUnits) {
+    this.prices = prices;
     this.valuesWithoutUnits = valuesWithoutUnits;
   }
 
   static Revalued revalue(
       List<PositionSnapshot> positions,
-      Map<String, BigDecimal> manualPrices,
+      Map<String, RevaluationPrice> prices,
       Map<String, BigDecimal> valuesWithoutUnits) {
-    if (manualPrices.isEmpty()) {
+    if (prices.isEmpty()) {
       return new Revalued(positions, List.of());
     }
-    ManualPriceRevaluation revaluation =
-        new ManualPriceRevaluation(manualPrices, valuesWithoutUnits);
+    PriceRevaluation revaluation = new PriceRevaluation(prices, valuesWithoutUnits);
     List<PositionSnapshot> revalued = positions.stream().map(revaluation::revalued).toList();
-    List<ManualPriceValuation> valuations =
+    List<PriceValuation> valuations =
         positions.stream()
             .map(PositionSnapshot::isin)
             .filter(Objects::nonNull)
-            .filter(manualPrices::containsKey)
+            .filter(prices::containsKey)
             .distinct()
             .map(isin -> revaluation.valuation(isin, positions, revalued))
             .toList();
@@ -48,20 +47,20 @@ final class ManualPriceRevaluation {
 
   private PositionSnapshot revalued(PositionSnapshot position) {
     String isin = position.isin();
-    BigDecimal price = isin == null ? null : manualPrices.get(isin);
+    RevaluationPrice price = isin == null ? null : prices.get(isin);
     BigDecimal units = position.quantity();
     if (isin == null || price == null || units == null) {
       return position;
     }
     BigDecimal value =
         units
-            .multiply(price)
+            .multiply(price.value())
             .add(valuesWithoutUnits.getOrDefault(isin, ZERO))
             .setScale(CENTS, HALF_UP);
-    return new PositionSnapshot(isin, value, units, price);
+    return new PositionSnapshot(isin, value, units, price.value());
   }
 
-  private ManualPriceValuation valuation(
+  private PriceValuation valuation(
       String isin, List<PositionSnapshot> positions, List<PositionSnapshot> revalued) {
     BigDecimal units =
         positions.stream()
@@ -70,11 +69,13 @@ final class ManualPriceRevaluation {
             .filter(Objects::nonNull)
             .reduce(BigDecimal::add)
             .orElse(null);
-    return new ManualPriceValuation(
+    RevaluationPrice price = Objects.requireNonNull(prices.get(isin));
+    return new PriceValuation(
         isin,
+        price.kind(),
         units,
         valueOf(isin, positions),
-        Objects.requireNonNull(manualPrices.get(isin)),
+        price.value(),
         units == null ? ZERO : valuesWithoutUnits.getOrDefault(isin, ZERO),
         valueOf(isin, revalued));
   }

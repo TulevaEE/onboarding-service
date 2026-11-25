@@ -44,10 +44,10 @@ class PositionAssembler {
         sellableUnits(report, pendingOrders.unreportedSellQuantities());
     UnreportedSaleDeduction.Deducted deducted =
         UnreportedSaleDeduction.deduct(report, sellableUnits, pendingOrders.unreportedSellValues());
-    ManualPriceRevaluation.Revalued revalued =
-        ManualPriceRevaluation.revalue(
+    PriceRevaluation.Revalued revalued =
+        PriceRevaluation.revalue(
             applyUnreportedPurchases(deducted.positions(), pendingOrders),
-            pricing.manualPrices(),
+            pricing.revaluationPrices(),
             pendingOrders.unreportedBuyValuesWithoutUnits());
     return new Assembled(
         revalued.positions(),

@@ -4,8 +4,6 @@ import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexPrice;
-import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.ManualPrice;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
@@ -18,10 +16,16 @@ sealed interface TradePrepPricing {
 
   LocalDate stalenessReference(LocalDate asOfDate);
 
-  default Map<String, BigDecimal> manualPrices() {
+  default Map<String, RevaluationPrice> revaluationPrices() {
     return prices().entrySet().stream()
-        .filter(entry -> entry.getValue() instanceof ManualPrice)
-        .collect(toMap(Map.Entry::getKey, entry -> ((ManualPrice) entry.getValue()).value()));
+        .flatMap(
+            entry ->
+                entry
+                    .getValue()
+                    .revaluation()
+                    .map(price -> Map.entry(entry.getKey(), price))
+                    .stream())
+        .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
   default Optional<TradePrepPrice> resolve(

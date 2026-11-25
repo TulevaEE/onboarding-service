@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.transaction.PriceValuation.Kind.MANUAL_PRICE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionAuditPayloads.plain;
 import static ee.tuleva.onboarding.investment.transaction.TransactionAuditPayloads.putIfPresent;
 
@@ -7,6 +8,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -20,6 +22,10 @@ sealed interface TradePrepPrice {
   Map<String, Object> resolution(String isin);
 
   void describe(Map<String, Object> trade);
+
+  default Optional<RevaluationPrice> revaluation() {
+    return Optional.empty();
+  }
 
   record IndexPrice(ResolvedPrice resolved) implements TradePrepPrice {
 
@@ -73,6 +79,11 @@ sealed interface TradePrepPrice {
     public void describe(Map<String, Object> trade) {
       trade.put("price", override.price().toPlainString());
       trade.put("priceSource", MANUAL_SOURCE);
+    }
+
+    @Override
+    public Optional<RevaluationPrice> revaluation() {
+      return Optional.of(new RevaluationPrice(override.price(), MANUAL_PRICE));
     }
   }
 }

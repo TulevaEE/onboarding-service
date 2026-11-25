@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.transaction.IndexAdjustedFundPrices.Adjusted;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPrices;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoCommonPriceDate;
 import ee.tuleva.onboarding.investment.transaction.TradePrepPricing.FreshestPerInstrument;
@@ -34,10 +35,13 @@ class TradePrepPriceGate {
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   private final PositionPriceResolver positionPriceResolver;
   private final ManualPriceDeviations manualPriceDeviations;
+  private final IndexAdjustedFundPrices indexAdjustedFundPrices;
 
   PriceCheck check(TulevaFund fund, LocalDate asOfDate, TradePrepOverrides overrides) {
+    Optional<LocalDate> positionDate =
+        fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
     List<String> instruments =
-        Stream.concat(heldIsins(fund, asOfDate), modelIsins(fund, asOfDate))
+        Stream.concat(heldIsins(fund, positionDate), modelIsins(fund, asOfDate))
             .distinct()
             .sorted()
             .toList();
@@ -54,12 +58,13 @@ class TradePrepPriceGate {
             .filter(isin -> !indexPrices.containsKey(isin) && !manual.prices(isin))
             .toList();
     PriceDeviations deviations = manualPriceDeviations.check(asOfDate, overrides, indexPrices);
-    return priced(asOfDate, overrides, unpriced, manual, indexPrices, deviations)
+    return priced(asOfDate, positionDate, overrides, unpriced, manual, indexPrices, deviations)
         .withDeviations(deviations);
   }
 
   private PriceCheck priced(
       LocalDate asOfDate,
+      Optional<LocalDate> positionDate,
       TradePrepOverrides overrides,
       List<String> unpriced,
       ManualPrices manual,
@@ -70,10 +75,49 @@ class TradePrepPriceGate {
       return stoppedOnTheCommandsDate(
           new MissingPrices(unpriced), manual, deviations, indexPrices, unmanuallyPriced);
     }
-    if (overrides.priceDateRule() == PriceDateRule.FRESHEST_PER_INSTRUMENT
-        || unmanuallyPriced.isEmpty()) {
-      return passedOnTheCommandsDate(manual, deviations, indexPrices, unmanuallyPriced);
-    }
+    return switch (overrides.priceDateRule()) {
+      case FRESHEST_PER_INSTRUMENT ->
+          passedOnTheCommandsDate(manual, deviations, indexPrices, unmanuallyPriced);
+      case LATEST_COMMON_DATE ->
+          unmanuallyPriced.isEmpty()
+              ? passedOnTheCommandsDate(manual, deviations, indexPrices, unmanuallyPriced)
+              : onTheLatestCommonDate(
+                  asOfDate, overrides, manual, indexPrices, unmanuallyPriced, deviations);
+      case INDEX_ADJUSTED_FUNDS ->
+          indexFundsOnThePositionDate(
+              positionDate, manual, deviations, indexPrices, unmanuallyPriced);
+    };
+  }
+
+  private PriceCheck indexFundsOnThePositionDate(
+      Optional<LocalDate> positionDate,
+      ManualPrices manual,
+      PriceDeviations deviations,
+      Map<String, ResolvedPrice> indexPrices,
+      Map<String, ResolvedPrice> unmanuallyPriced) {
+    return positionDate
+        .map(
+            date -> {
+              Adjusted adjusted =
+                  indexAdjustedFundPrices.onPositionDate(unmanuallyPriced.keySet(), date);
+              return new PriceCheck(
+                  adjusted.failures(date),
+                  new FreshestPerInstrument(
+                      adjusted.over(manual.withIndexPrices(unmanuallyPriced))),
+                  manual.uses(deviations, indexPrices),
+                  List.of());
+            })
+        .orElseGet(
+            () -> passedOnTheCommandsDate(manual, deviations, indexPrices, unmanuallyPriced));
+  }
+
+  private PriceCheck onTheLatestCommonDate(
+      LocalDate asOfDate,
+      TradePrepOverrides overrides,
+      ManualPrices manual,
+      Map<String, ResolvedPrice> indexPrices,
+      Map<String, ResolvedPrice> unmanuallyPriced,
+      PriceDeviations deviations) {
     return latestCommonDate(unmanuallyPriced, asOfDate)
         .map(
             common ->
@@ -182,9 +226,9 @@ class TradePrepPriceGate {
         .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
-  private Stream<String> heldIsins(TulevaFund fund, LocalDate asOfDate) {
-    return fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOfDate).stream()
-        .flatMap(positionDate -> positionAssembler.reportPositions(fund, positionDate).stream())
+  private Stream<String> heldIsins(TulevaFund fund, Optional<LocalDate> positionDate) {
+    return positionDate.stream()
+        .flatMap(date -> positionAssembler.reportPositions(fund, date).stream())
         .filter(TradePrepPriceGate::isNotSoldOut)
         .map(PositionSnapshot::isin)
         .filter(Objects::nonNull);

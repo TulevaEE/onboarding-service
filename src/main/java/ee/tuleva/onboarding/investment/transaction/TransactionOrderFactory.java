@@ -4,7 +4,9 @@ import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexAdjustedPrice;
 import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.ManualPrice;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -153,9 +155,13 @@ public class TransactionOrderFactory {
     }
     BigDecimal quantity = OrderUnits.of(instrumentType, transactionType, orderAmount, value);
     String stalePriceComment =
-        price instanceof IndexPrice index
-            ? describeIfStale(isin, index.resolved(), pricing.stalenessReference(asOfDate))
-            : null;
+        switch (price) {
+          case IndexPrice index ->
+              describeIfStale(isin, index.resolved(), pricing.stalenessReference(asOfDate));
+          case IndexAdjustedPrice adjusted ->
+              describeIfStale(isin, adjusted.fundPrice(), adjusted.positionDate());
+          case ManualPrice _ -> null;
+        };
     return new OrderQuantity(quantity, stalePriceComment, price);
   }
 

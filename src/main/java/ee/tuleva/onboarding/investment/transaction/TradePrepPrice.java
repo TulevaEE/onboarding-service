@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.transaction.PriceValuation.Kind.MANUAL_PRICE;
+import static ee.tuleva.onboarding.investment.transaction.PriceValuation.Kind.POSITION_DATE_PRICE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionAuditPayloads.plain;
 import static ee.tuleva.onboarding.investment.transaction.TransactionAuditPayloads.putIfPresent;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -16,6 +18,7 @@ import org.jspecify.annotations.Nullable;
 sealed interface TradePrepPrice {
 
   String MANUAL_SOURCE = "MANUAL";
+  String INDEX_ADJUSTED_SOURCE = "INDEX_ADJUSTED";
 
   @Nullable BigDecimal value();
 
@@ -84,6 +87,57 @@ sealed interface TradePrepPrice {
     @Override
     public Optional<RevaluationPrice> revaluation() {
       return Optional.of(new RevaluationPrice(override.price(), MANUAL_PRICE));
+    }
+  }
+
+  record IndexMove(
+      String indexKey, BigDecimal levelOnFundPriceDate, BigDecimal levelOnPositionDate) {}
+
+  record IndexAdjustedPrice(
+      ResolvedPrice fundPrice, LocalDate positionDate, @Nullable IndexMove move, BigDecimal value)
+      implements TradePrepPrice {
+
+    @Override
+    public Map<String, Object> resolution(String isin) {
+      Map<String, Object> map = new LinkedHashMap<>();
+      map.put("isin", isin);
+      map.put("price", value.toPlainString());
+      map.put("priceDate", positionDate.toString());
+      putIfPresent(map, "priceSource", priceSource());
+      putIfPresent(map, "fundPrice", plain(fundPrice.usedPrice()));
+      putIfPresent(
+          map,
+          "fundPriceDate",
+          fundPrice.priceDate() == null ? null : fundPrice.priceDate().toString());
+      putIfPresent(
+          map,
+          "fundPriceValidationStatus",
+          fundPrice.validationStatus() == null ? null : fundPrice.validationStatus().name());
+      IndexMove indexMove = move;
+      if (indexMove != null) {
+        map.put("index", indexMove.indexKey());
+        map.put("indexLevelOnFundPriceDate", indexMove.levelOnFundPriceDate().toPlainString());
+        map.put("indexLevelOnPositionDate", indexMove.levelOnPositionDate().toPlainString());
+      }
+      return map;
+    }
+
+    @Override
+    public void describe(Map<String, Object> trade) {
+      trade.put("price", value.toPlainString());
+      putIfPresent(trade, "priceSource", priceSource());
+    }
+
+    @Override
+    public Optional<RevaluationPrice> revaluation() {
+      return Optional.of(new RevaluationPrice(value, POSITION_DATE_PRICE));
+    }
+
+    private @Nullable String priceSource() {
+      if (move != null) {
+        return INDEX_ADJUSTED_SOURCE;
+      }
+      return fundPrice.priceSource() == null ? null : fundPrice.priceSource().name();
     }
   }
 }

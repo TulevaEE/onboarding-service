@@ -118,6 +118,29 @@ sealed interface InputGateFailure {
     }
   }
 
+  record MissingIndexLevels(List<MissingIndexLevel> levels) implements InputGateFailure {
+
+    @Override
+    public String slackLine() {
+      return "Indeksi tase puudub: %s: oota MSCI taset või vali teine hinnapäeva reegel"
+          .formatted(
+              levels.stream()
+                  .map(
+                      level -> "%s (%s %s)".formatted(level.isin(), level.indexKey(), level.date()))
+                  .collect(joining(", ")));
+    }
+  }
+
+  record NoFundPriceOnPositionDate(List<String> isins, LocalDate positionDate)
+      implements InputGateFailure {
+
+    @Override
+    public String slackLine() {
+      return "Fondi hind puudub positsiooniraporti päevaks %s: %s: kontrolli hinnaallikaid või vali teine hinnapäeva reegel"
+          .formatted(positionDate, String.join(", ", isins));
+    }
+  }
+
   record NoCommonPriceDate(LocalDate from, LocalDate to) implements InputGateFailure {
 
     @Override

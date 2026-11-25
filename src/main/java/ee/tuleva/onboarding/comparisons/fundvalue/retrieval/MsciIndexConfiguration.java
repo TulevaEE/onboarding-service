@@ -12,6 +12,8 @@ class MsciIndexConfiguration {
   static final String MSCI_ACWI_KEY = "MSCI_ACWI";
   static final String MSCI_WORLD_KEY = "MSCI_WORLD";
   static final String MSCI_EM_KEY = "MSCI_EM";
+  static final String MSCI_WORLD_SCREENED_KEY = "MSCI_WORLD_SCREENED";
+  static final String MSCI_EM_EX_SELECT_CONTROVERSIES_KEY = "MSCI_EM_EX_SELECT_CONTROVERSIES";
 
   @Bean
   MsciIndexRetriever msciAcwiIndexRetriever(
@@ -29,5 +31,19 @@ class MsciIndexConfiguration {
   MsciIndexRetriever msciEmIndexRetriever(
       RestClient.Builder restClientBuilder, JsonMapper jsonMapper, Clock clock) {
     return new MsciIndexRetriever(MSCI_EM_KEY, "891800", restClientBuilder, jsonMapper, clock);
+  }
+
+  @Bean
+  MsciIndexRetriever msciWorldScreenedIndexRetriever(
+      RestClient.Builder restClientBuilder, JsonMapper jsonMapper, Clock clock) {
+    return new MsciIndexRetriever(
+        MSCI_WORLD_SCREENED_KEY, "721415", restClientBuilder, jsonMapper, clock);
+  }
+
+  @Bean
+  MsciIndexRetriever msciEmExSelectControversiesIndexRetriever(
+      RestClient.Builder restClientBuilder, JsonMapper jsonMapper, Clock clock) {
+    return new MsciIndexRetriever(
+        MSCI_EM_EX_SELECT_CONTROVERSIES_KEY, "726578", restClientBuilder, jsonMapper, clock);
   }
 }

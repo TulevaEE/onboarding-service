@@ -12,15 +12,21 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willReturn;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.transaction.IndexAdjustedFundPrices.Adjusted;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.ManualPriceDeviates;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingIndexLevels;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPrices;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoCommonPriceDate;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoFundPriceOnPositionDate;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexAdjustedPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexMove;
 import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexPrice;
 import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.ManualPrice;
 import ee.tuleva.onboarding.investment.transaction.TradePrepPricing.FreshestPerInstrument;
@@ -49,6 +55,7 @@ class TradePrepPriceGateTest {
   @Mock private ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   @Mock private PositionPriceResolver positionPriceResolver;
   @Mock private ManualPriceDeviations manualPriceDeviations;
+  @Mock private IndexAdjustedFundPrices indexAdjustedFundPrices;
 
   @InjectMocks private TradePrepPriceGate gates;
 
@@ -383,6 +390,120 @@ class TradePrepPriceGateTest {
     assertThat(check.failures())
         .containsExactly(new ManualPriceDeviates(List.of(unconfirmed), List.of()));
     assertThat(check.confirmedDeviations()).containsExactly(confirmed);
+  }
+
+  @Test
+  void theIndexAdjustedRuleValuesTheIndexFundsOnThePositionDateAndTheRestAtTheirFreshestPrice() {
+    givenHeld("ETF", "INDEX_FUND");
+    givenModel();
+    givenPrice("ETF", "100.00");
+    givenPrice("INDEX_FUND", "20.00");
+    var adjusted = adjustedPrice("INDEX_FUND", "20.20");
+    given(indexAdjustedFundPrices.onPositionDate(Set.of("ETF", "INDEX_FUND"), POSITION_DATE))
+        .willReturn(new Adjusted(Map.of("INDEX_FUND", adjusted), List.of(), List.of()));
+
+    var check = gates.check(TKF100, TRADE_DATE, indexAdjusted());
+
+    assertThat(check)
+        .isEqualTo(
+            new PriceCheck(
+                List.of(),
+                new FreshestPerInstrument(
+                    Map.of(
+                        "ETF",
+                        new IndexPrice(priceOn(POSITION_DATE, "100.00")),
+                        "INDEX_FUND",
+                        adjusted)),
+                List.of(),
+                List.of()));
+  }
+
+  @Test
+  void theIndexAdjustedRuleStopsTheFundWhenAnIndexLevelIsMissing() {
+    givenHeld("INDEX_FUND");
+    givenModel();
+    givenPrice("INDEX_FUND", "20.00");
+    var missing =
+        new MissingIndexLevel("INDEX_FUND", "MSCI_EM_EX_SELECT_CONTROVERSIES", POSITION_DATE);
+    given(indexAdjustedFundPrices.onPositionDate(Set.of("INDEX_FUND"), POSITION_DATE))
+        .willReturn(new Adjusted(Map.of(), List.of(missing), List.of()));
+
+    var check = gates.check(TKF100, TRADE_DATE, indexAdjusted());
+
+    assertThat(check.failures()).containsExactly(new MissingIndexLevels(List.of(missing)));
+    assertThat(check.pricing())
+        .isEqualTo(
+            new FreshestPerInstrument(
+                Map.of("INDEX_FUND", new IndexPrice(priceOn(POSITION_DATE, "20.00")))));
+  }
+
+  @Test
+  void theIndexAdjustedRuleStopsTheFundWhenAnIndexFundHasNoNavOnOrBeforeThePositionDate() {
+    givenHeld("INDEX_FUND");
+    givenModel();
+    givenPrice("INDEX_FUND", "20.00");
+    given(indexAdjustedFundPrices.onPositionDate(Set.of("INDEX_FUND"), POSITION_DATE))
+        .willReturn(new Adjusted(Map.of(), List.of(), List.of("INDEX_FUND")));
+
+    var check = gates.check(TKF100, TRADE_DATE, indexAdjusted());
+
+    assertThat(check.failures())
+        .containsExactly(new NoFundPriceOnPositionDate(List.of("INDEX_FUND"), POSITION_DATE));
+  }
+
+  @Test
+  void underTheIndexAdjustedRuleAManualPriceStillWinsAndIsNotAdjusted() {
+    givenHeld("ETF", "INDEX_FUND");
+    givenModel();
+    givenPrice("ETF", "100.00");
+    givenPrice("INDEX_FUND", "20.00");
+    var manual = new PriceOverride("INDEX_FUND", new BigDecimal("20.5"), "Issuer's NAV");
+    given(indexAdjustedFundPrices.onPositionDate(Set.of("ETF"), POSITION_DATE))
+        .willReturn(Adjusted.NONE);
+
+    var check =
+        gates.check(
+            TKF100,
+            TRADE_DATE,
+            new TradePrepOverrides(
+                Set.of(), List.of(manual), null, PriceDateRule.INDEX_ADJUSTED_FUNDS, List.of()));
+
+    assertThat(check.pricing())
+        .isEqualTo(
+            new FreshestPerInstrument(
+                Map.of(
+                    "ETF", new IndexPrice(priceOn(POSITION_DATE, "100.00")),
+                    "INDEX_FUND", new ManualPrice(manual))));
+  }
+
+  @Test
+  void withoutAPositionReportTheIndexAdjustedRuleHasNothingToValueAndKeepsTheFreshestPrices() {
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, TRADE_DATE))
+        .willReturn(Optional.empty());
+    givenModel(model("INDEX_FUND", "1"));
+    givenPrice("INDEX_FUND", "20.00");
+
+    var check = gates.check(TKF100, TRADE_DATE, indexAdjusted());
+
+    assertThat(check.failures()).isEmpty();
+    assertThat(check.pricing())
+        .isEqualTo(
+            new FreshestPerInstrument(
+                Map.of("INDEX_FUND", new IndexPrice(priceOn(POSITION_DATE, "20.00")))));
+    verifyNoInteractions(indexAdjustedFundPrices);
+  }
+
+  private static TradePrepOverrides indexAdjusted() {
+    return new TradePrepOverrides(
+        Set.of(), List.of(), null, PriceDateRule.INDEX_ADJUSTED_FUNDS, List.of());
+  }
+
+  private static IndexAdjustedPrice adjustedPrice(String isin, String value) {
+    return new IndexAdjustedPrice(
+        priceOn(POSITION_DATE.minusDays(1), "20.00"),
+        POSITION_DATE,
+        new IndexMove("MSCI_WORLD_SCREENED", new BigDecimal("1000"), new BigDecimal("1010")),
+        new BigDecimal(value));
   }
 
   @Test

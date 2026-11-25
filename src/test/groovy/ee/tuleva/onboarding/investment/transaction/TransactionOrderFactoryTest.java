@@ -9,7 +9,10 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
+import ee.tuleva.onboarding.comparisons.fundvalue.PriceSource;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexAdjustedPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexMove;
 import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexPrice;
 import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.ManualPrice;
 import ee.tuleva.onboarding.investment.transaction.TradePrepPricing.FreshestPerInstrument;
@@ -114,6 +117,41 @@ class TransactionOrderFactoryTest {
     assertThat(calculated.orders().get(0).getOrderQuantity()).isEqualByComparingTo("500.000000");
     assertThat(calculated.priceResolutions()).containsEntry("IE00ETF", gatePrice);
     verifyNoInteractions(positionPriceResolver);
+  }
+
+  @Test
+  void
+      createOrders_aNavMovedByItsIndexFromMoreThanThreeDaysBeforeThePositionDate_setsStaleComment() {
+    var input = inputWith(Map.of("IE00ETF", InstrumentType.ETF), Map.of("IE00ETF", OrderVenue.SEB));
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00ETF", new BigDecimal("50000"), new BigDecimal("0.10"), LimitStatus.OK));
+    var positionDate = AS_OF_DATE.minusDays(1);
+    var navDate = positionDate.minusDays(4);
+    var adjusted =
+        new IndexAdjustedPrice(
+            ResolvedPrice.builder()
+                .usedPrice(new BigDecimal("98.00"))
+                .priceDate(navDate)
+                .priceSource(PriceSource.BLACKROCK)
+                .build(),
+            positionDate,
+            new IndexMove("MSCI_WORLD_SCREENED", new BigDecimal("1000"), new BigDecimal("1020")),
+            new BigDecimal("99.960000"));
+
+    var calculated =
+        factory.createOrders(
+            batch(),
+            resultWith(input, trades),
+            AS_OF_DATE,
+            CREATED_AT,
+            new FreshestPerInstrument(Map.of("IE00ETF", adjusted)));
+
+    assertThat(calculated.orders().get(0).getComment())
+        .isEqualTo(
+            "Sized on stale price: priceDate=%s, ageDays=%d, source=%s"
+                .formatted(navDate, 4, PriceSource.BLACKROCK));
   }
 
   @Test

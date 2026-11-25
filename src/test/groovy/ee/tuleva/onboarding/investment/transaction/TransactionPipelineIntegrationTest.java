@@ -1111,6 +1111,85 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Test
+  void theIndexAdjustedRuleValuesTheIndexFundOnThePositionDateMovedByItsScreenedIndex() {
+    jdbcClient
+        .sql("UPDATE index_values SET date = DATE '2026-02-09' WHERE key = '0P000152G5.F'")
+        .update();
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO index_values (key, date, value, provider, updated_at)
+            VALUES
+              ('MSCI_WORLD_SCREENED', DATE '2026-02-09', 1000, 'MSCI', TIMESTAMP '2026-02-10 20:00:00'),
+              ('MSCI_WORLD_SCREENED', DATE '2026-02-10', 1010, 'MSCI', TIMESTAMP '2026-02-10 20:00:00')
+            """)
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                null,
+                null,
+                PriceDateRule.INDEX_ADJUSTED_FUNDS,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.priceDateRule()).isEqualTo(PriceDateRule.INDEX_ADJUSTED_FUNDS);
+    assertThat(
+            ((Map<?, ?>) response.calculationSnapshot().get("input")).get("positionDateValuations"))
+        .isEqualTo(
+            List.of(
+                Map.of(
+                    "isin", "IE00BFG1TM61",
+                    "units", "45000",
+                    "valueBeforePositionDatePrice", "900000",
+                    "positionDatePrice", "20.2",
+                    "valueUsed", "909000",
+                    "valuedAt", "POSITION_DATE_PRICE")));
+  }
+
+  @Test
+  void theIndexAdjustedRuleStopsTheFundWhenTheScreenedIndexHasNoLevelForThePositionDate() {
+    jdbcClient
+        .sql("UPDATE index_values SET date = DATE '2026-02-09' WHERE key = '0P000152G5.F'")
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                null,
+                null,
+                PriceDateRule.INDEX_ADJUSTED_FUNDS,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    assertThat(response.batchId()).isNull();
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            Indeksi tase puudub: IE00BFG1TM61 (MSCI_WORLD_SCREENED 2026-02-09), \
+            IE00BFG1TM61 (MSCI_WORLD_SCREENED 2026-02-10): oota MSCI taset või vali teine \
+            hinnapäeva reegel\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
   void aBalanceSebReportedTodayIsTheRunsCashAndEachForecastShowsWhatItWasBeforeNetting() {
     gatewayRunTheDayAfterTheReport(
         entry("SETTLEMENT-1", "120000.00", "DBIT", "BOOK"),

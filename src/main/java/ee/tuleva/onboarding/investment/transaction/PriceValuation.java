@@ -20,7 +20,9 @@ record PriceValuation(
     BigDecimal valueUsed) {
 
   enum Kind {
-    MANUAL_PRICE("manualPriceValuations", "valueBeforeManualPrice", "manualPrice");
+    MANUAL_PRICE("manualPriceValuations", "valueBeforeManualPrice", "manualPrice"),
+    POSITION_DATE_PRICE(
+        "positionDateValuations", "valueBeforePositionDatePrice", "positionDatePrice");
 
     private final String listKey;
     private final String valueBeforeKey;

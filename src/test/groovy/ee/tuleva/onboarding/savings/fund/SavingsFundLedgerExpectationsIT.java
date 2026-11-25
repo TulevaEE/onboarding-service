@@ -117,9 +117,9 @@ class SavingsFundLedgerExpectationsIT {
   void bookedReturn_isTheAmountTheLedgerBookedForAPaymentReturnedFromThePayoutAccount() {
     var paymentId = randomUUID();
     savingsFundLedger.recordUnattributedPayoutAccountReceipt(
-        new BigDecimal("1006.87"), paymentId, LocalDate.of(2026, 11, 25));
+        new BigDecimal("1006.87"), paymentId, LocalDate.of(2026, 11, 19));
     savingsFundLedger.bounceBackUnattributedPayoutAccountReceipt(
-        new BigDecimal("1006.87"), paymentId, LocalDate.of(2026, 11, 26));
+        new BigDecimal("1006.87"), paymentId, LocalDate.of(2026, 11, 20));
 
     assertThat(expectations.bookedReturn(paymentId))
         .hasValueSatisfying(amount -> assertThat(amount).isEqualByComparingTo("1006.87"));

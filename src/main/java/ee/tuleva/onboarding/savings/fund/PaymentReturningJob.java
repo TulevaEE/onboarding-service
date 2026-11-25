@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.RETURN_BLOCKED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.FROZEN;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Screening.SANCTION_HIT;
 
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
@@ -43,11 +44,17 @@ public class PaymentReturningJob {
         continue;
       }
       try {
-        switch (payoutAccountPayerScreening.screen(payment)) {
+        var screening = payoutAccountPayerScreening.screen(payment);
+        switch (screening) {
           case SANCTION_HIT -> freeze(payment);
           case UNAVAILABLE ->
               block(payment, "Payer sanctions screening is unavailable, try again later");
-          case CLEAR, PEP_HIT, NOT_CHECKED -> {
+          case CLEAR, PEP_HIT -> {
+            savingFundPaymentRepository.recordPayerNameScreening(payment.getId(), screening);
+            paymentReturningService.createReturn(payment);
+            successCount++;
+          }
+          case NOT_CHECKED -> {
             paymentReturningService.createReturn(payment);
             successCount++;
           }
@@ -65,6 +72,7 @@ public class PaymentReturningJob {
         payment.getId());
     transactionTemplate.executeWithoutResult(
         ignored -> {
+          savingFundPaymentRepository.recordPayerNameScreening(payment.getId(), SANCTION_HIT);
           savingFundPaymentRepository.changeStatus(payment.getId(), FROZEN);
           eventPublisher.publishEvent(
               new SanctionedPaymentFrozenEvent(payment.getId(), payment.getAmount()));

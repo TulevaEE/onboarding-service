@@ -246,7 +246,7 @@ class SavingsFundLedgerTest {
 
     var transaction =
         savingsFundLedger.recordUnattributedPayoutAccountReceipt(
-            amount, externalReference, LocalDate.of(2026, 11, 25));
+            amount, externalReference, LocalDate.of(2026, 11, 19));
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("UNATTRIBUTED_PAYMENT");
     assertThat(deltaSince(unreconciledBefore, getUnreconciledPayoutAccountReceiptsAccount()))
@@ -267,15 +267,15 @@ class SavingsFundLedgerTest {
     var unreconciledBefore = getUnreconciledPayoutAccountReceiptsAccount().getBalance();
     var payoutsBefore = getPayoutsCashClearingAccount().getBalance();
     savingsFundLedger.recordUnattributedPayoutAccountReceipt(
-        amount, externalReference, LocalDate.of(2026, 11, 25));
+        amount, externalReference, LocalDate.of(2026, 11, 19));
 
     var transaction =
         savingsFundLedger.bounceBackUnattributedPayoutAccountReceipt(
-            amount, externalReference, LocalDate.of(2026, 11, 26));
+            amount, externalReference, LocalDate.of(2026, 11, 20));
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_BOUNCE_BACK");
     assertThat(transaction.getTransactionDate())
-        .isEqualTo(Instant.parse("2026-11-26T21:59:59.999999Z"));
+        .isEqualTo(Instant.parse("2026-11-20T21:59:59.999999Z"));
     assertThat(deltaSince(unreconciledBefore, getUnreconciledPayoutAccountReceiptsAccount()))
         .isEqualByComparingTo(ZERO);
     assertThat(deltaSince(payoutsBefore, getPayoutsCashClearingAccount()))
@@ -292,7 +292,7 @@ class SavingsFundLedgerTest {
     var incomingBefore = getIncomingPaymentsClearingAccount().getBalance();
 
     savingsFundLedger.bounceBackUnattributedPayoutAccountReceipt(
-        amount, externalReference, LocalDate.of(2026, 11, 26));
+        amount, externalReference, LocalDate.of(2026, 11, 20));
 
     assertThat(deltaSince(unreconciledBefore, getUnreconciledPayoutAccountReceiptsAccount()))
         .isEqualByComparingTo(ZERO);

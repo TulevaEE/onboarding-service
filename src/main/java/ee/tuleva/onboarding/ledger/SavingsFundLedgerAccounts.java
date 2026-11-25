@@ -168,4 +168,8 @@ class SavingsFundLedgerAccounts {
   LedgerAccount getPayoutsCashClearingAccount() {
     return getSystemAccount(PAYOUTS_CASH_CLEARING);
   }
+
+  LedgerAccount getUnreconciledPayoutAccountReceiptsAccount() {
+    return getSystemAccount(UNRECONCILED_PAYOUT_ACCOUNT_RECEIPTS);
+  }
 }

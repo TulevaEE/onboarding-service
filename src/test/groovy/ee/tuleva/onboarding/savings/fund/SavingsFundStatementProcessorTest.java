@@ -798,6 +798,7 @@ class SavingsFundStatementProcessorTest {
         aPayment()
             .id(UUID.randomUUID())
             .amount(new BigDecimal("1006.87"))
+            .beneficiaryIban(WITHDRAWAL_ACCOUNT_IBAN)
             .status(TO_BE_RETURNED)
             .build();
     var returnEndToEndId = endToEndIdConverter.toEndToEndId(originalPayment.getId());
@@ -812,6 +813,10 @@ class SavingsFundStatementProcessorTest {
         setupMocksForPaymentWithAccount(returnPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
     given(savingFundPaymentRepository.findOriginalPaymentForReturn(returnEndToEndId))
         .willReturn(Optional.of(originalPayment));
+    given(bankAccounts.find(WITHDRAWAL_ACCOUNT_IBAN))
+        .willReturn(
+            Optional.of(
+                new BankAccount(WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR, TKF100, "gw-test")));
 
     processor.process(bankStatement, statementAccount);
 
@@ -823,5 +828,43 @@ class SavingsFundStatementProcessorTest {
     verify(paymentCheckService, never()).record(eq(PAYOUT_WITHOUT_REQUEST), eq(HOLD), any(), any());
     verify(savingsFundLedger, never()).recordRedemptionPayout(any(), any(), any(), any(), any());
     verifyNoInteractions(redemptionRequestRepository, redemptionStatusService);
+  }
+
+  @Test
+  void withdrawalOutgoing_matchingAPaymentThatLandedOnAnotherAccount_isNotBookedAsItsReturn() {
+    var depositPayment =
+        aPayment()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("75.00"))
+            .beneficiaryIban(DEPOSIT_ACCOUNT_IBAN)
+            .status(TO_BE_RETURNED)
+            .build();
+    var endToEndId = endToEndIdConverter.toEndToEndId(depositPayment.getId());
+    var debit =
+        aPayment()
+            .amount(new BigDecimal("-75.00"))
+            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
+            .endToEndId(endToEndId)
+            .receivedBefore(Instant.parse("2026-11-26T09:00:00Z"))
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(debit, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    given(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
+        .willReturn(Optional.of(depositPayment));
+    given(bankAccounts.find(DEPOSIT_ACCOUNT_IBAN))
+        .willReturn(
+            Optional.of(new BankAccount(DEPOSIT_ACCOUNT_IBAN, DEPOSIT_EUR, TKF100, "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(savingsFundLedger, never())
+        .bounceBackUnattributedPayoutAccountReceipt(any(), any(), any());
+    verify(savingFundPaymentRepository, never()).changeStatus(any(), any());
+    verify(paymentCheckService)
+        .record(
+            PAYOUT_WITHOUT_REQUEST,
+            HOLD,
+            debit.getId().toString(),
+            "a debit from the payout account matches no redemption request");
   }
 }

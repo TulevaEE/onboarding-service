@@ -169,7 +169,7 @@ class SavingFundPaymentRepositoryTest {
     "ISSUED, PROCESSED",
     "PROCESSED, -",
     "FROZEN, -",
-    "TO_BE_RETURNED, RETURNED",
+    "TO_BE_RETURNED, RETURNED|FROZEN",
     "RETURNED, -",
   })
   void permittedStatusChanges(Status initialStatus, String permittedNextStatusesString) {
@@ -670,6 +670,28 @@ class SavingFundPaymentRepositoryTest {
         .amount(new BigDecimal("1000.00"))
         .description(CALLBACK_DESCRIPTION)
         .build();
+  }
+
+  @Test
+  void findOriginalPaymentByIbanAndAmount_onlyMatchesPaymentsThatLandedOnTheGivenAccount() {
+    var onDepositAccount =
+        repository.savePaymentData(
+            createPayment().externalId("on-deposit").beneficiaryIban("DEPOSIT-IBAN").build());
+    var onPayoutAccount =
+        repository.savePaymentData(
+            createPayment().externalId("on-payout").beneficiaryIban("PAYOUT-IBAN").build());
+    updatePaymentStatus(onDepositAccount, TO_BE_RETURNED);
+    updatePaymentStatus(onPayoutAccount, TO_BE_RETURNED);
+
+    assertThat(
+            repository.findOriginalPaymentByIbanAndAmount(
+                "IBAN-1", new BigDecimal("-100.70"), "DEPOSIT-IBAN"))
+        .map(SavingFundPayment::getId)
+        .contains(onDepositAccount);
+    assertThat(
+            repository.findOriginalPaymentByIbanAndAmount(
+                "IBAN-1", new BigDecimal("-100.70"), "OTHER-IBAN"))
+        .isEmpty();
   }
 
   private SavingFundPayment.SavingFundPaymentBuilder createPayment() {

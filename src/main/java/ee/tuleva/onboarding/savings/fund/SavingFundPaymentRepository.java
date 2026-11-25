@@ -274,27 +274,32 @@ public class SavingFundPaymentRepository {
   }
 
   public Optional<SavingFundPayment> findOriginalPaymentByIbanAndAmount(
-      String beneficiaryIban, BigDecimal returnAmount) {
+      String beneficiaryIban, BigDecimal returnAmount, String receivingIban) {
     var results =
         jdbcTemplate.query(
             """
             SELECT * FROM saving_fund_payment
             WHERE remitter_iban = :iban
+              AND beneficiary_iban = :receiving_iban
               AND amount = :amount
               AND status IN (:statuses)
             ORDER BY created_at DESC
             LIMIT 1
             """,
             Map.of(
-                "iban", beneficiaryIban,
-                "amount", returnAmount.negate(),
+                "iban",
+                beneficiaryIban,
+                "receiving_iban",
+                receivingIban,
+                "amount",
+                returnAmount.negate(),
                 "statuses",
-                    List.of(
-                        CREATED.name(),
-                        RECEIVED.name(),
-                        VERIFIED.name(),
-                        TO_BE_RETURNED.name(),
-                        RETURNED.name())),
+                List.of(
+                    CREATED.name(),
+                    RECEIVED.name(),
+                    VERIFIED.name(),
+                    TO_BE_RETURNED.name(),
+                    RETURNED.name())),
             this::rowMapper);
     return results.isEmpty() ? Optional.empty() : Optional.of(results.getFirst());
   }
@@ -391,7 +396,7 @@ public class SavingFundPaymentRepository {
             ISSUED, Set.of(PROCESSED),
             PROCESSED, Set.of(),
             FROZEN, Set.of(),
-            TO_BE_RETURNED, Set.of(RETURNED),
+            TO_BE_RETURNED, Set.of(RETURNED, FROZEN),
             RETURNED, Set.of());
     if (!allowedTransitions.getOrDefault(currentStatus, Set.of()).contains(newStatus))
       throw new IllegalStateException(

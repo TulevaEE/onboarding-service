@@ -33,22 +33,30 @@ class UnattributedPaymentLedgerRecorder {
   LedgerTransaction recordUnattributedPayment(
       BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
     return recordUnattributedPayment(
-        amount, externalReference, bookingDate, accounts.getIncomingPaymentsClearingAccount());
+        amount,
+        externalReference,
+        bookingDate,
+        accounts.getIncomingPaymentsClearingAccount(),
+        accounts.getUnreconciledBankReceiptsAccount());
   }
 
   @Transactional
   LedgerTransaction recordUnattributedPayoutAccountReceipt(
       BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
     return recordUnattributedPayment(
-        amount, externalReference, bookingDate, accounts.getPayoutsCashClearingAccount());
+        amount,
+        externalReference,
+        bookingDate,
+        accounts.getPayoutsCashClearingAccount(),
+        accounts.getUnreconciledPayoutAccountReceiptsAccount());
   }
 
   private LedgerTransaction recordUnattributedPayment(
       BigDecimal amount,
       UUID externalReference,
       LocalDate bookingDate,
-      LedgerAccount receivingCashAccount) {
-    LedgerAccount unreconciledAccount = accounts.getUnreconciledBankReceiptsAccount();
+      LedgerAccount receivingCashAccount,
+      LedgerAccount unreconciledAccount) {
 
     Map<String, Object> metadata = Map.of(OPERATION_TYPE.getKey(), UNATTRIBUTED_PAYMENT.name());
 
@@ -68,7 +76,8 @@ class UnattributedPaymentLedgerRecorder {
         externalReference,
         LocalDate.now(clock),
         Instant.now(clock),
-        accounts.getIncomingPaymentsClearingAccount());
+        accounts.getIncomingPaymentsClearingAccount(),
+        accounts.getUnreconciledBankReceiptsAccount());
   }
 
   @Transactional
@@ -79,7 +88,8 @@ class UnattributedPaymentLedgerRecorder {
         externalReference,
         bookingDate,
         accounts.transactionDate(bookingDate),
-        accounts.getPayoutsCashClearingAccount());
+        accounts.getPayoutsCashClearingAccount(),
+        accounts.getUnreconciledPayoutAccountReceiptsAccount());
   }
 
   private LedgerTransaction bounceBackUnattributedPayment(
@@ -87,7 +97,8 @@ class UnattributedPaymentLedgerRecorder {
       UUID externalReference,
       LocalDate bookingDate,
       Instant transactionDate,
-      LedgerAccount receivingCashAccount) {
+      LedgerAccount receivingCashAccount,
+      LedgerAccount unreconciledAccount) {
     var existing =
         ledgerTransactionService.findByExternalReferenceAndTransactionType(
             externalReference, PAYMENT_BOUNCE_BACK);
@@ -99,9 +110,8 @@ class UnattributedPaymentLedgerRecorder {
       return existing.get();
     }
 
-    ensureUnattributedPaymentRecorded(amount, externalReference, bookingDate, receivingCashAccount);
-
-    LedgerAccount unreconciledAccount = accounts.getUnreconciledBankReceiptsAccount();
+    ensureUnattributedPaymentRecorded(
+        amount, externalReference, bookingDate, receivingCashAccount, unreconciledAccount);
 
     Map<String, Object> metadata = Map.of(OPERATION_TYPE.getKey(), PAYMENT_BOUNCE_BACK.name());
 
@@ -119,19 +129,22 @@ class UnattributedPaymentLedgerRecorder {
         amount,
         externalReference,
         LocalDate.now(clock),
-        accounts.getIncomingPaymentsClearingAccount());
+        accounts.getIncomingPaymentsClearingAccount(),
+        accounts.getUnreconciledBankReceiptsAccount());
   }
 
   private void ensureUnattributedPaymentRecorded(
       BigDecimal amount,
       UUID externalReference,
       LocalDate bookingDate,
-      LedgerAccount receivingCashAccount) {
+      LedgerAccount receivingCashAccount,
+      LedgerAccount unreconciledAccount) {
     boolean alreadyRecorded =
         ledgerTransactionService.existsByExternalReferenceAndTransactionType(
             externalReference, UNATTRIBUTED_PAYMENT);
     if (!alreadyRecorded) {
-      recordUnattributedPayment(amount, externalReference, bookingDate, receivingCashAccount);
+      recordUnattributedPayment(
+          amount, externalReference, bookingDate, receivingCashAccount, unreconciledAccount);
     }
   }
 }

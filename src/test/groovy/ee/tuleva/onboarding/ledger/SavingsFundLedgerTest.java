@@ -239,20 +239,23 @@ class SavingsFundLedgerTest {
   void recordUnattributedPayoutAccountReceipt_parksCashThatLandedOnThePayoutAccount() {
     var amount = new BigDecimal("1006.87");
     var externalReference = randomUUID();
-    var unreconciledBefore = getUnreconciledBankReceiptsAccount().getBalance();
+    var unreconciledBefore = getUnreconciledPayoutAccountReceiptsAccount().getBalance();
     var payoutsBefore = getPayoutsCashClearingAccount().getBalance();
     var incomingBefore = getIncomingPaymentsClearingAccount().getBalance();
+    var depositParkingBefore = getUnreconciledBankReceiptsAccount().getBalance();
 
     var transaction =
         savingsFundLedger.recordUnattributedPayoutAccountReceipt(
             amount, externalReference, LocalDate.of(2026, 11, 25));
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("UNATTRIBUTED_PAYMENT");
-    assertThat(deltaSince(unreconciledBefore, getUnreconciledBankReceiptsAccount()))
+    assertThat(deltaSince(unreconciledBefore, getUnreconciledPayoutAccountReceiptsAccount()))
         .isEqualByComparingTo(amount.negate());
     assertThat(deltaSince(payoutsBefore, getPayoutsCashClearingAccount()))
         .isEqualByComparingTo(amount);
     assertThat(deltaSince(incomingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(depositParkingBefore, getUnreconciledBankReceiptsAccount()))
         .isEqualByComparingTo(ZERO);
     verifyDoubleEntry(transaction);
   }
@@ -261,7 +264,7 @@ class SavingsFundLedgerTest {
   void bounceBackUnattributedPayoutAccountReceipt_takesTheCashBackOffThePayoutAccount() {
     var amount = new BigDecimal("1006.87");
     var externalReference = randomUUID();
-    var unreconciledBefore = getUnreconciledBankReceiptsAccount().getBalance();
+    var unreconciledBefore = getUnreconciledPayoutAccountReceiptsAccount().getBalance();
     var payoutsBefore = getPayoutsCashClearingAccount().getBalance();
     savingsFundLedger.recordUnattributedPayoutAccountReceipt(
         amount, externalReference, LocalDate.of(2026, 11, 25));
@@ -273,7 +276,7 @@ class SavingsFundLedgerTest {
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_BOUNCE_BACK");
     assertThat(transaction.getTransactionDate())
         .isEqualTo(Instant.parse("2026-11-26T21:59:59.999999Z"));
-    assertThat(deltaSince(unreconciledBefore, getUnreconciledBankReceiptsAccount()))
+    assertThat(deltaSince(unreconciledBefore, getUnreconciledPayoutAccountReceiptsAccount()))
         .isEqualByComparingTo(ZERO);
     assertThat(deltaSince(payoutsBefore, getPayoutsCashClearingAccount()))
         .isEqualByComparingTo(ZERO);
@@ -284,14 +287,14 @@ class SavingsFundLedgerTest {
   void bounceBackUnattributedPayoutAccountReceipt_parksTheReceiptFirstWhenMissing() {
     var amount = new BigDecimal("40.00");
     var externalReference = randomUUID();
-    var unreconciledBefore = getUnreconciledBankReceiptsAccount().getBalance();
+    var unreconciledBefore = getUnreconciledPayoutAccountReceiptsAccount().getBalance();
     var payoutsBefore = getPayoutsCashClearingAccount().getBalance();
     var incomingBefore = getIncomingPaymentsClearingAccount().getBalance();
 
     savingsFundLedger.bounceBackUnattributedPayoutAccountReceipt(
         amount, externalReference, LocalDate.of(2026, 11, 26));
 
-    assertThat(deltaSince(unreconciledBefore, getUnreconciledBankReceiptsAccount()))
+    assertThat(deltaSince(unreconciledBefore, getUnreconciledPayoutAccountReceiptsAccount()))
         .isEqualByComparingTo(ZERO);
     assertThat(deltaSince(payoutsBefore, getPayoutsCashClearingAccount()))
         .isEqualByComparingTo(ZERO);
@@ -1064,6 +1067,10 @@ class SavingsFundLedgerTest {
 
   private LedgerAccount getUnreconciledBankReceiptsAccount() {
     return getSystemAccount(UNRECONCILED_BANK_RECEIPTS);
+  }
+
+  private LedgerAccount getUnreconciledPayoutAccountReceiptsAccount() {
+    return getSystemAccount(UNRECONCILED_PAYOUT_ACCOUNT_RECEIPTS);
   }
 
   private LedgerAccount getFundInvestmentCashClearingAccount() {

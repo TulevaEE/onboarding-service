@@ -135,7 +135,9 @@ public class DeferredReturnMatcher {
                         .flatMap(
                             iban ->
                                 savingFundPaymentRepository.findOriginalPaymentByIbanAndAmount(
-                                    iban, returnPayment.getAmount())));
+                                    iban,
+                                    returnPayment.getAmount(),
+                                    bankAccounts.getIban(TKF100, DEPOSIT_EUR))));
 
     if (original.isPresent()) {
       completePaymentReturn(original.get());

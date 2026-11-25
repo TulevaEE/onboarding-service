@@ -23,6 +23,8 @@ public enum SystemAccount {
 
   // Bank reconciliation
   UNRECONCILED_BANK_RECEIPTS(ASSET, EUR, BANK_RECONCILIATION, "Bank receipts not yet matched"),
+  UNRECONCILED_PAYOUT_ACCOUNT_RECEIPTS(
+      ASSET, EUR, BANK_RECONCILIATION, "Receipts on the payout account awaiting return"),
   REGISTRAR_CASH_SETTLEMENT(
       LIABILITY,
       EUR,

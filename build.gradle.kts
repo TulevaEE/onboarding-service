@@ -31,7 +31,7 @@ plugins {
     id("org.springframework.boot") version "4.1.2"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "4.0.1"
-    id("com.diffplug.spotless") version "8.10.4"
+    id("com.diffplug.spotless") version "8.11.0"
     id("io.freefair.lombok") version "9.8.3"
     id("net.ltgt.errorprone") version "5.2.0"
     id("info.solidsoft.pitest") version "1.19.0"

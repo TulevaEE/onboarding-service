@@ -102,6 +102,10 @@ final class TransactionCommandPayloads {
     if (gates.pricing() instanceof TradePrepPricing.OnCommonDate onCommonDate) {
       payload.put("commonPriceDate", onCommonDate.date().toString());
     }
+    List<Map<String, Object>> positionDatePrices = positionDatePrices(gates.pricing());
+    if (!positionDatePrices.isEmpty()) {
+      payload.put("positionDatePrices", positionDatePrices);
+    }
     payload.put(
         "output",
         TransactionAuditPayloads.serializeTrades(
@@ -202,6 +206,14 @@ final class TransactionCommandPayloads {
     putIfPresent(map, "registryQuantity", plain(difference.registryQuantity()));
     putIfPresent(map, "reportQuantity", plain(difference.reportQuantity()));
     return map;
+  }
+
+  private static List<Map<String, Object>> positionDatePrices(TradePrepPricing pricing) {
+    return pricing.prices().entrySet().stream()
+        .filter(entry -> entry.getValue() instanceof TradePrepPrice.IndexAdjustedPrice)
+        .sorted(Map.Entry.comparingByKey())
+        .map(entry -> entry.getValue().resolution(entry.getKey()))
+        .toList();
   }
 
   private static Map<String, Object> confirmedDeviation(PriceDeviation deviation) {

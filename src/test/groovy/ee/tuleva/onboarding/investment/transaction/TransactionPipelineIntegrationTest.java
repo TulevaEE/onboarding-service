@@ -1142,6 +1142,16 @@ class TransactionPipelineIntegrationTest {
 
     assertThat(response.status()).isEqualTo(CALCULATED);
     assertThat(response.priceDateRule()).isEqualTo(PriceDateRule.INDEX_ADJUSTED_FUNDS);
+    assertThat(response.calculationSnapshot().get("positionDatePrices"))
+        .asInstanceOf(LIST)
+        .singleElement()
+        .asInstanceOf(MAP)
+        .containsEntry("isin", "IE00BFG1TM61")
+        .containsEntry("price", "20.200000")
+        .containsEntry("priceDate", "2026-02-10")
+        .containsEntry("priceSource", "INDEX_ADJUSTED")
+        .containsEntry("fundPriceDate", "2026-02-09")
+        .containsEntry("index", "MSCI_WORLD_SCREENED");
     assertThat(
             ((Map<?, ?>) response.calculationSnapshot().get("input")).get("positionDateValuations"))
         .isEqualTo(

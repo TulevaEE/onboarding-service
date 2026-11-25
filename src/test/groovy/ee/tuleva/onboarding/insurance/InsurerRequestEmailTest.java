@@ -64,7 +64,7 @@ class InsurerRequestEmailTest {
     assertThat(message.getFromEmail()).isEqualTo("tuleva@tuleva.ee");
     assertThat(message.getFromName()).isEqualTo("Tuleva");
     assertThat(message.getSubject())
-        .isEqualTo("III samba kindlustuslepingu lõpetamise avaldus – Jordan Valdma");
+        .isEqualTo("III samba kindlustuslepingu lõpetamise avaldus: Jordan Valdma");
     assertThat(message.getAttachments())
         .extracting(MessageContent::getName, MessageContent::getType)
         .containsExactly(tuple("Tuleva_Ergo_avaldus.asice", "application/vnd.etsi.asic-e+zip"));

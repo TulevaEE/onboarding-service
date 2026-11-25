@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.admin;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
@@ -71,6 +72,24 @@ class AdminTokenValidatorTest {
     assertThatThrownBy(() -> validator.validateWithOpsAccess("wrong-token"))
         .isInstanceOf(ResponseStatusException.class)
         .extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
+        .isEqualTo(UNAUTHORIZED);
+  }
+
+  @Test
+  void accessSaysWhichTokenMatched() {
+    AdminTokenValidator validator = new AdminTokenValidator(ADMIN_TOKEN, OPS_TOKEN);
+
+    assertThat(validator.access(ADMIN_TOKEN)).isEqualTo(AdminAccess.ADMIN);
+    assertThat(validator.access(OPS_TOKEN)).isEqualTo(AdminAccess.OPS);
+  }
+
+  @Test
+  void accessRefusesAnyOtherToken() {
+    AdminTokenValidator validator = new AdminTokenValidator(ADMIN_TOKEN, OPS_TOKEN);
+
+    assertThatThrownBy(() -> validator.access("something-else"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode())
         .isEqualTo(UNAUTHORIZED);
   }
 }

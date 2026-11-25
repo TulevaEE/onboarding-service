@@ -36,6 +36,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 @WebMvcTest(LedgerAdminController.class)
 @Import(AdminTokenValidator.class)
@@ -52,7 +53,7 @@ class LedgerAdminControllerTest {
   void createAdjustments_withValidToken_returnsTransactionIds() throws Exception {
     var transactionId = UUID.randomUUID();
     var transaction = LedgerTransaction.builder().id(transactionId).build();
-    when(savingsFundLedger.recordAdjustment(any(), any(), any(), any(), any(), any(), any()))
+    when(savingsFundLedger.recordAdjustment(any(), any(), any(), any(), any(), any(), any(), any()))
         .thenReturn(transaction);
 
     mockMvc
@@ -91,14 +92,14 @@ class LedgerAdminControllerTest {
         .andExpect(jsonPath("$[0].transactionId").value(transactionId.toString()));
 
     verify(savingsFundLedger, times(2))
-        .recordAdjustment(any(), any(), any(), any(), any(), any(), any());
+        .recordAdjustment(any(), any(), any(), any(), any(), any(), any(), any());
   }
 
   @Test
   void createAdjustments_withDynamicAccountTypes_returnsTransactionIds() throws Exception {
     var transactionId = UUID.randomUUID();
     var transaction = LedgerTransaction.builder().id(transactionId).build();
-    when(savingsFundLedger.recordAdjustment(any(), any(), any(), any(), any(), any(), any()))
+    when(savingsFundLedger.recordAdjustment(any(), any(), any(), any(), any(), any(), any(), any()))
         .thenReturn(transaction);
 
     mockMvc
@@ -124,30 +125,115 @@ class LedgerAdminControllerTest {
   }
 
   @Test
-  void createAdjustments_withOpsToken_recordsTheAdjustment() throws Exception {
+  void createAdjustments_withOpsToken_recordsAnEntryBetweenOwnClearingAccountsAndSaysWhoRecordedIt()
+      throws Exception {
     var transactionId = UUID.randomUUID();
-    when(savingsFundLedger.recordAdjustment(any(), any(), any(), any(), any(), any(), any()))
-        .thenReturn(LedgerTransaction.builder().id(transactionId).build());
+    var reference = UUID.fromString("0198f1d6-4c8a-7c3e-9b21-6f0b0d2a1c55");
+    given(
+            savingsFundLedger.recordAdjustment(
+                "PAYOUTS_CASH_CLEARING",
+                null,
+                "UNRECONCILED_PAYOUT_ACCOUNT_RECEIPTS",
+                null,
+                new BigDecimal("10.00"),
+                reference,
+                "Payment received on the payout account by mistake",
+                "ops-token"))
+        .willReturn(LedgerTransaction.builder().id(transactionId).build());
 
     mockMvc
         .perform(
-            post("/admin/adjustments")
-                .with(csrf())
-                .header("X-Admin-Token", "ops-token")
-                .contentType(APPLICATION_JSON)
-                .content(
-                    """
-                    [
-                      {
-                        "debitAccount": "PAYOUTS_CASH_CLEARING",
-                        "creditAccount": "UNRECONCILED_BANK_RECEIPTS",
-                        "amount": 10.00,
-                        "description": "Payment received on the payout account by mistake"
-                      }
-                    ]
-                    """))
+            adjustments(
+                "ops-token",
+                """
+                [{"debitAccount": "PAYOUTS_CASH_CLEARING",
+                  "creditAccount": "UNRECONCILED_PAYOUT_ACCOUNT_RECEIPTS",
+                  "amount": 10.00,
+                  "externalReference": "0198f1d6-4c8a-7c3e-9b21-6f0b0d2a1c55",
+                  "description": "Payment received on the payout account by mistake"}]
+                """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].transactionId").value(transactionId.toString()));
+  }
+
+  @Test
+  void createAdjustments_withOpsToken_refusesAPartyAccountOrOneOffTheList() throws Exception {
+    mockMvc
+        .perform(
+            adjustments(
+                "ops-token",
+                """
+                [{"debitAccount": "CASH_RESERVED", "debitPartyCode": "38888888888",
+                  "debitPartyType": "PERSON", "creditAccount": "CASH",
+                  "creditPartyCode": "38888888888", "creditPartyType": "PERSON",
+                  "amount": 1.00, "description": "Move a holder's cash"}]
+                """))
+        .andExpect(status().isForbidden());
+    mockMvc
+        .perform(
+            adjustments(
+                "ops-token",
+                """
+                [{"debitAccount": "FUND_UNITS_OUTSTANDING", "creditAccount": "FUND_UNITS_EQUITY",
+                  "amount": 1.00, "description": "Mint units"}]
+                """))
+        .andExpect(status().isForbidden());
+
+    verifyNoInteractions(savingsFundLedger);
+  }
+
+  @Test
+  void createAdjustments_refusesANonPositiveAmountOrAMissingDescriptionForAnyToken()
+      throws Exception {
+    mockMvc
+        .perform(
+            adjustments(
+                "valid-token",
+                """
+                [{"debitAccount": "PAYOUTS_CASH_CLEARING",
+                  "creditAccount": "UNRECONCILED_BANK_RECEIPTS",
+                  "amount": -5.00, "description": "Negative"}]
+                """))
+        .andExpect(status().isBadRequest());
+    mockMvc
+        .perform(
+            adjustments(
+                "valid-token",
+                """
+                [{"debitAccount": "PAYOUTS_CASH_CLEARING",
+                  "creditAccount": "UNRECONCILED_BANK_RECEIPTS",
+                  "amount": 5.00, "description": " "}]
+                """))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(savingsFundLedger);
+  }
+
+  @Test
+  void createAdjustments_answersAnAccountTheLedgerDoesNotKnowAsABadRequest() throws Exception {
+    given(
+            savingsFundLedger.recordAdjustment(
+                any(), any(), any(), any(), any(), any(), any(), any()))
+        .willThrow(new IllegalArgumentException("No such account: NOT_AN_ACCOUNT"));
+
+    mockMvc
+        .perform(
+            adjustments(
+                "valid-token",
+                """
+                [{"debitAccount": "NOT_AN_ACCOUNT",
+                  "creditAccount": "UNRECONCILED_BANK_RECEIPTS",
+                  "amount": 5.00, "description": "Typo"}]
+                """))
+        .andExpect(status().isBadRequest());
+  }
+
+  private static MockHttpServletRequestBuilder adjustments(String token, String body) {
+    return post("/admin/adjustments")
+        .with(csrf())
+        .header("X-Admin-Token", token)
+        .contentType(APPLICATION_JSON)
+        .content(body);
   }
 
   @Test

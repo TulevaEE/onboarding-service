@@ -78,6 +78,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class SavingsFundLedger {
 
+  private static final String RECORDED_WITH = "recordedWith";
+
   private final SavingsFundLedgerAccounts accounts;
   private final LedgerTransactionService ledgerTransactionService;
   private final Clock clock;
@@ -415,6 +417,47 @@ public class SavingsFundLedger {
       BigDecimal amount,
       @Nullable UUID externalReference,
       String description) {
+    return recordAdjustment(
+        debitAccountName,
+        debitParty,
+        creditAccountName,
+        creditParty,
+        amount,
+        externalReference,
+        description,
+        Map.of());
+  }
+
+  @Transactional
+  public LedgerTransaction recordAdjustment(
+      String debitAccountName,
+      @Nullable PartyRef debitParty,
+      String creditAccountName,
+      @Nullable PartyRef creditParty,
+      BigDecimal amount,
+      @Nullable UUID externalReference,
+      String description,
+      String recordedWith) {
+    return recordAdjustment(
+        debitAccountName,
+        debitParty,
+        creditAccountName,
+        creditParty,
+        amount,
+        externalReference,
+        description,
+        Map.of(RECORDED_WITH, recordedWith));
+  }
+
+  private LedgerTransaction recordAdjustment(
+      String debitAccountName,
+      @Nullable PartyRef debitParty,
+      String creditAccountName,
+      @Nullable PartyRef creditParty,
+      BigDecimal amount,
+      @Nullable UUID externalReference,
+      String description,
+      Map<String, Object> attribution) {
     if (debitParty != null && creditParty != null && !debitParty.equals(creditParty)) {
       throw new IllegalArgumentException(
           "Both accounts must belong to the same party or at least one must be a system account");
@@ -435,6 +478,7 @@ public class SavingsFundLedger {
     if (description != null) {
       metadataBuilder.put(DESCRIPTION.getKey(), description);
     }
+    metadataBuilder.putAll(attribution);
 
     return ledgerTransactionService.createTransaction(
         ADJUSTMENT,

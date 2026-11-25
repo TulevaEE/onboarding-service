@@ -31,7 +31,7 @@ final class InsurerRequestEmail {
     var message = new MandrillMessage();
     message.setFromEmail(TULEVA);
     message.setFromName("Tuleva");
-    message.setSubject("III samba kindlustuslepingu lõpetamise avaldus – " + user.getFullName());
+    message.setSubject("III samba kindlustuslepingu lõpetamise avaldus: " + user.getFullName());
     message.setHtml(body(user, form.getPensionAccountNumber(), attachmentName));
     message.setAutoText(true);
     message.setTo(recipients(insurer.getEmail(), personEmail));

@@ -580,7 +580,8 @@ class UnitTransferLedgerRecorderTest {
         null,
         amount,
         randomUUID(),
-        "Payment returned to the payer");
+        "Payment returned to the payer",
+        "admin-token");
   }
 
   private void givenLegacyUnitsWorth(PartyRef party, BigDecimal cashAmount, BigDecimal fundUnits) {

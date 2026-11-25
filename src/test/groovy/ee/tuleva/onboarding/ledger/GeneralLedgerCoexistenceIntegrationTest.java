@@ -121,7 +121,8 @@ class GeneralLedgerCoexistenceIntegrationTest {
                     null,
                     new BigDecimal("10.00"),
                     null,
-                    "Manual correction"))
+                    "Manual correction",
+                    "admin-token"))
         .isInstanceOf(IllegalArgumentException.class);
 
     assertThat(generalLedgerEntries()).isEqualTo(entriesBefore);

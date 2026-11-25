@@ -616,7 +616,8 @@ class SavingsFundLedgerTest {
             (PartyRef) null,
             amount,
             null,
-            "Test adjustment");
+            "Test adjustment",
+            "admin-token");
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("ADJUSTMENT");
     assertThat(transaction.getMetadata().get("description")).isEqualTo("Test adjustment");
@@ -660,7 +661,8 @@ class SavingsFundLedgerTest {
             null,
             amount,
             null,
-            "User to system adjustment");
+            "User to system adjustment",
+            "admin-token");
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("ADJUSTMENT");
     verifyDoubleEntry(transaction);
@@ -700,7 +702,8 @@ class SavingsFundLedgerTest {
                     null,
                     new BigDecimal("150.00000"),
                     null,
-                    "Unit adjustment"))
+                    "Unit adjustment",
+                    "admin-token"))
         .isExactlyInstanceOf(IllegalStateException.class);
     assertThat(getUserUnitsAccount().getBalance())
         .isEqualByComparingTo(new BigDecimal("-100.00000"));
@@ -957,7 +960,8 @@ class SavingsFundLedgerTest {
                 otherParty,
                 new BigDecimal("10.00"),
                 null,
-                "Invalid cross-party"));
+                "Invalid cross-party",
+                "admin-token"));
   }
 
   @Test
@@ -974,7 +978,8 @@ class SavingsFundLedgerTest {
             testParty,
             new BigDecimal("10.00"),
             null,
-            "Reverse duplicate reservation");
+            "Reverse duplicate reservation",
+            "admin-token");
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("ADJUSTMENT");
     verifyDoubleEntry(transaction);
@@ -992,7 +997,8 @@ class SavingsFundLedgerTest {
             (PartyRef) null,
             units,
             null,
-            "Trade unit backfill");
+            "Trade unit backfill",
+            "admin-token");
 
     assertThat(transaction.getTransactionType())
         .isEqualTo(LedgerTransaction.TransactionType.ADJUSTMENT);
@@ -1189,7 +1195,8 @@ class SavingsFundLedgerTest {
             testParty,
             amount,
             null,
-            "System to user adjustment");
+            "System to user adjustment",
+            "admin-token");
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("ADJUSTMENT");
     assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
@@ -1307,7 +1314,8 @@ class SavingsFundLedgerTest {
                 null,
                 new BigDecimal("10.00"),
                 null,
-                "Unknown party"));
+                "Unknown party",
+                "admin-token"));
   }
 
   private BigDecimal deltaSince(BigDecimal before, LedgerAccount account) {

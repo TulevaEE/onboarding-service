@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -178,6 +180,70 @@ class LedgerAdminControllerTest {
                   "amount": 1.00, "description": "Mint units"}]
                 """))
         .andExpect(status().isForbidden());
+
+    verifyNoInteractions(savingsFundLedger);
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "\"debitAccount\": \"PAYOUTS_CASH_CLEARING\", \"creditAccount\": \"NAV_EQUITY\"",
+        "\"debitAccount\": \"PAYOUTS_CASH_CLEARING:TKF100\","
+            + " \"creditAccount\": \"UNRECONCILED_BANK_RECEIPTS\"",
+        "\"debitAccount\": \"payouts_cash_clearing\","
+            + " \"creditAccount\": \"UNRECONCILED_BANK_RECEIPTS\"",
+        "\"debitAccount\": \"PAYOUTS_CASH_CLEARING\", \"creditAccount\": \"CASH\","
+            + " \"creditPartyCode\": \"38888888888\", \"creditPartyType\": \"PERSON\""
+      })
+  void createAdjustments_withOpsToken_refusesEitherSideOffTheListOrNamingAParty(String accounts)
+      throws Exception {
+    mockMvc
+        .perform(
+            adjustments(
+                "ops-token",
+                "[{" + accounts + ", \"amount\": 1.00, \"description\": \"Off the list\"}]"))
+        .andExpect(status().isForbidden());
+
+    verifyNoInteractions(savingsFundLedger);
+  }
+
+  @Test
+  void createAdjustments_withOpsToken_writesNothingWhenOneLegOfTheBatchIsRefused()
+      throws Exception {
+    mockMvc
+        .perform(
+            adjustments(
+                "ops-token",
+                """
+                [{"debitAccount": "PAYOUTS_CASH_CLEARING",
+                  "creditAccount": "UNRECONCILED_BANK_RECEIPTS",
+                  "amount": 1.00, "description": "Allowed"},
+                 {"debitAccount": "FUND_UNITS_OUTSTANDING", "creditAccount": "FUND_UNITS_EQUITY",
+                  "amount": 1.00, "description": "Refused"}]
+                """))
+        .andExpect(status().isForbidden());
+
+    verifyNoInteractions(savingsFundLedger);
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "\"amount\": 0, \"description\": \"Zero\"",
+        "\"description\": \"No amount\"",
+        "\"amount\": 5.00"
+      })
+  void createAdjustments_refusesAZeroOrMissingAmountOrAMissingDescription(String fields)
+      throws Exception {
+    mockMvc
+        .perform(
+            adjustments(
+                "valid-token",
+                "[{\"debitAccount\": \"PAYOUTS_CASH_CLEARING\","
+                    + " \"creditAccount\": \"UNRECONCILED_BANK_RECEIPTS\", "
+                    + fields
+                    + "}]"))
+        .andExpect(status().isBadRequest());
 
     verifyNoInteractions(savingsFundLedger);
   }

@@ -9,6 +9,7 @@ import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.ledger.PartyRef;
+import ee.tuleva.onboarding.ledger.PayoutAccountReceiptLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedgerStackConfiguration;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
@@ -40,6 +41,7 @@ class SavingsFundLedgerExpectationsIT {
 
   @Autowired SavingsFundLedgerExpectations expectations;
   @Autowired SavingsFundLedger savingsFundLedger;
+  @Autowired PayoutAccountReceiptLedger payoutAccountReceiptLedger;
   @Autowired RedemptionRequestRepository redemptionRequestRepository;
   @Autowired TestEntityManager entityManager;
 
@@ -116,9 +118,9 @@ class SavingsFundLedgerExpectationsIT {
   @Test
   void bookedReturn_isTheAmountTheLedgerBookedForAPaymentReturnedFromThePayoutAccount() {
     var paymentId = randomUUID();
-    savingsFundLedger.recordUnattributedPayoutAccountReceipt(
+    payoutAccountReceiptLedger.recordReceipt(
         new BigDecimal("1006.87"), paymentId, LocalDate.of(2026, 11, 19));
-    savingsFundLedger.bounceBackUnattributedPayoutAccountReceipt(
+    payoutAccountReceiptLedger.recordReturn(
         new BigDecimal("1006.87"), paymentId, LocalDate.of(2026, 11, 20));
 
     assertThat(expectations.bookedReturn(paymentId))

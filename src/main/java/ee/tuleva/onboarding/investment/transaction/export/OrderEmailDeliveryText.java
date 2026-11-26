@@ -25,17 +25,18 @@ final class OrderEmailDeliveryText {
           isUuid(email)
               ? "Mida teha: praegu mitte midagi, Mandrill proovib ise uuesti."
                   + " Kui kiri põrkab tagasi, tuleb uus teade."
-              : "Mida teha: Mandrill proovib ise uuesti. Kui saaja pole korraldusi enne"
-                  + " lõikeaega kinnitanud, helista talle. Saada uuesti alles siis, kui ta ütleb,"
-                  + " et need ei jõudnud.";
+              : "Mida teha: Mandrill proovib ise uuesti. Kui laud pole korraldusi enne"
+                  + " lõikeaega kinnitanud, helista lauale. Saada käsitsi ainult siis, kui lepid"
+                  + " lauaga kokku, et hilinev originaal jäetakse täitmata.";
       return "🟠 %skirja kohaletoimetamine viibib: %s\n%s\n%s"
           .formatted(prefix, event.recipient(), eventLine(event), wait);
     }
     var action =
         isUuid(email)
             ? SEND_THE_UUID_FILE_BY_HAND_THE_ORDERS_WENT_APART
-            : "Mida teha: helista saajale ja kontrolli, kas korraldused jõudsid."
-                + " Kui ei jõudnud, saada fail käsitsi.";
+            : "Mida teha: kui see aadress on koopia, korraldusi uuesti ei saada. Muidu helista"
+                + " lauale ja saada fail käsitsi ainult siis, kui laud kinnitab, et korraldused"
+                + " ei jõudnud.";
     return "%s %skiri ei jõudnud kohale: %s\n%s\n%s"
         .formatted(
             icon(deliveryFailureSeverity(event)),

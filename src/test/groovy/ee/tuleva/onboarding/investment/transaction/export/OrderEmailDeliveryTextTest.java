@@ -13,8 +13,7 @@ import org.junit.jupiter.api.Test;
 class OrderEmailDeliveryTextTest {
 
   @Test
-  void
-      aDelayedOrderEmail_isAmber_andAsksToCallTheRecipientIfTheOrdersAreNotConfirmedBeforeTheCutOff() {
+  void aDelayedOrderEmail_isAmber_andAllowsAResendOnlyIfTheDeskAgreesToLeaveTheOriginal() {
     var event =
         deliveryFailure("deferral", "trade-order-ft-etf", "Tuleva ETF orders 26.11.2026 – MOC");
 
@@ -23,8 +22,9 @@ class OrderEmailDeliveryTextTest {
             """
             🟠 FT kirja kohaletoimetamine viibib: desk@example.com
             „Tuleva ETF orders 26.11.2026 – MOC“ · deferral: 450 try later (id=msg_1)
-            Mida teha: Mandrill proovib ise uuesti. Kui saaja pole korraldusi enne lõikeaega \
-            kinnitanud, helista talle. Saada uuesti alles siis, kui ta ütleb, et need ei jõudnud.""");
+            Mida teha: Mandrill proovib ise uuesti. Kui laud pole korraldusi enne lõikeaega \
+            kinnitanud, helista lauale. Saada käsitsi ainult siis, kui lepid lauaga kokku, \
+            et hilinev originaal jäetakse täitmata.""");
     assertThat(OrderEmailDeliveryText.deliveryFailureSeverity(event)).isEqualTo(WARNING);
   }
 
@@ -42,7 +42,7 @@ class OrderEmailDeliveryTextTest {
   }
 
   @Test
-  void aBouncedOrderEmail_isRed_andSaysToCallTheRecipient() {
+  void aBouncedOrderEmail_isRed_andAllowsAResendOnlyIfTheDeskConfirmsTheOrdersDidNotArrive() {
     var event = deliveryFailure("hard_bounce", "trade-order-seb-fund", null);
 
     assertThat(OrderEmailDeliveryText.deliveryFailure(event))
@@ -50,8 +50,8 @@ class OrderEmailDeliveryTextTest {
             """
             🔴 SEB indeksfondide kiri ei jõudnud kohale: desk@example.com
             hard_bounce: 450 try later (id=msg_1)
-            Mida teha: helista saajale ja kontrolli, kas korraldused jõudsid. \
-            Kui ei jõudnud, saada fail käsitsi.""");
+            Mida teha: kui see aadress on koopia, korraldusi uuesti ei saada. Muidu helista \
+            lauale ja saada fail käsitsi ainult siis, kui laud kinnitab, et korraldused ei jõudnud.""");
     assertThat(OrderEmailDeliveryText.deliveryFailureSeverity(event)).isEqualTo(ERROR);
   }
 

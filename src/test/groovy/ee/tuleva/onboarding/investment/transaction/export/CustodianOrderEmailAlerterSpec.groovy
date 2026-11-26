@@ -81,8 +81,8 @@ class CustodianOrderEmailAlerterSpec extends Specification {
           it.data == notYetPostedData(
           "🟠 FT kirja kohaletoimetamine viibib: desk@example.com\n" +
               "„$subject“ · deferral: 450 4.7.25 try again later (id=msg_1)\n" +
-              "Mida teha: Mandrill proovib ise uuesti. Kui saaja pole korraldusi enne lõikeaega kinnitanud, helista talle. " +
-              "Saada uuesti alles siis, kui ta ütleb, et need ei jõudnud.",
+              "Mida teha: Mandrill proovib ise uuesti. Kui laud pole korraldusi enne lõikeaega kinnitanud, helista lauale. " +
+              "Saada käsitsi ainult siis, kui lepid lauaga kokku, et hilinev originaal jäetakse täitmata.",
           "WARNING")
     })
     0 * notificationService._
@@ -518,7 +518,8 @@ class CustodianOrderEmailAlerterSpec extends Specification {
   private String redAlert(String eventType, String mandrillMessageId) {
     "🔴 FT kiri ei jõudnud kohale: desk@example.com\n" +
         "„$subject“ · $eventType: 550 mailbox unavailable (id=$mandrillMessageId)\n" +
-        "Mida teha: helista saajale ja kontrolli, kas korraldused jõudsid. Kui ei jõudnud, saada fail käsitsi."
+        "Mida teha: kui see aadress on koopia, korraldusi uuesti ei saada. Muidu helista lauale ja saada fail käsitsi " +
+        "ainult siis, kui laud kinnitab, et korraldused ei jõudnud."
   }
 
   private static Map notYetPostedData(String text, String severity) {

@@ -48,7 +48,7 @@ class FundInReportCheckerTest {
 
   @Test
   void leavesTheNavDeadlineOutOnceTheNavForThatDateIsPublished() {
-    given(fundNavQueryService.hasPublishedNav("TUV100", NAV_DATE)).willReturn(true);
+    given(fundNavQueryService.hasFinishedNavRun("TUV100", NAV_DATE)).willReturn(true);
 
     var results =
         checkerAt("2026-04-16T14:00:00Z").fundsNotRead(NAV_DATE, POSITION_ROWS, ALL_BUT_TUV100);
@@ -89,10 +89,10 @@ class FundInReportCheckerTest {
 
   @Test
   void aReportWithNoPositionRowsGivesNoDeadlineToAFundWhoseNavForThatDateIsPublished() {
-    given(fundNavQueryService.hasPublishedNav("TUK75", NAV_DATE)).willReturn(true);
-    given(fundNavQueryService.hasPublishedNav("TUK00", NAV_DATE)).willReturn(true);
-    given(fundNavQueryService.hasPublishedNav("TUV100", NAV_DATE)).willReturn(false);
-    given(fundNavQueryService.hasPublishedNav("TKF100", NAV_DATE)).willReturn(false);
+    given(fundNavQueryService.hasFinishedNavRun("TUK75", NAV_DATE)).willReturn(true);
+    given(fundNavQueryService.hasFinishedNavRun("TUK00", NAV_DATE)).willReturn(true);
+    given(fundNavQueryService.hasFinishedNavRun("TUV100", NAV_DATE)).willReturn(false);
+    given(fundNavQueryService.hasFinishedNavRun("TKF100", NAV_DATE)).willReturn(false);
     var beforeTheAfternoonNav = NO_FUND_ROWS + " before the 15:20 NAV";
 
     assertThat(checkerAt("2026-04-16T09:00:00Z").fundsNotRead(NAV_DATE, 0, Set.of()))

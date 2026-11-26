@@ -42,7 +42,7 @@ class OwnFundNavProvider {
 
   private Optional<BigDecimal> queryNav(TulevaFund fund, LocalDate asOfDate) {
     return fundNavQueryService
-        .findLatestNavDateOnOrBefore(fund.getCode(), asOfDate)
+        .findLatestPublishedNavDateOnOrBefore(fund.getCode(), asOfDate)
         .flatMap(navDate -> fundNavQueryService.findPublishedNavPerUnit(fund.getCode(), navDate));
   }
 

@@ -36,7 +36,7 @@ class NavWeightsReaderIT {
   @Autowired private JdbcClient jdbcClient;
 
   @Test
-  void eachNavDateIsReadFromItsLatestPublishedCalculationOnly() {
+  void eachNavDateIsReadFromItsLatestSentCalculationOnly() {
     var date = LocalDate.of(2026, 10, 1);
     var publishedLast = UUID.randomUUID();
     insert(TUV100, date, publishedLast, AFTERNOON, "UNITS", null, "1000");
@@ -49,6 +49,9 @@ class NavWeightsReaderIT {
     var unpublished = UUID.randomUUID();
     insert(TUV100, date, unpublished, null, "UNITS", null, "2000");
     insert(TUV100, date, unpublished, null, "SECURITY", "WORLD", "1900");
+    var heldForReview = UUID.randomUUID();
+    insertHeld(TUV100, date, heldForReview, "UNITS", null, "3000");
+    insertHeld(TUV100, date, heldForReview, "SECURITY", "WORLD", "2900");
 
     assertThat(reader.between(TUV100, FROM, TO))
         .usingRecursiveFieldByFieldElementComparator(BIG_DECIMALS_BY_VALUE)
@@ -100,7 +103,37 @@ class NavWeightsReaderIT {
       TulevaFund fund,
       LocalDate navDate,
       UUID calculationId,
+      @Nullable Instant sentAt,
+      String accountType,
+      @Nullable String isin,
+      String marketValue) {
+    insert(fund, navDate, calculationId, sentAt, sentAt, accountType, isin, marketValue);
+  }
+
+  private void insertHeld(
+      TulevaFund fund,
+      LocalDate navDate,
+      UUID calculationId,
+      String accountType,
+      @Nullable String isin,
+      String marketValue) {
+    insert(
+        fund,
+        navDate,
+        calculationId,
+        AFTERNOON.plusSeconds(60),
+        null,
+        accountType,
+        isin,
+        marketValue);
+  }
+
+  private void insert(
+      TulevaFund fund,
+      LocalDate navDate,
+      UUID calculationId,
       @Nullable Instant publishedAt,
+      @Nullable Instant sentAt,
       String accountType,
       @Nullable String isin,
       String marketValue) {
@@ -109,9 +142,9 @@ class NavWeightsReaderIT {
             """
             INSERT INTO nav_report
               (nav_date, fund_code, account_type, account_name, account_id, market_value,
-               currency, calculation_id, published_at)
+               currency, calculation_id, published_at, sent_to_trustee_at)
             VALUES (:navDate, :fundCode, :accountType, :accountName, :accountId, :marketValue,
-                    'EUR', :calculationId, :publishedAt)
+                    'EUR', :calculationId, :publishedAt, :sentAt)
             """)
         .param("navDate", navDate)
         .param("fundCode", fund.getCode())
@@ -121,6 +154,7 @@ class NavWeightsReaderIT {
         .param("marketValue", new BigDecimal(marketValue))
         .param("calculationId", calculationId)
         .param("publishedAt", publishedAt == null ? null : Timestamp.from(publishedAt))
+        .param("sentAt", sentAt == null ? null : Timestamp.from(sentAt))
         .update();
   }
 }

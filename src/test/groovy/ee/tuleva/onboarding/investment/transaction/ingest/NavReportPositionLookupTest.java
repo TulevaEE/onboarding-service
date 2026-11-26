@@ -87,6 +87,28 @@ class NavReportPositionLookupTest {
   }
 
   @Test
+  void ignoresACalculationHeldForReviewThatTheTrusteeDoesNotHave() {
+    insert(NAV_DATE, "TUK75", ISIN_A, new BigDecimal("9000.0000"), true);
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO nav_report
+              (nav_date, fund_code, account_type, account_name, account_id, quantity,
+               currency, calculation_id, published_at, sent_to_trustee_at)
+            VALUES (:navDate, 'TUK75', 'SECURITY', 'held', :isin, 10000.0000,
+               'EUR', :calcId, now(), NULL)
+            """)
+        .param("navDate", NAV_DATE)
+        .param("isin", ISIN_A)
+        .param("calcId", UUID.randomUUID())
+        .update();
+
+    Map<String, BigDecimal> result = lookup.findSecurityQuantities(TUK75, NAV_DATE);
+
+    assertThat(result.get(ISIN_A)).isEqualByComparingTo("9000.0000");
+  }
+
+  @Test
   void returnsLatestPublishedCalculation() {
     // older published calc
     insert(NAV_DATE, "TUK75", ISIN_A, new BigDecimal("9000.0000"), true);
@@ -137,10 +159,10 @@ class NavReportPositionLookupTest {
             """
             INSERT INTO nav_report
               (nav_date, fund_code, account_type, account_name, account_id, quantity,
-               currency, calculation_id, published_at)
+               currency, calculation_id, published_at, sent_to_trustee_at)
             VALUES (:navDate, :fundCode, :accountType, :name, :isin, :quantity,
                'EUR', :calcId, """
-                + (published ? "now()" : "NULL")
+                + (published ? "now(), now()" : "NULL, NULL")
                 + ")")
         .param("navDate", navDate)
         .param("fundCode", fundCode)

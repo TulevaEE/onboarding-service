@@ -41,8 +41,8 @@ class NavWeightsReader {
                 SELECT p.calculation_id FROM nav_report p
                 WHERE p.fund_code = r.fund_code
                   AND p.nav_date = r.nav_date
-                  AND p.published_at IS NOT NULL
-                ORDER BY p.published_at DESC, p.id DESC
+                  AND p.sent_to_trustee_at IS NOT NULL
+                ORDER BY p.sent_to_trustee_at DESC, p.id DESC
                 LIMIT 1)
             """)
         .param("fundCode", fund.getCode())

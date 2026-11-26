@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -48,18 +49,24 @@ class NavRevisionService {
   }
 
   private void revise(NavPositionsUpdated event) {
-    String fundCode = event.fund().getCode();
-    BigDecimal publishedNav =
-        fundNavQueryService
-            .findPublishedNavPerUnit(fundCode, event.navDate())
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "Published NAV row missing: fund=%s, navDate=%s"
-                            .formatted(fundCode, event.navDate())));
-    NavCalculationResult revised =
+    Optional<BigDecimal> navTheTrusteeHas =
+        fundNavQueryService.findPublishedNavPerUnit(event.fund().getCode(), event.navDate());
+    NavCalculationResult recalculated =
         navCalculationService.calculate(event.fund(), calculationDate(event));
-    navPublisher.publishRevision(revised, new NavRevision(publishedNav, event.changedRows()));
+    navTheTrusteeHas.ifPresentOrElse(
+        sentNav ->
+            navPublisher.publishRevision(
+                recalculated, new NavRevision(sentNav, event.changedRows())),
+        () -> recalculateHeldNav(event, recalculated));
+  }
+
+  private void recalculateHeldNav(NavPositionsUpdated event, NavCalculationResult recalculated) {
+    log.info(
+        "Positions changed while the date's NAV is held for review, recalculating it as a new NAV: fund={}, navDate={}, changedRows={}",
+        event.fund().getCode(),
+        event.navDate(),
+        event.changedRows());
+    navPublisher.publish(recalculated);
   }
 
   private LocalDate calculationDate(NavPositionsUpdated event) {

@@ -37,7 +37,7 @@ class NavReconciliationService {
 
   private void reconcileFund(TulevaFund fund, LocalDate navDate) {
     List<NavReportRow> rows =
-        navReportRepository.findLatestByNavDateAndFundCode(navDate, fund.getCode());
+        navReportRepository.findSentByNavDateAndFundCode(navDate, fund.getCode());
     if (rows.isEmpty()) {
       log.info("No nav_report rows for reconciliation: fund={}, date={}", fund.getCode(), navDate);
       return;

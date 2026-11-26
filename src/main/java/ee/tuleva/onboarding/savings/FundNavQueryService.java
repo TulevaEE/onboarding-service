@@ -22,12 +22,12 @@ public class FundNavQueryService {
 
   private final NavReportRepository navReportRepository;
 
-  public boolean hasPublishedNav(String fundCode, LocalDate navDate) {
+  public boolean hasFinishedNavRun(String fundCode, LocalDate navDate) {
     return navReportRepository.existsPublishedByNavDateAndFundCode(navDate, fundCode);
   }
 
   public Optional<BigDecimal> findPublishedNavPerUnit(String fundCode, LocalDate navDate) {
-    return navReportRepository.findPublishedNavPerUnit(navDate, fundCode, NAV_ACCOUNT_TYPE);
+    return navReportRepository.findSentNavPerUnit(navDate, fundCode, NAV_ACCOUNT_TYPE);
   }
 
   public Optional<BigDecimal> findLatestNavPerUnit(String fundCode, LocalDate navDate) {
@@ -41,19 +41,19 @@ public class FundNavQueryService {
 
   public Optional<LocalDate> findLatestPublishedNavDateOnOrBefore(
       String fundCode, LocalDate asOfDate) {
-    return navReportRepository.findLatestPublishedNavDateByFundOnOrBefore(fundCode, asOfDate);
+    return navReportRepository.findLatestSentNavDateByFundOnOrBefore(fundCode, asOfDate);
   }
 
   public BigDecimal findAum(String fundCode, LocalDate navDate) {
-    return navReportRepository.sumPublishedMarketValueByAccountType(fundCode, navDate, "UNITS");
+    return navReportRepository.sumSentMarketValueByAccountType(fundCode, navDate, "UNITS");
   }
 
   public BigDecimal findSecuritiesTotalValue(String fundCode, LocalDate navDate) {
-    return navReportRepository.sumPublishedMarketValueByAccountType(fundCode, navDate, "SECURITY");
+    return navReportRepository.sumSentMarketValueByAccountType(fundCode, navDate, "SECURITY");
   }
 
   public BigDecimal findCashValue(String fundCode, LocalDate navDate) {
-    return navReportRepository.sumPublishedMarketValueByAccountType(fundCode, navDate, "CASH");
+    return navReportRepository.sumSentMarketValueByAccountType(fundCode, navDate, "CASH");
   }
 
   public Optional<BigDecimal> findFeeBaseComponentTotal(String fundCode, LocalDate navDate) {
@@ -62,14 +62,12 @@ public class FundNavQueryService {
 
   public List<LocalDate> findPublishedNavDatesBetween(
       String fundCode, LocalDate from, LocalDate to) {
-    return navReportRepository.findPublishedNavDatesBetween(fundCode, from, to);
+    return navReportRepository.findSentNavDatesBetween(fundCode, from, to);
   }
 
   public Optional<NavCalculation> findPublishedCalculation(String fundCode, LocalDate navDate) {
     return navReportRepository
-        .findFirstByFundCodeAndNavDateAndPublishedAtIsNotNullOrderByPublishedAtDescIdDesc(
-            fundCode, navDate)
-        .map(NavReportRow::getCalculationId)
+        .findSentCalculationId(fundCode, navDate)
         .flatMap(calculationId -> calculation(fundCode, navDate, calculationId));
   }
 
@@ -95,16 +93,15 @@ public class FundNavQueryService {
 
   private Optional<BigDecimal> sumForPublishedCalculation(
       String fundCode, LocalDate navDate, List<String> accountTypes) {
-    if (!hasPublishedNav(fundCode, navDate)) {
+    if (!navReportRepository.existsSentByNavDateAndFundCode(navDate, fundCode)) {
       return Optional.empty();
     }
     return Optional.of(
-        navReportRepository.sumPublishedCalculationMarketValueByAccountTypes(
+        navReportRepository.sumSentCalculationMarketValueByAccountTypes(
             fundCode, navDate, accountTypes));
   }
 
   public BigDecimal findFeeAccrualLiabilities(String fundCode, LocalDate navDate) {
-    return navReportRepository.sumPublishedMarketValueByAccountType(
-        fundCode, navDate, "LIABILITY_FEE");
+    return navReportRepository.sumSentMarketValueByAccountType(fundCode, navDate, "LIABILITY_FEE");
   }
 }

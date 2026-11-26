@@ -16,8 +16,8 @@ interface NavReportViewRepository extends JpaRepository<NavReportView, Long> {
             AND calculation_id = (
               SELECT calculation_id FROM nav_report
               WHERE nav_date = :navDate AND fund_code = :fundCode
-                AND published_at IS NOT NULL
-              ORDER BY id DESC LIMIT 1)
+                AND sent_to_trustee_at IS NOT NULL
+              ORDER BY sent_to_trustee_at DESC, id DESC LIMIT 1)
           ORDER BY id
           """,
       nativeQuery = true)
@@ -30,7 +30,7 @@ interface NavReportViewRepository extends JpaRepository<NavReportView, Long> {
           SELECT DISTINCT nav_date FROM nav_report
           WHERE fund_code = :fundCode
             AND nav_date BETWEEN :startDate AND :endDate
-            AND published_at IS NOT NULL
+            AND sent_to_trustee_at IS NOT NULL
           ORDER BY nav_date DESC
           LIMIT 1
           """,

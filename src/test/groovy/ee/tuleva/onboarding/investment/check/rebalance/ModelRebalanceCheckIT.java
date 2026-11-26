@@ -1019,9 +1019,9 @@ class ModelRebalanceCheckIT {
             """
             INSERT INTO nav_report
               (nav_date, fund_code, account_type, account_name, account_id, market_value,
-               currency, calculation_id, published_at)
+               currency, calculation_id, published_at, sent_to_trustee_at)
             VALUES (:navDate, :fundCode, :accountType, :accountName, :accountId, :marketValue,
-                    'EUR', :calculationId, :publishedAt)
+                    'EUR', :calculationId, :publishedAt, :publishedAt)
             """)
         .param("navDate", navDate)
         .param("fundCode", fund.getCode())

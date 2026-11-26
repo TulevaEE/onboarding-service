@@ -90,11 +90,11 @@ class NavPublisherTest {
     verify(navReportRepository).replaceByNavDateAndFundCode(eq(yesterday), eq("TKF100"), any());
 
     assertThat(reportRow.getCalculationId()).isNotNull();
-    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
+    verify(navReportRepository).markAsSent(reportRow.getCalculationId());
   }
 
   @Test
-  void publish_doesNotMarkAsPublished_whenEmailFails() {
+  void publish_doesNotMarkAsSentOrPublished_whenEmailFails() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
     Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
@@ -107,6 +107,7 @@ class NavPublisherTest {
 
     navPublisher.publish(result);
 
+    verify(navReportRepository, never()).markAsSent(any(UUID.class));
     verify(navReportRepository, never()).markAsPublished(any(UUID.class));
     verify(notificationService).sendMessage(any(String.class), eq(SAVINGS));
     verify(navNotifier).notify(result);
@@ -128,6 +129,7 @@ class NavPublisherTest {
 
     navPublisher.publish(result);
 
+    verify(navReportRepository, never()).markAsSent(any(UUID.class));
     verify(navReportRepository, never()).markAsPublished(any(UUID.class));
     verify(notificationService).sendMessage(any(String.class), eq(SAVINGS));
     verify(navNotifier).notify(result);
@@ -214,7 +216,7 @@ class NavPublisherTest {
   }
 
   @Test
-  void publish_routesToInternalReviewAndMarksPublished_whenTdGateBlocks() {
+  void publish_routesToInternalReviewAndMarksPublishedButNotSent_whenTdGateBlocks() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
     Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
@@ -232,7 +234,13 @@ class NavPublisherTest {
     verify(navReportEmailSender).sendForReview(any(), eq(result));
     verify(navReportEmailSender, never()).send(any(), any());
     verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
-    verify(notificationService).sendMessage(contains("trustee@seb.ee"), eq(SAVINGS));
+    verify(navReportRepository, never()).markAsSent(any(UUID.class));
+    verify(notificationService)
+        .sendMessage(
+            contains(
+                "fund=TKF100, navDate=2025-01-14, calculationId=" + reportRow.getCalculationId()),
+            eq(SAVINGS));
+    verify(notificationService).sendMessage(contains("/admin/nav/TKF100/2025-01-14"), eq(SAVINGS));
     verify(navNotifier).notify(result);
   }
 
@@ -296,7 +304,7 @@ class NavPublisherTest {
     navPublisher.publish(result);
 
     verify(navReportEmailSender).send(any(), eq(result));
-    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
+    verify(navReportRepository).markAsSent(reportRow.getCalculationId());
   }
 
   @Test
@@ -316,7 +324,7 @@ class NavPublisherTest {
     navPublisher.publish(result);
 
     verify(navReportEmailSender).send(any(), eq(result));
-    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
+    verify(navReportRepository).markAsSent(reportRow.getCalculationId());
   }
 
   @Test
@@ -334,6 +342,12 @@ class NavPublisherTest {
     assertThat(reportRow.getCalculationId()).isNotNull();
     verify(navReportEmailSender).sendForReview(any(), eq(result));
     verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
+    verify(navReportRepository, never()).markAsSent(any(UUID.class));
+    verify(notificationService)
+        .sendMessage(
+            contains(
+                "fund=TUK75, navDate=2025-01-14, calculationId=" + reportRow.getCalculationId()),
+            eq(SAVINGS));
     verify(notificationService)
         .sendMessage(
             contains(

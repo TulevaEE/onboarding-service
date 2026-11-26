@@ -141,6 +141,7 @@ class InstrumentRateCoverageCheckerIT {
             .marketValue(new BigDecimal("1000000.00"))
             .calculationId(UUID.randomUUID())
             .publishedAt(CHECK_DATE.atTime(12, 0).toInstant(UTC))
+            .sentToTrusteeAt(CHECK_DATE.atTime(12, 0).toInstant(UTC))
             .build());
   }
 

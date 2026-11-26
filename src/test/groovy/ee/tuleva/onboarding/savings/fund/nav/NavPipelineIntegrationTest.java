@@ -182,14 +182,16 @@ class NavPipelineIntegrationTest {
       var published = navCalculationService.calculate(TKF100, pair.calculationDate);
       navPublisher.publish(published);
       jdbcClient
-          .sql("UPDATE nav_report SET published_at = CURRENT_TIMESTAMP WHERE nav_date = :navDate")
+          .sql(
+              "UPDATE nav_report SET published_at = CURRENT_TIMESTAMP,"
+                  + " sent_to_trustee_at = CURRENT_TIMESTAMP WHERE nav_date = :navDate")
           .param("navDate", navData.navDate)
           .update();
       entityManager.flush();
       entityManager.clear();
       var originalCalculationId =
           navReportRepository
-              .findLatestByNavDateAndFundCode(navData.navDate, "TKF100")
+              .findSentByNavDateAndFundCode(navData.navDate, "TKF100")
               .getFirst()
               .getCalculationId();
 
@@ -216,7 +218,10 @@ class NavPipelineIntegrationTest {
       assertThat(revisionNavRow.orElseThrow().getMarketPrice())
           .isEqualByComparingTo(expectedRevisedNav);
 
-      navReportRepository.markAsPublished(revisionRows.getFirst().getCalculationId());
+      assertThat(fundNavQueryService.findPublishedNavPerUnit("TKF100", navData.navDate))
+          .contains(published.navPerUnit().setScale(8, HALF_UP));
+
+      navReportRepository.markAsSent(revisionRows.getFirst().getCalculationId());
 
       assertThat(fundNavQueryService.findPublishedNavPerUnit("TKF100", navData.navDate))
           .contains(expectedRevisedNav.setScale(8, HALF_UP));

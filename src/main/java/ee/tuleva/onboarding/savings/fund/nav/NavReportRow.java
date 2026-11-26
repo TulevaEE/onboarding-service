@@ -64,6 +64,8 @@ public class NavReportRow {
 
   private Instant publishedAt;
 
+  private @Nullable Instant sentToTrusteeAt;
+
   @Column(insertable = false, updatable = false)
   private Instant createdAt;
 }

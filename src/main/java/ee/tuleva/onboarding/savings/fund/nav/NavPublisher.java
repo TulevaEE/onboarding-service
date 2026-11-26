@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueWriter;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -65,7 +66,11 @@ public class NavPublisher {
 
     String reason = revision.describe(result);
     routeToInternalReview(
-        result, reportRows, calculationId, reason, revisionActionMessage(result, reason));
+        result,
+        reportRows,
+        calculationId,
+        reason,
+        revisionActionMessage(result, calculationId, reason));
 
     log.info(
         "Published NAV revision: fund={}, date={}, navPerUnit={}, aum={}",
@@ -125,13 +130,13 @@ public class NavPublisher {
           reportRows,
           calculationId,
           gateFailure.get(),
-          reviewActionMessage(result, gateFailure.get()));
+          reviewActionMessage(result, calculationId, gateFailure.get()));
       return;
     }
 
     pipelineTracker.stepStarted(REPORT_EMAIL);
     if (sendEmail(reportRows, result)) {
-      navReportRepository.markAsPublished(calculationId);
+      navReportRepository.markAsSent(calculationId);
       pipelineTracker.stepCompleted(REPORT_EMAIL);
     } else {
       pipelineTracker.stepFailed(REPORT_EMAIL, "Mandrill send failed");
@@ -177,7 +182,8 @@ public class NavPublisher {
     }
   }
 
-  private String reviewActionMessage(NavCalculationResult result, String reason) {
+  private String reviewActionMessage(
+      NavCalculationResult result, UUID calculationId, String reason) {
     return """
         🔴 NAV report HELD for review — NOT sent to SEB.
         %s
@@ -185,13 +191,15 @@ public class NavPublisher {
 
         What to do now:
         1. Verify the NAV in the "%s NAV arvutamine ..." email (funds@tuleva.ee) reconciles with the SEB custodian report.
-        2. If correct, forward that email to trustee@seb.ee.
+        2. If correct, release it. The release sends the report to SEB; do not forward the email by hand.
+        %s
         3. Optional (needs compliance sign-off) — widen the TD gate going forward:
            INSERT INTO investment_parameter (parameter_name, fund_code, effective_date, numeric_value) VALUES ('TRACKING_BREACH_THRESHOLD', NULL, CURRENT_DATE, 0.005);"""
-        .formatted(reason, result.fund().getCode());
+        .formatted(reason, result.fund().getCode(), howToRelease(result, calculationId));
   }
 
-  private String revisionActionMessage(NavCalculationResult result, String reason) {
+  private String revisionActionMessage(
+      NavCalculationResult result, UUID calculationId, String reason) {
     String fundCode = result.fund().getCode();
     String savingsFundStep =
         result.fund().isSavingsFund()
@@ -205,9 +213,24 @@ public class NavPublisher {
 
         What to do now:
         1. Check the changed rows against the new SEB position report.
-        2. If SEB has not received the revised NAV yet, forward the "%s NAV arvutamine ..." email to trustee@seb.ee.
-        3. This revision now supersedes the earlier calculation in nav_report; no DB change is needed.%s"""
-        .formatted(fundCode, result.positionReportDate(), reason, fundCode, savingsFundStep);
+        2. If correct, release it. The release sends the revised report to SEB; do not forward the email by hand.
+        %s
+        3. Until it is released, the NAV SEB has stays the fund's NAV in onboarding-service.%s"""
+        .formatted(
+            fundCode,
+            result.positionReportDate(),
+            reason,
+            howToRelease(result, calculationId),
+            savingsFundStep);
+  }
+
+  private static String howToRelease(NavCalculationResult result, UUID calculationId) {
+    String fundCode = result.fund().getCode();
+    LocalDate navDate = result.positionReportDate();
+    return ("   agent-gateway nav_release (two ✅): fund=%s, navDate=%s, calculationId=%s\n"
+            + "   Until agent-gateway has nav_release: GET /admin/nav/%s/%s shows the values to"
+            + " approve; POST them with approvedBy to /admin/nav/%s/%s/release")
+        .formatted(fundCode, navDate, calculationId, fundCode, navDate, fundCode, navDate);
   }
 
   private boolean sendEmail(List<NavReportRow> reportRows, NavCalculationResult result) {

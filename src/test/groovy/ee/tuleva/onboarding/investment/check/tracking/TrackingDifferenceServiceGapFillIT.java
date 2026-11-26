@@ -468,6 +468,7 @@ class TrackingDifferenceServiceGapFillIT {
             .marketPrice(new BigDecimal(navPerUnit))
             .calculationId(UUID.randomUUID())
             .publishedAt(navDate.plusDays(1).atTime(16, 0).toInstant(UTC))
+            .sentToTrusteeAt(navDate.plusDays(1).atTime(16, 0).toInstant(UTC))
             .build());
   }
 

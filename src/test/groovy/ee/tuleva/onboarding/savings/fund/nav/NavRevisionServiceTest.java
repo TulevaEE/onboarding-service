@@ -55,6 +55,23 @@ class NavRevisionServiceTest {
   }
 
   @Test
+  void
+      onNavPositionsUpdated_recalculatesThroughTheGate_whenTheDatesNavIsHeldAndTheTrusteeHasNone() {
+    given(navReportRepository.existsPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
+        .willReturn(true);
+    given(fundNavQueryService.findPublishedNavPerUnit("TUK75", NAV_DATE))
+        .willReturn(Optional.empty());
+    var recalculated = revisedResult();
+    given(navCalculationService.calculate(TUK75, NEXT_WORKING_DAY)).willReturn(recalculated);
+
+    service.onNavPositionsUpdated(new NavPositionsUpdated(TUK75, NAV_DATE, 4));
+
+    verify(navPublisher).publish(recalculated);
+    verify(navPublisher, never()).publishRevision(any(), any());
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
   void onNavPositionsUpdated_doesNothing_whenNavNotPublishedYet() {
     given(navReportRepository.existsPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
         .willReturn(false);

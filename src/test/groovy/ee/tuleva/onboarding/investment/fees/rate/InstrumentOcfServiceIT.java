@@ -677,6 +677,7 @@ class InstrumentOcfServiceIT {
             .marketValue(new BigDecimal(marketValue))
             .calculationId(UUID.randomUUID())
             .publishedAt(navDate.atTime(16, 0).toInstant(UTC))
+            .sentToTrusteeAt(navDate.atTime(16, 0).toInstant(UTC))
             .build());
   }
 

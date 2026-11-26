@@ -8,6 +8,8 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
@@ -30,20 +32,30 @@ class NavReportEmailSender {
   private final EmailService emailService;
 
   boolean send(List<NavReportRow> rows, NavCalculationResult result) {
-    return sendTo(rows, result, depositaryRecipients());
+    return send(rows, result.fund(), result.positionReportDate(), result.calculationDate());
+  }
+
+  boolean send(
+      List<NavReportRow> rows, TulevaFund fund, LocalDate navDate, LocalDate calculationDate) {
+    return sendTo(rows, fund.getCode(), navDate, calculationDate, depositaryRecipients());
   }
 
   boolean sendForReview(List<NavReportRow> rows, NavCalculationResult result) {
-    return sendTo(rows, result, reviewers());
+    return sendTo(
+        rows,
+        result.fund().getCode(),
+        result.positionReportDate(),
+        result.calculationDate(),
+        reviewers());
   }
 
   private boolean sendTo(
-      List<NavReportRow> rows, NavCalculationResult result, List<Recipient> recipients) {
+      List<NavReportRow> rows,
+      String fundCode,
+      LocalDate navDate,
+      LocalDate calculationDate,
+      List<Recipient> recipients) {
     var csvBytes = navReportCsvGenerator.generate(rows);
-
-    var fundCode = result.fund().getCode();
-    var navDate = result.positionReportDate();
-    var calculationDate = result.calculationDate();
 
     var message = new MandrillMessage();
     message.setFromEmail("funds@tuleva.ee");

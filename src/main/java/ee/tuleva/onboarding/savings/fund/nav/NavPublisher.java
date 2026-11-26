@@ -146,42 +146,52 @@ public class NavPublisher {
       routeToInternalReview(result, reportRows, reason, revisionActionMessage(result, reason));
       return NOT_SENT;
     }
-    Optional<String> gateFailure = checkGates(result);
-    if (gateFailure.isPresent()) {
-      routeToInternalReview(
-          result, reportRows, gateFailure.get(), reviewActionMessage(result, gateFailure.get()));
-      return NOT_SENT;
-    }
-    Optional<String> publicNavDifference = publicNavDifference(result);
-    if (publicNavDifference.isPresent()) {
-      routeToInternalReview(
-          result,
-          reportRows,
-          publicNavDifference.get(),
-          publicNavActionMessage(result, publicNavDifference.get()));
-      return NOT_SENT;
-    }
+    Optional<Hold> hold =
+        checkGates(result)
+            .map(reason -> new Hold(reason, reviewActionMessage(result, reason)))
+            .or(
+                () ->
+                    publicNavDifference(result)
+                        .map(reason -> new Hold(reason, publicNavActionMessage(result, reason))));
 
     return requireNonNull(
         transactionOperations.execute(
-            transaction -> sendToSebUnlessOvertaken(result, reportRows, calculationId)));
+            transaction -> {
+              if (isOvertakenWhileTheChecksRan(result, calculationId)) {
+                return NOT_SENT;
+              }
+              return hold.map(held -> holdForReview(result, reportRows, held))
+                  .orElseGet(() -> sendToSeb(result, reportRows, calculationId));
+            }));
   }
 
-  private NavPublication sendToSebUnlessOvertaken(
-      NavCalculationResult result, List<NavReportRow> reportRows, UUID calculationId) {
+  private record Hold(String reason, String actionMessage) {}
+
+  private boolean isOvertakenWhileTheChecksRan(NavCalculationResult result, UUID calculationId) {
     String fundCode = result.fund().getCode();
     LocalDate navDate = result.positionReportDate();
     navReportRepository.findTheDatesRowsForUpdate(fundCode, navDate);
-    if (navReportRepository.existsPublishedByNavDateAndFundCode(navDate, fundCode)
-        || isReplacedByANewerCalculation(fundCode, navDate, calculationId)) {
+    boolean overtaken =
+        navReportRepository.existsPublishedByNavDateAndFundCode(navDate, fundCode)
+            || isReplacedByANewerCalculation(fundCode, navDate, calculationId);
+    if (overtaken) {
       log.info(
-          "NAV not sent, a release or a newer calculation of the date overtook it while the gate ran: fund={}, date={}, calculationId={}",
+          "NAV neither sent nor held, a release or a newer calculation of the date overtook it while the checks ran: fund={}, date={}, calculationId={}",
           fundCode,
           navDate,
           calculationId);
-      return NOT_SENT;
     }
+    return overtaken;
+  }
 
+  private NavPublication holdForReview(
+      NavCalculationResult result, List<NavReportRow> reportRows, Hold hold) {
+    routeToInternalReview(result, reportRows, hold.reason(), hold.actionMessage());
+    return NOT_SENT;
+  }
+
+  private NavPublication sendToSeb(
+      NavCalculationResult result, List<NavReportRow> reportRows, UUID calculationId) {
     pipelineTracker.stepStarted(REPORT_EMAIL);
     if (sendEmail(reportRows, result)) {
       navReportRepository.markAsPublished(calculationId);

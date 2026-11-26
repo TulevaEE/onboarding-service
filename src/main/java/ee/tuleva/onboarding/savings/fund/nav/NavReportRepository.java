@@ -139,7 +139,7 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
       nativeQuery = true)
   void markAsPublished(@Param("calculationId") UUID calculationId);
 
-  List<NavReportRow> findByCalculationIdOrderById(UUID calculationId);
+  List<NavReportRow> findByFundCodeAndNavDateOrderById(String fundCode, LocalDate navDate);
 
   @Query(
       value =

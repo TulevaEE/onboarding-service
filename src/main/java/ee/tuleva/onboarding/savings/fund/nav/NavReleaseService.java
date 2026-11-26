@@ -42,11 +42,11 @@ public class NavReleaseService {
 
   @Transactional(readOnly = true)
   public NavReleaseStatus status(TulevaFund fund, LocalDate navDate) {
-    UUID latest =
-        navReportRepository
-            .findLatestCalculationId(fund.getCode(), navDate)
+    List<NavReportRow> latest =
+        latestCalculationOf(
+                navReportRepository.findByFundCodeAndNavDateOrderById(fund.getCode(), navDate))
             .orElseThrow(() -> noCalculation(fund, navDate));
-    return statusOf(fund, navDate, navReportRepository.findByCalculationIdOrderById(latest));
+    return statusOf(fund, navDate, latest);
   }
 
   public NavReleaseStatus release(TulevaFund fund, LocalDate navDate, NavReleaseApproval approval) {

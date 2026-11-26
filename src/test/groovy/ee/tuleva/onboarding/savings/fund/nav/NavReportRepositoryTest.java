@@ -396,17 +396,18 @@ class NavReportRepositoryTest {
   }
 
   @Test
-  void findByCalculationIdOrderById_returnsOnlyThatCalculationsRowsInOrder() {
+  void findByFundCodeAndNavDateOrderById_returnsEveryCalculationOfThatFundAndDateInOrder() {
     var navDate = LocalDate.of(2026, 11, 23);
     var calculation = UUID.randomUUID();
     var units = navReportRepository.save(navRow(navDate, calculation, "1.40660000", null));
     var security =
         navReportRepository.save(componentRow(navDate, calculation, "SECURITY", "1000.00"));
-    navReportRepository.save(navRow(navDate, UUID.randomUUID(), "1.50000000", null));
+    var newer = navReportRepository.save(navRow(navDate, UUID.randomUUID(), "1.50000000", null));
+    navReportRepository.save(navRow(navDate.minusDays(1), UUID.randomUUID(), "1.39000000", null));
 
-    assertThat(navReportRepository.findByCalculationIdOrderById(calculation))
+    assertThat(navReportRepository.findByFundCodeAndNavDateOrderById("TKF100", navDate))
         .extracting(NavReportRow::getId)
-        .containsExactly(units.getId(), security.getId());
+        .containsExactly(units.getId(), security.getId(), newer.getId());
   }
 
   private static NavReportRow componentRow(

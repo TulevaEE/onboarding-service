@@ -211,7 +211,8 @@ class NavReleaseServiceTest {
     var released = navReleaseService.release(TKF100, NAV_DATE, approval("1.4066"));
 
     assertThat(released.state()).isEqualTo(SENT);
-    assertThat(navReportRepository.findByCalculationIdOrderById(held))
+    assertThat(navReportRepository.findByFundCodeAndNavDateOrderById("TKF100", NAV_DATE))
+        .allSatisfy(row -> assertThat(row.getCalculationId()).isEqualTo(held))
         .allSatisfy(row -> assertThat(row.getPublishedAt()).isNotNull());
   }
 

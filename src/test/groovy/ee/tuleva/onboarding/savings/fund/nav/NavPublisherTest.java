@@ -340,6 +340,24 @@ class NavPublisherTest {
   }
 
   @Test
+  void publish_holdsNothingForReview_whenAReleaseReachedSebWhileTheGateRan() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build()));
+    given(trackingDifferenceGate.check(TUK75, yesterday))
+        .willReturn(Optional.of("TD breach: fund=TUK75, MODEL_PORTFOLIO TD=0.015"));
+    given(navReportRepository.existsPublishedByNavDateAndFundCode(yesterday, "TUK75"))
+        .willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
+
+    then(navReportEmailSender).shouldHaveNoInteractions();
+    then(notificationService).should(never()).sendMessage(any(), eq(SAVINGS));
+  }
+
+  @Test
   void publish_sendsNothing_whenANewerCalculationReplacedItWhileTheGateRan() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);

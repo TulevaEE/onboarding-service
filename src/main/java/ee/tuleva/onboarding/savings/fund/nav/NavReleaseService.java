@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static ee.tuleva.onboarding.savings.fund.nav.NavReleaseState.HELD;
-import static ee.tuleva.onboarding.savings.fund.nav.NavReleaseState.NOT_FINAL;
 import static ee.tuleva.onboarding.savings.fund.nav.NavReleaseState.REVISION;
 import static ee.tuleva.onboarding.savings.fund.nav.NavReleaseState.SENT;
 import static java.util.Objects.requireNonNull;
@@ -15,6 +14,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -68,24 +68,27 @@ public class NavReleaseService {
   private NavReleaseStatus sendAndStamp(
       TulevaFund fund, LocalDate navDate, NavReleaseApproval approval) {
     List<NavReportRow> rows =
-        navReportRepository.findTheDatesRowsForUpdate(fund.getCode(), navDate).stream()
-            .filter(row -> approval.calculationId().equals(row.getCalculationId()))
-            .toList();
-    if (rows.isEmpty()) {
-      throw new NoSuchElementException(
-          "NAV calculation not found for this fund and date: fund=%s, navDate=%s, calculationId=%s"
-              .formatted(fund.getCode(), navDate, approval.calculationId()));
-    }
+        latestCalculationOf(navReportRepository.findTheDatesRowsForUpdate(fund.getCode(), navDate))
+            .orElseThrow(() -> noCalculation(fund, navDate));
     NavReleaseStatus current = statusOf(fund, navDate, rows);
     refuseUnlessReleasable(current, approval);
 
     if (!sendToTheTrustee(rows, fund, navDate)) {
       throw new NavReleaseEmailFailedException(
           "NAV report email to the trustee failed, nothing released: fund=%s, navDate=%s, calculationId=%s"
-              .formatted(fund.getCode(), navDate, approval.calculationId()));
+              .formatted(fund.getCode(), navDate, current.calculationId()));
     }
-    navReportRepository.markAsSent(approval.calculationId());
+    navReportRepository.markAsPublished(current.calculationId());
     return current;
+  }
+
+  private static Optional<List<NavReportRow>> latestCalculationOf(List<NavReportRow> theDatesRows) {
+    if (theDatesRows.isEmpty()) {
+      return Optional.empty();
+    }
+    UUID latest = theDatesRows.getLast().getCalculationId();
+    return Optional.of(
+        theDatesRows.stream().filter(row -> latest.equals(row.getCalculationId())).toList());
   }
 
   private boolean sendToTheTrustee(List<NavReportRow> rows, TulevaFund fund, LocalDate navDate) {
@@ -124,18 +127,15 @@ public class NavReleaseService {
         units.getMarketPrice(),
         units.getMarketValue(),
         navReportRepository
-            .findSentNavPerUnit(navDate, fund.getCode(), NAV_ACCOUNT_TYPE)
+            .findPublishedNavPerUnit(navDate, fund.getCode(), NAV_ACCOUNT_TYPE)
             .orElse(null));
   }
 
   private NavReleaseState stateOf(TulevaFund fund, LocalDate navDate, NavReportRow units) {
-    if (units.getSentToTrusteeAt() != null) {
+    if (units.getPublishedAt() != null) {
       return SENT;
     }
-    if (units.getPublishedAt() == null) {
-      return NOT_FINAL;
-    }
-    return navReportRepository.existsSentByNavDateAndFundCode(navDate, fund.getCode())
+    return navReportRepository.existsPublishedByNavDateAndFundCode(navDate, fund.getCode())
         ? REVISION
         : HELD;
   }
@@ -158,9 +158,6 @@ public class NavReleaseService {
   }
 
   private void refuseUnlessReleasable(NavReleaseStatus current, NavReleaseApproval approval) {
-    if (!isTheDatesLatestCalculation(current)) {
-      throw refusal("is not the date's latest calculation", current);
-    }
     if (!current.state().isReleasable()) {
       throw refusal(
           "is %s, and only a HELD or REVISION calculation is released".formatted(current.state()),
@@ -174,16 +171,9 @@ public class NavReleaseService {
     }
   }
 
-  private boolean isTheDatesLatestCalculation(NavReleaseStatus current) {
-    return navReportRepository
-        .findLatestCalculationId(current.fundCode(), current.navDate())
-        .map(current.calculationId()::equals)
-        .orElse(false);
-  }
-
   private static NavReleaseRefusedException refusal(String reason, NavReleaseStatus current) {
     return new NavReleaseRefusedException(
-        "NAV release refused, the calculation %s: fund=%s, navDate=%s, calculationId=%s, navPerUnit=%s, aum=%s"
+        "NAV release refused, the date's latest calculation %s: fund=%s, navDate=%s, calculationId=%s, navPerUnit=%s, aum=%s"
             .formatted(
                 reason,
                 current.fundCode(),

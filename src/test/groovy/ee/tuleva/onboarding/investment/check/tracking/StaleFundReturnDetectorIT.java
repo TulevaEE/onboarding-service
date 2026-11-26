@@ -103,10 +103,7 @@ class StaleFundReturnDetectorIT {
 
   private void storeNav(LocalDate navDate, BigDecimal navPerUnit) {
     navReportRepository.save(
-        navRow(navDate, navPerUnit)
-            .publishedAt(navDate.atTime(16, 0).toInstant(UTC))
-            .sentToTrusteeAt(navDate.atTime(16, 0).toInstant(UTC))
-            .build());
+        navRow(navDate, navPerUnit).publishedAt(navDate.atTime(16, 0).toInstant(UTC)).build());
   }
 
   private void storeUnpublishedNav(LocalDate navDate, BigDecimal navPerUnit) {

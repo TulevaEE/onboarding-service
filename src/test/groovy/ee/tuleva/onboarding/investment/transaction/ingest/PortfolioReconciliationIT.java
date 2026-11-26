@@ -301,9 +301,9 @@ class PortfolioReconciliationIT {
             """
             INSERT INTO nav_report
               (nav_date, fund_code, account_type, account_name, account_id, quantity,
-               currency, calculation_id, published_at, sent_to_trustee_at)
+               currency, calculation_id, published_at)
             VALUES (:navDate, :fundCode, 'SECURITY', :name, :isin, :quantity,
-               'EUR', :calcId, now(), now())
+               'EUR', :calcId, now())
             """)
         .param("navDate", AS_OF)
         .param("fundCode", TUK75.getCode())

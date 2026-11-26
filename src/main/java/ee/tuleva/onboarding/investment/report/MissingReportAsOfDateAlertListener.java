@@ -83,7 +83,7 @@ class MissingReportAsOfDateAlertListener {
   private boolean isNavCalculatedForEveryFund(LocalDate navDate) {
     return Arrays.stream(TulevaFund.values())
         .filter(TulevaFund::hasNavCalculation)
-        .allMatch(fund -> fundNavQueryService.hasFinishedNavRun(fund.getCode(), navDate));
+        .allMatch(fund -> fundNavQueryService.hasPublishedNav(fund.getCode(), navDate));
   }
 
   private static String navAlreadyCalculatedMessage(InvestmentReport report) {

@@ -44,7 +44,7 @@ class NavReconciliationServiceTest {
     for (TulevaFund fund : TulevaFund.values()) {
       if (fund.hasNavCalculation()) {
         lenient()
-            .when(navReportRepository.findSentByNavDateAndFundCode(NAV_DATE, fund.getCode()))
+            .when(navReportRepository.findLatestByNavDateAndFundCode(NAV_DATE, fund.getCode()))
             .thenReturn(List.of());
       }
     }
@@ -175,7 +175,7 @@ class NavReconciliationServiceTest {
             .marketValue(new BigDecimal(aum))
             .build();
 
-    when(navReportRepository.findSentByNavDateAndFundCode(navDate, fund.getCode()))
+    when(navReportRepository.findLatestByNavDateAndFundCode(navDate, fund.getCode()))
         .thenReturn(List.of(navRow, unitsRow));
   }
 

@@ -337,9 +337,9 @@ class FeeCheckIntegrationTest {
             """
             INSERT INTO nav_report
             (nav_date, fund_code, account_type, account_name, market_value, calculation_id,
-             published_at, sent_to_trustee_at)
+             published_at)
             VALUES (:navDate, 'TUK75', :accountType, :accountName, :marketValue, :calculationId,
-                    :publishedAt, :publishedAt)
+                    :publishedAt)
             """)
         .param("navDate", navDate)
         .param("accountType", accountType)

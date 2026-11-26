@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.savings.fund.nav;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.REPORT_EMAIL;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.REPORT_PERSIST;
+import static ee.tuleva.onboarding.savings.fund.nav.NavPublication.NOT_SENT;
+import static ee.tuleva.onboarding.savings.fund.nav.NavPublication.SENT;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueWriter;
@@ -34,17 +36,13 @@ public class NavPublisher {
   private final NavPublicationGate trackingDifferenceGate;
   private final PipelineTracker pipelineTracker;
 
-  public void publish(NavCalculationResult result) {
+  public NavPublication publish(NavCalculationResult result) {
     publishToFundValueApi(result);
 
     UUID calculationId = UUID.randomUUID();
     List<NavReportRow> reportRows = persistReportRows(result, calculationId);
 
-    if (reportRows.isEmpty()) {
-      notifyEmptyReport(result);
-    } else {
-      sendReportEmailWithGate(result, reportRows, calculationId);
-    }
+    NavPublication publication = deliver(result, reportRows, calculationId);
 
     navNotifier.notify(result);
 
@@ -54,6 +52,16 @@ public class NavPublisher {
         result.calculationDate(),
         result.navPerUnit(),
         result.aum());
+    return publication;
+  }
+
+  private NavPublication deliver(
+      NavCalculationResult result, List<NavReportRow> reportRows, UUID calculationId) {
+    if (reportRows.isEmpty()) {
+      notifyEmptyReport(result);
+      return NOT_SENT;
+    }
+    return sendReportEmailWithGate(result, reportRows, calculationId);
   }
 
   void publishRevision(NavCalculationResult result, NavRevision revision) {
@@ -67,12 +75,7 @@ public class NavPublisher {
     }
 
     String reason = revision.describe(result);
-    routeToInternalReview(
-        result,
-        reportRows,
-        calculationId,
-        reason,
-        revisionActionMessage(result, calculationId, reason));
+    routeToInternalReview(result, reportRows, reason, revisionActionMessage(result, reason));
 
     log.info(
         "Published NAV revision: fund={}, date={}, navPerUnit={}, aum={}",
@@ -123,58 +126,49 @@ public class NavPublisher {
         SAVINGS);
   }
 
-  private void sendReportEmailWithGate(
+  private NavPublication sendReportEmailWithGate(
       NavCalculationResult result, List<NavReportRow> reportRows, UUID calculationId) {
     Optional<BigDecimal> navTheTrusteeHas =
-        navReportRepository.findSentNavPerUnit(
+        navReportRepository.findPublishedNavPerUnit(
             result.positionReportDate(), result.fund().getCode(), NAV_ACCOUNT_TYPE);
     if (navTheTrusteeHas.isPresent()) {
       String reason =
           "SEB already has a NAV for this date: sentNav=%s, recalculatedNav=%s"
               .formatted(
                   navTheTrusteeHas.get().toPlainString(), result.navPerUnit().toPlainString());
-      routeToInternalReview(
-          result,
-          reportRows,
-          calculationId,
-          reason,
-          revisionActionMessage(result, calculationId, reason));
-      return;
+      routeToInternalReview(result, reportRows, reason, revisionActionMessage(result, reason));
+      return NOT_SENT;
     }
     Optional<String> gateFailure = checkGates(result);
     if (gateFailure.isPresent()) {
       routeToInternalReview(
-          result,
-          reportRows,
-          calculationId,
-          gateFailure.get(),
-          reviewActionMessage(result, calculationId, gateFailure.get()));
-      return;
+          result, reportRows, gateFailure.get(), reviewActionMessage(result, gateFailure.get()));
+      return NOT_SENT;
     }
 
     pipelineTracker.stepStarted(REPORT_EMAIL);
     if (sendEmail(reportRows, result)) {
-      navReportRepository.markAsSent(calculationId);
+      navReportRepository.markAsPublished(calculationId);
       pipelineTracker.stepCompleted(REPORT_EMAIL);
-    } else {
-      pipelineTracker.stepFailed(REPORT_EMAIL, "Mandrill send failed");
-      log.error(
-          "NAV report email failed, rows remain unpublished: fund={}, date={}",
-          result.fund(),
-          result.positionReportDate());
-      notificationService.sendMessage(
-          "NAV report email failed: fund="
-              + result.fund().getCode()
-              + ", date="
-              + result.positionReportDate(),
-          SAVINGS);
+      return SENT;
     }
+    pipelineTracker.stepFailed(REPORT_EMAIL, "Mandrill send failed");
+    log.error(
+        "NAV report email failed, rows remain unpublished: fund={}, date={}",
+        result.fund(),
+        result.positionReportDate());
+    notificationService.sendMessage(
+        "NAV report email failed: fund="
+            + result.fund().getCode()
+            + ", date="
+            + result.positionReportDate(),
+        SAVINGS);
+    return NOT_SENT;
   }
 
   private void routeToInternalReview(
       NavCalculationResult result,
       List<NavReportRow> reportRows,
-      UUID calculationId,
       String reason,
       String actionMessage) {
     log.error(
@@ -184,7 +178,6 @@ public class NavPublisher {
         reason);
     pipelineTracker.stepStarted(REPORT_EMAIL);
     if (navReportEmailSender.sendForReview(reportRows, result)) {
-      navReportRepository.markAsPublished(calculationId);
       pipelineTracker.stepCompleted(REPORT_EMAIL);
       notificationService.sendMessage(actionMessage, SAVINGS);
     } else {
@@ -200,12 +193,12 @@ public class NavPublisher {
     }
   }
 
-  private String reviewActionMessage(
-      NavCalculationResult result, UUID calculationId, String reason) {
+  private String reviewActionMessage(NavCalculationResult result, String reason) {
     return """
         🔴 NAV report HELD for review — NOT sent to SEB.
         %s
         The CSV report was emailed to funds@tuleva.ee.
+        Until it is released or passes the check, the NAV is recalculated every 5–15 minutes and this message repeats.
 
         What to do now:
         1. Verify the NAV in the "%s NAV arvutamine ..." email (funds@tuleva.ee) reconciles with the SEB custodian report.
@@ -213,11 +206,10 @@ public class NavPublisher {
         %s
         3. Optional (needs compliance sign-off) — widen the TD gate going forward:
            INSERT INTO investment_parameter (parameter_name, fund_code, effective_date, numeric_value) VALUES ('TRACKING_BREACH_THRESHOLD', NULL, CURRENT_DATE, 0.005);"""
-        .formatted(reason, result.fund().getCode(), howToRelease(result, calculationId));
+        .formatted(reason, result.fund().getCode(), howToRelease(result));
   }
 
-  private String revisionActionMessage(
-      NavCalculationResult result, UUID calculationId, String reason) {
+  private String revisionActionMessage(NavCalculationResult result, String reason) {
     String fundCode = result.fund().getCode();
     String savingsFundStep =
         result.fund().isSavingsFund()
@@ -235,20 +227,16 @@ public class NavPublisher {
         %s
         3. Until it is released, onboarding-service reads only a NAV SEB has received.%s"""
         .formatted(
-            fundCode,
-            result.positionReportDate(),
-            reason,
-            howToRelease(result, calculationId),
-            savingsFundStep);
+            fundCode, result.positionReportDate(), reason, howToRelease(result), savingsFundStep);
   }
 
-  private static String howToRelease(NavCalculationResult result, UUID calculationId) {
+  private static String howToRelease(NavCalculationResult result) {
     String fundCode = result.fund().getCode();
     LocalDate navDate = result.positionReportDate();
-    return ("   agent-gateway nav_release (two ✅): fund=%s, navDate=%s, calculationId=%s\n"
+    return ("   agent-gateway nav_release (two ✅): fund=%s, navDate=%s\n"
             + "   Until agent-gateway has nav_release: GET /admin/nav/%s/%s shows the values to"
-            + " approve; POST them with approvedBy to /admin/nav/%s/%s/release")
-        .formatted(fundCode, navDate, calculationId, fundCode, navDate, fundCode, navDate);
+            + " approve; POST navPerUnit, aum and approvedBy to /admin/nav/%s/%s/release")
+        .formatted(fundCode, navDate, fundCode, navDate, fundCode, navDate);
   }
 
   private boolean sendEmail(List<NavReportRow> reportRows, NavCalculationResult result) {

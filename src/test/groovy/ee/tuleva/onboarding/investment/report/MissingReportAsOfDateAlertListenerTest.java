@@ -73,7 +73,7 @@ class MissingReportAsOfDateAlertListenerTest {
   void
       saysTheNavIsAlreadyCalculatedWithoutPingingTheChannel_whenEveryFundsNavForThatDateIsPublished() {
     storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE, Map.of());
-    given(fundNavQueryService.hasFinishedNavRun(any(), eq(REPORT_DATE))).willReturn(true);
+    given(fundNavQueryService.hasPublishedNav(any(), eq(REPORT_DATE))).willReturn(true);
 
     listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE));
 

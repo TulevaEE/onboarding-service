@@ -913,9 +913,9 @@ class OwnershipLimitCheckIT {
             """
             INSERT INTO nav_report
               (nav_date, fund_code, account_type, account_name, account_id, market_value,
-               currency, calculation_id, published_at, sent_to_trustee_at)
+               currency, calculation_id, published_at)
             VALUES (:navDate, 'TKF100', 'SECURITY', :isin, :isin, :marketValue,
-               'EUR', :calculationId, now(), now())
+               'EUR', :calculationId, now())
             """)
         .param("navDate", navDate)
         .param("isin", isin)

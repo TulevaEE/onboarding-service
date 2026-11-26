@@ -2,8 +2,10 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.pipeline.PipelineStep.NAV_CALCULATION;
 import static ee.tuleva.onboarding.savings.fund.nav.NavCalculationJob.FundOutcome.FAILED;
+import static ee.tuleva.onboarding.savings.fund.nav.NavCalculationJob.FundOutcome.HELD;
 import static ee.tuleva.onboarding.savings.fund.nav.NavCalculationJob.FundOutcome.PUBLISHED;
 import static ee.tuleva.onboarding.savings.fund.nav.NavCalculationJob.FundOutcome.SKIPPED;
+import static ee.tuleva.onboarding.savings.fund.nav.NavPublication.SENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
@@ -150,8 +152,7 @@ public class NavCalculationJob {
       return SKIPPED;
     }
     try {
-      calculateAndPublish(fund, today);
-      return PUBLISHED;
+      return calculateAndPublish(fund, today) == SENT ? PUBLISHED : HELD;
     } catch (Exception e) {
       log.error(
           "Failed NAV calculation, continuing with next fund: fund={}, date={}", fund, today, e);
@@ -161,6 +162,7 @@ public class NavCalculationJob {
 
   enum FundOutcome {
     PUBLISHED,
+    HELD,
     SKIPPED,
     FAILED
   }
@@ -171,10 +173,12 @@ public class NavCalculationJob {
     return navReportRepository.existsPublishedByNavDateAndFundCode(expectedNavDate, fund.getCode());
   }
 
-  private void calculateAndPublish(TulevaFund fund, LocalDate today) {
+  private NavPublication calculateAndPublish(TulevaFund fund, LocalDate today) {
     log.info("Starting NAV calculation: fund={}, date={}", fund, today);
     NavCalculationResult result = navCalculationService.calculate(fund, today);
-    navPublisher.publish(result);
-    log.info("Completed NAV calculation: fund={}, date={}", fund, today);
+    NavPublication publication = navPublisher.publish(result);
+    log.info(
+        "Completed NAV calculation: fund={}, date={}, publication={}", fund, today, publication);
+    return publication;
   }
 }

@@ -74,9 +74,9 @@ class NavReportRepositoryTest {
             .build();
 
     navReportRepository.replaceByNavDateAndFundCode(navDate, "TUK75", List.of(second));
-    navReportRepository.markAsSent(calcId2);
+    navReportRepository.markAsPublished(calcId2);
 
-    var rows = navReportRepository.findSentByNavDateAndFundCode(navDate, "TUK75");
+    var rows = navReportRepository.findLatestByNavDateAndFundCode(navDate, "TUK75");
     assertThat(rows)
         .singleElement()
         .satisfies(
@@ -105,7 +105,7 @@ class NavReportRepositoryTest {
             .build();
 
     navReportRepository.replaceByNavDateAndFundCode(navDate, "TKF100", List.of(published));
-    navReportRepository.markAsSent(calcId1);
+    navReportRepository.markAsPublished(calcId1);
 
     var calcId2 = UUID.randomUUID();
     var recalculated =
@@ -123,7 +123,7 @@ class NavReportRepositoryTest {
 
     navReportRepository.replaceByNavDateAndFundCode(navDate, "TKF100", List.of(recalculated));
 
-    var latestPublished = navReportRepository.findSentByNavDateAndFundCode(navDate, "TKF100");
+    var latestPublished = navReportRepository.findLatestByNavDateAndFundCode(navDate, "TKF100");
     assertThat(latestPublished)
         .singleElement()
         .satisfies(
@@ -139,8 +139,8 @@ class NavReportRepositoryTest {
             .toList();
     assertThat(tkf100Rows).hasSize(2);
 
-    navReportRepository.markAsSent(calcId2);
-    var latestAfterPublish = navReportRepository.findSentByNavDateAndFundCode(navDate, "TKF100");
+    navReportRepository.markAsPublished(calcId2);
+    var latestAfterPublish = navReportRepository.findLatestByNavDateAndFundCode(navDate, "TKF100");
     assertThat(latestAfterPublish)
         .singleElement()
         .satisfies(
@@ -171,13 +171,8 @@ class NavReportRepositoryTest {
 
     navReportRepository.markAsPublished(calcId);
 
-    assertThat(navReportRepository.findAll())
-        .singleElement()
-        .satisfies(
-            r -> {
-              assertThat(r.getPublishedAt()).isNotNull();
-              assertThat(r.getSentToTrusteeAt()).isNull();
-            });
+    var found = navReportRepository.findLatestByNavDateAndFundCode(navDate, "TKF100");
+    assertThat(found).singleElement().satisfies(r -> assertThat(r.getPublishedAt()).isNotNull());
   }
 
   @Test
@@ -224,62 +219,67 @@ class NavReportRepositoryTest {
   }
 
   @Test
-  void findSentNavPerUnit_ignoresANewerUnpublishedCalculation() {
+  void findPublishedNavPerUnit_ignoresANewerUnpublishedCalculation() {
     var navDate = LocalDate.of(2026, 8, 27);
     var publishedCalculation = UUID.randomUUID();
     navReportRepository.save(navRow(navDate, publishedCalculation, "1.40660000", null));
-    navReportRepository.markAsSent(publishedCalculation);
+    navReportRepository.markAsPublished(publishedCalculation);
 
     navReportRepository.save(navRow(navDate, UUID.randomUUID(), "1.50000000", null));
 
-    assertThat(navReportRepository.findSentNavPerUnit(navDate, "TKF100", "NAV"))
+    assertThat(navReportRepository.findPublishedNavPerUnit(navDate, "TKF100", "NAV"))
         .get(as(BIG_DECIMAL))
         .isEqualByComparingTo("1.4066");
   }
 
   @Test
-  void findSentNavPerUnit_picksTheMostRecentlySentNotTheHighestId() {
+  void findPublishedNavPerUnit_picksTheMostRecentlyPublishedNotTheHighestId() {
     var navDate = LocalDate.of(2026, 8, 27);
+    // A backdated recalculation is saved first and published last, so id order and publication
+    // order disagree. The NAV that actually went out is the one published last.
     navReportRepository.save(
         navRow(navDate, UUID.randomUUID(), "1.40660000", Instant.parse("2026-08-28T12:00:00Z")));
     navReportRepository.save(
         navRow(navDate, UUID.randomUUID(), "1.39000000", Instant.parse("2026-08-28T09:00:00Z")));
 
-    assertThat(navReportRepository.findSentNavPerUnit(navDate, "TKF100", "NAV"))
+    assertThat(navReportRepository.findPublishedNavPerUnit(navDate, "TKF100", "NAV"))
         .get(as(BIG_DECIMAL))
         .isEqualByComparingTo("1.4066");
   }
 
   @Test
-  void findSentNavPerUnit_returnsEmptyWhenNothingIsPublishedYet() {
+  void findPublishedNavPerUnit_returnsEmptyWhenNothingIsPublishedYet() {
     var navDate = LocalDate.of(2026, 8, 27);
     navReportRepository.save(navRow(navDate, UUID.randomUUID(), "1.40660000", null));
 
-    assertThat(navReportRepository.findSentNavPerUnit(navDate, "TKF100", "NAV")).isEmpty();
+    assertThat(navReportRepository.findPublishedNavPerUnit(navDate, "TKF100", "NAV")).isEmpty();
   }
 
+  // The fee base a fee was charged on is the one the published NAV carried. An ad-hoc
+  // recalculation that never went out must not become the yardstick the accrual is measured
+  // against, or a bad unpublished run reads as a correct fee base and a correct one as wrong.
   @Test
-  void sumSentCalculationMarketValueByAccountTypes_ignoresANewerUnpublishedCalculation() {
+  void sumPublishedCalculationMarketValueByAccountTypes_ignoresANewerUnpublishedCalculation() {
     var navDate = LocalDate.of(2026, 9, 1);
     var publishedCalculation = UUID.randomUUID();
     navReportRepository.save(
         componentRow(navDate, publishedCalculation, "SECURITY", "16113135.38"));
     navReportRepository.save(
         componentRow(navDate, publishedCalculation, "LIABILITY", "-100000.00"));
-    navReportRepository.markAsSent(publishedCalculation);
+    navReportRepository.markAsPublished(publishedCalculation);
 
     var unpublishedCalculation = UUID.randomUUID();
     navReportRepository.save(
         componentRow(navDate, unpublishedCalculation, "SECURITY", "16040828.63"));
 
     assertThat(
-            navReportRepository.sumSentCalculationMarketValueByAccountTypes(
+            navReportRepository.sumPublishedCalculationMarketValueByAccountTypes(
                 "TKF100", navDate, List.of("SECURITY", "CASH", "RECEIVABLES", "LIABILITY")))
         .isEqualByComparingTo("16013135.38");
   }
 
   @Test
-  void sumSentCalculationMarketValueByAccountTypes_picksTheMostRecentlySent() {
+  void sumPublishedCalculationMarketValueByAccountTypes_picksTheMostRecentlyPublished() {
     var navDate = LocalDate.of(2026, 9, 1);
     navReportRepository.save(
         componentRow(
@@ -297,7 +297,7 @@ class NavReportRepositoryTest {
             Instant.parse("2026-09-02T09:00:00Z")));
 
     assertThat(
-            navReportRepository.sumSentCalculationMarketValueByAccountTypes(
+            navReportRepository.sumPublishedCalculationMarketValueByAccountTypes(
                 "TKF100", navDate, List.of("SECURITY", "CASH", "RECEIVABLES", "LIABILITY")))
         .isEqualByComparingTo("16013135.38");
   }
@@ -307,7 +307,7 @@ class NavReportRepositoryTest {
     var navDate = LocalDate.of(2026, 8, 27);
     var publishedCalculation = UUID.randomUUID();
     navReportRepository.save(navRow(navDate, publishedCalculation, "1.40660000", null));
-    navReportRepository.markAsSent(publishedCalculation);
+    navReportRepository.markAsPublished(publishedCalculation);
 
     navReportRepository.save(navRow(navDate, UUID.randomUUID(), "1.50000000", null));
 
@@ -317,118 +317,52 @@ class NavReportRepositoryTest {
   }
 
   @Test
-  void findLatestSentNavDateByFundOnOrBefore_skipsADateWhoseCalculationNeverWentOut() {
+  void findLatestPublishedNavDateByFundOnOrBefore_skipsADateWhoseCalculationNeverWentOut() {
     var monthEnd = LocalDate.of(2026, 5, 29);
     var dayBefore = monthEnd.minusDays(1);
     var publishedCalculation = UUID.randomUUID();
     navReportRepository.save(navRow(dayBefore, publishedCalculation, "1.40000000", null));
-    navReportRepository.markAsSent(publishedCalculation);
+    navReportRepository.markAsPublished(publishedCalculation);
     navReportRepository.save(navRow(monthEnd, UUID.randomUUID(), "1.41000000", null));
 
-    assertThat(navReportRepository.findLatestSentNavDateByFundOnOrBefore("TKF100", monthEnd))
+    assertThat(navReportRepository.findLatestPublishedNavDateByFundOnOrBefore("TKF100", monthEnd))
         .hasValue(dayBefore);
   }
 
   @Test
-  void findLatestSentNavDateByFundOnOrBefore_isEmptyWhenNothingWasEverPublished() {
+  void findLatestPublishedNavDateByFundOnOrBefore_isEmptyWhenNothingWasEverPublished() {
     var monthEnd = LocalDate.of(2026, 5, 29);
     navReportRepository.save(navRow(monthEnd, UUID.randomUUID(), "1.41000000", null));
 
-    assertThat(navReportRepository.findLatestSentNavDateByFundOnOrBefore("TKF100", monthEnd))
+    assertThat(navReportRepository.findLatestPublishedNavDateByFundOnOrBefore("TKF100", monthEnd))
         .isEmpty();
   }
 
   @Test
-  void markAsSent_stampsTheCalculationPublishedAndSent() {
-    var navDate = LocalDate.of(2026, 11, 23);
-    var calculation = UUID.randomUUID();
-    navReportRepository.save(navRow(navDate, calculation, "1.40660000", null));
-
-    navReportRepository.markAsSent(calculation);
-
-    assertThat(navReportRepository.findAll())
-        .singleElement()
-        .satisfies(
-            r -> {
-              assertThat(r.getPublishedAt()).isNotNull();
-              assertThat(r.getSentToTrusteeAt()).isNotNull();
-            });
-  }
-
-  @Test
-  void markAsSent_keepsWhenAHeldCalculationWasFinal() {
-    var navDate = LocalDate.of(2026, 11, 23);
-    var held = UUID.randomUUID();
-    var heldAt = Instant.parse("2026-11-24T09:01:00Z");
-    var heldRow = navRow(navDate, held, "1.40660000", null);
-    heldRow.setPublishedAt(heldAt);
-    navReportRepository.save(heldRow);
-
-    navReportRepository.markAsSent(held);
-
-    assertThat(navReportRepository.findAll())
-        .singleElement()
-        .satisfies(
-            r -> {
-              assertThat(r.getPublishedAt()).isEqualTo(heldAt);
-              assertThat(r.getSentToTrusteeAt()).isNotNull();
-            });
-  }
-
-  @Test
-  void aHeldCalculationCountsAsARunNavButNotAsTheNavTheTrusteeHas() {
-    var navDate = LocalDate.of(2026, 11, 23);
-    var held = UUID.randomUUID();
-    navReportRepository.save(navRow(navDate, held, "1.40660000", null));
-
-    navReportRepository.markAsPublished(held);
-
-    assertThat(navReportRepository.existsPublishedByNavDateAndFundCode(navDate, "TKF100")).isTrue();
-    assertThat(navReportRepository.existsSentByNavDateAndFundCode(navDate, "TKF100")).isFalse();
-    assertThat(navReportRepository.findSentNavPerUnit(navDate, "TKF100", "NAV")).isEmpty();
-    assertThat(navReportRepository.findSentByNavDateAndFundCode(navDate, "TKF100")).isEmpty();
-    assertThat(navReportRepository.findSentCalculationId("TKF100", navDate)).isEmpty();
-  }
-
-  @Test
-  void anUnreleasedRevisionLeavesTheSentNavInPlaceUntilItIsSent() {
+  void anUnreleasedRevisionLeavesTheNavSebHasInPlaceUntilItIsPublished() {
     var navDate = LocalDate.of(2026, 11, 23);
     var sent = UUID.randomUUID();
     navReportRepository.save(navRow(navDate, sent, "1.40660000", null));
-    navReportRepository.markAsSent(sent);
+    navReportRepository.markAsPublished(sent);
     var revision = UUID.randomUUID();
     navReportRepository.save(navRow(navDate, revision, "1.41000000", null));
-    navReportRepository.markAsPublished(revision);
 
-    assertThat(navReportRepository.findSentNavPerUnit(navDate, "TKF100", "NAV"))
+    assertThat(navReportRepository.findPublishedNavPerUnit(navDate, "TKF100", "NAV"))
         .get(as(BIG_DECIMAL))
         .isEqualByComparingTo("1.4066");
-    assertThat(navReportRepository.findSentCalculationId("TKF100", navDate)).hasValue(sent);
     assertThat(navReportRepository.findLatestCalculationId("TKF100", navDate)).hasValue(revision);
 
-    navReportRepository.markAsSent(revision);
+    navReportRepository.markAsPublished(revision);
 
-    assertThat(navReportRepository.findSentNavPerUnit(navDate, "TKF100", "NAV"))
+    assertThat(navReportRepository.findPublishedNavPerUnit(navDate, "TKF100", "NAV"))
         .get(as(BIG_DECIMAL))
         .isEqualByComparingTo("1.4100");
-    assertThat(navReportRepository.findSentCalculationId("TKF100", navDate)).hasValue(revision);
   }
 
   @Test
-  void findLatestSentNavDateByFundOnOrBefore_skipsADateHeldForReview() {
-    var heldDate = LocalDate.of(2026, 11, 23);
-    var dayBefore = LocalDate.of(2026, 11, 20);
-    var sent = UUID.randomUUID();
-    navReportRepository.save(navRow(dayBefore, sent, "1.40000000", null));
-    navReportRepository.markAsSent(sent);
-    var held = UUID.randomUUID();
-    navReportRepository.save(navRow(heldDate, held, "1.41000000", null));
-    navReportRepository.markAsPublished(held);
-
-    assertThat(navReportRepository.findLatestSentNavDateByFundOnOrBefore("TKF100", heldDate))
-        .hasValue(dayBefore);
-    assertThat(navReportRepository.findSentNavDatesBetween("TKF100", dayBefore, heldDate))
-        .containsExactly(dayBefore);
+  void findLatestCalculationId_isEmptyWhenTheDateHasNoCalculation() {
+    assertThat(navReportRepository.findLatestCalculationId("TKF100", LocalDate.of(2026, 11, 23)))
+        .isEmpty();
   }
 
   @Test
@@ -446,6 +380,20 @@ class NavReportRepositoryTest {
         .containsExactly(first, first, second);
   }
 
+  @Test
+  void findByCalculationIdOrderById_returnsOnlyThatCalculationsRowsInOrder() {
+    var navDate = LocalDate.of(2026, 11, 23);
+    var calculation = UUID.randomUUID();
+    var units = navReportRepository.save(navRow(navDate, calculation, "1.40660000", null));
+    var security =
+        navReportRepository.save(componentRow(navDate, calculation, "SECURITY", "1000.00"));
+    navReportRepository.save(navRow(navDate, UUID.randomUUID(), "1.50000000", null));
+
+    assertThat(navReportRepository.findByCalculationIdOrderById(calculation))
+        .extracting(NavReportRow::getId)
+        .containsExactly(units.getId(), security.getId());
+  }
+
   private static NavReportRow componentRow(
       LocalDate navDate, UUID calculationId, String accountType, String marketValue) {
     return componentRow(navDate, calculationId, accountType, marketValue, null);
@@ -456,7 +404,7 @@ class NavReportRepositoryTest {
       UUID calculationId,
       String accountType,
       String marketValue,
-      Instant sentAt) {
+      Instant publishedAt) {
     return NavReportRow.builder()
         .navDate(navDate)
         .fundCode("TKF100")
@@ -466,13 +414,12 @@ class NavReportRepositoryTest {
         .marketPrice(new BigDecimal("1.00"))
         .marketValue(new BigDecimal(marketValue))
         .calculationId(calculationId)
-        .publishedAt(sentAt)
-        .sentToTrusteeAt(sentAt)
+        .publishedAt(publishedAt)
         .build();
   }
 
   private static NavReportRow navRow(
-      LocalDate navDate, UUID calculationId, String navPerUnit, Instant sentAt) {
+      LocalDate navDate, UUID calculationId, String navPerUnit, Instant publishedAt) {
     return NavReportRow.builder()
         .navDate(navDate)
         .fundCode("TKF100")
@@ -481,8 +428,7 @@ class NavReportRepositoryTest {
         .marketPrice(new BigDecimal(navPerUnit))
         .marketValue(new BigDecimal("1000000.00"))
         .calculationId(calculationId)
-        .publishedAt(sentAt)
-        .sentToTrusteeAt(sentAt)
+        .publishedAt(publishedAt)
         .build();
   }
 }

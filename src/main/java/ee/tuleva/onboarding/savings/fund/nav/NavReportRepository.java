@@ -23,11 +23,11 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
           SELECT market_price FROM nav_report
           WHERE nav_date = :navDate AND fund_code = :fundCode
             AND account_type = :accountType
-            AND sent_to_trustee_at IS NOT NULL
-          ORDER BY sent_to_trustee_at DESC, id DESC LIMIT 1
+            AND published_at IS NOT NULL
+          ORDER BY published_at DESC, id DESC LIMIT 1
           """,
       nativeQuery = true)
-  Optional<BigDecimal> findSentNavPerUnit(
+  Optional<BigDecimal> findPublishedNavPerUnit(
       @Param("navDate") LocalDate navDate,
       @Param("fundCode") String fundCode,
       @Param("accountType") String accountType);
@@ -66,10 +66,10 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
           SELECT MAX(nav_date) FROM nav_report
           WHERE fund_code = :fundCode
             AND nav_date <= :asOfDate
-            AND sent_to_trustee_at IS NOT NULL
+            AND published_at IS NOT NULL
           """,
       nativeQuery = true)
-  Optional<LocalDate> findLatestSentNavDateByFundOnOrBefore(
+  Optional<LocalDate> findLatestPublishedNavDateByFundOnOrBefore(
       @Param("fundCode") String fundCode, @Param("asOfDate") LocalDate asOfDate);
 
   @Query(
@@ -80,12 +80,12 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
             AND calculation_id = (
               SELECT calculation_id FROM nav_report
               WHERE nav_date = :navDate AND fund_code = :fundCode
-                AND sent_to_trustee_at IS NOT NULL
-              ORDER BY sent_to_trustee_at DESC, id DESC LIMIT 1)
+                AND published_at IS NOT NULL
+              ORDER BY id DESC LIMIT 1)
           ORDER BY id
           """,
       nativeQuery = true)
-  List<NavReportRow> findSentByNavDateAndFundCode(
+  List<NavReportRow> findLatestByNavDateAndFundCode(
       @Param("navDate") LocalDate navDate, @Param("fundCode") String fundCode);
 
   @Query(
@@ -99,19 +99,6 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
           """,
       nativeQuery = true)
   boolean existsPublishedByNavDateAndFundCode(
-      @Param("navDate") LocalDate navDate, @Param("fundCode") String fundCode);
-
-  @Query(
-      value =
-          """
-          SELECT CASE WHEN EXISTS (
-            SELECT 1 FROM nav_report
-            WHERE nav_date = :navDate AND fund_code = :fundCode
-              AND sent_to_trustee_at IS NOT NULL
-          ) THEN true ELSE false END
-          """,
-      nativeQuery = true)
-  boolean existsSentByNavDateAndFundCode(
       @Param("navDate") LocalDate navDate, @Param("fundCode") String fundCode);
 
   @Transactional
@@ -146,16 +133,6 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
       nativeQuery = true)
   void markAsPublished(@Param("calculationId") UUID calculationId);
 
-  @Transactional
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Query(
-      value =
-          "UPDATE nav_report SET published_at = COALESCE(published_at, CURRENT_TIMESTAMP),"
-              + " sent_to_trustee_at = CURRENT_TIMESTAMP"
-              + " WHERE calculation_id = :calculationId AND sent_to_trustee_at IS NULL",
-      nativeQuery = true)
-  void markAsSent(@Param("calculationId") UUID calculationId);
-
   List<NavReportRow> findByCalculationIdOrderById(UUID calculationId);
 
   @Query(
@@ -168,12 +145,12 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
             AND nr.calculation_id = (
               SELECT calculation_id FROM nav_report
               WHERE nav_date = :navDate AND fund_code = :fundCode
-                AND sent_to_trustee_at IS NOT NULL
-              ORDER BY sent_to_trustee_at DESC, id DESC LIMIT 1
+                AND published_at IS NOT NULL
+              ORDER BY published_at DESC, id DESC LIMIT 1
             )
           """,
       nativeQuery = true)
-  BigDecimal sumSentMarketValueByAccountType(
+  BigDecimal sumPublishedMarketValueByAccountType(
       @Param("fundCode") String fundCode,
       @Param("navDate") LocalDate navDate,
       @Param("accountType") String accountType);
@@ -188,12 +165,12 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
             AND nr.calculation_id = (
               SELECT calculation_id FROM nav_report
               WHERE nav_date = :navDate AND fund_code = :fundCode
-                AND sent_to_trustee_at IS NOT NULL
-              ORDER BY sent_to_trustee_at DESC, id DESC LIMIT 1
+                AND published_at IS NOT NULL
+              ORDER BY published_at DESC, id DESC LIMIT 1
             )
           """,
       nativeQuery = true)
-  BigDecimal sumSentCalculationMarketValueByAccountTypes(
+  BigDecimal sumPublishedCalculationMarketValueByAccountTypes(
       @Param("fundCode") String fundCode,
       @Param("navDate") LocalDate navDate,
       @Param("accountTypes") List<String> accountTypes);
@@ -201,30 +178,24 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
   Optional<NavReportRow> findFirstByFundCodeAndNavDateOrderByIdDesc(
       String fundCode, LocalDate navDate);
 
-  Optional<NavReportRow>
-      findFirstByFundCodeAndNavDateAndSentToTrusteeAtIsNotNullOrderBySentToTrusteeAtDescIdDesc(
-          String fundCode, LocalDate navDate);
-
-  default Optional<UUID> findSentCalculationId(String fundCode, LocalDate navDate) {
-    return findFirstByFundCodeAndNavDateAndSentToTrusteeAtIsNotNullOrderBySentToTrusteeAtDescIdDesc(
-            fundCode, navDate)
-        .map(NavReportRow::getCalculationId);
-  }
-
   default Optional<UUID> findLatestCalculationId(String fundCode, LocalDate navDate) {
     return findFirstByFundCodeAndNavDateOrderByIdDesc(fundCode, navDate)
         .map(NavReportRow::getCalculationId);
   }
+
+  Optional<NavReportRow>
+      findFirstByFundCodeAndNavDateAndPublishedAtIsNotNullOrderByPublishedAtDescIdDesc(
+          String fundCode, LocalDate navDate);
 
   @Query(
       """
       SELECT DISTINCT row.navDate FROM NavReportRow row
       WHERE row.fundCode = :fundCode
         AND row.navDate BETWEEN :from AND :to
-        AND row.sentToTrusteeAt IS NOT NULL
+        AND row.publishedAt IS NOT NULL
       ORDER BY row.navDate
       """)
-  List<LocalDate> findSentNavDatesBetween(
+  List<LocalDate> findPublishedNavDatesBetween(
       @Param("fundCode") String fundCode, @Param("from") LocalDate from, @Param("to") LocalDate to);
 
   @Query(

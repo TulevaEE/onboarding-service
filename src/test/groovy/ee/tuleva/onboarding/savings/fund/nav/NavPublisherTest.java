@@ -90,11 +90,11 @@ class NavPublisherTest {
     verify(navReportRepository).replaceByNavDateAndFundCode(eq(yesterday), eq("TKF100"), any());
 
     assertThat(reportRow.getCalculationId()).isNotNull();
-    verify(navReportRepository).markAsSent(reportRow.getCalculationId());
+    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
   }
 
   @Test
-  void publish_doesNotMarkAsSentOrPublished_whenEmailFails() {
+  void publish_doesNotMarkAsPublished_whenEmailFails() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
     Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
@@ -105,9 +105,8 @@ class NavPublisherTest {
     when(navReportMapper.map(result)).thenReturn(List.of(reportRow));
     when(navReportEmailSender.send(any(), eq(result))).thenReturn(false);
 
-    navPublisher.publish(result);
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
 
-    verify(navReportRepository, never()).markAsSent(any(UUID.class));
     verify(navReportRepository, never()).markAsPublished(any(UUID.class));
     verify(notificationService).sendMessage(any(String.class), eq(SAVINGS));
     verify(navNotifier).notify(result);
@@ -129,7 +128,6 @@ class NavPublisherTest {
 
     navPublisher.publish(result);
 
-    verify(navReportRepository, never()).markAsSent(any(UUID.class));
     verify(navReportRepository, never()).markAsPublished(any(UUID.class));
     verify(notificationService).sendMessage(any(String.class), eq(SAVINGS));
     verify(navNotifier).notify(result);
@@ -206,7 +204,7 @@ class NavPublisherTest {
         .when(navReportRepository)
         .replaceByNavDateAndFundCode(any(), any(), any());
 
-    navPublisher.publish(result);
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
 
     verify(fundValueWriter, times(2)).save(any());
     verifyNoInteractions(navReportEmailSender);
@@ -216,7 +214,7 @@ class NavPublisherTest {
   }
 
   @Test
-  void publish_routesToInternalReviewAndMarksPublishedButNotSent_whenTdGateBlocks() {
+  void publish_routesToInternalReviewAndLeavesItUnpublished_whenTdGateBlocks() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
     Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
@@ -229,18 +227,21 @@ class NavPublisherTest {
         .thenReturn(Optional.of("TD breach: fund=TKF100, MODEL_PORTFOLIO TD=0.015"));
     when(navReportEmailSender.sendForReview(any(), eq(result))).thenReturn(true);
 
-    navPublisher.publish(result);
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
 
     verify(navReportEmailSender).sendForReview(any(), eq(result));
     verify(navReportEmailSender, never()).send(any(), any());
-    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
-    verify(navReportRepository, never()).markAsSent(any(UUID.class));
+    verify(navReportRepository, never()).markAsPublished(any(UUID.class));
     verify(notificationService)
         .sendMessage(
-            contains(
-                "fund=TKF100, navDate=2025-01-14, calculationId=" + reportRow.getCalculationId()),
+            contains("agent-gateway nav_release (two ✅): fund=TKF100, navDate=2025-01-14\n"),
             eq(SAVINGS));
-    verify(notificationService).sendMessage(contains("/admin/nav/TKF100/2025-01-14"), eq(SAVINGS));
+    verify(notificationService)
+        .sendMessage(
+            contains("POST navPerUnit, aum and approvedBy to /admin/nav/TKF100/2025-01-14/release"),
+            eq(SAVINGS));
+    verify(notificationService)
+        .sendMessage(contains("recalculated every 5–15 minutes"), eq(SAVINGS));
     verify(navNotifier).notify(result);
   }
 
@@ -295,15 +296,14 @@ class NavPublisherTest {
     var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
     var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build();
     given(navReportMapper.map(result)).willReturn(List.of(reportRow));
-    given(navReportRepository.findSentNavPerUnit(yesterday, "TUK75", "NAV"))
+    given(navReportRepository.findPublishedNavPerUnit(yesterday, "TUK75", "NAV"))
         .willReturn(Optional.of(new BigDecimal("9.75000")));
     given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
 
-    navPublisher.publish(result);
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
 
     verify(navReportEmailSender, never()).send(any(), any());
-    verify(navReportRepository, never()).markAsSent(any(UUID.class));
-    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
+    verify(navReportRepository, never()).markAsPublished(any(UUID.class));
     verify(trackingDifferenceGate, never()).check(any(), any());
     verify(notificationService)
         .sendMessage(
@@ -325,10 +325,10 @@ class NavPublisherTest {
     when(trackingDifferenceGate.check(TKF100, yesterday)).thenReturn(Optional.empty());
     when(navReportEmailSender.send(any(), eq(result))).thenReturn(true);
 
-    navPublisher.publish(result);
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.SENT);
 
     verify(navReportEmailSender).send(any(), eq(result));
-    verify(navReportRepository).markAsSent(reportRow.getCalculationId());
+    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
   }
 
   @Test
@@ -348,11 +348,12 @@ class NavPublisherTest {
     navPublisher.publish(result);
 
     verify(navReportEmailSender).send(any(), eq(result));
-    verify(navReportRepository).markAsSent(reportRow.getCalculationId());
+    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
   }
 
   @Test
-  void publishRevision_persistsRowsAndRoutesToInternalReview_withoutTrusteeEmailOrFundValues() {
+  void
+      publishRevision_persistsRowsAndRoutesToInternalReviewUnpublished_withoutTrusteeEmailOrFundValues() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
     var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
@@ -365,12 +366,10 @@ class NavPublisherTest {
     verify(navReportRepository).replaceByNavDateAndFundCode(eq(yesterday), eq("TUK75"), any());
     assertThat(reportRow.getCalculationId()).isNotNull();
     verify(navReportEmailSender).sendForReview(any(), eq(result));
-    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
-    verify(navReportRepository, never()).markAsSent(any(UUID.class));
+    verify(navReportRepository, never()).markAsPublished(any(UUID.class));
     verify(notificationService)
         .sendMessage(
-            contains(
-                "fund=TUK75, navDate=2025-01-14, calculationId=" + reportRow.getCalculationId()),
+            contains("agent-gateway nav_release (two ✅): fund=TUK75, navDate=2025-01-14\n"),
             eq(SAVINGS));
     verify(notificationService)
         .sendMessage(

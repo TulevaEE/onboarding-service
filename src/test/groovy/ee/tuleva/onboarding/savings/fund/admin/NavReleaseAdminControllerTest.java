@@ -82,7 +82,6 @@ class NavReleaseAdminControllerTest {
   void release_passesTheApprovedValuesAndApproversOn() throws Exception {
     var approval =
         new NavReleaseApproval(
-            CALCULATION_ID,
             new BigDecimal("1.4066"),
             new BigDecimal("16000000.00"),
             List.of("approver-one", "approver-two"));
@@ -97,7 +96,7 @@ class NavReleaseAdminControllerTest {
   @Test
   void release_refusedByTheService_isAConflict() throws Exception {
     given(navReleaseService.release(Mockito.eq(TKF100), Mockito.eq(NAV_DATE), Mockito.any()))
-        .willThrow(new NavReleaseRefusedException("Not the latest calculation"));
+        .willThrow(new NavReleaseRefusedException("Not the latest calculation's values"));
 
     mockMvc
         .perform(release(releaseBody("[\"approver-one\", \"approver-two\"]")))
@@ -133,9 +132,8 @@ class NavReleaseAdminControllerTest {
         .perform(
             release(
                 """
-                {"calculationId": "%s", "approvedBy": ["approver-one", "approver-two"]}
-                """
-                    .formatted(CALCULATION_ID)))
+                {"navPerUnit": 1.4066, "approvedBy": ["approver-one", "approver-two"]}
+                """))
         .andExpect(status().isBadRequest());
     then(navReleaseService).shouldHaveNoInteractions();
   }
@@ -151,9 +149,9 @@ class NavReleaseAdminControllerTest {
 
   private static String releaseBody(String approvedBy) {
     return """
-        {"calculationId": "%s", "navPerUnit": 1.4066, "aum": 16000000.00, "approvedBy": %s}
+        {"navPerUnit": 1.4066, "aum": 16000000.00, "approvedBy": %s}
         """
-        .formatted(CALCULATION_ID, approvedBy);
+        .formatted(approvedBy);
   }
 
   private static NavReleaseStatus releaseStatus(

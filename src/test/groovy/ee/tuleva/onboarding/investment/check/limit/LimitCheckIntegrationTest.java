@@ -282,7 +282,7 @@ class LimitCheckIntegrationTest {
   }
 
   @Test
-  void getCalculatedAumIgnoresANavHeldForReviewThatTheTrusteeDoesNotHave() {
+  void getCalculatedAumIgnoresANavHeldForReviewThatSebDoesNotHave() {
     insertTuk75Data();
     insertHeldNavReportUnits("TUK75", NAV_DATE, 99_000_000);
 
@@ -470,8 +470,8 @@ class LimitCheckIntegrationTest {
         .sql(
             """
             INSERT INTO nav_report
-            (nav_date, fund_code, account_type, account_name, market_value, calculation_id, published_at, sent_to_trustee_at)
-            VALUES (:navDate, :fund, 'UNITS', 'Total outstanding units:', :marketValue, gen_random_uuid(), now(), now())
+            (nav_date, fund_code, account_type, account_name, market_value, calculation_id, published_at)
+            VALUES (:navDate, :fund, 'UNITS', 'Total outstanding units:', :marketValue, gen_random_uuid(), now())
             """)
         .param("navDate", navDate)
         .param("fund", fund)
@@ -484,8 +484,8 @@ class LimitCheckIntegrationTest {
         .sql(
             """
             INSERT INTO nav_report
-            (nav_date, fund_code, account_type, account_name, market_value, calculation_id, published_at, sent_to_trustee_at)
-            VALUES (:navDate, :fund, 'UNITS', 'Total outstanding units:', :marketValue, gen_random_uuid(), now(), NULL)
+            (nav_date, fund_code, account_type, account_name, market_value, calculation_id, published_at)
+            VALUES (:navDate, :fund, 'UNITS', 'Total outstanding units:', :marketValue, gen_random_uuid(), NULL)
             """)
         .param("navDate", navDate)
         .param("fund", fund)

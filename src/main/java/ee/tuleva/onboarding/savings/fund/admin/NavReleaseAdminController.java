@@ -56,10 +56,11 @@ public class NavReleaseAdminController {
       @RequestBody NavReleaseApproval approval) {
     tokenValidator.validateWithOpsAccess(token);
     log.info(
-        "Admin releasing NAV: fund={}, navDate={}, calculationId={}, approvedBy={}",
+        "Admin releasing NAV: fund={}, navDate={}, navPerUnit={}, aum={}, approvedBy={}",
         fund,
         navDate,
-        approval.calculationId(),
+        approval.navPerUnit(),
+        approval.aum(),
         approval.approvedBy());
     return answer(() -> navReleaseService.release(fund, navDate, approval));
   }

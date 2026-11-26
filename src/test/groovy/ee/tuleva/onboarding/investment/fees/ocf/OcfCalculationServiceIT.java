@@ -266,7 +266,7 @@ class OcfCalculationServiceIT {
     publishedNav(TUESDAY_SEPTEMBER_29);
     var monthEndCalculation = unpublishedNav(WEDNESDAY_SEPTEMBER_30);
     service.calculateOcf(TUK75, SEPTEMBER);
-    navReportRepository.markAsSent(monthEndCalculation);
+    navReportRepository.markAsPublished(monthEndCalculation);
 
     service.calculateOcf(TUK75, SEPTEMBER);
 
@@ -434,7 +434,6 @@ class OcfCalculationServiceIT {
                 .marketValue(new BigDecimal(securities))
                 .calculationId(calculationId)
                 .publishedAt(publishedAt)
-                .sentToTrusteeAt(publishedAt)
                 .build(),
             NavReportRow.builder()
                 .navDate(navDate)
@@ -444,7 +443,6 @@ class OcfCalculationServiceIT {
                 .marketValue(new BigDecimal("1000000.00"))
                 .calculationId(calculationId)
                 .publishedAt(publishedAt)
-                .sentToTrusteeAt(publishedAt)
                 .build()));
   }
 
@@ -468,7 +466,6 @@ class OcfCalculationServiceIT {
                 .marketValue(new BigDecimal("1000000.00"))
                 .calculationId(calculationId)
                 .publishedAt(publishedAt)
-                .sentToTrusteeAt(publishedAt)
                 .build()));
     return calculationId;
   }

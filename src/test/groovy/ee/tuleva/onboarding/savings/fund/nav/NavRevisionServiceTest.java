@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
-import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -53,41 +52,6 @@ class NavRevisionServiceTest {
 
     verify(navPublisher).publishRevision(revised, new NavRevision(PUBLISHED_NAV, 4));
     verifyNoInteractions(notificationService);
-  }
-
-  @Test
-  void
-      onNavPositionsUpdated_recalculatesThroughTheGate_whenTheDatesNavIsHeldAndTheTrusteeHasNone() {
-    given(navReportRepository.existsPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
-        .willReturn(true);
-    given(fundNavQueryService.findPublishedNavPerUnit("TUK75", NAV_DATE))
-        .willReturn(Optional.empty());
-    var recalculated = revisedResult();
-    given(navCalculationService.calculate(TUK75, NEXT_WORKING_DAY)).willReturn(recalculated);
-
-    service.onNavPositionsUpdated(new NavPositionsUpdated(TUK75, NAV_DATE, 4));
-
-    verify(navPublisher).publish(recalculated);
-    verify(navPublisher, never()).publishRevision(any(), any());
-    verifyNoInteractions(notificationService);
-  }
-
-  @Test
-  void onNavPositionsUpdated_revisesTheHeldNavTheWebsiteAlreadyShows_forTheSavingsFund() {
-    given(navReportRepository.existsPublishedByNavDateAndFundCode(NAV_DATE, "TKF100"))
-        .willReturn(true);
-    given(fundNavQueryService.findPublishedNavPerUnit("TKF100", NAV_DATE))
-        .willReturn(Optional.empty());
-    given(fundNavQueryService.findLatestNavPerUnit("TKF100", NAV_DATE))
-        .willReturn(Optional.of(new BigDecimal("1.4066")));
-    var recalculated = revisedResult();
-    given(navCalculationService.calculate(TKF100, NEXT_WORKING_DAY)).willReturn(recalculated);
-
-    service.onNavPositionsUpdated(new NavPositionsUpdated(TKF100, NAV_DATE, 2));
-
-    verify(navPublisher)
-        .publishRevision(recalculated, new NavRevision(new BigDecimal("1.4066"), 2));
-    verify(navPublisher, never()).publish(any());
   }
 
   @Test

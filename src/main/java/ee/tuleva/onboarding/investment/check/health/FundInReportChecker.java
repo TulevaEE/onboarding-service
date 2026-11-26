@@ -110,7 +110,7 @@ class FundInReportChecker {
     var datesNavRunUses =
         NavCalculationService.expectedPositionReportDate(fund, today, publicHolidays);
     if (navDate.isBefore(datesNavRunUses)
-        || fundNavQueryService.hasFinishedNavRun(fund.getCode(), navDate)) {
+        || fundNavQueryService.hasPublishedNav(fund.getCode(), navDate)) {
       return NavOfTheDate.DONE;
     }
     if (navDate.equals(datesNavRunUses)

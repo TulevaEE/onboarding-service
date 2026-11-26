@@ -61,12 +61,31 @@ class NavRevisionService {
   }
 
   private void recalculateHeldNav(NavPositionsUpdated event, NavCalculationResult recalculated) {
+    String fundCode = event.fund().getCode();
+    if (event.fund().isSavingsFund()) {
+      reviseTheNavTheWebsiteShows(event, recalculated);
+      return;
+    }
     log.info(
         "Positions changed while the date's NAV is held for review, recalculating it as a new NAV: fund={}, navDate={}, changedRows={}",
-        event.fund().getCode(),
+        fundCode,
         event.navDate(),
         event.changedRows());
     navPublisher.publish(recalculated);
+  }
+
+  private void reviseTheNavTheWebsiteShows(
+      NavPositionsUpdated event, NavCalculationResult recalculated) {
+    String fundCode = event.fund().getCode();
+    BigDecimal heldNav =
+        fundNavQueryService
+            .findLatestNavPerUnit(fundCode, event.navDate())
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "Held NAV row missing: fund=%s, navDate=%s"
+                            .formatted(fundCode, event.navDate())));
+    navPublisher.publishRevision(recalculated, new NavRevision(heldNav, event.changedRows()));
   }
 
   private LocalDate calculationDate(NavPositionsUpdated event) {

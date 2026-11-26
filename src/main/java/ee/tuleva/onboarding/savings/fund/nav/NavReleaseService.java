@@ -5,8 +5,10 @@ import static ee.tuleva.onboarding.savings.fund.nav.NavReleaseState.HELD;
 import static ee.tuleva.onboarding.savings.fund.nav.NavReleaseState.NOT_FINAL;
 import static ee.tuleva.onboarding.savings.fund.nav.NavReleaseState.REVISION;
 import static ee.tuleva.onboarding.savings.fund.nav.NavReleaseState.SENT;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.savings.NavCalculationCompleted;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
@@ -14,8 +16,10 @@ import java.util.NoSuchElementException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Service
@@ -29,6 +33,8 @@ public class NavReleaseService {
   private final NavReportEmailSender navReportEmailSender;
   private final NavCalendar navCalendar;
   private final OperationsNotificationService notificationService;
+  private final TransactionTemplate transactionTemplate;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Transactional(readOnly = true)
   public NavReleaseStatus status(TulevaFund fund, LocalDate navDate) {
@@ -39,8 +45,24 @@ public class NavReleaseService {
     return statusOf(fund, navDate, navReportRepository.findByCalculationIdOrderById(latest));
   }
 
-  @Transactional
   public NavReleaseStatus release(TulevaFund fund, LocalDate navDate, NavReleaseApproval approval) {
+    NavReleaseStatus released =
+        requireNonNull(
+            transactionTemplate.execute(transaction -> sendAndStamp(fund, navDate, approval)));
+    announce(released, approval);
+    rerunTheChecksOfTheReleasedNav(fund);
+    return new NavReleaseStatus(
+        released.fundCode(),
+        navDate,
+        released.calculationId(),
+        SENT,
+        released.navPerUnit(),
+        released.aum(),
+        released.navPerUnit());
+  }
+
+  private NavReleaseStatus sendAndStamp(
+      TulevaFund fund, LocalDate navDate, NavReleaseApproval approval) {
     List<NavReportRow> rows =
         navReportRepository.findCalculationRowsForUpdate(approval.calculationId());
     if (rows.isEmpty()) {
@@ -56,15 +78,15 @@ public class NavReleaseService {
               .formatted(fund.getCode(), navDate, approval.calculationId()));
     }
     navReportRepository.markAsSent(approval.calculationId());
-    announce(current, approval);
-    return new NavReleaseStatus(
-        current.fundCode(),
-        navDate,
-        current.calculationId(),
-        SENT,
-        current.navPerUnit(),
-        current.aum(),
-        current.navPerUnit());
+    return current;
+  }
+
+  private void rerunTheChecksOfTheReleasedNav(TulevaFund fund) {
+    try {
+      eventPublisher.publishEvent(new NavCalculationCompleted(List.of(fund)));
+    } catch (RuntimeException e) {
+      log.error("Checks after a NAV release failed: fund={}", fund.getCode(), e);
+    }
   }
 
   private NavReleaseStatus statusOf(
@@ -148,6 +170,19 @@ public class NavReleaseService {
   }
 
   private void announce(NavReleaseStatus released, NavReleaseApproval approval) {
+    try {
+      postReleaseMessage(released, approval);
+    } catch (RuntimeException e) {
+      log.error(
+          "NAV release message failed, the release itself stands: fund={}, navDate={}, calculationId={}",
+          released.fundCode(),
+          released.navDate(),
+          released.calculationId(),
+          e);
+    }
+  }
+
+  private void postReleaseMessage(NavReleaseStatus released, NavReleaseApproval approval) {
     String approvers = String.join(", ", approval.approvedBy());
     log.info(
         "NAV released to the trustee: fund={}, navDate={}, calculationId={}, state={}, navPerUnit={}, approvedBy={}",

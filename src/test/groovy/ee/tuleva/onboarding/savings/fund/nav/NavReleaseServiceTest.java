@@ -18,10 +18,12 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.savings.NavCalculationCompleted;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -32,9 +34,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 
 @DataJpaTest
 @Import({NavReleaseService.class, NavCalendar.class, PublicHolidays.class})
+@RecordApplicationEvents
 class NavReleaseServiceTest {
 
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 11, 20);
@@ -43,6 +48,7 @@ class NavReleaseServiceTest {
 
   @Autowired private NavReportRepository navReportRepository;
   @Autowired private NavReleaseService navReleaseService;
+  @Autowired private ApplicationEvents events;
 
   @MockitoBean private NavReportEmailSender navReportEmailSender;
   @MockitoBean private OperationsNotificationService notificationService;
@@ -122,6 +128,35 @@ class NavReleaseServiceTest {
     then(notificationService)
         .should()
         .sendMessage(contains("approvedBy=approver-one, approver-two"), eq(SAVINGS));
+  }
+
+  @Test
+  void release_runsTheNavsChecksAgainOnceTheTrusteeHasIt() {
+    var held = calculation(TKF100, NAV_DATE, "1.4066", "16000000.00");
+    navReportRepository.markAsPublished(held);
+    given(navReportEmailSender.send(anyList(), eq(TKF100), eq(NAV_DATE), eq(CALCULATION_DATE)))
+        .willReturn(true);
+
+    navReleaseService.release(TKF100, NAV_DATE, approval(held, "1.4066"));
+
+    assertThat(events.stream(NavCalculationCompleted.class))
+        .containsExactly(new NavCalculationCompleted(List.of(TKF100)));
+  }
+
+  @Test
+  void release_standsWhenItsSlackMessageFails() {
+    var held = calculation(TKF100, NAV_DATE, "1.4066", "16000000.00");
+    navReportRepository.markAsPublished(held);
+    given(navReportEmailSender.send(anyList(), eq(TKF100), eq(NAV_DATE), eq(CALCULATION_DATE)))
+        .willReturn(true);
+    willThrow(new IllegalStateException("Slack webhook failed"))
+        .given(notificationService)
+        .sendMessage(any(), eq(SAVINGS));
+
+    var released = navReleaseService.release(TKF100, NAV_DATE, approval(held, "1.4066"));
+
+    assertThat(released.state()).isEqualTo(SENT);
+    assertThat(navReportRepository.findSentCalculationId("TKF100", NAV_DATE)).hasValue(held);
   }
 
   @Test

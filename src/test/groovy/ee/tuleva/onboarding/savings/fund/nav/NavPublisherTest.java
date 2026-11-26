@@ -289,6 +289,30 @@ class NavPublisherTest {
   }
 
   @Test
+  void publish_holdsARecalculationOfADateSebAlreadyHasForReview_insteadOfSendingIt() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build();
+    given(navReportMapper.map(result)).willReturn(List.of(reportRow));
+    given(navReportRepository.findSentNavPerUnit(yesterday, "TUK75", "NAV"))
+        .willReturn(Optional.of(new BigDecimal("9.75000")));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    navPublisher.publish(result);
+
+    verify(navReportEmailSender, never()).send(any(), any());
+    verify(navReportRepository, never()).markAsSent(any(UUID.class));
+    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
+    verify(trackingDifferenceGate, never()).check(any(), any());
+    verify(notificationService)
+        .sendMessage(
+            contains(
+                "SEB already has a NAV for this date: sentNav=9.75000, recalculatedNav=9.69941"),
+            eq(SAVINGS));
+  }
+
+  @Test
   void publish_sendsEmail_whenTdGatePasses() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);

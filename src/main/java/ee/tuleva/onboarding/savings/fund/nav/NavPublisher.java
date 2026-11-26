@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueWriter;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Service;
 public class NavPublisher {
 
   private static final String NAV_PROVIDER = "TULEVA";
+  private static final String NAV_ACCOUNT_TYPE = "NAV";
 
   private final FundValueWriter fundValueWriter;
   private final NavReportMapper navReportMapper;
@@ -123,6 +125,22 @@ public class NavPublisher {
 
   private void sendReportEmailWithGate(
       NavCalculationResult result, List<NavReportRow> reportRows, UUID calculationId) {
+    Optional<BigDecimal> navTheTrusteeHas =
+        navReportRepository.findSentNavPerUnit(
+            result.positionReportDate(), result.fund().getCode(), NAV_ACCOUNT_TYPE);
+    if (navTheTrusteeHas.isPresent()) {
+      String reason =
+          "SEB already has a NAV for this date: sentNav=%s, recalculatedNav=%s"
+              .formatted(
+                  navTheTrusteeHas.get().toPlainString(), result.navPerUnit().toPlainString());
+      routeToInternalReview(
+          result,
+          reportRows,
+          calculationId,
+          reason,
+          revisionActionMessage(result, calculationId, reason));
+      return;
+    }
     Optional<String> gateFailure = checkGates(result);
     if (gateFailure.isPresent()) {
       routeToInternalReview(

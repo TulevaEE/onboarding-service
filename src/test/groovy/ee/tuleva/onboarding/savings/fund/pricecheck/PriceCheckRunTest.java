@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
@@ -79,6 +80,24 @@ class PriceCheckRunTest {
                     .startsWith(
                         "⚠️ TKF100 issue/redemption prices: 1 of 1 deals booked 2026-11-20–2026-11-22 are not at their NAV",
                         "• redemption 00000000-0000-0000-0000-000000000001: price 0.900000 vs NAV 1.1000 of 2026-11-24 (-18.18%)"));
+  }
+
+  @Test
+  void listsTwentyDealsAndCountsTheRestSoTheMessageStaysWithinSlacksLimit() {
+    var deals =
+        IntStream.rangeClosed(1, 25)
+            .mapToObj(n -> price(id(n), REDEMPTION_REQUEST, "100.00000", "120.00", NAV, NAV))
+            .toList();
+
+    var lines =
+        new PriceCheckRun(WEDNESDAY, THRESHOLD, deals).alert().orElseThrow().lines().toList();
+
+    assertThat(lines).hasSize(23);
+    assertThat(lines.get(20))
+        .isEqualTo(
+            "• redemption 00000000-0000-0000-0000-000000000020: price 1.200000 vs NAV 1.1000 of 2026-11-24 (+9.09%)");
+    assertThat(lines.get(21))
+        .isEqualTo("• and 5 more, each in the application log with its transactionId");
   }
 
   private static UUID id(int n) {

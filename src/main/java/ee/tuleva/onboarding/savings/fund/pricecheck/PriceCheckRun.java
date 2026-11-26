@@ -16,6 +16,7 @@ import java.util.Optional;
 record PriceCheckRun(BookingDays days, BigDecimal deviationThreshold, List<DealingPrice> dealings) {
 
   private static final int REALISED_PRICE_DECIMALS = 6;
+  private static final int DEALS_LISTED_IN_ONE_SLACK_MESSAGE = 20;
   private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
   private static final String NEXT_STEP =
       "Next: find the cause; a holder who got a wrong price is corrected and compensated as for a"
@@ -37,8 +38,19 @@ record PriceCheckRun(BookingDays days, BigDecimal deviationThreshold, List<Deali
     String header =
         "⚠️ TKF100 issue/redemption prices: %d of %d deals booked %s are not at their NAV"
             .formatted(reported.size(), dealings.size(), days.describe());
-    String lines = reported.stream().map(this::line).collect(joining("\n"));
-    return Optional.of(header + "\n" + lines + "\n" + NEXT_STEP);
+    String lines =
+        reported.stream()
+            .limit(DEALS_LISTED_IN_ONE_SLACK_MESSAGE)
+            .map(this::line)
+            .collect(joining("\n"));
+    return Optional.of(header + "\n" + lines + notListed(reported.size()) + "\n" + NEXT_STEP);
+  }
+
+  private static String notListed(int reported) {
+    int notListed = reported - DEALS_LISTED_IN_ONE_SLACK_MESSAGE;
+    return notListed > 0
+        ? "\n• and %d more, each in the application log with its transactionId".formatted(notListed)
+        : "";
   }
 
   private DealingPriceVerdict verdictOf(DealingPrice price) {

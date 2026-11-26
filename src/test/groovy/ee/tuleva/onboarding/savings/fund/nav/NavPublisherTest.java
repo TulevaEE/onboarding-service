@@ -12,7 +12,6 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
-import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -31,12 +30,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.support.TransactionOperations;
@@ -54,10 +52,25 @@ class NavPublisherTest {
   @Mock private NavPublicationGate trackingDifferenceGate;
   @Mock private PipelineTracker pipelineTracker;
 
-  @Spy
-  private TransactionOperations transactionOperations = TransactionOperations.withoutTransaction();
+  private final TransactionOperations transactionOperations =
+      TransactionOperations.withoutTransaction();
 
-  @InjectMocks private NavPublisher navPublisher;
+  private NavPublisher navPublisher;
+
+  @BeforeEach
+  void setUp() {
+    navPublisher =
+        new NavPublisher(
+            new SavingsFundPublicNav(fundValueWriter, fundValueQueries),
+            navReportMapper,
+            navReportRepository,
+            navReportEmailSender,
+            navNotifier,
+            notificationService,
+            trackingDifferenceGate,
+            pipelineTracker,
+            transactionOperations);
+  }
 
   @Test
   void publish_savesNavAndAumWithPositionReportDate() {
@@ -403,8 +416,7 @@ class NavPublisherTest {
     var fundValues = new InMemoryFundValues();
     var publisher =
         new NavPublisher(
-            fundValues,
-            fundValues,
+            new SavingsFundPublicNav(fundValues, fundValues),
             navReportMapper,
             navReportRepository,
             navReportEmailSender,
@@ -472,12 +484,11 @@ class NavPublisherTest {
     var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
     var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build();
     given(navReportMapper.map(result)).willReturn(List.of(reportRow));
-    given(navReportRepository.existsPublishedByNavDateAndFundCode(yesterday, "TUK75"))
+    given(navReportRepository.isOvertakenOnceTheDateIsLocked(eq("TUK75"), eq(yesterday), any()))
         .willReturn(true);
 
     assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
 
-    then(navReportRepository).should().findTheDatesRowsForUpdate("TUK75", yesterday);
     then(navReportEmailSender).should(never()).send(any(), any());
     then(navReportEmailSender).should(never()).sendForReview(any(), any());
     then(navReportRepository).should(never()).markAsPublished(any(UUID.class));
@@ -492,46 +503,13 @@ class NavPublisherTest {
         .willReturn(List.of(NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build()));
     given(trackingDifferenceGate.check(TUK75, yesterday))
         .willReturn(Optional.of("TD breach: fund=TUK75, MODEL_PORTFOLIO TD=0.015"));
-    given(navReportRepository.existsPublishedByNavDateAndFundCode(yesterday, "TUK75"))
+    given(navReportRepository.isOvertakenOnceTheDateIsLocked(eq("TUK75"), eq(yesterday), any()))
         .willReturn(true);
 
     assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
 
     then(navReportEmailSender).shouldHaveNoInteractions();
     then(notificationService).should(never()).sendMessage(any(), eq(SAVINGS));
-  }
-
-  @Test
-  void publish_sendsNothing_whenANewerCalculationReplacedItWhileTheGateRan() {
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate yesterday = LocalDate.of(2025, 1, 14);
-    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
-    var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build();
-    given(navReportMapper.map(result)).willReturn(List.of(reportRow));
-    given(navReportRepository.findLatestCalculationId("TUK75", yesterday))
-        .willReturn(Optional.of(UUID.randomUUID()));
-
-    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
-
-    then(navReportEmailSender).should(never()).send(any(), any());
-    then(navReportRepository).should(never()).markAsPublished(any(UUID.class));
-  }
-
-  @Test
-  void publish_sendsTheDatesLatestCalculation_whenNothingOvertookIt() {
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate yesterday = LocalDate.of(2025, 1, 14);
-    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
-    var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build();
-    given(navReportMapper.map(result)).willReturn(List.of(reportRow));
-    willAnswer(invocation -> Optional.of(reportRow.getCalculationId()))
-        .given(navReportRepository)
-        .findLatestCalculationId("TUK75", yesterday);
-    given(navReportEmailSender.send(any(), eq(result))).willReturn(true);
-
-    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.SENT);
-
-    then(navReportRepository).should().markAsPublished(reportRow.getCalculationId());
   }
 
   @Test

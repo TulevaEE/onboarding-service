@@ -411,6 +411,39 @@ class NavReportRepositoryTest {
   }
 
   @Test
+  void isOvertakenOnceTheDateIsLocked_isFalseForTheDatesLatestUnsentCalculation() {
+    var navDate = LocalDate.of(2026, 11, 23);
+    var latest = UUID.randomUUID();
+    navReportRepository.save(navRow(navDate, latest, "1.40660000", null));
+
+    assertThat(navReportRepository.isOvertakenOnceTheDateIsLocked("TKF100", navDate, latest))
+        .isFalse();
+  }
+
+  @Test
+  void isOvertakenOnceTheDateIsLocked_isTrueOnceANewerCalculationReplacedIt() {
+    var navDate = LocalDate.of(2026, 11, 23);
+    var replaced = UUID.randomUUID();
+    navReportRepository.save(navRow(navDate, replaced, "1.40660000", null));
+    navReportRepository.replaceByNavDateAndFundCode(
+        navDate, "TKF100", List.of(navRow(navDate, UUID.randomUUID(), "1.41000000", null)));
+
+    assertThat(navReportRepository.isOvertakenOnceTheDateIsLocked("TKF100", navDate, replaced))
+        .isTrue();
+  }
+
+  @Test
+  void isOvertakenOnceTheDateIsLocked_isTrueOnceTheDateWasReleased() {
+    var navDate = LocalDate.of(2026, 11, 23);
+    var calculation = UUID.randomUUID();
+    navReportRepository.save(navRow(navDate, calculation, "1.40660000", null));
+    navReportRepository.markAsPublished(calculation);
+
+    assertThat(navReportRepository.isOvertakenOnceTheDateIsLocked("TKF100", navDate, calculation))
+        .isTrue();
+  }
+
+  @Test
   void findLatestUnsentUnitsRow_readsTheUnitsRowOfTheDatesLatestUnsentCalculation() {
     var navDate = LocalDate.of(2026, 11, 23);
     var sent = UUID.randomUUID();

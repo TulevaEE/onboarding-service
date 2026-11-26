@@ -46,7 +46,7 @@ class MemberEmailServiceSpec extends Specification {
 
     then:
     1 * emailService.newMandrillMessage(user.email, "membership_en", mergeVars, tags) >> message
-    1 * emailService.send(user, message, "membership_en") >> Optional.of(mandrillResponse)
+    1 * emailService.sendFromBackgroundJob(user, message, "membership_en") >> Optional.of(mandrillResponse)
     1 * emailPersistenceService.save(user, mandrillResponse.id, EmailType.MEMBERSHIP, mandrillResponse.status, "nudge_second_pillar")
   }
 
@@ -68,7 +68,7 @@ class MemberEmailServiceSpec extends Specification {
 
     then:
     1 * emailService.newMandrillMessage(user.email, "membership_en", _, ["memberNumber"]) >> message
-    1 * emailService.send(user, message, "membership_en") >> Optional.of(mandrillResponse)
+    1 * emailService.sendFromBackgroundJob(user, message, "membership_en") >> Optional.of(mandrillResponse)
     1 * emailPersistenceService.save(user, mandrillResponse.id, EmailType.MEMBERSHIP, mandrillResponse.status, null)
   }
 }

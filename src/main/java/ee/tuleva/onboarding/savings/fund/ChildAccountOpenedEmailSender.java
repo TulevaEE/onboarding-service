@@ -91,7 +91,7 @@ class ChildAccountOpenedEmailSender {
     var templateName = SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD.getTemplateName(locale);
     var message = emailService.newMandrillMessage(parent.getEmail(), templateName, mergeVars, TAGS);
     emailService
-        .attemptSend(parent, message, templateName)
+        .attemptSendFromBackgroundJob(parent, message, templateName)
         .ifPresent(response -> record(child, accountId, response));
   }
 

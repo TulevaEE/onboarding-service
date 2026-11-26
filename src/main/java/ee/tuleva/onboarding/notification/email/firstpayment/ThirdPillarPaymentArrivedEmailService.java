@@ -59,7 +59,7 @@ public class ThirdPillarPaymentArrivedEmailService {
                 .toList());
 
     return emailService
-        .send(payment, message, templateName)
+        .sendFromBackgroundJob(payment, message, templateName)
         .map(
             response -> {
               emailPersistenceService.save(

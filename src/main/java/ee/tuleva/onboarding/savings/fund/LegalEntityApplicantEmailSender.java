@@ -111,7 +111,7 @@ public class LegalEntityApplicantEmailSender {
         emailService.newMandrillMessage(applicant.getEmail(), templateName, mergeVars, TAGS);
 
     emailService
-        .send(applicant, message, templateName)
+        .sendFromBackgroundJob(applicant, message, templateName)
         .ifPresent(
             response ->
                 emailPersistenceService.save(

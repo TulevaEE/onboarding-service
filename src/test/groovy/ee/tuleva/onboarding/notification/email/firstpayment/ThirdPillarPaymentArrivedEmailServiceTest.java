@@ -66,7 +66,7 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
     given(claims.claim(PERSONAL_CODE)).willReturn(true);
     given(emailService.newMandrillMessage(any(), any(), any(), any()))
         .willReturn(new MandrillMessage());
-    given(emailService.send(any(), any(), any())).willReturn(Optional.empty());
+    given(emailService.sendFromBackgroundJob(any(), any(), any())).willReturn(Optional.empty());
     given(userService.findByPersonalCode(PERSONAL_CODE)).willReturn(Optional.of(user));
   }
 
@@ -121,7 +121,8 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
     var response = mock(MandrillMessageStatus.class);
     given(response.getId()).willReturn("mandrill-id");
     given(response.getStatus()).willReturn("sent");
-    given(emailService.send(any(), any(), any())).willReturn(Optional.of(response));
+    given(emailService.sendFromBackgroundJob(any(), any(), any()))
+        .willReturn(Optional.of(response));
     var payment = accountHolderPayment();
 
     boolean result = service.send(payment);
@@ -233,7 +234,8 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
     var response = mock(MandrillMessageStatus.class);
     given(response.getId()).willReturn("mandrill-id");
     given(response.getStatus()).willReturn("sent");
-    given(emailService.send(any(), any(), any())).willReturn(Optional.of(response));
+    given(emailService.sendFromBackgroundJob(any(), any(), any()))
+        .willReturn(Optional.of(response));
   }
 
   @Test

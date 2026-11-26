@@ -84,12 +84,15 @@ class LegalEntityApplicantEmailSenderTest {
             emailService.newMandrillMessage(
                 eq("mari@example.com"), eq("savings_fund_company_onboarded_et"), any(), any()))
         .willReturn(message);
-    given(emailService.send(eq(applicant), eq(message), eq("savings_fund_company_onboarded_et")))
+    given(
+            emailService.sendFromBackgroundJob(
+                eq(applicant), eq(message), eq("savings_fund_company_onboarded_et")))
         .willReturn(Optional.empty());
 
     sender.onLegalEntityOnboarded(event());
 
-    verify(emailService).send(applicant, message, "savings_fund_company_onboarded_et");
+    verify(emailService)
+        .sendFromBackgroundJob(applicant, message, "savings_fund_company_onboarded_et");
   }
 
   // The template greets the applicant and names their company, so both have to reach
@@ -183,7 +186,8 @@ class LegalEntityApplicantEmailSenderTest {
 
     sender.onLegalEntityOnboarded(event());
 
-    verify(emailService).send(applicant, message, "savings_fund_company_onboarded_en");
+    verify(emailService)
+        .sendFromBackgroundJob(applicant, message, "savings_fund_company_onboarded_en");
   }
 
   @Test
@@ -224,7 +228,7 @@ class LegalEntityApplicantEmailSenderTest {
     given(userService.findByPersonalCode("38888888888")).willReturn(Optional.of(applicant));
     given(emailService.newMandrillMessage(any(), any(), any(), any()))
         .willReturn(new MandrillMessage());
-    given(emailService.send(any(), any(), any()))
+    given(emailService.sendFromBackgroundJob(any(), any(), any()))
         .willThrow(new IllegalStateException("Mandrill is down"));
 
     assertThatCode(() -> sender.onLegalEntityOnboarded(event())).doesNotThrowAnyException();
@@ -258,7 +262,7 @@ class LegalEntityApplicantEmailSenderTest {
     var status = mock(MandrillMessageStatus.class);
     given(status.getId()).willReturn("msg_1");
     given(status.getStatus()).willReturn("sent");
-    given(emailService.send(any(), any(), any())).willReturn(Optional.of(status));
+    given(emailService.sendFromBackgroundJob(any(), any(), any())).willReturn(Optional.of(status));
 
     sender.onLegalEntityOnboarded(event());
 
@@ -286,7 +290,8 @@ class LegalEntityApplicantEmailSenderTest {
                 "recipientName",
                 "Mesila OÜ"),
             List.of("savings_fund"));
-    verify(emailService).send(applicant, message, "savings_fund_company_waiting_related_et");
+    verify(emailService)
+        .sendFromBackgroundJob(applicant, message, "savings_fund_company_waiting_related_et");
   }
 
   @Test
@@ -298,7 +303,8 @@ class LegalEntityApplicantEmailSenderTest {
 
     sender.onLegalEntityWaitingForRelatedPersons(waitingEvent());
 
-    verify(emailService).send(applicant, message, "savings_fund_company_waiting_related_en");
+    verify(emailService)
+        .sendFromBackgroundJob(applicant, message, "savings_fund_company_waiting_related_en");
   }
 
   @Test
@@ -309,7 +315,7 @@ class LegalEntityApplicantEmailSenderTest {
     var status = mock(MandrillMessageStatus.class);
     given(status.getId()).willReturn("msg_2");
     given(status.getStatus()).willReturn("sent");
-    given(emailService.send(any(), any(), any())).willReturn(Optional.of(status));
+    given(emailService.sendFromBackgroundJob(any(), any(), any())).willReturn(Optional.of(status));
 
     sender.onLegalEntityWaitingForRelatedPersons(waitingEvent());
 
@@ -322,7 +328,7 @@ class LegalEntityApplicantEmailSenderTest {
     given(userService.findByPersonalCode("38888888888")).willReturn(Optional.of(applicant));
     given(emailService.newMandrillMessage(any(), any(), any(), any()))
         .willReturn(new MandrillMessage());
-    given(emailService.send(any(), any(), any()))
+    given(emailService.sendFromBackgroundJob(any(), any(), any()))
         .willThrow(new IllegalStateException("Mandrill is down"));
 
     assertThatCode(() -> sender.onLegalEntityWaitingForRelatedPersons(waitingEvent()))

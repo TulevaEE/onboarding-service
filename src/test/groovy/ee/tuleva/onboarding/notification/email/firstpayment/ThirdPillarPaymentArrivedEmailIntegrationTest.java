@@ -93,7 +93,8 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
     var response = org.mockito.Mockito.mock(MandrillMessageStatus.class);
     given(response.getId()).willReturn("mandrill-id");
     given(response.getStatus()).willReturn("sent");
-    given(emailService.send(any(Person.class), any(), any())).willReturn(Optional.of(response));
+    given(emailService.sendFromBackgroundJob(any(Person.class), any(), any()))
+        .willReturn(Optional.of(response));
     given(emailService.send(any(Person.class), any(), any(), any(Instant.class)))
         .willReturn(Optional.of(response));
   }
@@ -130,7 +131,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                             .equals(mergeVars.get("paymentDate"))),
             any());
     verify(emailService, times(1))
-        .send(
+        .sendFromBackgroundJob(
             argThat((Person person) -> ACCOUNT_HOLDER.equals(person.getPersonalCode())),
             any(),
             eq("third_pillar_payment_arrived_et"));
@@ -146,7 +147,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
 
     job.run();
 
-    verify(emailService, never()).send(any(Person.class), any(), any());
+    verify(emailService, never()).sendFromBackgroundJob(any(Person.class), any(), any());
   }
 
   @Test
@@ -157,7 +158,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
 
     job.run();
 
-    verify(emailService, never()).send(any(Person.class), any(), any());
+    verify(emailService, never()).sendFromBackgroundJob(any(Person.class), any(), any());
     assertThat(claimCount()).isZero();
   }
 
@@ -169,7 +170,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
 
     job.run();
 
-    verify(emailService, never()).send(any(Person.class), any(), any());
+    verify(emailService, never()).sendFromBackgroundJob(any(Person.class), any(), any());
   }
 
   @Test
@@ -185,7 +186,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
 
     job.run();
 
-    verify(emailService, never()).send(any(Person.class), any(), any());
+    verify(emailService, never()).sendFromBackgroundJob(any(Person.class), any(), any());
   }
 
   @Test
@@ -205,7 +206,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                         && Boolean.FALSE.equals(mergeVars.get("hasTulevaUser"))),
             any());
     verify(emailService, times(1))
-        .send(
+        .sendFromBackgroundJob(
             argThat((Person person) -> REGISTRY_ONLY.equals(person.getPersonalCode())),
             any(),
             eq("third_pillar_payment_arrived_en"));
@@ -406,7 +407,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
 
     job.run();
 
-    verify(emailService, never()).send(any(Person.class), any(), any());
+    verify(emailService, never()).sendFromBackgroundJob(any(Person.class), any(), any());
     assertThat(claimCount()).isZero();
   }
 
@@ -426,7 +427,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
 
     job.run();
 
-    verify(emailService, never()).send(any(Person.class), any(), any());
+    verify(emailService, never()).sendFromBackgroundJob(any(Person.class), any(), any());
     assertThat(claimCount()).isZero();
   }
 
@@ -453,19 +454,20 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                 false));
 
     assertThat(sent).isFalse();
-    verify(emailService, never()).send(any(Person.class), any(), any());
+    verify(emailService, never()).sendFromBackgroundJob(any(Person.class), any(), any());
   }
 
   @Test
   void keepsTheClaimAndSendsNothingLaterWhenMandrillFails() {
     saveUser(ACCOUNT_HOLDER, "account.holder@example.com");
     saveOwnPayment(ACCOUNT_HOLDER, LocalDate.now().minusDays(1), new BigDecimal("300.00"));
-    given(emailService.send(any(Person.class), any(), any())).willReturn(Optional.empty());
+    given(emailService.sendFromBackgroundJob(any(Person.class), any(), any()))
+        .willReturn(Optional.empty());
 
     job.run();
     job.run();
 
-    verify(emailService, times(1)).send(any(Person.class), any(), any());
+    verify(emailService, times(1)).sendFromBackgroundJob(any(Person.class), any(), any());
     assertThat(claimCount()).isEqualTo(1);
     assertThat(sentEmailCount()).isZero();
   }

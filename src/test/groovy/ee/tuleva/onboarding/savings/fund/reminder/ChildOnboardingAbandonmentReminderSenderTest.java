@@ -41,7 +41,9 @@ class ChildOnboardingAbandonmentReminderSenderTest {
   void sendsTheEstonianReminderToTheParentAndRecordsItAgainstTheParent() {
     var message = message(ESTONIAN, "savings_fund_onboarding_abandonment_child_et", "0,28");
     var response = mandrillResponse("message-id", "sent");
-    given(emailService.attemptSend(parent, message, "savings_fund_onboarding_abandonment_child_et"))
+    given(
+            emailService.attemptSendFromBackgroundJob(
+                parent, message, "savings_fund_onboarding_abandonment_child_et"))
         .willReturn(Optional.of(response));
 
     sender.send(reminder(ESTONIAN));
@@ -54,7 +56,9 @@ class ChildOnboardingAbandonmentReminderSenderTest {
   void sendsTheEnglishReminderToAParentWhoPrefersEnglish() {
     var message = message(ENGLISH, "savings_fund_onboarding_abandonment_child_en", "0.28");
     var response = mandrillResponse("message-id", "sent");
-    given(emailService.attemptSend(parent, message, "savings_fund_onboarding_abandonment_child_en"))
+    given(
+            emailService.attemptSendFromBackgroundJob(
+                parent, message, "savings_fund_onboarding_abandonment_child_en"))
         .willReturn(Optional.of(response));
 
     sender.send(reminder(ENGLISH));
@@ -67,7 +71,9 @@ class ChildOnboardingAbandonmentReminderSenderTest {
   void recordsARejectedReminderSoTheNextRunDoesNotRetryIt() {
     var message = message(ESTONIAN, "savings_fund_onboarding_abandonment_child_et", "0,28");
     var response = mandrillResponse("message-id", "rejected");
-    given(emailService.attemptSend(parent, message, "savings_fund_onboarding_abandonment_child_et"))
+    given(
+            emailService.attemptSendFromBackgroundJob(
+                parent, message, "savings_fund_onboarding_abandonment_child_et"))
         .willReturn(Optional.of(response));
 
     sender.send(reminder(ESTONIAN));
@@ -79,7 +85,9 @@ class ChildOnboardingAbandonmentReminderSenderTest {
   @Test
   void recordsNothingWhenMandrillNeverAnswered() {
     var message = message(ESTONIAN, "savings_fund_onboarding_abandonment_child_et", "0,28");
-    given(emailService.attemptSend(parent, message, "savings_fund_onboarding_abandonment_child_et"))
+    given(
+            emailService.attemptSendFromBackgroundJob(
+                parent, message, "savings_fund_onboarding_abandonment_child_et"))
         .willReturn(Optional.empty());
 
     sender.send(reminder(ESTONIAN));

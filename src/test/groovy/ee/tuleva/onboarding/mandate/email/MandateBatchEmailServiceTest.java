@@ -491,7 +491,7 @@ class MandateBatchEmailServiceTest {
         .thenReturn(ErrorsResponse.ofSingleError("123", "Error"));
 
     when(emailPersistenceService.hasEmailsForMandateBatch(mandateBatch.getId())).thenReturn(false);
-    when(emailService.send(user, message, "batch_failed_en"))
+    when(emailService.sendFromBackgroundJob(user, message, "batch_failed_en"))
         .thenReturn(Optional.of(mandrillResponse));
 
     when(emailService.newMandrillMessage(
@@ -556,7 +556,7 @@ class MandateBatchEmailServiceTest {
 
     mandateBatchEmailService.sendMandateBatchFailedEmail(user, mandateBatch, Locale.ENGLISH);
 
-    verify(emailService, times(0)).send(any(), any(), any());
+    verify(emailService, times(0)).sendFromBackgroundJob(any(), any(), any());
     verify(emailPersistenceService, times(0)).save(any(), any(), any(), any());
   }
 }

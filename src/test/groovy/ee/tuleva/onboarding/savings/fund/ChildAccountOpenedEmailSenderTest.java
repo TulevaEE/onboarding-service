@@ -80,7 +80,8 @@ class ChildAccountOpenedEmailSenderTest {
     var message = new MandrillMessage();
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.attemptSend(parent, message, TEMPLATE)).willReturn(Optional.empty());
+    given(emailService.attemptSendFromBackgroundJob(parent, message, TEMPLATE))
+        .willReturn(Optional.empty());
 
     sender.send(unpaidChild);
 
@@ -112,7 +113,8 @@ class ChildAccountOpenedEmailSenderTest {
     var response = mandrillResponse("message-id", "sent");
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.attemptSend(parent, message, TEMPLATE)).willReturn(Optional.of(response));
+    given(emailService.attemptSendFromBackgroundJob(parent, message, TEMPLATE))
+        .willReturn(Optional.of(response));
     given(emailPersistenceService.save(any(), any(), any(), any()))
         .willThrow(new RuntimeException("database is down"));
 
@@ -170,7 +172,8 @@ class ChildAccountOpenedEmailSenderTest {
     var response = mandrillResponse("message-id", "sent");
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.attemptSend(parent, message, TEMPLATE)).willReturn(Optional.of(response));
+    given(emailService.attemptSendFromBackgroundJob(parent, message, TEMPLATE))
+        .willReturn(Optional.of(response));
 
     sender.send(unpaidChild);
 
@@ -185,7 +188,8 @@ class ChildAccountOpenedEmailSenderTest {
     var response = mandrillResponse("message-id", "rejected");
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.attemptSend(parent, message, TEMPLATE)).willReturn(Optional.of(response));
+    given(emailService.attemptSendFromBackgroundJob(parent, message, TEMPLATE))
+        .willReturn(Optional.of(response));
 
     sender.send(unpaidChild);
 

@@ -39,7 +39,7 @@ class AdultAccountOpenedEmailSender {
     var message =
         emailService.newMandrillMessage(email, templateName, mergeVars(account, locale), TAGS);
     emailService
-        .attemptSend(account.holder(), message, templateName)
+        .attemptSendFromBackgroundJob(account.holder(), message, templateName)
         .ifPresent(response -> record(account, response));
   }
 

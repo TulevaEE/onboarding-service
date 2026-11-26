@@ -74,7 +74,7 @@ class FirstPaymentReminderSenderTest {
     var message = messageFor(estonianSaver, "savings_fund_first_payment_reminder_person_et");
     var response = mandrillResponse("message-id", "sent");
     given(
-            emailService.attemptSend(
+            emailService.attemptSendFromBackgroundJob(
                 estonianSaver, message, "savings_fund_first_payment_reminder_person_et"))
         .willReturn(Optional.of(response));
 
@@ -89,7 +89,7 @@ class FirstPaymentReminderSenderTest {
     var message = messageFor(englishSpeakingSaver, "savings_fund_first_payment_reminder_person_en");
     var response = mandrillResponse("message-id", "sent");
     given(
-            emailService.attemptSend(
+            emailService.attemptSendFromBackgroundJob(
                 englishSpeakingSaver, message, "savings_fund_first_payment_reminder_person_en"))
         .willReturn(Optional.of(response));
 
@@ -105,7 +105,7 @@ class FirstPaymentReminderSenderTest {
     var message = messageFor(childAccount, "savings_fund_first_payment_reminder_child_et");
     var response = mandrillResponse("message-id", "sent");
     given(
-            emailService.attemptSend(
+            emailService.attemptSendFromBackgroundJob(
                 childAccount, message, "savings_fund_first_payment_reminder_child_et"))
         .willReturn(Optional.of(response));
 
@@ -120,7 +120,7 @@ class FirstPaymentReminderSenderTest {
     var message = messageFor(estonianSaver, "savings_fund_first_payment_reminder_person_et");
     var response = mandrillResponse("message-id", "rejected");
     given(
-            emailService.attemptSend(
+            emailService.attemptSendFromBackgroundJob(
                 estonianSaver, message, "savings_fund_first_payment_reminder_person_et"))
         .willReturn(Optional.of(response));
 
@@ -134,7 +134,7 @@ class FirstPaymentReminderSenderTest {
   void recordsNothingWhenMandrillNeverAnswered() {
     var message = messageFor(estonianSaver, "savings_fund_first_payment_reminder_person_et");
     given(
-            emailService.attemptSend(
+            emailService.attemptSendFromBackgroundJob(
                 estonianSaver, message, "savings_fund_first_payment_reminder_person_et"))
         .willReturn(Optional.empty());
 

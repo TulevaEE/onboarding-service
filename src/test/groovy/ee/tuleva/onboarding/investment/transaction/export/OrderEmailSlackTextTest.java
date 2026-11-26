@@ -73,21 +73,20 @@ class OrderEmailSlackTextTest {
   }
 
   @Test
-  void anUnknownResult_saysToCheckTheCopyBeforeSendingAgain() {
+  void anUnknownResult_saysToAskTheRecipientBeforeSendingTheOrdersAgain() {
     assertThat(OrderEmailSlackText.resultUnknown(SIX_FT_ORDERS, "Read timed out"))
         .isEqualTo(
             """
             🔴 FT kirja tulemus teadmata: 6 korraldust, ≈ 2 463 732,23 €
             Read timed out
-            Mida teha: kiri võis välja minna. Kui Cc-koopia on olemas, ära saada uuesti. \
-            Kui pole, saada fail käsitsi.""");
+            Mida teha: kiri võis välja minna. Enne uuesti saatmist küsi saajalt, \
+            kas korraldused jõudsid: Cc-koopia puudumine seda ei näita.""");
     assertThat(OrderEmailSlackText.noResultRecorded(SIX_UUID_REFERENCES))
         .isEqualTo(
             """
             🟠 SEB UUID-kirja tulemus teadmata: 6 viidet
             Saatmise tulemust ei salvestatud: teenus võis saatmise ajal seiskuda.
-            Mida teha: kiri võis välja minna. Kui Cc-koopia on olemas, ära saada uuesti. \
-            Kui pole, saada UUID-fail SEB-le käsitsi.""");
+            Mida teha: kiri võis välja minna. Kui Cc-koopiat pole, saada UUID-fail SEB-le käsitsi.""");
   }
 
   @Test

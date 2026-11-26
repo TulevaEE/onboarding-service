@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.FT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
@@ -13,6 +15,7 @@ import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.OrderSender;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
+import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -31,10 +34,11 @@ class OrderEmailSummaryTest {
           Instant.parse("2026-11-26T08:50:00Z"),
           new OrderSender("fundmanager@tuleva.ee", "Fund Manager"),
           List.of(
-              order(TUK75, ETF, FT, "1000.50"),
-              order(TUV100, ETF, FT, "2000"),
-              order(TUV100, ETF, SEB, null),
-              order(TUK00, FUND, SEB, "300")),
+              order(TUK75, ETF, FT, BUY, "1000.50"),
+              order(TUV100, ETF, FT, SELL, "2000"),
+              order(TUV100, ETF, SEB, SELL, null),
+              order(TUK00, FUND, SEB, BUY, "300"),
+              order(TUK00, FUND, SEB, SELL, "120")),
           Map.of());
 
   @Test
@@ -42,10 +46,14 @@ class OrderEmailSummaryTest {
     assertThat(OrderEmailSummary.of(DAY, OrderEmail.FT))
         .isEqualTo(
             new OrderEmailSummary("FT:12,13", OrderEmail.FT, 2, 0, new BigDecimal("3000.50")));
+  }
+
+  @Test
+  void aFundRedemption_goesToSebAsAQuantity_soItsEstimatedAmountStaysOutOfTheTotal() {
     assertThat(OrderEmailSummary.of(DAY, OrderEmail.SEB_FUND))
         .isEqualTo(
             new OrderEmailSummary(
-                "SEB_FUND:12,13", OrderEmail.SEB_FUND, 1, 0, new BigDecimal("300")));
+                "SEB_FUND:12,13", OrderEmail.SEB_FUND, 2, 1, new BigDecimal("300")));
   }
 
   @Test
@@ -72,14 +80,19 @@ class OrderEmailSummaryTest {
   }
 
   private static TransactionOrder order(
-      TulevaFund fund, InstrumentType type, OrderVenue venue, @Nullable String amount) {
+      TulevaFund fund,
+      InstrumentType type,
+      OrderVenue venue,
+      TransactionType side,
+      @Nullable String amount) {
     return TransactionOrder.builder()
         .fund(fund)
+        .transactionType(side)
         .instrumentIsin("IE00TEST0001")
         .instrumentType(type)
         .orderVenue(venue)
         .orderAmount(amount == null ? null : new BigDecimal(amount))
-        .orderQuantity(amount == null ? new BigDecimal("10") : null)
+        .orderQuantity(side == SELL ? new BigDecimal("10") : null)
         .build();
   }
 }

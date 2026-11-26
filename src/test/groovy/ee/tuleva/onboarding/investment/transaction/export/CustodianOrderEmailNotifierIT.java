@@ -25,6 +25,7 @@ import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.OrderSender;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
+import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.AtMostOnceEmailSender;
 import ee.tuleva.onboarding.notification.email.EmailSendResult;
@@ -80,6 +81,7 @@ class CustodianOrderEmailNotifierIT {
                   .fund(TulevaFund.TUK00)
                   .instrumentIsin("IE00TEST0001")
                   .instrumentType(InstrumentType.FUND)
+                  .transactionType(TransactionType.BUY)
                   .orderVenue(OrderVenue.SEB)
                   .orderAmount(new BigDecimal("1000"))
                   .build()),
@@ -94,8 +96,8 @@ class CustodianOrderEmailNotifierIT {
       🔴 SEB indeksfondide kirja tulemus teadmata: 1 korraldus, 1 000,00 € \
       (toimus 15.01.2026 12:00)
       Saatmise tulemust ei salvestatud: teenus võis saatmise ajal seiskuda.
-      Mida teha: kiri võis välja minna. Kui Cc-koopia on olemas, ära saada uuesti. \
-      Kui pole, saada fail käsitsi.""";
+      Mida teha: kiri võis välja minna. Enne uuesti saatmist küsi saajalt, \
+      kas korraldused jõudsid: Cc-koopia puudumine seda ei näita.""";
   private static final String ORDERS_NOT_BUILT =
       """
       🔴 SEB indeksfondide kiri jäi saatmata: 1 korraldus, 1 000,00 €

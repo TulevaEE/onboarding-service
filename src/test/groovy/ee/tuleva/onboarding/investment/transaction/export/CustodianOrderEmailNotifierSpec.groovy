@@ -42,7 +42,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
   String resultUnknown =
       "🔴 FT kirja tulemus teadmata: 2 korraldust, ≈ 1 500,00 €\n" +
           "Saatmise tulemust ei salvestatud: teenus võis saatmise ajal seiskuda.\n" +
-          "Mida teha: kiri võis välja minna. Kui Cc-koopia on olemas, ära saada uuesti. Kui pole, saada fail käsitsi."
+          "Mida teha: kiri võis välja minna. Enne uuesti saatmist küsi saajalt, kas korraldused jõudsid: Cc-koopia puudumine seda ei näita."
 
   Closure<Optional<EventLog>> latestSendResultRow = { Optional.empty() }
 
@@ -127,7 +127,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
         TRADING, ERROR)
   }
 
-  def "posts a red line asking to check the copy before sending again when the result is unknown"() {
+  def "posts a red line asking the recipient before sending again when the result is unknown"() {
     given:
     def result = new EmailSendResult(UNKNOWN, [], "SocketTimeoutException: Read timed out")
 
@@ -138,7 +138,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     1 * notificationService.sendMessage(
         "🔴 FT kirja tulemus teadmata: 2 korraldust, ≈ 1 500,00 €\n" +
             "SocketTimeoutException: Read timed out\n" +
-            "Mida teha: kiri võis välja minna. Kui Cc-koopia on olemas, ära saada uuesti. Kui pole, saada fail käsitsi.",
+            "Mida teha: kiri võis välja minna. Enne uuesti saatmist küsi saajalt, kas korraldused jõudsid: Cc-koopia puudumine seda ei näita.",
         TRADING, ERROR)
   }
 
@@ -156,7 +156,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     1 * notificationService.sendMessage(
         "🔴 FT kirja tulemus teadmata: 2 korraldust, ≈ 1 500,00 €\n" +
             "Vastu ei võetud: desk-backup@example.com invalid\n" +
-            "Mida teha: kiri võis välja minna. Kui Cc-koopia on olemas, ära saada uuesti. Kui pole, saada fail käsitsi.",
+            "Mida teha: kiri võis välja minna. Enne uuesti saatmist küsi saajalt, kas korraldused jõudsid: Cc-koopia puudumine seda ei näita.",
         TRADING, ERROR)
   }
 

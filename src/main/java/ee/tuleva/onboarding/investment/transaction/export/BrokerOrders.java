@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.FT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.investment.transaction.TransactionBatchRefusedException;
@@ -44,6 +45,10 @@ final class BrokerOrders {
       throw new TransactionBatchRefusedException(
           "No venue file takes these orders, nothing sent: orders=" + unroutable);
     }
+  }
+
+  static boolean isSebFundRedemption(TransactionOrder order) {
+    return isSebFundOrder(order) && order.getTransactionType() != BUY;
   }
 
   static boolean isUuidWorkbookOrder(TransactionOrder order) {

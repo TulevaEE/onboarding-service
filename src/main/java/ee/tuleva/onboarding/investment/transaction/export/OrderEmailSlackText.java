@@ -52,11 +52,13 @@ final class OrderEmailSlackText {
 
   static String resultUnknown(OrderEmailSummary summary, String cause) {
     var email = summary.email();
-    var byHand = email == UUID ? SEND_THE_UUID_FILE_BY_HAND : "saada fail käsitsi";
-    return ("%s %skirja tulemus teadmata: %s\n%s\n"
-            + "Mida teha: kiri võis välja minna. Kui Cc-koopia on olemas, ära saada uuesti."
-            + " Kui pole, %s.")
-        .formatted(icon(email), prefix(email), numbers(summary), cause, byHand);
+    var action =
+        email == UUID
+            ? "Kui Cc-koopiat pole, " + SEND_THE_UUID_FILE_BY_HAND + "."
+            : "Enne uuesti saatmist küsi saajalt, kas korraldused jõudsid:"
+                + " Cc-koopia puudumine seda ei näita.";
+    return "%s %skirja tulemus teadmata: %s\n%s\nMida teha: kiri võis välja minna. %s"
+        .formatted(icon(email), prefix(email), numbers(summary), cause, action);
   }
 
   static String noResultRecorded(OrderEmailSummary summary) {

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
 import static java.math.BigDecimal.ZERO;
+import static java.util.function.Predicate.not;
 
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import java.math.BigDecimal;
@@ -13,7 +14,11 @@ record OrderEmailSummary(
   static OrderEmailSummary of(OrderDay day, OrderEmail email) {
     List<TransactionOrder> orders = day.orders().stream().filter(email::carries).toList();
     List<BigDecimal> amounts =
-        orders.stream().map(TransactionOrder::getOrderAmount).filter(Objects::nonNull).toList();
+        orders.stream()
+            .filter(not(BrokerOrders::isSebFundRedemption))
+            .map(TransactionOrder::getOrderAmount)
+            .filter(Objects::nonNull)
+            .toList();
     return new OrderEmailSummary(
         day.emailKey(email),
         email,

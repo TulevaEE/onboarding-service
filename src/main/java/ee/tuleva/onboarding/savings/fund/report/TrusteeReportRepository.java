@@ -21,8 +21,8 @@ class TrusteeReportRepository {
         WITH daily_units AS (
           SELECT
             CAST(t.transaction_date AS DATE) AS report_date,
-            ROUND(COALESCE(SUM(CASE WHEN e.amount > 0 THEN e.amount ELSE 0 END), 0), 3) AS issued_units,
-            ROUND(COALESCE(SUM(CASE WHEN e.amount < 0 THEN -e.amount ELSE 0 END), 0), 3) AS redeemed_units
+            COALESCE(SUM(CASE WHEN e.amount > 0 THEN e.amount ELSE 0 END), 0) AS issued_units,
+            COALESCE(SUM(CASE WHEN e.amount < 0 THEN -e.amount ELSE 0 END), 0) AS redeemed_units
           FROM ledger.entry e
           JOIN ledger.transaction t ON e.transaction_id = t.id
           JOIN ledger.account a ON e.account_id = a.id
@@ -47,11 +47,11 @@ class TrusteeReportRepository {
           (SELECT iv.value FROM index_values iv
            WHERE iv.key = 'EE0000003283' AND iv.date < u.report_date
            ORDER BY iv.date DESC LIMIT 1) AS "nav",
-          u.issued_units AS "issuedUnits",
+          ROUND(u.issued_units, 3) AS "issuedUnits",
           COALESCE(eur.issued_amount, 0) AS "issuedAmount",
-          u.redeemed_units AS "redeemedUnits",
+          ROUND(u.redeemed_units, 3) AS "redeemedUnits",
           COALESCE(eur.redeemed_amount, 0) AS "redeemedAmount",
-          SUM(u.issued_units - u.redeemed_units) OVER (ORDER BY u.report_date) AS "totalOutstandingUnits"
+          ROUND(SUM(u.issued_units - u.redeemed_units) OVER (ORDER BY u.report_date), 3) AS "totalOutstandingUnits"
         FROM daily_units u
         LEFT JOIN daily_eur eur ON eur.report_date = u.report_date
         ORDER BY u.report_date DESC

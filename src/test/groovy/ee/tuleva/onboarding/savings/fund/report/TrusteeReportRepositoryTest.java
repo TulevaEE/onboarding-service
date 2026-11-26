@@ -108,6 +108,59 @@ class TrusteeReportRepositoryTest {
                     .build()));
   }
 
+  @Test
+  void totalOutstandingUnitsIsTheLedgerBalanceRoundedOnceNotASumOfRoundedDays() {
+    createFundUnitEntry(Instant.parse("2026-02-03T10:00:00Z"), new BigDecimal("100.33333"));
+    createFundUnitEntry(Instant.parse("2026-02-04T10:00:00Z"), new BigDecimal("100.33333"));
+    createFundUnitEntry(Instant.parse("2026-02-05T10:00:00Z"), new BigDecimal("100.33333"));
+    createFundUnitEntry(Instant.parse("2026-02-06T10:00:00Z"), new BigDecimal("-50.33333"));
+    insertNav("EE0000003283", LocalDate.of(2026, 2, 2), new BigDecimal("1.0000"));
+
+    var result = repository.findAll();
+
+    assertThat(result)
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            List.of(
+                unitsOnlyRow(
+                    LocalDate.of(2026, 2, 6),
+                    ZERO,
+                    new BigDecimal("50.333"),
+                    new BigDecimal("250.667")),
+                unitsOnlyRow(
+                    LocalDate.of(2026, 2, 5),
+                    new BigDecimal("100.333"),
+                    ZERO,
+                    new BigDecimal("301.000")),
+                unitsOnlyRow(
+                    LocalDate.of(2026, 2, 4),
+                    new BigDecimal("100.333"),
+                    ZERO,
+                    new BigDecimal("200.667")),
+                unitsOnlyRow(
+                    LocalDate.of(2026, 2, 3),
+                    new BigDecimal("100.333"),
+                    ZERO,
+                    new BigDecimal("100.333"))));
+  }
+
+  private TrusteeReportRow unitsOnlyRow(
+      LocalDate reportDate,
+      BigDecimal issuedUnits,
+      BigDecimal redeemedUnits,
+      BigDecimal totalOutstandingUnits) {
+    return TrusteeReportRow.builder()
+        .reportDate(reportDate)
+        .nav(new BigDecimal("1.0"))
+        .issuedUnits(issuedUnits)
+        .issuedAmount(ZERO)
+        .redeemedUnits(redeemedUnits)
+        .redeemedAmount(ZERO)
+        .totalOutstandingUnits(totalOutstandingUnits)
+        .build();
+  }
+
   private UUID createSystemAccount(String name, String assetType) {
     jdbcClient
         .sql(

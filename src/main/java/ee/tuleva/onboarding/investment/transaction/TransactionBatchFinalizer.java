@@ -223,7 +223,7 @@ public class TransactionBatchFinalizer {
       batchIds.forEach(batchId -> persistDriveFileUrls(batchId, driveFileUrls));
     }
     eventPublisher.publishEvent(
-        new BatchFinalizedEvent(batchIds, orderCount, tradeDate, driveFileUrls));
+        new BatchFinalizedEvent(batchIds, orderCount, tradeDate.toString(), driveFileUrls));
   }
 
   private void persistDriveFileUrls(Long batchId, Map<String, String> driveFileUrls) {

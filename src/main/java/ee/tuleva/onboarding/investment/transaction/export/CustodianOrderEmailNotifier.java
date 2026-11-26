@@ -135,7 +135,7 @@ class CustodianOrderEmailNotifier {
     if (notAccepted.isEmpty()) {
       return String.valueOf(result.problem());
     }
-    return "Vastu ei võetud: "
+    return "Not accepted: "
         + notAccepted.stream().map(CustodianOrderEmailNotifier::describe).collect(joining(", "));
   }
 

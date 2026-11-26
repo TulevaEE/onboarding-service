@@ -20,11 +20,11 @@ class OrderEmailDeliveryTextTest {
     assertThat(OrderEmailDeliveryText.deliveryFailure(event))
         .isEqualTo(
             """
-            🟠 FT kirja kohaletoimetamine viibib: desk@example.com
-            „Tuleva ETF orders 26.11.2026 – MOC“ · deferral: 450 try later (id=msg_1)
-            Mida teha: Mandrill proovib ise uuesti. Kui laud pole korraldusi enne lõikeaega \
-            kinnitanud, helista lauale. Saada käsitsi ainult siis, kui lepid lauaga kokku, \
-            et hilinev originaal jäetakse täitmata.""");
+            🟠 FT email delivery delayed: desk@example.com
+            "Tuleva ETF orders 26.11.2026 – MOC" · deferral: 450 try later (id=msg_1)
+            What to do: Mandrill keeps trying. If the desk hasn't confirmed the orders before \
+            the cut-off, call the desk. Send by hand only if the desk agrees to leave the late \
+            original unexecuted.""");
     assertThat(OrderEmailDeliveryText.deliveryFailureSeverity(event)).isEqualTo(WARNING);
   }
 
@@ -35,10 +35,10 @@ class OrderEmailDeliveryTextTest {
     assertThat(OrderEmailDeliveryText.deliveryFailure(event))
         .isEqualTo(
             """
-            🟠 SEB UUID-kirja kohaletoimetamine viibib: desk@example.com
+            🟠 SEB UUID email delivery delayed: desk@example.com
             deferral: 450 try later (id=msg_1)
-            Mida teha: praegu mitte midagi, Mandrill proovib ise uuesti. \
-            Kui kiri põrkab tagasi, tuleb uus teade.""");
+            What to do: nothing yet, Mandrill keeps trying. If the email bounces, another \
+            message follows.""");
   }
 
   @Test
@@ -48,10 +48,11 @@ class OrderEmailDeliveryTextTest {
     assertThat(OrderEmailDeliveryText.deliveryFailure(event))
         .isEqualTo(
             """
-            🔴 SEB indeksfondide kiri ei jõudnud kohale: desk@example.com
+            🔴 SEB index fund email NOT delivered: desk@example.com
             hard_bounce: 450 try later (id=msg_1)
-            Mida teha: kui see aadress on koopia, korraldusi uuesti ei saada. Muidu helista \
-            lauale ja saada fail käsitsi ainult siis, kui laud kinnitab, et korraldused ei jõudnud.""");
+            What to do: if this address is a copy, don't send the orders again. Otherwise call \
+            the desk and send the file by hand only if the desk confirms the orders did not \
+            arrive.""");
     assertThat(OrderEmailDeliveryText.deliveryFailureSeverity(event)).isEqualTo(ERROR);
   }
 
@@ -64,9 +65,9 @@ class OrderEmailDeliveryTextTest {
     assertThat(OrderEmailDeliveryText.deliveryFailure(event))
         .isEqualTo(
             """
-            🟠 SEB UUID-kiri ei jõudnud kohale: desk@example.com
-            „Tehingukorralduste UUID 26.11.2026“ · reject: 450 try later (id=msg_1)
-            Mida teha: saada UUID-fail SEB-le käsitsi. Tehingukorraldused on eraldi kirjades.""");
+            🟠 SEB UUID email NOT delivered: desk@example.com
+            "Tehingukorralduste UUID 26.11.2026" · reject: 450 try later (id=msg_1)
+            What to do: send the UUID file to SEB by hand. The orders go in emails of their own.""");
     assertThat(OrderEmailDeliveryText.deliveryFailureSeverity(event)).isEqualTo(WARNING);
   }
 
@@ -83,7 +84,7 @@ class OrderEmailDeliveryTextTest {
             List.of("trade-order"));
 
     assertThat(OrderEmailDeliveryText.deliveryFailure(event))
-        .startsWith("🔴 Tehingukorralduse kiri ei jõudnud kohale: desk@example.com\n");
+        .startsWith("🔴 Order email NOT delivered: desk@example.com\n");
     assertThat(OrderEmailDeliveryText.deliveryFailureSeverity(event)).isEqualTo(ERROR);
   }
 

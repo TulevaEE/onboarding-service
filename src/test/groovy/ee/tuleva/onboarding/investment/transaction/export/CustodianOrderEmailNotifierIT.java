@@ -88,21 +88,21 @@ class CustodianOrderEmailNotifierIT {
           Map.of(ExportFile.SEB_FUND, new byte[] {1, 2}));
   private static final String ORDERS_NOT_SENT =
       """
-      🔴 SEB indeksfondide kiri jäi saatmata: 1 korraldus, 1 000,00 €
+      🔴 SEB index fund email NOT sent: 1 order, EUR 1,000.00
       ConnectException: Connection refused
-      Mida teha: paranda põhjus ja saada fail käsitsi.""";
+      What to do: fix the cause, then send the file by hand.""";
   private static final String RESULT_UNKNOWN_POSTED_LATE =
       """
-      🔴 SEB indeksfondide kirja tulemus teadmata: 1 korraldus, 1 000,00 € \
-      (toimus 15.01.2026 12:00)
-      Saatmise tulemust ei salvestatud: teenus võis saatmise ajal seiskuda.
-      Mida teha: kiri võis välja minna. Enne uuesti saatmist küsi saajalt, \
-      kas korraldused jõudsid: Cc-koopia puudumine seda ei näita.""";
+      🔴 SEB index fund email result UNKNOWN: 1 order, EUR 1,000.00 \
+      (at 15.01.2026 12:00)
+      No send result was recorded: the service may have stopped while sending.
+      What to do: the email may have gone out. Before sending again, ask the desk \
+      whether the orders arrived: a missing Cc copy doesn't show that.""";
   private static final String ORDERS_NOT_BUILT =
       """
-      🔴 SEB indeksfondide kiri jäi saatmata: 1 korraldus, 1 000,00 €
-      Kirja ei saanud koostada: java.lang.IllegalStateException: an export has no file name
-      Mida teha: paranda põhjus ja saada fail käsitsi.""";
+      🔴 SEB index fund email NOT sent: 1 order, EUR 1,000.00
+      The email could not be built: java.lang.IllegalStateException: an export has no file name
+      What to do: fix the cause, then send the file by hand.""";
   private static final Instant FOUR_MINUTES_LATER = SENT_AT.plus(Duration.ofMinutes(4));
   private static final Instant PAST_FIVE_MINUTES =
       SENT_AT.plus(Duration.ofMinutes(5)).plusSeconds(1);
@@ -242,7 +242,7 @@ class CustodianOrderEmailNotifierIT {
     then(notificationService)
         .should()
         .sendMessage(
-            startsWith("✅ SEB indeksfondide kiri saadetud: 1 korraldus, 1 000,00 €"),
+            startsWith("✅ SEB index fund email sent: 1 order, EUR 1,000.00"),
             eq(TRADING),
             eq(INFO));
     then(notificationService).shouldHaveNoMoreInteractions();
@@ -336,8 +336,8 @@ class CustodianOrderEmailNotifierIT {
             row -> row.getData().get("alert"),
             row -> ((String) row.getData().get("text")).lines().findFirst().orElseThrow())
         .containsExactlyInAnyOrder(
-            tuple("POSTED", "🔴 SEB indeksfondide kirja tulemus teadmata: 1 korraldus, 1 000,00 €"),
-            tuple("POSTED", "🔴 SEB indeksfondide kiri jäi saatmata: 1 korraldus, 1 000,00 €"));
+            tuple("POSTED", "🔴 SEB index fund email result UNKNOWN: 1 order, EUR 1,000.00"),
+            tuple("POSTED", "🔴 SEB index fund email NOT sent: 1 order, EUR 1,000.00"));
   }
 
   @Test

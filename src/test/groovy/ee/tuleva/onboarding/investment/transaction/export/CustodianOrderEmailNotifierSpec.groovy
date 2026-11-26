@@ -37,19 +37,19 @@ class CustodianOrderEmailNotifierSpec extends Specification {
   OrderEmailSummary summary = new OrderEmailSummary("FT:42", OrderEmail.FT, 2, 0, 1500.00)
   OrderEmailSummary uuidSummary = new OrderEmailSummary("UUID:42", OrderEmail.UUID, 2, 0, 1500.00)
 
-  String greenLine = "✅ FT kiri saadetud: 2 korraldust, ≈ 1 500,00 €\n" +
-      "„Tuleva ETF orders 15.01.2026 – MOC“, saatja Fund Manager. Mandrill võttis vastu."
+  String greenLine = "✅ FT email sent: 2 orders, ≈ EUR 1,500.00\n" +
+      "\"Tuleva ETF orders 15.01.2026 – MOC\", from Fund Manager. Accepted by Mandrill."
   String resultUnknown =
-      "🔴 FT kirja tulemus teadmata: 2 korraldust, ≈ 1 500,00 €\n" +
-          "Saatmise tulemust ei salvestatud: teenus võis saatmise ajal seiskuda.\n" +
-          "Mida teha: kiri võis välja minna. Enne uuesti saatmist küsi saajalt, kas korraldused jõudsid: Cc-koopia puudumine seda ei näita."
+      "🔴 FT email result UNKNOWN: 2 orders, ≈ EUR 1,500.00\n" +
+          "No send result was recorded: the service may have stopped while sending.\n" +
+          "What to do: the email may have gone out. Before sending again, ask the desk whether the orders arrived: a missing Cc copy doesn't show that."
 
   Closure<Optional<EventLog>> latestSendResultRow = { Optional.empty() }
 
   String notBuilt =
-      "🔴 FT kiri jäi saatmata: 2 korraldust, ≈ 1 500,00 €\n" +
-          "Kirja ei saanud koostada: java.lang.IllegalStateException: an export has no file name\n" +
-          "Mida teha: paranda põhjus ja saada fail käsitsi."
+      "🔴 FT email NOT sent: 2 orders, ≈ EUR 1,500.00\n" +
+          "The email could not be built: java.lang.IllegalStateException: an export has no file name\n" +
+          "What to do: fix the cause, then send the file by hand."
 
   def setup() {
     eventLogRepository.findFirstByTypeAndPrincipalOrderByTimestampDesc("TRADE_ORDER_EMAIL_SEND_RESULT", "FT:42") >> {
@@ -88,9 +88,9 @@ class CustodianOrderEmailNotifierSpec extends Specification {
 
     then:
     1 * notificationService.sendMessage(
-        "🔴 FT kiri läks välja, aga mitte kõigile koopiasaajatele: 2 korraldust, ≈ 1 500,00 €\n" +
-            "Vastu ei võetud: copy@example.com rejected (hard-bounce)\n" +
-            "Mida teha: kirja uuesti ei saada. Uuri, miks Mandrill koopia tagasi lükkas.",
+        "🔴 FT email went out, but not to every copy: 2 orders, ≈ EUR 1,500.00\n" +
+            "Not accepted: copy@example.com rejected (hard-bounce)\n" +
+            "What to do: don't send the email again. Find out why Mandrill rejected the copy.",
         TRADING, ERROR)
   }
 
@@ -106,9 +106,9 @@ class CustodianOrderEmailNotifierSpec extends Specification {
 
     then:
     1 * notificationService.sendMessage(
-        "🔴 FT kiri jäi saatmata: 2 korraldust, ≈ 1 500,00 €\n" +
-            "Vastu ei võetud: desk@example.com rejected (hard-bounce)\n" +
-            "Mida teha: paranda põhjus ja saada fail käsitsi.",
+        "🔴 FT email NOT sent: 2 orders, ≈ EUR 1,500.00\n" +
+            "Not accepted: desk@example.com rejected (hard-bounce)\n" +
+            "What to do: fix the cause, then send the file by hand.",
         TRADING, ERROR)
   }
 
@@ -121,9 +121,9 @@ class CustodianOrderEmailNotifierSpec extends Specification {
 
     then:
     1 * notificationService.sendMessage(
-        "🔴 FT kiri jäi saatmata: 2 korraldust, ≈ 1 500,00 €\n" +
+        "🔴 FT email NOT sent: 2 orders, ≈ EUR 1,500.00\n" +
             "ConnectException: Connection refused\n" +
-            "Mida teha: paranda põhjus ja saada fail käsitsi.",
+            "What to do: fix the cause, then send the file by hand.",
         TRADING, ERROR)
   }
 
@@ -136,9 +136,9 @@ class CustodianOrderEmailNotifierSpec extends Specification {
 
     then:
     1 * notificationService.sendMessage(
-        "🔴 FT kirja tulemus teadmata: 2 korraldust, ≈ 1 500,00 €\n" +
+        "🔴 FT email result UNKNOWN: 2 orders, ≈ EUR 1,500.00\n" +
             "SocketTimeoutException: Read timed out\n" +
-            "Mida teha: kiri võis välja minna. Enne uuesti saatmist küsi saajalt, kas korraldused jõudsid: Cc-koopia puudumine seda ei näita.",
+            "What to do: the email may have gone out. Before sending again, ask the desk whether the orders arrived: a missing Cc copy doesn't show that.",
         TRADING, ERROR)
   }
 
@@ -154,9 +154,9 @@ class CustodianOrderEmailNotifierSpec extends Specification {
 
     then:
     1 * notificationService.sendMessage(
-        "🔴 FT kirja tulemus teadmata: 2 korraldust, ≈ 1 500,00 €\n" +
-            "Vastu ei võetud: desk-backup@example.com invalid\n" +
-            "Mida teha: kiri võis välja minna. Enne uuesti saatmist küsi saajalt, kas korraldused jõudsid: Cc-koopia puudumine seda ei näita.",
+        "🔴 FT email result UNKNOWN: 2 orders, ≈ EUR 1,500.00\n" +
+            "Not accepted: desk-backup@example.com invalid\n" +
+            "What to do: the email may have gone out. Before sending again, ask the desk whether the orders arrived: a missing Cc copy doesn't show that.",
         TRADING, ERROR)
   }
 
@@ -351,9 +351,9 @@ class CustodianOrderEmailNotifierSpec extends Specification {
 
     then:
     1 * notificationService.sendMessage(
-        "🟠 SEB UUID-kiri jäi saatmata: 2 viidet\n" +
+        "🟠 SEB UUID email NOT sent: 2 references\n" +
             "ConnectException: Connection refused\n" +
-            "Mida teha: saada UUID-fail SEB-le käsitsi. Tehingukorraldused on eraldi kirjades.",
+            "What to do: send the UUID file to SEB by hand. The orders go in emails of their own.",
         TRADING, WARNING)
   }
 

@@ -214,7 +214,7 @@ class CustodianOrderEmailAlerter {
       return text;
     }
     var lines = text.split("\n", 2);
-    var firstLine = "%s (toimus %s)".formatted(lines[0], EVENT_TIME.format(row.getTimestamp()));
+    var firstLine = "%s (at %s)".formatted(lines[0], EVENT_TIME.format(row.getTimestamp()));
     return lines.length == 1 ? firstLine : firstLine + "\n" + lines[1];
   }
 }

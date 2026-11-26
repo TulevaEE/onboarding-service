@@ -511,8 +511,7 @@ class TransactionBatchFinalizerTest {
     verify(auditEventRepository, times(2))
         .save(argThat(event -> event.getPayload().get("sentTogetherWith").equals(List.of(1L, 2L))));
     verify(eventPublisher)
-        .publishEvent(
-            new BatchFinalizedEvent(List.of(1L, 2L), 2, LocalDate.parse("2026-01-15"), Map.of()));
+        .publishEvent(new BatchFinalizedEvent(List.of(1L, 2L), 2, "2026-01-15", Map.of()));
   }
 
   @Test
@@ -676,8 +675,7 @@ class TransactionBatchFinalizerTest {
 
     then(sendTheOrders).should().run();
     verify(eventPublisher)
-        .publishEvent(
-            new BatchFinalizedEvent(List.of(1L), 0, LocalDate.parse("2026-01-15"), driveFileUrls));
+        .publishEvent(new BatchFinalizedEvent(List.of(1L), 0, "2026-01-15", driveFileUrls));
   }
 
   @Test

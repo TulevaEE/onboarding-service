@@ -60,11 +60,11 @@ class CustodianOrderEmailAlerterIT {
   private static final String RED_ALERT = redAlert("hard_bounce");
   private static final String AMBER_ALERT =
       """
-      🟠 SEB indeksfondide kirja kohaletoimetamine viibib: desk@example.com
-      „TUV100 ostu-/müügikorraldused 15.01.2026“ · deferral: 550 mailbox unavailable (id=msg_1)
-      Mida teha: Mandrill proovib ise uuesti. Kui laud pole korraldusi enne lõikeaega \
-      kinnitanud, helista lauale. Saada käsitsi ainult siis, kui lepid lauaga kokku, \
-      et hilinev originaal jäetakse täitmata.""";
+      🟠 SEB index fund email delivery delayed: desk@example.com
+      "TUV100 ostu-/müügikorraldused 15.01.2026" · deferral: 550 mailbox unavailable (id=msg_1)
+      What to do: Mandrill keeps trying. If the desk hasn't confirmed the orders before \
+      the cut-off, call the desk. Send by hand only if the desk agrees to leave the late \
+      original unexecuted.""";
 
   @Autowired MandrillWebhookService webhookService;
   @Autowired CustodianOrderEmailAlerter alerter;
@@ -243,7 +243,7 @@ class CustodianOrderEmailAlerterIT {
         .data(
             Map.of(
                 "text",
-                "🔴 SEB indeksfondide kirja tulemus teadmata: 1 korraldus, 1 000,00 €",
+                "🔴 SEB index fund email result UNKNOWN: 1 order, EUR 1,000.00",
                 "severity",
                 "ERROR",
                 "alert",
@@ -300,10 +300,11 @@ class CustodianOrderEmailAlerterIT {
 
   private static String redAlert(String eventType) {
     return """
-        🔴 SEB indeksfondide kiri ei jõudnud kohale: desk@example.com
-        „%s“ · %s: 550 mailbox unavailable (id=msg_1)
-        Mida teha: kui see aadress on koopia, korraldusi uuesti ei saada. Muidu helista \
-        lauale ja saada fail käsitsi ainult siis, kui laud kinnitab, et korraldused ei jõudnud."""
+        🔴 SEB index fund email NOT delivered: desk@example.com
+        "%s" · %s: 550 mailbox unavailable (id=msg_1)
+        What to do: if this address is a copy, don't send the orders again. Otherwise call \
+        the desk and send the file by hand only if the desk confirms the orders did not \
+        arrive."""
         .formatted(SUBJECT, eventType);
   }
 }

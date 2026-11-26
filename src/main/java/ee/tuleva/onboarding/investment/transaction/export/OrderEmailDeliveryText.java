@@ -13,7 +13,7 @@ import java.util.Optional;
 final class OrderEmailDeliveryText {
 
   private static final String DEFERRAL = "deferral";
-  private static final String ANY_ORDER_EMAIL = "Tehingukorralduse ";
+  private static final String ANY_ORDER_EMAIL = "Order ";
 
   private OrderEmailDeliveryText() {}
 
@@ -23,21 +23,21 @@ final class OrderEmailDeliveryText {
     if (isDeferral(event)) {
       var wait =
           isUuid(email)
-              ? "Mida teha: praegu mitte midagi, Mandrill proovib ise uuesti."
-                  + " Kui kiri põrkab tagasi, tuleb uus teade."
-              : "Mida teha: Mandrill proovib ise uuesti. Kui laud pole korraldusi enne"
-                  + " lõikeaega kinnitanud, helista lauale. Saada käsitsi ainult siis, kui lepid"
-                  + " lauaga kokku, et hilinev originaal jäetakse täitmata.";
-      return "🟠 %skirja kohaletoimetamine viibib: %s\n%s\n%s"
+              ? "What to do: nothing yet, Mandrill keeps trying."
+                  + " If the email bounces, another message follows."
+              : "What to do: Mandrill keeps trying. If the desk hasn't confirmed the orders"
+                  + " before the cut-off, call the desk. Send by hand only if the desk agrees to"
+                  + " leave the late original unexecuted.";
+      return "🟠 %semail delivery delayed: %s\n%s\n%s"
           .formatted(prefix, event.recipient(), eventLine(event), wait);
     }
     var action =
         isUuid(email)
             ? SEND_THE_UUID_FILE_BY_HAND_THE_ORDERS_WENT_APART
-            : "Mida teha: kui see aadress on koopia, korraldusi uuesti ei saada. Muidu helista"
-                + " lauale ja saada fail käsitsi ainult siis, kui laud kinnitab, et korraldused"
-                + " ei jõudnud.";
-    return "%s %skiri ei jõudnud kohale: %s\n%s\n%s"
+            : "What to do: if this address is a copy, don't send the orders again. Otherwise call"
+                + " the desk and send the file by hand only if the desk confirms the orders did"
+                + " not arrive.";
+    return "%s %semail NOT delivered: %s\n%s\n%s"
         .formatted(
             icon(deliveryFailureSeverity(event)),
             prefix,
@@ -62,6 +62,6 @@ final class OrderEmailDeliveryText {
     var cause =
         "%s: %s (id=%s)".formatted(event.eventType(), event.reason(), event.mandrillMessageId());
     String subject = event.subject();
-    return subject == null ? cause : "„%s“ · %s".formatted(subject, cause);
+    return subject == null ? cause : "\"%s\" · %s".formatted(subject, cause);
   }
 }

@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.investment.transaction.export.OrderEmail.UUID
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
 import static java.math.RoundingMode.HALF_UP;
-import static java.util.Locale.ROOT;
+import static java.util.Locale.ENGLISH;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.notification.OperationsNotificationService.Severity;
@@ -16,23 +16,23 @@ import java.text.DecimalFormatSymbols;
 
 final class OrderEmailSlackText {
 
-  private static final String SEND_THE_UUID_FILE_BY_HAND = "saada UUID-fail SEB-le käsitsi";
+  private static final String SEND_THE_UUID_FILE_BY_HAND = "send the UUID file to SEB by hand";
   static final String SEND_THE_UUID_FILE_BY_HAND_THE_ORDERS_WENT_APART =
-      "Mida teha: " + SEND_THE_UUID_FILE_BY_HAND + ". Tehingukorraldused on eraldi kirjades.";
+      "What to do: " + SEND_THE_UUID_FILE_BY_HAND + ". The orders go in emails of their own.";
   private static final String NO_RESULT_RECORDED =
-      "Saatmise tulemust ei salvestatud: teenus võis saatmise ajal seiskuda.";
+      "No send result was recorded: the service may have stopped while sending.";
 
   private OrderEmailSlackText() {}
 
   static String sent(OrderEmailSummary summary, MandrillMessage message) {
-    return "✅ %skiri saadetud: %s\n„%s“, saatja %s. Mandrill võttis vastu."
+    return "✅ %semail sent: %s\n\"%s\", from %s. Accepted by Mandrill."
         .formatted(
             prefix(summary.email()), numbers(summary), message.getSubject(), message.getFromName());
   }
 
   static String sentButNotToEveryCopy(OrderEmailSummary summary, String cause) {
-    return ("%s %skiri läks välja, aga mitte kõigile koopiasaajatele: %s\n%s\n"
-            + "Mida teha: kirja uuesti ei saada. Uuri, miks Mandrill koopia tagasi lükkas.")
+    return ("%s %semail went out, but not to every copy: %s\n%s\n"
+            + "What to do: don't send the email again. Find out why Mandrill rejected the copy.")
         .formatted(icon(summary.email()), prefix(summary.email()), numbers(summary), cause);
   }
 
@@ -41,23 +41,23 @@ final class OrderEmailSlackText {
     var action =
         email == UUID
             ? SEND_THE_UUID_FILE_BY_HAND_THE_ORDERS_WENT_APART
-            : "Mida teha: paranda põhjus ja saada fail käsitsi.";
-    return "%s %skiri jäi saatmata: %s\n%s\n%s"
+            : "What to do: fix the cause, then send the file by hand.";
+    return "%s %semail NOT sent: %s\n%s\n%s"
         .formatted(icon(email), prefix(email), numbers(summary), cause, action);
   }
 
   static String notBuilt(OrderEmailSummary summary, String problem) {
-    return notSent(summary, "Kirja ei saanud koostada: " + problem);
+    return notSent(summary, "The email could not be built: " + problem);
   }
 
   static String resultUnknown(OrderEmailSummary summary, String cause) {
     var email = summary.email();
     var action =
         email == UUID
-            ? "Kui Cc-koopiat pole, " + SEND_THE_UUID_FILE_BY_HAND + "."
-            : "Enne uuesti saatmist küsi saajalt, kas korraldused jõudsid:"
-                + " Cc-koopia puudumine seda ei näita.";
-    return "%s %skirja tulemus teadmata: %s\n%s\nMida teha: kiri võis välja minna. %s"
+            ? "If there is no Cc copy, " + SEND_THE_UUID_FILE_BY_HAND + "."
+            : "Before sending again, ask the desk whether the orders arrived:"
+                + " a missing Cc copy doesn't show that.";
+    return "%s %semail result UNKNOWN: %s\n%s\nWhat to do: the email may have gone out. %s"
         .formatted(icon(email), prefix(email), numbers(summary), cause, action);
   }
 
@@ -80,25 +80,25 @@ final class OrderEmailSlackText {
   static String prefix(OrderEmail email) {
     return switch (email) {
       case FT -> "FT ";
-      case SEB_ETF -> "SEB ETF-ide ";
-      case SEB_FUND -> "SEB indeksfondide ";
-      case UUID -> "SEB UUID-";
+      case SEB_ETF -> "SEB ETF ";
+      case SEB_FUND -> "SEB index fund ";
+      case UUID -> "SEB UUID ";
     };
   }
 
   private static String numbers(OrderEmailSummary summary) {
     if (summary.email() == UUID) {
-      return count(summary.orderCount(), "viide", "viidet");
+      return count(summary.orderCount(), "reference", "references");
     }
     var withAmount = summary.orderCount() - summary.ordersWithoutAmount();
-    var numbers = new StringBuilder(count(summary.orderCount(), "korraldus", "korraldust"));
+    var numbers = new StringBuilder(count(summary.orderCount(), "order", "orders"));
     if (withAmount > 0) {
       numbers.append(", ").append(approximately(summary.email())).append(euros(summary.amount()));
     }
     if (summary.ordersWithoutAmount() > 0) {
       numbers
           .append(withAmount > 0 ? " + " + summary.ordersWithoutAmount() : "")
-          .append(" kogusena");
+          .append(" by quantity");
     }
     return numbers.toString();
   }
@@ -112,11 +112,8 @@ final class OrderEmailSlackText {
   }
 
   private static String euros(BigDecimal amount) {
-    var symbols = new DecimalFormatSymbols(ROOT);
-    symbols.setGroupingSeparator(' ');
-    symbols.setDecimalSeparator(',');
-    var format = new DecimalFormat("#,##0.00", symbols);
+    var format = new DecimalFormat("#,##0.00", DecimalFormatSymbols.getInstance(ENGLISH));
     format.setRoundingMode(HALF_UP);
-    return format.format(amount) + " €";
+    return "EUR " + format.format(amount);
   }
 }

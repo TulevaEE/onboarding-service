@@ -30,20 +30,20 @@ class OrderEmailSlackTextTest {
     assertThat(OrderEmailSlackText.sent(SIX_FT_ORDERS, message))
         .isEqualTo(
             """
-            ✅ FT kiri saadetud: 6 korraldust, ≈ 2 463 732,23 €
-            „Tuleva ETF orders 26.11.2026 – MOC“, saatja Fund Manager. Mandrill võttis vastu.""");
+            ✅ FT email sent: 6 orders, ≈ EUR 2,463,732.23
+            "Tuleva ETF orders 26.11.2026 – MOC", from Fund Manager. Accepted by Mandrill.""");
   }
 
   @Test
   void anOrderEmailNotSent_isRed_andSaysToSendTheFileByHand() {
     assertThat(
             OrderEmailSlackText.notSent(
-                ONE_SEB_FUND_ORDER, "Vastu ei võetud: desk@example.com rejected (hard-bounce)"))
+                ONE_SEB_FUND_ORDER, "Not accepted: desk@example.com rejected (hard-bounce)"))
         .isEqualTo(
             """
-            🔴 SEB indeksfondide kiri jäi saatmata: 1 korraldus, 282 868,00 €
-            Vastu ei võetud: desk@example.com rejected (hard-bounce)
-            Mida teha: paranda põhjus ja saada fail käsitsi.""");
+            🔴 SEB index fund email NOT sent: 1 order, EUR 282,868.00
+            Not accepted: desk@example.com rejected (hard-bounce)
+            What to do: fix the cause, then send the file by hand.""");
   }
 
   @Test
@@ -51,9 +51,9 @@ class OrderEmailSlackTextTest {
     assertThat(OrderEmailSlackText.notSent(SIX_UUID_REFERENCES, "ConnectException"))
         .isEqualTo(
             """
-            🟠 SEB UUID-kiri jäi saatmata: 6 viidet
+            🟠 SEB UUID email NOT sent: 6 references
             ConnectException
-            Mida teha: saada UUID-fail SEB-le käsitsi. Tehingukorraldused on eraldi kirjades.""");
+            What to do: send the UUID file to SEB by hand. The orders go in emails of their own.""");
     assertThat(OrderEmailSlackText.problemSeverity(UUID)).isEqualTo(WARNING);
     assertThat(OrderEmailSlackText.problemSeverity(FT)).isEqualTo(ERROR);
     assertThat(OrderEmailSlackText.problemSeverity(SEB_FUND)).isEqualTo(ERROR);
@@ -67,38 +67,39 @@ class OrderEmailSlackTextTest {
                 SIX_FT_ORDERS, "java.lang.IllegalStateException: no file name"))
         .isEqualTo(
             """
-            🔴 FT kiri jäi saatmata: 6 korraldust, ≈ 2 463 732,23 €
-            Kirja ei saanud koostada: java.lang.IllegalStateException: no file name
-            Mida teha: paranda põhjus ja saada fail käsitsi.""");
+            🔴 FT email NOT sent: 6 orders, ≈ EUR 2,463,732.23
+            The email could not be built: java.lang.IllegalStateException: no file name
+            What to do: fix the cause, then send the file by hand.""");
   }
 
   @Test
-  void anUnknownResult_saysToAskTheRecipientBeforeSendingTheOrdersAgain() {
+  void anUnknownResult_saysToAskTheDeskBeforeSendingTheOrdersAgain() {
     assertThat(OrderEmailSlackText.resultUnknown(SIX_FT_ORDERS, "Read timed out"))
         .isEqualTo(
             """
-            🔴 FT kirja tulemus teadmata: 6 korraldust, ≈ 2 463 732,23 €
+            🔴 FT email result UNKNOWN: 6 orders, ≈ EUR 2,463,732.23
             Read timed out
-            Mida teha: kiri võis välja minna. Enne uuesti saatmist küsi saajalt, \
-            kas korraldused jõudsid: Cc-koopia puudumine seda ei näita.""");
+            What to do: the email may have gone out. Before sending again, ask the desk \
+            whether the orders arrived: a missing Cc copy doesn't show that.""");
     assertThat(OrderEmailSlackText.noResultRecorded(SIX_UUID_REFERENCES))
         .isEqualTo(
             """
-            🟠 SEB UUID-kirja tulemus teadmata: 6 viidet
-            Saatmise tulemust ei salvestatud: teenus võis saatmise ajal seiskuda.
-            Mida teha: kiri võis välja minna. Kui Cc-koopiat pole, saada UUID-fail SEB-le käsitsi.""");
+            🟠 SEB UUID email result UNKNOWN: 6 references
+            No send result was recorded: the service may have stopped while sending.
+            What to do: the email may have gone out. If there is no Cc copy, \
+            send the UUID file to SEB by hand.""");
   }
 
   @Test
   void anEmailThatMissedACopy_wentOut_soItSaysNotToSendItAgain() {
     assertThat(
             OrderEmailSlackText.sentButNotToEveryCopy(
-                SIX_FT_ORDERS, "Vastu ei võetud: copy@example.com rejected (hard-bounce)"))
+                SIX_FT_ORDERS, "Not accepted: copy@example.com rejected (hard-bounce)"))
         .isEqualTo(
             """
-            🔴 FT kiri läks välja, aga mitte kõigile koopiasaajatele: 6 korraldust, ≈ 2 463 732,23 €
-            Vastu ei võetud: copy@example.com rejected (hard-bounce)
-            Mida teha: kirja uuesti ei saada. Uuri, miks Mandrill koopia tagasi lükkas.""");
+            🔴 FT email went out, but not to every copy: 6 orders, ≈ EUR 2,463,732.23
+            Not accepted: copy@example.com rejected (hard-bounce)
+            What to do: don't send the email again. Find out why Mandrill rejected the copy.""");
   }
 
   @Test
@@ -108,8 +109,8 @@ class OrderEmailSlackTextTest {
     var allByQuantity = new OrderEmailSummary("SEB_FUND:12", SEB_FUND, 2, 2, BigDecimal.ZERO);
 
     assertThat(OrderEmailSlackText.notSent(someByQuantity, "cause"))
-        .startsWith("🔴 SEB ETF-ide kiri jäi saatmata: 3 korraldust, ≈ 1 000,01 € + 1 kogusena\n");
+        .startsWith("🔴 SEB ETF email NOT sent: 3 orders, ≈ EUR 1,000.01 + 1 by quantity\n");
     assertThat(OrderEmailSlackText.notSent(allByQuantity, "cause"))
-        .startsWith("🔴 SEB indeksfondide kiri jäi saatmata: 2 korraldust kogusena\n");
+        .startsWith("🔴 SEB index fund email NOT sent: 2 orders by quantity\n");
   }
 }

@@ -163,6 +163,24 @@ public class LedgerTransaction {
     return findMetadataAmount(MetadataKey.NAV_PER_UNIT);
   }
 
+  UnitDealing toUnitDealing() {
+    return new UnitDealing(
+        id,
+        transactionType,
+        transactionDate,
+        findUserFundUnits().orElse(null),
+        findDealingCash().orElse(null),
+        findNavPerUnit().orElse(null),
+        findNavDate().orElse(null));
+  }
+
+  private Optional<BigDecimal> findDealingCash() {
+    return entries.stream()
+        .filter(LedgerEntry::isUserDealingCash)
+        .findFirst()
+        .map(entry -> entry.getAmount().abs());
+  }
+
   Optional<TransactionType> findOperationType() {
     return Optional.ofNullable(metadata.get(MetadataKey.OPERATION_TYPE.getKey()))
         .map(Object::toString)

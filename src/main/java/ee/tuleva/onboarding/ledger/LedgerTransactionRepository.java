@@ -25,6 +25,10 @@ interface LedgerTransactionRepository extends JpaRepository<LedgerTransaction, U
   List<LedgerTransaction> findAllByTransactionTypeAndTransactionDateGreaterThanEqual(
       TransactionType transactionType, Instant since);
 
+  List<LedgerTransaction>
+      findAllByTransactionTypeInAndTransactionDateGreaterThanEqualAndTransactionDateLessThan(
+          Collection<TransactionType> transactionTypes, Instant from, Instant to);
+
   @Query("select count(e) from LedgerEntry e where e.account.name = :accountName")
   long countEntriesForAccountName(@Param("accountName") String accountName);
 

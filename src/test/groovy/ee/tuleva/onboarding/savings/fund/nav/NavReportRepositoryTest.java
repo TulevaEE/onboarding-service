@@ -410,6 +410,52 @@ class NavReportRepositoryTest {
         .containsExactly(units.getId(), security.getId(), newer.getId());
   }
 
+  @Test
+  void findLatestUnsentUnitsRow_readsTheUnitsRowOfTheDatesLatestUnsentCalculation() {
+    var navDate = LocalDate.of(2026, 11, 23);
+    var sent = UUID.randomUUID();
+    navReportRepository.save(unitsRow(navDate, sent, "1.40000000", "16000000.00"));
+    navReportRepository.markAsPublished(sent);
+    navReportRepository.save(unitsRow(navDate, UUID.randomUUID(), "1.40660000", "16010000.00"));
+    var latestUnsent = UUID.randomUUID();
+    navReportRepository.save(componentRow(navDate, latestUnsent, "SECURITY", "1000.00"));
+    navReportRepository.save(unitsRow(navDate, latestUnsent, "1.41000000", "16020000.00"));
+    navReportRepository.save(
+        unitsRow(navDate.minusDays(1), UUID.randomUUID(), "1.39000000", "15990000.00"));
+
+    assertThat(navReportRepository.findLatestUnsentUnitsRow("TKF100", navDate))
+        .hasValueSatisfying(
+            row -> {
+              assertThat(row.getCalculationId()).isEqualTo(latestUnsent);
+              assertThat(row.getMarketPrice()).isEqualByComparingTo("1.41");
+              assertThat(row.getMarketValue()).isEqualByComparingTo("16020000.00");
+            });
+  }
+
+  @Test
+  void findLatestUnsentUnitsRow_isEmptyWhenEveryCalculationOfTheDateWasSent() {
+    var navDate = LocalDate.of(2026, 11, 23);
+    var sent = UUID.randomUUID();
+    navReportRepository.save(unitsRow(navDate, sent, "1.40000000", "16000000.00"));
+    navReportRepository.markAsPublished(sent);
+
+    assertThat(navReportRepository.findLatestUnsentUnitsRow("TKF100", navDate)).isEmpty();
+  }
+
+  private static NavReportRow unitsRow(
+      LocalDate navDate, UUID calculationId, String navPerUnit, String aum) {
+    return NavReportRow.builder()
+        .navDate(navDate)
+        .fundCode("TKF100")
+        .accountType("UNITS")
+        .accountName("Total outstanding units:")
+        .quantity(new BigDecimal("11374000.000"))
+        .marketPrice(new BigDecimal(navPerUnit))
+        .marketValue(new BigDecimal(aum))
+        .calculationId(calculationId)
+        .build();
+  }
+
   private static NavReportRow componentRow(
       LocalDate navDate, UUID calculationId, String accountType, String marketValue) {
     return componentRow(navDate, calculationId, accountType, marketValue, null);

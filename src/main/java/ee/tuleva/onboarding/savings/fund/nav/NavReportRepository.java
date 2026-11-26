@@ -144,6 +144,19 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
   @Query(
       value =
           """
+          SELECT * FROM nav_report
+          WHERE fund_code = :fundCode AND nav_date = :navDate
+            AND account_type = 'UNITS'
+            AND published_at IS NULL
+          ORDER BY id DESC LIMIT 1
+          """,
+      nativeQuery = true)
+  Optional<NavReportRow> findLatestUnsentUnitsRow(
+      @Param("fundCode") String fundCode, @Param("navDate") LocalDate navDate);
+
+  @Query(
+      value =
+          """
           SELECT COALESCE(SUM(nr.market_value), 0)
           FROM nav_report nr
           WHERE nr.fund_code = :fundCode AND nr.nav_date = :navDate

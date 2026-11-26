@@ -30,6 +30,7 @@ public class NavPublisher {
 
   private static final String NAV_PROVIDER = "TULEVA";
   private static final String NAV_ACCOUNT_TYPE = "NAV";
+  private static final String UNITS_ACCOUNT_TYPE = "UNITS";
   private static final int INDEX_VALUES_DECIMAL_PLACES = 5;
 
   private final FundValueWriter fundValueWriter;
@@ -47,9 +48,11 @@ public class NavPublisher {
     publishToFundValueApi(result);
 
     UUID calculationId = UUID.randomUUID();
+    Optional<NavReportRow> earlierUnsent = earlierUnsentUnitsRow(result);
     List<NavReportRow> reportRows = persistReportRows(result, calculationId);
+    ReviewEmail reviewEmail = reviewEmailFor(earlierUnsent, reportRows);
 
-    NavPublication publication = deliver(result, reportRows, calculationId);
+    NavPublication publication = deliver(result, reportRows, calculationId, reviewEmail);
 
     navNotifier.notify(result);
 
@@ -63,17 +66,58 @@ public class NavPublisher {
   }
 
   private NavPublication deliver(
-      NavCalculationResult result, List<NavReportRow> reportRows, UUID calculationId) {
+      NavCalculationResult result,
+      List<NavReportRow> reportRows,
+      UUID calculationId,
+      ReviewEmail reviewEmail) {
     if (reportRows.isEmpty()) {
       notifyEmptyReport(result);
       return NOT_SENT;
     }
-    return sendReportEmailWithGate(result, reportRows, calculationId);
+    return sendReportEmailWithGate(result, reportRows, calculationId, reviewEmail);
+  }
+
+  private enum ReviewEmail {
+    SEND("The CSV report was emailed to funds@tuleva.ee."),
+    ALREADY_SENT(
+        "The CSV report was emailed to funds@tuleva.ee earlier, and its NAV and AUM have not changed since.");
+
+    private final String csvLine;
+
+    ReviewEmail(String csvLine) {
+      this.csvLine = csvLine;
+    }
+  }
+
+  private Optional<NavReportRow> earlierUnsentUnitsRow(NavCalculationResult result) {
+    return navReportRepository.findLatestUnsentUnitsRow(
+        result.fund().getCode(), result.positionReportDate());
+  }
+
+  private static ReviewEmail reviewEmailFor(
+      Optional<NavReportRow> earlierUnsent, List<NavReportRow> reportRows) {
+    return earlierUnsent
+        .flatMap(earlier -> unitsRowOf(reportRows).filter(now -> hasTheSameNavAndAum(earlier, now)))
+        .map(unchanged -> ReviewEmail.ALREADY_SENT)
+        .orElse(ReviewEmail.SEND);
+  }
+
+  private static Optional<NavReportRow> unitsRowOf(List<NavReportRow> reportRows) {
+    return reportRows.stream()
+        .filter(row -> UNITS_ACCOUNT_TYPE.equals(row.getAccountType()))
+        .findFirst();
+  }
+
+  private static boolean hasTheSameNavAndAum(NavReportRow earlier, NavReportRow now) {
+    return earlier.getMarketPrice().compareTo(now.getMarketPrice()) == 0
+        && earlier.getMarketValue().compareTo(now.getMarketValue()) == 0;
   }
 
   void publishRevision(NavCalculationResult result, NavRevision revision) {
     UUID calculationId = UUID.randomUUID();
+    Optional<NavReportRow> earlierUnsent = earlierUnsentUnitsRow(result);
     List<NavReportRow> reportRows = persistReportRows(result, calculationId);
+    ReviewEmail reviewEmail = reviewEmailFor(earlierUnsent, reportRows);
 
     if (reportRows.isEmpty()) {
       throw new IllegalStateException(
@@ -82,7 +126,12 @@ public class NavPublisher {
     }
 
     String reason = revision.describe(result);
-    routeToInternalReview(result, reportRows, reason, revisionActionMessage(result, reason));
+    routeToInternalReview(
+        result,
+        reportRows,
+        reason,
+        revisionActionMessage(result, reason, reviewEmail),
+        reviewEmail);
 
     log.info(
         "Published NAV revision: fund={}, date={}, navPerUnit={}, aum={}",
@@ -134,7 +183,10 @@ public class NavPublisher {
   }
 
   private NavPublication sendReportEmailWithGate(
-      NavCalculationResult result, List<NavReportRow> reportRows, UUID calculationId) {
+      NavCalculationResult result,
+      List<NavReportRow> reportRows,
+      UUID calculationId,
+      ReviewEmail reviewEmail) {
     Optional<BigDecimal> navTheTrusteeHas =
         navReportRepository.findPublishedNavPerUnit(
             result.positionReportDate(), result.fund().getCode(), NAV_ACCOUNT_TYPE);
@@ -143,16 +195,24 @@ public class NavPublisher {
           "SEB already has a NAV for this date: sentNav=%s, recalculatedNav=%s"
               .formatted(
                   navTheTrusteeHas.get().toPlainString(), result.navPerUnit().toPlainString());
-      routeToInternalReview(result, reportRows, reason, revisionActionMessage(result, reason));
+      routeToInternalReview(
+          result,
+          reportRows,
+          reason,
+          revisionActionMessage(result, reason, reviewEmail),
+          reviewEmail);
       return NOT_SENT;
     }
     Optional<Hold> hold =
         checkGates(result)
-            .map(reason -> new Hold(reason, reviewActionMessage(result, reason)))
+            .map(reason -> new Hold(reason, reviewActionMessage(result, reason, reviewEmail)))
             .or(
                 () ->
                     publicNavDifference(result)
-                        .map(reason -> new Hold(reason, publicNavActionMessage(result, reason))));
+                        .map(
+                            reason ->
+                                new Hold(
+                                    reason, publicNavActionMessage(result, reason, reviewEmail))));
 
     return requireNonNull(
         transactionOperations.execute(
@@ -160,7 +220,7 @@ public class NavPublisher {
               if (isOvertakenWhileTheChecksRan(result, calculationId)) {
                 return NOT_SENT;
               }
-              return hold.map(held -> holdForReview(result, reportRows, held))
+              return hold.map(held -> holdForReview(result, reportRows, held, reviewEmail))
                   .orElseGet(() -> sendToSeb(result, reportRows, calculationId));
             }));
   }
@@ -185,8 +245,11 @@ public class NavPublisher {
   }
 
   private NavPublication holdForReview(
-      NavCalculationResult result, List<NavReportRow> reportRows, Hold hold) {
-    routeToInternalReview(result, reportRows, hold.reason(), hold.actionMessage());
+      NavCalculationResult result,
+      List<NavReportRow> reportRows,
+      Hold hold,
+      ReviewEmail reviewEmail) {
+    routeToInternalReview(result, reportRows, hold.reason(), hold.actionMessage(), reviewEmail);
     return NOT_SENT;
   }
 
@@ -256,13 +319,23 @@ public class NavPublisher {
       NavCalculationResult result,
       List<NavReportRow> reportRows,
       String reason,
-      String actionMessage) {
+      String actionMessage,
+      ReviewEmail reviewEmail) {
     log.error(
         "NAV report held for internal review (NOT sent to SEB): fund={}, date={}, reason={}",
         result.fund(),
         result.positionReportDate(),
         reason);
     pipelineTracker.stepStarted(REPORT_EMAIL);
+    if (reviewEmail == ReviewEmail.ALREADY_SENT) {
+      log.info(
+          "NAV review email not sent again, the NAV and AUM are those already emailed: fund={}, date={}",
+          result.fund(),
+          result.positionReportDate());
+      pipelineTracker.stepCompleted(REPORT_EMAIL);
+      notificationService.sendMessage(actionMessage, SAVINGS);
+      return;
+    }
     if (navReportEmailSender.sendForReview(reportRows, result)) {
       pipelineTracker.stepCompleted(REPORT_EMAIL);
       notificationService.sendMessage(actionMessage, SAVINGS);
@@ -279,11 +352,12 @@ public class NavPublisher {
     }
   }
 
-  private String reviewActionMessage(NavCalculationResult result, String reason) {
+  private String reviewActionMessage(
+      NavCalculationResult result, String reason, ReviewEmail reviewEmail) {
     return """
         🔴 NAV report HELD for review — NOT sent to SEB.
         %s
-        The CSV report was emailed to funds@tuleva.ee.
+        %s
         Until it is released or passes the check, the NAV is recalculated every 5–15 minutes and this message repeats.
 
         What to do now:
@@ -292,14 +366,15 @@ public class NavPublisher {
         %s
         3. Optional (needs compliance sign-off) — widen the TD gate going forward:
            INSERT INTO investment_parameter (parameter_name, fund_code, effective_date, numeric_value) VALUES ('TRACKING_BREACH_THRESHOLD', NULL, CURRENT_DATE, 0.005);"""
-        .formatted(reason, result.fund().getCode(), howToRelease(result));
+        .formatted(reason, reviewEmail.csvLine, result.fund().getCode(), howToRelease(result));
   }
 
-  private String publicNavActionMessage(NavCalculationResult result, String reason) {
+  private String publicNavActionMessage(
+      NavCalculationResult result, String reason, ReviewEmail reviewEmail) {
     return """
         🔴 %s NAV recalculated to a value other than the public one — held for review, NOT sent to SEB.
         %s
-        The CSV report was emailed to funds@tuleva.ee.
+        %s
         Issuing and redemptions price at the public NAV in index_values, which is append-only.
         Until it is corrected or released, the NAV is recalculated every 5–15 minutes and this message repeats.
 
@@ -309,10 +384,15 @@ public class NavPublisher {
         3. Or release it as it is. The release sends the report to SEB and leaves index_values unchanged.
         %s"""
         .formatted(
-            result.fund().getCode(), reason, result.positionReportDate(), howToRelease(result));
+            result.fund().getCode(),
+            reason,
+            reviewEmail.csvLine,
+            result.positionReportDate(),
+            howToRelease(result));
   }
 
-  private String revisionActionMessage(NavCalculationResult result, String reason) {
+  private String revisionActionMessage(
+      NavCalculationResult result, String reason, ReviewEmail reviewEmail) {
     String fundCode = result.fund().getCode();
     String savingsFundStep =
         result.fund().isSavingsFund()
@@ -322,7 +402,7 @@ public class NavPublisher {
     return """
         🔴 NAV REVISED after the custodian position report changed — held for review, NOT sent to SEB.
         fund=%s, navDate=%s: %s
-        The revised CSV report was emailed to funds@tuleva.ee.
+        %s
 
         What to do now:
         1. Check the changed rows against the new SEB position report.
@@ -330,7 +410,12 @@ public class NavPublisher {
         %s
         3. Until it is released, onboarding-service reads only a NAV SEB has received.%s"""
         .formatted(
-            fundCode, result.positionReportDate(), reason, howToRelease(result), savingsFundStep);
+            fundCode,
+            result.positionReportDate(),
+            reason,
+            reviewEmail.csvLine,
+            howToRelease(result),
+            savingsFundStep);
   }
 
   private static String howToRelease(NavCalculationResult result) {

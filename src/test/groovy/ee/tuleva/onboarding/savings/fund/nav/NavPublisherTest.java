@@ -253,6 +253,150 @@ class NavPublisherTest {
   }
 
   @Test
+  void aFirstHoldEmailsTheCsvForReviewAndPostsTheRedMessage() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(unitsRow(yesterday, "TUK75", "9.69941", "969941.07")));
+    given(trackingDifferenceGate.check(TUK75, yesterday))
+        .willReturn(Optional.of("TD breach: fund=TUK75, MODEL_PORTFOLIO TD=0.015"));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    navPublisher.publish(result);
+
+    then(navReportEmailSender).should().sendForReview(any(), eq(result));
+    then(notificationService).should().sendMessage(FIRST_HOLD_MESSAGE, SAVINGS);
+  }
+
+  @Test
+  void aRepeatedHoldWithTheSameValuesPostsOnlyTheRedMessage() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportRepository.findLatestUnsentUnitsRow("TUK75", yesterday))
+        .willReturn(Optional.of(unitsRow(yesterday, "TUK75", "9.699410", "969941.0700")));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(unitsRow(yesterday, "TUK75", "9.69941", "969941.07")));
+    given(trackingDifferenceGate.check(TUK75, yesterday))
+        .willReturn(Optional.of("TD breach: fund=TUK75, MODEL_PORTFOLIO TD=0.015"));
+
+    navPublisher.publish(result);
+
+    then(navReportEmailSender).shouldHaveNoInteractions();
+    then(notificationService).should().sendMessage(REPEATED_HOLD_MESSAGE, SAVINGS);
+    var inOrder = inOrder(navReportRepository);
+    inOrder.verify(navReportRepository).findLatestUnsentUnitsRow("TUK75", yesterday);
+    inOrder
+        .verify(navReportRepository)
+        .replaceByNavDateAndFundCode(eq(yesterday), eq("TUK75"), any());
+  }
+
+  @Test
+  void aRepeatedHoldWithAChangedNavEmailsTheCsvAgain() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportRepository.findLatestUnsentUnitsRow("TUK75", yesterday))
+        .willReturn(Optional.of(unitsRow(yesterday, "TUK75", "9.70000", "969941.07")));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(unitsRow(yesterday, "TUK75", "9.69941", "969941.07")));
+    given(trackingDifferenceGate.check(TUK75, yesterday))
+        .willReturn(Optional.of("TD breach: fund=TUK75, MODEL_PORTFOLIO TD=0.015"));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    navPublisher.publish(result);
+
+    then(navReportEmailSender).should().sendForReview(any(), eq(result));
+    then(notificationService).should().sendMessage(FIRST_HOLD_MESSAGE, SAVINGS);
+  }
+
+  @Test
+  void aRepeatedHoldWithAChangedAumEmailsTheCsvAgain() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportRepository.findLatestUnsentUnitsRow("TUK75", yesterday))
+        .willReturn(Optional.of(unitsRow(yesterday, "TUK75", "9.69941", "969941.08")));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(unitsRow(yesterday, "TUK75", "9.69941", "969941.07")));
+    given(trackingDifferenceGate.check(TUK75, yesterday))
+        .willReturn(Optional.of("TD breach: fund=TUK75, MODEL_PORTFOLIO TD=0.015"));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    navPublisher.publish(result);
+
+    then(navReportEmailSender).should().sendForReview(any(), eq(result));
+  }
+
+  @Test
+  void aRepeatedRevisionWithTheSameValuesPostsOnlyTheRedMessage() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportRepository.findLatestUnsentUnitsRow("TUK75", yesterday))
+        .willReturn(Optional.of(unitsRow(yesterday, "TUK75", "9.69941", "969941.07")));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(unitsRow(yesterday, "TUK75", "9.69941", "969941.07")));
+
+    navPublisher.publishRevision(result, new NavRevision(new BigDecimal("9.75000"), 4));
+
+    then(navReportEmailSender).shouldHaveNoInteractions();
+    then(notificationService).should().sendMessage(contains(CSV_EMAILED_EARLIER), eq(SAVINGS));
+  }
+
+  @Test
+  void aRepeatedRevisionWithChangedValuesEmailsTheCsvAgain() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportRepository.findLatestUnsentUnitsRow("TUK75", yesterday))
+        .willReturn(Optional.of(unitsRow(yesterday, "TUK75", "9.70000", "969941.07")));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(unitsRow(yesterday, "TUK75", "9.69941", "969941.07")));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    navPublisher.publishRevision(result, new NavRevision(new BigDecimal("9.75000"), 4));
+
+    then(navReportEmailSender).should().sendForReview(any(), eq(result));
+    then(notificationService).should().sendMessage(contains(CSV_EMAILED_NOW), eq(SAVINGS));
+  }
+
+  private static final String CSV_EMAILED_NOW = "The CSV report was emailed to funds@tuleva.ee.";
+  private static final String CSV_EMAILED_EARLIER =
+      "The CSV report was emailed to funds@tuleva.ee earlier, and its NAV and AUM have not changed since.";
+
+  private static final String FIRST_HOLD_MESSAGE =
+      """
+      🔴 NAV report HELD for review — NOT sent to SEB.
+      TD breach: fund=TUK75, MODEL_PORTFOLIO TD=0.015
+      The CSV report was emailed to funds@tuleva.ee.
+      Until it is released or passes the check, the NAV is recalculated every 5–15 minutes and this message repeats.
+
+      What to do now:
+      1. Verify the NAV in the "TUK75 NAV arvutamine ..." email (funds@tuleva.ee) reconciles with the SEB custodian report.
+      2. If correct, release it. The release sends the report to SEB; do not forward the email by hand.
+         agent-gateway nav_release (two ✅): fund=TUK75, navDate=2025-01-14
+         Until agent-gateway has nav_release: GET /admin/nav/TUK75/2025-01-14 shows the values to approve; POST navPerUnit, aum and approvedBy to /admin/nav/TUK75/2025-01-14/release
+      3. Optional (needs compliance sign-off) — widen the TD gate going forward:
+         INSERT INTO investment_parameter (parameter_name, fund_code, effective_date, numeric_value) VALUES ('TRACKING_BREACH_THRESHOLD', NULL, CURRENT_DATE, 0.005);""";
+
+  private static final String REPEATED_HOLD_MESSAGE =
+      FIRST_HOLD_MESSAGE.replace(CSV_EMAILED_NOW, CSV_EMAILED_EARLIER);
+
+  private static NavReportRow unitsRow(
+      LocalDate navDate, String fundCode, String navPerUnit, String aum) {
+    return NavReportRow.builder()
+        .navDate(navDate)
+        .fundCode(fundCode)
+        .accountType("UNITS")
+        .accountName("Total outstanding units:")
+        .marketPrice(new BigDecimal(navPerUnit))
+        .marketValue(new BigDecimal(aum))
+        .build();
+  }
+
+  @Test
   void aHeldReportStillPricesTheDealingDay() {
     LocalDate calculationDay = LocalDate.of(2025, 1, 15);
     LocalDate dealingDay = LocalDate.of(2025, 1, 14);

@@ -6,19 +6,21 @@ import static ee.tuleva.onboarding.savings.fund.pricecheck.DealingPriceVerdict.N
 import static ee.tuleva.onboarding.savings.fund.pricecheck.DealingPriceVerdict.PRICED_AT_THE_NAV;
 import static ee.tuleva.onboarding.savings.fund.pricecheck.DealingPriceVerdict.PRICE_DEVIATES;
 import static ee.tuleva.onboarding.savings.fund.pricecheck.DealingPriceVerdict.ROUNDING_ONLY;
+import static java.math.RoundingMode.HALF_DOWN;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.ledger.UnitDealing;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import org.jspecify.annotations.Nullable;
 
 record DealingPrice(UnitDealing dealing, @Nullable BigDecimal publishedNav) {
 
-  private static final BigDecimal HALF_OF_THE_FIFTH_DECIMAL_ISSUED_UNITS_ARE_ROUNDED_TO =
-      new BigDecimal("0.000005");
-  private static final BigDecimal HALF_OF_THE_CENT_REDEEMED_CASH_IS_ROUNDED_TO =
-      new BigDecimal("0.005");
+  private static final int ISSUED_UNITS_DECIMALS = 5;
+  private static final RoundingMode ISSUED_UNITS_ROUNDING = HALF_DOWN;
+  private static final int REDEEMED_CASH_DECIMALS = 2;
+  private static final RoundingMode REDEEMED_CASH_ROUNDING = HALF_UP;
   private static final int PRICE_SCALE = 16;
 
   DealingPriceVerdict verdict(BigDecimal deviationThreshold) {
@@ -34,9 +36,7 @@ record DealingPrice(UnitDealing dealing, @Nullable BigDecimal publishedNav) {
     if (deviation().abs().compareTo(deviationThreshold) < 0) {
       return PRICED_AT_THE_NAV;
     }
-    return realisedPrice().subtract(nav()).abs().compareTo(roundingAllowance()) <= 0
-        ? ROUNDING_ONLY
-        : PRICE_DEVIATES;
+    return isTheIssueOrRedemptionRuleAppliedToTheNav() ? ROUNDING_ONLY : PRICE_DEVIATES;
   }
 
   BigDecimal realisedPrice() {
@@ -64,14 +64,17 @@ record DealingPrice(UnitDealing dealing, @Nullable BigDecimal publishedNav) {
         || dealing.navDate() == null;
   }
 
-  private BigDecimal roundingAllowance() {
+  private boolean isTheIssueOrRedemptionRuleAppliedToTheNav() {
+    BigDecimal cash = requireNonNull(dealing.cashAmount());
     return switch (dealing.type()) {
       case REDEMPTION_REQUEST ->
-          HALF_OF_THE_CENT_REDEEMED_CASH_IS_ROUNDED_TO.divide(units(), PRICE_SCALE, HALF_UP);
+          units()
+                  .multiply(nav())
+                  .setScale(REDEEMED_CASH_DECIMALS, REDEEMED_CASH_ROUNDING)
+                  .compareTo(cash)
+              == 0;
       default ->
-          nav()
-              .multiply(HALF_OF_THE_FIFTH_DECIMAL_ISSUED_UNITS_ARE_ROUNDED_TO)
-              .divide(units(), PRICE_SCALE, HALF_UP);
+          cash.divide(nav(), ISSUED_UNITS_DECIMALS, ISSUED_UNITS_ROUNDING).compareTo(units()) == 0;
     };
   }
 }

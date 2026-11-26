@@ -13,7 +13,6 @@ import static org.assertj.core.api.Assertions.entry;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.JdbcFundValueRepository;
-import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -44,15 +43,14 @@ import org.springframework.context.annotation.Import;
   UnitDealings.class,
   JdbcFundValueRepository.class,
   InvestmentParameterRepository.class,
-  PublicHolidays.class,
   IssueRedemptionPriceCheck.class,
   CheckedBookingDays.class,
   IssueRedemptionPriceCheckIT.SeededThreshold.class
 })
 class IssueRedemptionPriceCheckIT {
 
-  private static final LocalDate THURSDAY = LocalDate.parse("2026-11-26");
-  private static final LocalDate TUESDAY_NAV = LocalDate.parse("2026-11-24");
+  private static final LocalDate THURSDAY = LocalDate.parse("2026-12-03");
+  private static final LocalDate TUESDAY_NAV = LocalDate.parse("2026-12-01");
 
   @Autowired SavingsFundLedger savingsFundLedger;
   @Autowired JdbcFundValueRepository fundValues;
@@ -69,7 +67,7 @@ class IssueRedemptionPriceCheckIT {
   void aDealAtThePublishedNavPassesAndOneAtAnotherPriceIsReported() {
     publishNav(TUESDAY_NAV, "1.1000");
     holdUnitsFromAnEarlierDeal();
-    bookAt("2026-11-25T14:05:00Z");
+    bookAt("2026-12-02T14:05:00Z");
     UUID atTheNav = subscribe("1000.00", "909.09090", "1.1000", TUESDAY_NAV);
     UUID overpaid = redeem("100.00000", "120.00", "1.1000", TUESDAY_NAV);
 
@@ -82,7 +80,7 @@ class IssueRedemptionPriceCheckIT {
   @Test
   void aDealBookedAtANavOtherThanThePublishedOneOfItsDateIsReported() {
     publishNav(TUESDAY_NAV, "1.1000");
-    bookAt("2026-11-25T14:05:00Z");
+    bookAt("2026-12-02T14:05:00Z");
     UUID atAnotherNav = subscribe("1000.00", "917.43119", "1.0900", TUESDAY_NAV);
 
     var run = check.run(THURSDAY).orElseThrow();
@@ -93,7 +91,7 @@ class IssueRedemptionPriceCheckIT {
 
   @Test
   void aDealWhoseNavDateWasNeverPublishedIsReported() {
-    bookAt("2026-11-25T14:05:00Z");
+    bookAt("2026-12-02T14:05:00Z");
     UUID unpublished = subscribe("1000.00", "909.09090", "1.1000", TUESDAY_NAV);
 
     var run = check.run(THURSDAY).orElseThrow();
@@ -102,13 +100,19 @@ class IssueRedemptionPriceCheckIT {
   }
 
   @Test
-  void theFirstRunChecksOnlyTheDealsOfThePreviousWorkingDay() {
+  void theFirstRunChecksEveryDealBookedSinceTheFirstDayTheCheckCovers() {
     publishNav(TUESDAY_NAV, "1.1000");
     holdUnitsFromAnEarlierDeal();
-    bookAt("2026-11-24T14:05:00Z");
+    bookAt("2026-11-25T14:05:00Z");
     redeem("100.00000", "120.00", "1.1000", TUESDAY_NAV);
+    bookAt("2026-11-26T10:00:00Z");
+    UUID onTheFirstDayCovered = redeem("100.00000", "120.00", "1.1000", TUESDAY_NAV);
 
-    assertThat(check.run(THURSDAY).orElseThrow().dealings()).isEmpty();
+    var run = check.run(THURSDAY).orElseThrow();
+
+    assertThat(run.days().describe()).isEqualTo("2026-11-26–2026-12-02");
+    assertThat(verdictsByTransaction(run))
+        .containsOnly(entry(onTheFirstDayCovered, PRICE_DEVIATES));
   }
 
   @Test
@@ -117,25 +121,25 @@ class IssueRedemptionPriceCheckIT {
     holdUnitsFromAnEarlierDeal();
     check.recordChecked(
         new PriceCheckRun(
-            new BookingDays(LocalDate.parse("2026-11-23"), LocalDate.parse("2026-11-24")),
+            new BookingDays(LocalDate.parse("2026-11-30"), LocalDate.parse("2026-12-01")),
             new BigDecimal("0.001"),
             List.of()),
-        Instant.parse("2026-11-24T06:00:00Z"));
-    bookAt("2026-11-24T14:05:00Z");
+        Instant.parse("2026-12-01T06:00:00Z"));
+    bookAt("2026-12-01T14:05:00Z");
     UUID missedOnWednesday = redeem("100.00000", "120.00", "1.1000", TUESDAY_NAV);
 
     var run = check.run(THURSDAY).orElseThrow();
 
-    assertThat(run.days().describe()).isEqualTo("2026-11-24–2026-11-25");
+    assertThat(run.days().describe()).isEqualTo("2026-12-01–2026-12-02");
     assertThat(verdictsByTransaction(run)).containsOnly(entry(missedOnWednesday, PRICE_DEVIATES));
   }
 
   @Test
   void daysAlreadyCheckedAreNotCheckedAgain() {
     publishNav(TUESDAY_NAV, "1.1000");
-    bookAt("2026-11-25T14:05:00Z");
+    bookAt("2026-12-02T14:05:00Z");
     subscribe("1000.00", "909.09090", "1.1000", TUESDAY_NAV);
-    check.recordChecked(check.run(THURSDAY).orElseThrow(), Instant.parse("2026-11-26T06:00:00Z"));
+    check.recordChecked(check.run(THURSDAY).orElseThrow(), Instant.parse("2026-12-03T06:00:00Z"));
 
     assertThat(check.run(THURSDAY)).isEmpty();
   }
@@ -161,7 +165,7 @@ class IssueRedemptionPriceCheckIT {
             date,
             new BigDecimal(nav),
             "TULEVA",
-            Instant.parse("2026-11-25T13:20:00Z")));
+            Instant.parse("2026-12-02T13:20:00Z")));
   }
 
   private void bookAt(String instant) {

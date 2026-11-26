@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
-import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.UnitDealing;
 import ee.tuleva.onboarding.ledger.UnitDealings;
 import ee.tuleva.onboarding.savings.IssueRedemptionPriceThreshold;
@@ -26,11 +25,9 @@ class IssueRedemptionPriceCheck {
   private final FundValueQueries fundValueQueries;
   private final IssueRedemptionPriceThreshold threshold;
   private final CheckedBookingDays checkedBookingDays;
-  private final PublicHolidays publicHolidays;
 
   Optional<PriceCheckRun> run(LocalDate runDay) {
-    BookingDays days =
-        BookingDays.sinceLastChecked(checkedBookingDays.lastChecked(), runDay, publicHolidays);
+    BookingDays days = BookingDays.sinceLastChecked(checkedBookingDays.lastChecked(), runDay);
     if (days.isEmpty()) {
       return Optional.empty();
     }

@@ -74,6 +74,21 @@ class DealingPriceTest {
   }
 
   @Test
+  void aRedemptionRoundedTheWrongWayAtAHalfCentDeviates() {
+    var price =
+        new DealingPrice(dealing(REDEMPTION_REQUEST, "4.45000", "4.89", NAV, NAV_DATE), NAV);
+
+    assertThat(price.verdict(THRESHOLD)).isEqualTo(PRICE_DEVIATES);
+  }
+
+  @Test
+  void aSubscriptionWhoseUnitsMissTheirFiveDecimalRoundingDeviatesWhenOverTheThreshold() {
+    var price = new DealingPrice(dealing(FUND_SUBSCRIPTION, "0.00911", "0.01", NAV, NAV_DATE), NAV);
+
+    assertThat(price.verdict(THRESHOLD)).isEqualTo(PRICE_DEVIATES);
+  }
+
+  @Test
   void aDealingBookedAtANavOtherThanThePublishedOneOfItsDateIsReported() {
     var price =
         new DealingPrice(

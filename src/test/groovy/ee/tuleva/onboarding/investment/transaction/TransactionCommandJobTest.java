@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.investment.transaction.BatchStatus.CONFIRMED;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.FAILED;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.PENDING;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.PROCESSING;
@@ -31,9 +30,7 @@ import org.springframework.context.ApplicationEventPublisher;
 class TransactionCommandJobTest {
 
   @Mock private TransactionCommandRepository commandRepository;
-  @Mock private TransactionBatchRepository batchRepository;
   @Mock private TransactionPreparationService preparationService;
-  @Mock private TransactionBatchFinalizer batchFinalizer;
   @Mock private TradePrepInputGateNotifier inputGateNotifier;
   @Mock private ApplicationEventPublisher eventPublisher;
 
@@ -46,13 +43,7 @@ class TransactionCommandJobTest {
   void setUp() {
     job =
         new TransactionCommandJob(
-            commandRepository,
-            batchRepository,
-            preparationService,
-            batchFinalizer,
-            inputGateNotifier,
-            eventPublisher,
-            clock);
+            commandRepository, preparationService, inputGateNotifier, eventPublisher, clock);
   }
 
   @Test
@@ -145,41 +136,6 @@ class TransactionCommandJobTest {
   }
 
   @Test
-  void finalizeConfirmedBatches_picksConfirmedBatches() {
-    var batch = TransactionBatch.builder().status(CONFIRMED).createdBy("analyst").build();
-    batch.onCreate();
-
-    when(batchRepository.findByStatus(CONFIRMED)).thenReturn(List.of(batch));
-
-    job.finalizeConfirmedBatches();
-
-    verify(batchFinalizer).finalizeConfirmedBatch(batch);
-  }
-
-  @Test
-  void finalizeConfirmedBatches_anOutdatedBatchRefused_stillSendsTheBatchesAfterIt() {
-    var outdated = TransactionBatch.builder().id(1L).status(CONFIRMED).createdBy("analyst").build();
-    var current = TransactionBatch.builder().id(2L).status(CONFIRMED).createdBy("analyst").build();
-    when(batchRepository.findByStatus(CONFIRMED)).thenReturn(List.of(outdated, current));
-    doThrow(new TransactionBatchRefusedException("prepared on an earlier day"))
-        .when(batchFinalizer)
-        .finalizeConfirmedBatch(outdated);
-
-    job.finalizeConfirmedBatches();
-
-    verify(batchFinalizer).finalizeConfirmedBatch(current);
-  }
-
-  @Test
-  void finalizeConfirmedBatches_withNoBatches_doesNothing() {
-    when(batchRepository.findByStatus(CONFIRMED)).thenReturn(List.of());
-
-    job.finalizeConfirmedBatches();
-
-    verifyNoInteractions(batchFinalizer);
-  }
-
-  @Test
   void processCommands_continuesProcessingAfterUnexpectedException() {
     var command1 =
         TransactionCommand.builder()
@@ -232,13 +188,11 @@ class TransactionCommandJobTest {
   }
 
   @Test
-  void eventListenerProcessesCommandsAndFinalizesBatches() {
+  void eventListenerProcessesCommands_andNeverSendsABatchWithoutTheSendersOwnSend() {
     when(commandRepository.findByStatus(PENDING)).thenReturn(List.of());
-    when(batchRepository.findByStatus(CONFIRMED)).thenReturn(List.of());
 
     job.onTransactionCommandRequested();
 
     verify(commandRepository).findByStatus(PENDING);
-    verify(batchRepository).findByStatus(CONFIRMED);
   }
 }

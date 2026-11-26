@@ -46,8 +46,8 @@ class BatchConfirmations {
             .build());
   }
 
-  void requireAllowedToSend(TransactionBatch batch, Long reviewedVersion, String sender) {
-    rule.requireAllowedToSend(
+  OrderSender requireAllowedToSend(TransactionBatch batch, Long reviewedVersion, String sender) {
+    return rule.requireAllowedToSend(
         batch,
         reviewedVersion,
         sender,

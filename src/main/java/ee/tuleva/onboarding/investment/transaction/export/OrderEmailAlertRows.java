@@ -61,36 +61,28 @@ class OrderEmailAlertRows {
         row(type, mandrillMessageId, failedAt, alertData(text, severity, NOT_POSTED)));
   }
 
-  void recordSendAttempt(long batchId, String resultUnknown) {
+  void recordSendAttempt(String emailKey, String resultUnknown) {
     eventLogRepository.save(
-        row(
-            SEND_RESULT_TYPE,
-            String.valueOf(batchId),
-            clock.instant(),
-            alertData(resultUnknown, ERROR, SENDING)));
+        row(SEND_RESULT_TYPE, emailKey, clock.instant(), alertData(resultUnknown, ERROR, SENDING)));
   }
 
-  void recordFailedSend(long batchId, String text) {
+  void recordFailedSend(String emailKey, String text) {
     eventLogRepository.save(
-        row(
-            SEND_RESULT_TYPE,
-            String.valueOf(batchId),
-            clock.instant(),
-            alertData(text, ERROR, NOT_POSTED)));
+        row(SEND_RESULT_TYPE, emailKey, clock.instant(), alertData(text, ERROR, NOT_POSTED)));
   }
 
-  void recordSendResult(long batchId, String text, Severity severity) {
-    recordSendResultAs(NOT_POSTED, batchId, text, severity);
+  void recordSendResult(String emailKey, String text, Severity severity) {
+    recordSendResultAs(NOT_POSTED, emailKey, text, severity);
   }
 
-  void recordPostedSendResult(long batchId, String text, Severity severity) {
-    recordSendResultAs(POSTED, batchId, text, severity);
+  void recordPostedSendResult(String emailKey, String text, Severity severity) {
+    recordSendResultAs(POSTED, emailKey, text, severity);
   }
 
-  void markSendResultPosted(long batchId, String text) {
+  void markSendResultPosted(String emailKey, String text) {
     inItsOwnTransaction.executeWithoutResult(
         status ->
-            latestSendResultLocked(batchId)
+            latestSendResultLocked(emailKey)
                 .filter(row -> isIn(NOT_POSTED, row) && text.equals(row.getData().get(TEXT)))
                 .ifPresent(row -> moveTo(POSTED, row)));
   }
@@ -162,27 +154,23 @@ class OrderEmailAlertRows {
     return (String) requireNonNull(row.getData().get(TEXT));
   }
 
-  private void recordSendResultAs(String alert, long batchId, String text, Severity severity) {
+  private void recordSendResultAs(String alert, String emailKey, String text, Severity severity) {
     inItsOwnTransaction.executeWithoutResult(
         status -> {
           var result =
-              latestSendResultLocked(batchId)
+              latestSendResultLocked(emailKey)
                   .filter(row -> isIn(SENDING, row) || isIn(CLAIMED, row))
                   .orElseGet(
-                      () ->
-                          EventLog.builder()
-                              .type(SEND_RESULT_TYPE)
-                              .principal(String.valueOf(batchId))
-                              .build());
+                      () -> EventLog.builder().type(SEND_RESULT_TYPE).principal(emailKey).build());
           result.setTimestamp(clock.instant());
           result.setData(alertData(text, severity, alert));
           eventLogRepository.save(result);
         });
   }
 
-  private Optional<EventLog> latestSendResultLocked(long batchId) {
+  private Optional<EventLog> latestSendResultLocked(String emailKey) {
     return eventLogRepository.findFirstByTypeAndPrincipalOrderByTimestampDesc(
-        SEND_RESULT_TYPE, String.valueOf(batchId));
+        SEND_RESULT_TYPE, emailKey);
   }
 
   private EventLog claim(EventLog row, Instant now) {

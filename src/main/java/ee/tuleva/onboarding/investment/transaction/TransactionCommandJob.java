@@ -24,9 +24,7 @@ import org.springframework.stereotype.Component;
 public class TransactionCommandJob {
 
   private final TransactionCommandRepository commandRepository;
-  private final TransactionBatchRepository batchRepository;
   private final TransactionPreparationService preparationService;
-  private final TransactionBatchFinalizer batchFinalizer;
   private final TradePrepInputGateNotifier inputGateNotifier;
   private final ApplicationEventPublisher eventPublisher;
   private final Clock clock;
@@ -40,7 +38,6 @@ public class TransactionCommandJob {
   @EventListener(RunTransactionCommandRequested.class)
   public void onTransactionCommandRequested() {
     processCommands();
-    finalizeConfirmedBatches();
   }
 
   void processCommands() {
@@ -72,28 +69,6 @@ public class TransactionCommandJob {
       command.setErrorMessage(e.getMessage());
       command.setProcessedAt(Instant.now(clock));
       commandRepository.save(command);
-    }
-  }
-
-  void finalizeConfirmedBatches() {
-    var batches = batchRepository.findByStatus(BatchStatus.CONFIRMED);
-    if (batches.isEmpty()) {
-      return;
-    }
-
-    log.info("Found confirmed batches: count={}", batches.size());
-
-    batches.forEach(this::finalizeUnlessRefused);
-  }
-
-  private void finalizeUnlessRefused(TransactionBatch batch) {
-    try {
-      batchFinalizer.finalizeConfirmedBatch(batch);
-    } catch (TransactionBatchRefusedException refusal) {
-      log.warn(
-          "Confirmed batch refused, left unsent: id={}, reason={}",
-          batch.getId(),
-          refusal.getMessage());
     }
   }
 }

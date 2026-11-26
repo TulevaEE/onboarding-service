@@ -8,18 +8,26 @@ import static ee.tuleva.onboarding.investment.transaction.OrderType.RISK;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.then;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
 
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.AfterEach;
@@ -50,6 +58,8 @@ class TransactionBatchConfirmationIT {
 
   private static final String PORTFOLIO_MANAGER = "operator-1";
   private static final String FUND_MANAGER = "operator-7";
+  private static final OrderSender FUND_MANAGERS_OWN_ADDRESS =
+      new OrderSender("fundmanager@tuleva.ee", "Fund Manager");
 
   @Autowired private TransactionAdminService service;
   @Autowired private TransactionBatchRepository batchRepository;
@@ -73,7 +83,8 @@ class TransactionBatchConfirmationIT {
 
     @Bean
     OrderSendAccess orderSendAccess() {
-      return FUND_MANAGER::equals;
+      return operator ->
+          FUND_MANAGER.equals(operator) ? Optional.of(FUND_MANAGERS_OWN_ADDRESS) : Optional.empty();
     }
 
     @Bean
@@ -96,7 +107,8 @@ class TransactionBatchConfirmationIT {
     service.setOrderType(order.getId(), NAV, PORTFOLIO_MANAGER);
     service.giveFirstConfirmation(batchId, currentVersion(batchId), PORTFOLIO_MANAGER);
 
-    service.confirmAndFinalize(batchId, currentVersion(batchId), FUND_MANAGER);
+    service.confirmAndSend(
+        List.of(new ReviewedBatch(batchId, currentVersion(batchId))), FUND_MANAGER);
 
     assertSentBy(FUND_MANAGER, batchId);
   }
@@ -108,9 +120,59 @@ class TransactionBatchConfirmationIT {
     service.giveFirstConfirmation(batchId, currentVersion(batchId), PORTFOLIO_MANAGER);
     service.setOrderType(order.getId(), NAV, FUND_MANAGER);
 
-    service.confirmAndFinalize(batchId, currentVersion(batchId), FUND_MANAGER);
+    service.confirmAndSend(
+        List.of(new ReviewedBatch(batchId, currentVersion(batchId))), FUND_MANAGER);
 
     assertSentBy(FUND_MANAGER, batchId);
+  }
+
+  @Test
+  void theFundManagerSendsEveryFundsConfirmedBatchOfTheDayInOneGo() {
+    Long tuk75 = draftOrderInABatchPreparedBy(PORTFOLIO_MANAGER, TUK75).getBatch().getId();
+    Long tuv100 = draftOrderInABatchPreparedBy(PORTFOLIO_MANAGER, TUV100).getBatch().getId();
+    service.giveFirstConfirmation(tuk75, currentVersion(tuk75), PORTFOLIO_MANAGER);
+    service.giveFirstConfirmation(tuv100, currentVersion(tuv100), PORTFOLIO_MANAGER);
+
+    service.confirmAndSend(
+        List.of(
+            new ReviewedBatch(tuk75, currentVersion(tuk75)),
+            new ReviewedBatch(tuv100, currentVersion(tuv100))),
+        FUND_MANAGER);
+
+    assertThat(batchRepository.findAllById(List.of(tuk75, tuv100)))
+        .extracting(TransactionBatch::getStatus, TransactionBatch::getConfirmedBy)
+        .containsOnly(tuple(CONFIRMED, FUND_MANAGER));
+    then(batchFinalizer)
+        .should()
+        .finalizeConfirmedBatches(
+            argThat(
+                batches ->
+                    batches.stream()
+                        .map(TransactionBatch::getId)
+                        .toList()
+                        .equals(List.of(tuk75, tuv100))),
+            eq(FUND_MANAGERS_OWN_ADDRESS));
+  }
+
+  @Test
+  void oneFundsBatchWithoutAFirstConfirmationStopsTheWholeDaysSend() {
+    Long tuk75 = draftOrderInABatchPreparedBy(PORTFOLIO_MANAGER, TUK75).getBatch().getId();
+    Long tuv100 = draftOrderInABatchPreparedBy(PORTFOLIO_MANAGER, TUV100).getBatch().getId();
+    service.giveFirstConfirmation(tuk75, currentVersion(tuk75), PORTFOLIO_MANAGER);
+
+    assertRefusedAndStillADraft(
+        () ->
+            service.confirmAndSend(
+                List.of(
+                    new ReviewedBatch(tuk75, currentVersion(tuk75)),
+                    new ReviewedBatch(tuv100, currentVersion(tuv100))),
+                FUND_MANAGER),
+        FORBIDDEN,
+        tuv100);
+    assertThat(batchRepository.findById(tuk75))
+        .get()
+        .extracting(TransactionBatch::getStatus)
+        .isEqualTo(DRAFT);
   }
 
   @Test
@@ -123,7 +185,9 @@ class TransactionBatchConfirmationIT {
     batchRepository.save(changedOtherwise);
 
     assertRefusedAndStillADraft(
-        () -> service.confirmAndFinalize(batchId, currentVersion(batchId), FUND_MANAGER),
+        () ->
+            service.confirmAndSend(
+                List.of(new ReviewedBatch(batchId, currentVersion(batchId))), FUND_MANAGER),
         FORBIDDEN,
         batchId);
   }
@@ -135,7 +199,9 @@ class TransactionBatchConfirmationIT {
     service.giveFirstConfirmation(batchId, currentVersion(batchId), FUND_MANAGER);
 
     assertRefusedAndStillADraft(
-        () -> service.confirmAndFinalize(batchId, currentVersion(batchId), PORTFOLIO_MANAGER),
+        () ->
+            service.confirmAndSend(
+                List.of(new ReviewedBatch(batchId, currentVersion(batchId))), PORTFOLIO_MANAGER),
         FORBIDDEN,
         batchId);
   }
@@ -164,7 +230,9 @@ class TransactionBatchConfirmationIT {
     service.giveFirstConfirmation(batchId, currentVersion(batchId), PORTFOLIO_MANAGER);
 
     assertRefusedAndStillADraft(
-        () -> service.confirmAndFinalize(batchId, reviewedVersion, FUND_MANAGER),
+        () ->
+            service.confirmAndSend(
+                List.of(new ReviewedBatch(batchId, reviewedVersion)), FUND_MANAGER),
         CONFLICT,
         batchId);
   }
@@ -217,6 +285,16 @@ class TransactionBatchConfirmationIT {
         .get()
         .extracting(TransactionBatch::getStatus, TransactionBatch::getConfirmedBy)
         .containsExactly(CONFIRMED, sender);
+    then(batchFinalizer)
+        .should()
+        .finalizeConfirmedBatches(
+            argThat(
+                batches ->
+                    batches.stream()
+                        .map(TransactionBatch::getId)
+                        .toList()
+                        .equals(List.of(batchId))),
+            eq(FUND_MANAGERS_OWN_ADDRESS));
   }
 
   private Long currentVersion(Long batchId) {
@@ -236,12 +314,16 @@ class TransactionBatchConfirmationIT {
   }
 
   private TransactionOrder draftOrderInABatchPreparedBy(String operator) {
+    return draftOrderInABatchPreparedBy(operator, TUK75);
+  }
+
+  private TransactionOrder draftOrderInABatchPreparedBy(String operator, TulevaFund fund) {
     TransactionBatch batch =
-        batchRepository.save(TransactionBatch.builder().fund(TUK75).createdBy(operator).build());
+        batchRepository.save(TransactionBatch.builder().fund(fund).createdBy(operator).build());
     return orderRepository.save(
         TransactionOrder.builder()
             .batch(batch)
-            .fund(TUK75)
+            .fund(fund)
             .instrumentIsin("IE000F60HVH9")
             .transactionType(BUY)
             .instrumentType(ETF)

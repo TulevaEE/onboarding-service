@@ -460,6 +460,26 @@ class TransactionExportServiceTest {
         .build();
   }
 
+  @Test
+  void ftApproximateTotal_isTheTotalTheFtFileShows_ofTheFtOrdersOnly() throws Exception {
+    var batch = buildBatch();
+    var orders =
+        List.of(
+            buildOrder(batch, TUK75, "IE00FT", BUY, ETF, FT, new BigDecimal("200000.10"), 800L),
+            buildOrder(batch, TUV100, "IE00FU", SELL, ETF, FT, new BigDecimal("150000.25"), 600L),
+            buildOrder(batch, TKF100, "IE00SEB", BUY, ETF, SEB, new BigDecimal("50000"), 200L));
+
+    byte[] xlsx =
+        service.generateFtEtfExport(orders, Map.of(), Map.of(), LocalDate.of(2026, 1, 15));
+
+    try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(xlsx))) {
+      var totalRow = workbook.getSheetAt(0).getRow(3);
+      assertThat(totalRow.getCell(7).getNumericCellValue())
+          .isEqualTo(BrokerOrders.ftApproximateTotal(orders).doubleValue());
+    }
+    assertThat(BrokerOrders.ftApproximateTotal(orders)).isEqualByComparingTo("350000.35");
+  }
+
   private TransactionOrder buildOrder(
       TransactionBatch batch,
       TulevaFund fund,

@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.springframework.http.HttpStatus.CONFLICT;
@@ -31,6 +32,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -609,48 +612,48 @@ class TransactionCommandControllerTest {
         .andExpect(jsonPath("$.id").value(10));
   }
 
+  private static final String THE_DAYS_TWO_BATCHES =
+      """
+      {"batches": [{"id": 10, "version": 3}, {"id": 11, "version": 5}]}
+      """;
+
   @Test
-  void confirmBatch_finalizesAndReturnsBatch() throws Exception {
-    given(adminService.confirmAndFinalize(10L, 3L, "shared-admin-token"))
-        .willReturn(batchResponse());
+  void sendBatches_sendsTheDaysBatchesTogetherInTheOperatorsNameAndReturnsThem() throws Exception {
+    given(
+            adminService.confirmAndSend(
+                List.of(new ReviewedBatch(10L, 3L), new ReviewedBatch(11L, 5L)), "operator-7"))
+        .willReturn(List.of(batchResponse()));
 
     mockMvc
         .perform(
-            post("/admin/transaction-batches/10/confirm")
+            post("/admin/transaction-batches/send")
                 .with(csrf())
                 .contentType(APPLICATION_JSON)
-                .content("{\"version\": 3}")
-                .header("X-Admin-Token", "valid-token"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(10))
-        .andExpect(jsonPath("$.status").value("SENT"))
-        .andExpect(jsonPath("$.version").value(3));
-  }
-
-  @Test
-  void confirmBatch_passesAdminActorToService() throws Exception {
-    given(adminService.confirmAndFinalize(10L, 3L, "operator-7")).willReturn(batchResponse());
-
-    mockMvc
-        .perform(
-            post("/admin/transaction-batches/10/confirm")
-                .with(csrf())
-                .contentType(APPLICATION_JSON)
-                .content("{\"version\": 3}")
+                .content(THE_DAYS_TWO_BATCHES)
                 .header("X-Admin-Token", "operator-7-token"))
-        .andExpect(status().isOk());
-
-    then(adminService).should().confirmAndFinalize(10L, 3L, "operator-7");
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].id").value(10))
+        .andExpect(jsonPath("$[0].status").value("SENT"))
+        .andExpect(jsonPath("$[0].version").value(3));
   }
 
-  @Test
-  void confirmBatch_withoutTheReviewedVersion_isRejectedBeforeTheService() throws Exception {
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "{}",
+        "{\"batches\": []}",
+        "{\"batches\": [{\"id\": 10}]}",
+        "{\"batches\": [{\"version\": 3}]}",
+        "{\"batches\": [null]}"
+      })
+  void sendBatches_withoutEveryBatchAndItsReviewedVersion_isRejectedBeforeTheService(String body)
+      throws Exception {
     mockMvc
         .perform(
-            post("/admin/transaction-batches/10/confirm")
+            post("/admin/transaction-batches/send")
                 .with(csrf())
                 .contentType(APPLICATION_JSON)
-                .content("{}")
+                .content(body)
                 .header("X-Admin-Token", "operator-7-token"))
         .andExpect(status().isBadRequest());
 
@@ -658,33 +661,33 @@ class TransactionCommandControllerTest {
   }
 
   @Test
-  void confirmBatch_notAwaitingConfirmation_returnsConflict() throws Exception {
-    given(adminService.confirmAndFinalize(10L, 3L, "shared-admin-token"))
+  void sendBatches_aBatchNotAwaitingConfirmation_returnsConflict() throws Exception {
+    given(adminService.confirmAndSend(any(), any()))
         .willThrow(
             new ResponseStatusException(
                 CONFLICT, "Batch not awaiting confirmation: id=10, status=SENT"));
 
     mockMvc
         .perform(
-            post("/admin/transaction-batches/10/confirm")
+            post("/admin/transaction-batches/send")
                 .with(csrf())
                 .contentType(APPLICATION_JSON)
-                .content("{\"version\": 3}")
+                .content(THE_DAYS_TWO_BATCHES)
                 .header("X-Admin-Token", "valid-token"))
         .andExpect(status().isConflict());
   }
 
   @Test
-  void confirmBatch_preparedOnAnEarlierDay_returnsConflict() throws Exception {
-    given(adminService.confirmAndFinalize(10L, 3L, "shared-admin-token"))
+  void sendBatches_aBatchPreparedOnAnEarlierDay_returnsConflict() throws Exception {
+    given(adminService.confirmAndSend(any(), any()))
         .willThrow(new TransactionBatchRefusedException("prepared on an earlier day"));
 
     mockMvc
         .perform(
-            post("/admin/transaction-batches/10/confirm")
+            post("/admin/transaction-batches/send")
                 .with(csrf())
                 .contentType(APPLICATION_JSON)
-                .content("{\"version\": 3}")
+                .content(THE_DAYS_TWO_BATCHES)
                 .header("X-Admin-Token", "valid-token"))
         .andExpect(status().isConflict());
   }

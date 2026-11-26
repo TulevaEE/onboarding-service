@@ -1,8 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
-import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
-import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
-import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.*;
 import static java.math.BigDecimal.ZERO;
@@ -10,7 +7,6 @@ import static java.math.RoundingMode.HALF_UP;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.fund.FundAccounts;
-import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -122,7 +118,7 @@ public class TransactionExportService {
   public byte[] generateSebFundExport(
       List<TransactionOrder> orders, Map<String, String> labelsByIsin) {
     List<TransactionOrder> fundOrders =
-        orders.stream().filter(order -> order.getInstrumentType() == FUND).toList();
+        orders.stream().filter(BrokerOrders::isSebFundOrder).toList();
 
     List<String> lines = new ArrayList<>();
     lines.add(sebFundPreambleRow("ORDER"));
@@ -168,9 +164,7 @@ public class TransactionExportService {
 
   public byte[] generateSebEtfExport(List<TransactionOrder> orders, Map<String, String> ricByIsin) {
     List<TransactionOrder> sebEtfOrders =
-        orders.stream()
-            .filter(order -> order.getOrderVenue() == SEB && order.getInstrumentType() == ETF)
-            .toList();
+        orders.stream().filter(BrokerOrders::isSebEtfOrder).toList();
 
     try (Workbook workbook = new XSSFWorkbook()) {
       Sheet sheet = workbook.createSheet("SEB ETF");
@@ -203,8 +197,7 @@ public class TransactionExportService {
       Map<String, String> labelsByIsin,
       Map<String, String> bbgByIsin,
       LocalDate tradeDate) {
-    List<TransactionOrder> ftOrders =
-        orders.stream().filter(order -> order.getOrderVenue() == OrderVenue.FT).toList();
+    List<TransactionOrder> ftOrders = orders.stream().filter(BrokerOrders::isFtOrder).toList();
 
     Map<String, AggregatedFtOrder> aggregated = aggregateFtOrders(ftOrders);
 
@@ -216,7 +209,6 @@ public class TransactionExportService {
       createRow(sheet, 0, FT_ETF_HEADERS);
 
       int rowIndex = 1;
-      BigDecimal grandTotal = ZERO;
 
       for (var entry : aggregated.entrySet()) {
         var aggregation = entry.getValue();
@@ -234,14 +226,13 @@ public class TransactionExportService {
         createFundQuantityCell(row, 8, aggregation.quantityByFund.getOrDefault(TKF100, ZERO));
         createFundQuantityCell(row, 9, aggregation.quantityByFund.getOrDefault(TUK75, ZERO));
         createFundQuantityCell(row, 10, aggregation.quantityByFund.getOrDefault(TUV100, ZERO));
-        grandTotal = grandTotal.add(aggregation.totalAmount);
       }
 
       Row totalRow = sheet.createRow(rowIndex);
       totalRow
           .createCell(FT_TOTAL_LABEL_COLUMN_AS_IN_THE_GAS_ORDER_FILE)
           .setCellValue("Approximate total order size:");
-      totalRow.createCell(7).setCellValue(grandTotal.doubleValue());
+      totalRow.createCell(7).setCellValue(BrokerOrders.ftApproximateTotal(ftOrders).doubleValue());
 
       autoSizeColumns(sheet, FT_ETF_HEADERS.length);
       return toByteArray(workbook);
@@ -283,12 +274,7 @@ public class TransactionExportService {
 
   public byte[] generateUuidWorkbook(List<TransactionOrder> orders) {
     List<TransactionOrder> uuidWorkbookOrders =
-        orders.stream()
-            .filter(
-                order ->
-                    order.getOrderVenue() == OrderVenue.FT
-                        || (order.getOrderVenue() == SEB && order.getInstrumentType() == ETF))
-            .toList();
+        orders.stream().filter(BrokerOrders::isUuidWorkbookOrder).toList();
 
     try (Workbook workbook = new XSSFWorkbook()) {
       Sheet sheet = workbook.createSheet("UUID");

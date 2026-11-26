@@ -9,6 +9,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,12 +25,15 @@ class TransactionBatchNotifierTest {
   @InjectMocks private TransactionBatchNotifier notifier;
 
   @Test
-  void onBatchFinalized_sendsSlackNotification() {
-    var event = new BatchFinalizedEvent(1L, 5, "2026-01-15", Map.of());
+  void onBatchFinalized_namesEveryBatchSentTogetherInOneSlackMessage() {
+    var event = new BatchFinalizedEvent(List.of(1L, 2L), 5, "2026-01-15", Map.of());
 
     notifier.onBatchFinalized(event);
 
-    verify(notificationService).sendMessage(any(String.class), eq(INVESTMENT));
+    verify(notificationService)
+        .sendMessage(
+            "Transaction batches finalized: batchIds=[1, 2], 5 orders, tradeDate=2026-01-15",
+            INVESTMENT);
   }
 
   @Test
@@ -38,7 +42,7 @@ class TransactionBatchNotifierTest {
         Map.of(
             "sebFundXlsx", "https://drive.google.com/seb-fund",
             "ftEtfXlsx", "https://drive.google.com/ft-etf");
-    var event = new BatchFinalizedEvent(1L, 5, "2026-01-15", urls);
+    var event = new BatchFinalizedEvent(List.of(1L, 2L), 5, "2026-01-15", urls);
 
     notifier.onBatchFinalized(event);
 
@@ -53,7 +57,7 @@ class TransactionBatchNotifierTest {
   @Test
   void onBatchFinalized_includesUuidWorkbookDriveUrlInMessage() {
     var urls = Map.of("uuidWorkbookXlsx", "https://drive.google.com/uuid-workbook");
-    var event = new BatchFinalizedEvent(1L, 5, "2026-01-15", urls);
+    var event = new BatchFinalizedEvent(List.of(1L, 2L), 5, "2026-01-15", urls);
 
     notifier.onBatchFinalized(event);
 
@@ -66,7 +70,7 @@ class TransactionBatchNotifierTest {
 
   @Test
   void onBatchFinalized_whenNotificationFails_doesNotPropagate() {
-    var event = new BatchFinalizedEvent(1L, 3, "2026-01-20", Map.of());
+    var event = new BatchFinalizedEvent(List.of(1L, 2L), 3, "2026-01-20", Map.of());
     doThrow(new RuntimeException("Slack unavailable"))
         .when(notificationService)
         .sendMessage(any(), eq(INVESTMENT));

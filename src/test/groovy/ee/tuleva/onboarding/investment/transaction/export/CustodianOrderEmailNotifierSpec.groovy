@@ -47,7 +47,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
           "Nothing went out to the desk. Fix the cause, then send the orders again."
 
   def setup() {
-    eventLogRepository.findFirstByTypeAndPrincipalOrderByTimestampDesc("TRADE_ORDER_EMAIL_SEND_RESULT", "42") >> {
+    eventLogRepository.findFirstByTypeAndPrincipalOrderByTimestampDesc("TRADE_ORDER_EMAIL_SEND_RESULT", "FT:42") >> {
       latestSendResultRow()
     }
   }
@@ -65,7 +65,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
         status("copy@example.com", "queued", null)], null)
 
     when:
-    notifier.reportSendResult(42L, message, result)
+    notifier.reportSendResult("FT:42", message, result)
 
     then:
     1 * notificationService.sendMessage(
@@ -80,7 +80,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
         status("copy@example.com", "rejected", "hard-bounce")], null)
 
     when:
-    notifier.reportSendResult(42L, message, result)
+    notifier.reportSendResult("FT:42", message, result)
 
     then:
     1 * notificationService.sendMessage(
@@ -98,7 +98,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
         "Mandrill did not accept email: status=rejected, rejectReason=hard-bounce, id=id-desk")
 
     when:
-    notifier.reportSendResult(42L, message, result)
+    notifier.reportSendResult("FT:42", message, result)
 
     then:
     1 * notificationService.sendMessage(
@@ -113,7 +113,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     def result = new EmailSendResult(FAILED, [], "ConnectException: Connection refused")
 
     when:
-    notifier.reportSendResult(42L, message, result)
+    notifier.reportSendResult("FT:42", message, result)
 
     then:
     1 * notificationService.sendMessage(
@@ -128,7 +128,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     def result = new EmailSendResult(UNKNOWN, [], "SocketTimeoutException: Read timed out")
 
     when:
-    notifier.reportSendResult(42L, message, result)
+    notifier.reportSendResult("FT:42", message, result)
 
     then:
     1 * notificationService.sendMessage(
@@ -146,7 +146,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
         "Mandrill did not accept email: status=invalid, rejectReason=null, id=id-backup")
 
     when:
-    notifier.reportSendResult(42L, message, result)
+    notifier.reportSendResult("FT:42", message, result)
 
     then:
     1 * notificationService.sendMessage(
@@ -158,12 +158,12 @@ class CustodianOrderEmailNotifierSpec extends Specification {
 
   def "records the send attempt before the batch commits, holding the UNKNOWN line the run posts if no result follows"() {
     when:
-    notifier.reportSendAttempt(42L, message)
+    notifier.reportSendAttempt("FT:42", message)
 
     then:
     1 * eventLogRepository.save({ EventLog it ->
       it.type == "TRADE_ORDER_EMAIL_SEND_RESULT" &&
-          it.principal == "42" &&
+          it.principal == "FT:42" &&
           it.timestamp == sentAt &&
           it.data == [text: resultUnknown, severity: "ERROR", alert: "SENDING"]
     })
@@ -172,7 +172,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
 
   def "records the send attempt in the batch's own transaction, so it commits with the batch"() {
     when:
-    notifier.reportSendAttempt(42L, message)
+    notifier.reportSendAttempt("FT:42", message)
 
     then:
     0 * transactionManager.getTransaction(_)
@@ -183,7 +183,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     eventLogRepository.save(_) >> { throw new DataAccessResourceFailureException("database is down") }
 
     when:
-    notifier.reportSendAttempt(42L, message)
+    notifier.reportSendAttempt("FT:42", message)
 
     then:
     thrown(DataAccessResourceFailureException)
@@ -194,14 +194,14 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     def attempt = EventLog.builder()
         .id(7L)
         .type("TRADE_ORDER_EMAIL_SEND_RESULT")
-        .principal("42")
+        .principal("FT:42")
         .timestamp(sentAt.minusSeconds(30))
         .data([text: resultUnknown, severity: "ERROR", alert: "SENDING"])
         .build()
     latestSendResultRow = { Optional.of(attempt) }
 
     when:
-    notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
+    notifier.reportSendResult("FT:42", message, new EmailSendResult(SENT, [], null))
 
     then:
     1 * eventLogRepository.save({ EventLog it ->
@@ -221,7 +221,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
       Optional.of(EventLog.builder()
           .id(7L)
           .type("TRADE_ORDER_EMAIL_SEND_RESULT")
-          .principal("42")
+          .principal("FT:42")
           .timestamp(sentAt.minusSeconds(30))
           .data([text: resultUnknown, severity: "ERROR", alert: "SENDING"])
           .build())
@@ -229,7 +229,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     eventLogRepository.save(_) >> { throw new DataAccessResourceFailureException("database blip") } >> { EventLog it -> it }
 
     when:
-    notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
+    notifier.reportSendResult("FT:42", message, new EmailSendResult(SENT, [], null))
 
     then:
     1 * notificationService.sendMessage(greenLine, TRADING, INFO)
@@ -241,11 +241,11 @@ class CustodianOrderEmailNotifierSpec extends Specification {
   def "a latest row with no data is in no state, so the result is written as a row of its own and still posted"() {
     given:
     latestSendResultRow = {
-      Optional.of(EventLog.builder().id(9L).type("TRADE_ORDER_EMAIL_SEND_RESULT").principal("42").timestamp(sentAt).build())
+      Optional.of(EventLog.builder().id(9L).type("TRADE_ORDER_EMAIL_SEND_RESULT").principal("FT:42").timestamp(sentAt).build())
     }
 
     when:
-    notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
+    notifier.reportSendResult("FT:42", message, new EmailSendResult(SENT, [], null))
 
     then:
     noExceptionThrown()
@@ -257,12 +257,12 @@ class CustodianOrderEmailNotifierSpec extends Specification {
 
   def "records an order email that could not be built as a red not-posted row in the batch's own transaction"() {
     when:
-    notifier.recordNotBuilt(42L, "TUV100 ostu-/müügikorraldused 15.01.2026", "java.lang.IllegalStateException: an export has no file name")
+    notifier.recordNotBuilt("FT:42", "TUV100 ostu-/müügikorraldused 15.01.2026", "java.lang.IllegalStateException: an export has no file name")
 
     then:
     1 * eventLogRepository.save({ EventLog it ->
       it.type == "TRADE_ORDER_EMAIL_SEND_RESULT" &&
-          it.principal == "42" &&
+          it.principal == "FT:42" &&
           it.timestamp == sentAt &&
           it.data == [text: notBuilt, severity: "ERROR", alert: "NOT_POSTED"]
     })
@@ -276,14 +276,14 @@ class CustodianOrderEmailNotifierSpec extends Specification {
       Optional.of(EventLog.builder()
           .id(7L)
           .type("TRADE_ORDER_EMAIL_SEND_RESULT")
-          .principal("42")
+          .principal("FT:42")
           .timestamp(sentAt)
           .data([text: notBuilt, severity: "ERROR", alert: "NOT_POSTED"])
           .build())
     }
 
     when:
-    notifier.postNotBuilt(42L, "TUV100 ostu-/müügikorraldused 15.01.2026", "java.lang.IllegalStateException: an export has no file name")
+    notifier.postNotBuilt("FT:42", "TUV100 ostu-/müügikorraldused 15.01.2026", "java.lang.IllegalStateException: an export has no file name")
 
     then:
     1 * notificationService.sendMessage(notBuilt, TRADING, ERROR)
@@ -294,12 +294,12 @@ class CustodianOrderEmailNotifierSpec extends Specification {
 
   def "records the result as a row of its own when the attempt could not be recorded"() {
     when:
-    notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
+    notifier.reportSendResult("FT:42", message, new EmailSendResult(SENT, [], null))
 
     then:
     1 * eventLogRepository.save({ EventLog it ->
       it.type == "TRADE_ORDER_EMAIL_SEND_RESULT" &&
-          it.principal == "42" &&
+          it.principal == "FT:42" &&
           it.timestamp == sentAt &&
           it.data == [text: greenLine, severity: "INFO", alert: "NOT_POSTED"]
     }) >> { EventLog it -> it }
@@ -310,7 +310,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     eventLogRepository.save(_) >> { EventLog it -> it }
 
     when:
-    notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
+    notifier.reportSendResult("FT:42", message, new EmailSendResult(SENT, [], null))
 
     then:
     2 * transactionManager.getTransaction({ it.propagationBehavior == PROPAGATION_REQUIRES_NEW })
@@ -321,7 +321,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     notificationService.sendMessage(_, _, _) >> { throw new RestClientException("Slack is down") }
 
     when:
-    notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
+    notifier.reportSendResult("FT:42", message, new EmailSendResult(SENT, [], null))
 
     then:
     noExceptionThrown()
@@ -334,7 +334,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     eventLogRepository.save(_) >> { throw new DataAccessResourceFailureException("database is down") }
 
     when:
-    notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
+    notifier.reportSendResult("FT:42", message, new EmailSendResult(SENT, [], null))
 
     then:
     noExceptionThrown()

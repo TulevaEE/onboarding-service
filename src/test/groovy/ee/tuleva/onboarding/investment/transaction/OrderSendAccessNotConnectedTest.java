@@ -13,7 +13,7 @@ class OrderSendAccessNotConnectedTest {
   @ParameterizedTest
   @ValueSource(strings = {"operator-1", "operator-7"})
   void refusesEverySendAsUnavailableUntilTheAccessLevelsAreConnected(String operator) {
-    assertThatThrownBy(() -> new OrderSendAccessNotConnected().canSend(operator))
+    assertThatThrownBy(() -> new OrderSendAccessNotConnected().senderFor(operator))
         .isInstanceOfSatisfying(
             ResponseStatusException.class,
             exception -> assertThat(exception.getStatusCode()).isEqualTo(SERVICE_UNAVAILABLE));

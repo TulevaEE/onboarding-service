@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Se
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
 import static ee.tuleva.onboarding.notification.email.EmailSendResult.Outcome.FAILED;
 import static ee.tuleva.onboarding.notification.email.EmailSendResult.Outcome.SENT;
-import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
@@ -22,12 +21,14 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
 
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
+import ee.tuleva.onboarding.investment.transaction.OrderSender;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.AtMostOnceEmailSender;
 import ee.tuleva.onboarding.notification.email.EmailSendResult;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -61,9 +62,16 @@ import org.springframework.web.client.RestClientException;
 })
 class CustodianOrderEmailNotifierIT {
 
-  private static final long BATCH_ID = 42L;
+  private static final String EMAIL_KEY = "SEB_FUND:42";
   private static final Instant SENT_AT = Instant.parse("2026-01-15T10:00:00Z");
-  private static final Map<String, byte[]> EXPORTS = Map.of("sebFundXlsx", new byte[] {1, 2});
+  private static final OrderDay THE_DAY =
+      new OrderDay(
+          List.of(42L),
+          LocalDate.parse("2026-01-15"),
+          SENT_AT,
+          new OrderSender("fundmanager@tuleva.ee", "Fund Manager"),
+          List.of(),
+          Map.of(ExportFile.SEB_FUND, new byte[] {1, 2}));
   private static final String ORDERS_NOT_SENT =
       "🔴 Orders NOT sent: TUV100 ostu-/müügikorraldused 15.01.2026\n"
           + "ConnectException: Connection refused\n"
@@ -74,7 +82,7 @@ class CustodianOrderEmailNotifierIT {
           + "No send result was recorded: the service may have stopped while sending.\n"
           + "It may have gone out. Check the Cc copy or ask the desk before sending again.";
   private static final String ORDERS_NOT_BUILT =
-      "🔴 Orders NOT sent: TUV100 ostu-/müügikorraldused 15.01.2026\n"
+      "🔴 Orders NOT sent: SEB indeksfondid 15.01.2026\n"
           + "The message could not be built: java.lang.IllegalStateException: an export has no"
           + " file name\n"
           + "Nothing went out to the desk. Fix the cause, then send the orders again.";
@@ -99,7 +107,17 @@ class CustodianOrderEmailNotifierIT {
   static class OrderEmailSettings {
     @Bean
     CustodianOrderEmailProperties custodianOrderEmailProperties() {
-      return new CustodianOrderEmailProperties(true, List.of("desk@example.com"), List.of());
+      return new CustodianOrderEmailProperties(
+          true,
+          List.of(),
+          null,
+          null,
+          new CustodianOrderEmailProperties.Venue(
+              List.of("desk@example.com"),
+              List.of(),
+              "TUV100 ostu-/müügikorraldused {date}",
+              "Manuses on tehingukorraldused."),
+          null);
     }
   }
 
@@ -311,7 +329,7 @@ class CustodianOrderEmailNotifierIT {
   void anOrderEmailThatCannotBeBuiltLeavesNoAttempt_andIsPostedAsNotSentAfterTheCommit() {
     willThrow(new IllegalStateException("an export has no file name"))
         .given(messageFactory)
-        .create(any(), any(), any());
+        .create(any(), any());
 
     sendAfterTheBatchCommits();
 
@@ -328,7 +346,7 @@ class CustodianOrderEmailNotifierIT {
       anOrderEmailThatCannotBeBuiltIsRecordedAsNotSentWithTheBatch_soTheRunPostsItIfTheServiceStopsBeforeTheCommitCallback() {
     willThrow(new IllegalStateException("an export has no file name"))
         .given(messageFactory)
-        .create(any(), any(), any());
+        .create(any(), any());
 
     new TransactionTemplate(transactionManager).executeWithoutResult(status -> prepareTheSend());
 
@@ -355,7 +373,7 @@ class CustodianOrderEmailNotifierIT {
     eventLogRepository.save(
         EventLog.builder()
             .type("TRADE_ORDER_EMAIL_SEND_RESULT")
-            .principal(String.valueOf(BATCH_ID))
+            .principal(EMAIL_KEY)
             .timestamp(SENT_AT.minus(Duration.ofDays(1)))
             .data(
                 Map.of(
@@ -395,7 +413,7 @@ class CustodianOrderEmailNotifierIT {
   }
 
   private void prepareTheSend() {
-    sendTheOrders.set(sender.prepareSend(BATCH_ID, TUV100, SENT_AT, EXPORTS));
+    sendTheOrders.set(sender.prepareSend(THE_DAY));
   }
 
   private void runAt(Instant now) {
@@ -406,7 +424,7 @@ class CustodianOrderEmailNotifierIT {
   private static Consumer<EventLog> sendResult(Instant at, String alert) {
     return row -> {
       assertThat(row.getType()).isEqualTo("TRADE_ORDER_EMAIL_SEND_RESULT");
-      assertThat(row.getPrincipal()).isEqualTo("42");
+      assertThat(row.getPrincipal()).isEqualTo(EMAIL_KEY);
       assertThat(row.getTimestamp()).isEqualTo(at);
       assertThat(row.getData())
           .isEqualTo(Map.of("text", ORDERS_NOT_SENT, "severity", "ERROR", "alert", alert));

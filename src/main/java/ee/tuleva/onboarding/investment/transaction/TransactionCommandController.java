@@ -111,17 +111,19 @@ public class TransactionCommandController {
     return adminService.giveFirstConfirmation(id, request.version(), actor);
   }
 
-  @PostMapping("/transaction-batches/{id}/confirm")
-  public TransactionBatchResponse confirmBatch(
+  @PostMapping("/transaction-batches/send")
+  public List<TransactionBatchResponse> sendBatches(
       @RequestHeader("X-Admin-Token") String token,
-      @PathVariable Long id,
-      @Valid @RequestBody ConfirmTransactionBatchRequest request) {
+      @Valid @RequestBody SendTransactionBatchesRequest request) {
 
     var actor = authenticator.resolveActor(token);
 
-    log.info("Admin triggered transaction batch confirmation: id={}, actor={}", id, actor);
+    log.info(
+        "Admin triggered sending transaction batches: ids={}, actor={}",
+        request.batches().stream().map(ReviewedBatch::id).toList(),
+        actor);
 
-    return adminService.confirmAndFinalize(id, request.version(), actor);
+    return adminService.confirmAndSend(request.batches(), actor);
   }
 
   @PostMapping("/transaction-batches/{id}/cancel")

@@ -5,11 +5,11 @@ import static ee.tuleva.onboarding.investment.transaction.BatchStatus.SENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
 
+import ee.tuleva.onboarding.investment.transaction.export.BrokerFileGenerator;
 import ee.tuleva.onboarding.investment.transaction.export.CustodianOrderEmailSender;
 import ee.tuleva.onboarding.investment.transaction.export.GoogleDriveProperties;
 import ee.tuleva.onboarding.investment.transaction.export.TransactionExportService;
@@ -42,6 +42,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 })
 class TransactionBatchFinalizerTransactionTest {
 
+  private static final OrderSender SENDER =
+      new OrderSender("fundmanager@tuleva.ee", "Fund Manager");
+
   private static final Instant NOW = Instant.parse("2026-09-30T08:00:00Z");
   private static final String ROOT_FOLDER_ID = "root-folder-id";
   private static final Map<String, String> DRIVE_FILE_URLS =
@@ -55,6 +58,7 @@ class TransactionBatchFinalizerTransactionTest {
 
   @MockitoBean private SettlementDateCalculator settlementDateCalculator;
   @MockitoBean private TransactionExportService exportService;
+  @MockitoBean private BrokerFileGenerator brokerFileGenerator;
   @MockitoBean private TransactionExportUploader exportUploader;
   @MockitoBean private CustodianOrderEmailSender custodianOrderEmailSender;
   @MockitoBean private TransactionOrderFactory orderFactory;
@@ -73,8 +77,8 @@ class TransactionBatchFinalizerTransactionTest {
     new TransactionTemplate(transactionManager)
         .executeWithoutResult(
             status ->
-                finalizer.finalizeConfirmedBatch(
-                    batchRepository.findById(confirmedId).orElseThrow()));
+                finalizer.finalizeConfirmedBatches(
+                    List.of(batchRepository.findById(confirmedId).orElseThrow()), SENDER));
 
     assertThat(batchRepository.findById(confirmedId))
         .get()
@@ -88,7 +92,8 @@ class TransactionBatchFinalizerTransactionTest {
     var confirmedId = saveConfirmedBatch();
     givenExportsUploadedToDrive();
 
-    finalizer.finalizeConfirmedBatch(batchRepository.findById(confirmedId).orElseThrow());
+    finalizer.finalizeConfirmedBatches(
+        List.of(batchRepository.findById(confirmedId).orElseThrow()), SENDER);
 
     assertThat(batchRepository.findById(confirmedId))
         .get()
@@ -103,7 +108,7 @@ class TransactionBatchFinalizerTransactionTest {
     var firstId = saveConfirmedBatch();
     var secondId = saveConfirmedBatch();
     givenExportsUploadedToDrive();
-    given(custodianOrderEmailSender.prepareSend(anyLong(), eq(TUV100), eq(NOW), any()))
+    given(custodianOrderEmailSender.prepareSend(any()))
         .willReturn(
             () -> {
               throw new IllegalStateException("the order email step failed");
@@ -113,8 +118,8 @@ class TransactionBatchFinalizerTransactionTest {
       new TransactionTemplate(transactionManager)
           .executeWithoutResult(
               status ->
-                  finalizer.finalizeConfirmedBatch(
-                      batchRepository.findById(confirmedId).orElseThrow()));
+                  finalizer.finalizeConfirmedBatches(
+                      List.of(batchRepository.findById(confirmedId).orElseThrow()), SENDER));
     }
 
     assertThat(batchRepository.findAllById(List.of(firstId, secondId)))
@@ -122,8 +127,29 @@ class TransactionBatchFinalizerTransactionTest {
         .containsExactlyInAnyOrder(
             sentBatchWithDriveFileUrls(firstId), sentBatchWithDriveFileUrls(secondId));
     assertThat(events.stream(BatchFinalizedEvent.class))
-        .extracting(BatchFinalizedEvent::batchId)
-        .containsExactly(firstId, secondId);
+        .extracting(BatchFinalizedEvent::batchIds)
+        .containsExactly(List.of(firstId), List.of(secondId));
+  }
+
+  @Test
+  void driveFileUrlsOfTheDaysFiles_areStoredOnEveryBatchSentTogether() {
+    var firstId = saveConfirmedBatch();
+    var secondId = saveConfirmedBatch();
+    givenExportsUploadedToDrive();
+
+    new TransactionTemplate(transactionManager)
+        .executeWithoutResult(
+            status ->
+                finalizer.finalizeConfirmedBatches(
+                    batchRepository.findAllById(List.of(firstId, secondId)), SENDER));
+
+    assertThat(batchRepository.findAllById(List.of(firstId, secondId)))
+        .usingRecursiveFieldByFieldElementComparatorIgnoringFields("version")
+        .containsExactlyInAnyOrder(
+            sentBatchWithDriveFileUrls(firstId), sentBatchWithDriveFileUrls(secondId));
+    assertThat(events.stream(BatchFinalizedEvent.class))
+        .extracting(BatchFinalizedEvent::batchIds)
+        .containsExactly(List.of(firstId, secondId));
   }
 
   private Long saveConfirmedBatch() {
@@ -144,7 +170,7 @@ class TransactionBatchFinalizerTransactionTest {
     given(exportService.generateSebEtfExport(any(), any())).willReturn(new byte[] {3});
     given(exportService.generateFtEtfExport(any(), any(), any(), any())).willReturn(new byte[] {4});
     given(exportService.generateUuidWorkbook(any())).willReturn(new byte[] {5});
-    given(exportUploader.uploadExports(eq(ROOT_FOLDER_ID), eq(TUV100), eq(NOW), any()))
+    given(exportUploader.uploadExports(eq(ROOT_FOLDER_ID), any(), eq(NOW), any()))
         .willReturn(DRIVE_FILE_URLS);
   }
 

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
@@ -68,20 +69,53 @@ class TransactionAdminService {
   }
 
   @Transactional
-  TransactionBatchResponse confirmAndFinalize(Long id, Long reviewedVersion, String actor) {
-    TransactionBatch batch = draftBatch(id);
-    batchConfirmations.requireAllowedToSend(batch, reviewedVersion, actor);
-    log.info("Admin confirmed transaction batch: id={}, actor={}", id, actor);
+  List<TransactionBatchResponse> confirmAndSend(List<ReviewedBatch> reviewedBatches, String actor) {
+    requireEachBatchOnce(reviewedBatches);
+    List<ReviewedDraft> drafts =
+        reviewedBatches.stream()
+            .map(reviewed -> new ReviewedDraft(draftBatch(reviewed.id()), reviewed.version()))
+            .toList();
+    OrderSender sender =
+        drafts.stream()
+            .map(
+                draft ->
+                    batchConfirmations.requireAllowedToSend(
+                        draft.batch(), draft.reviewedVersion(), actor))
+            .toList()
+            .getFirst();
+    log.info(
+        "Admin confirmed transaction batches for sending: ids={}, actor={}",
+        reviewedBatches.stream().map(ReviewedBatch::id).toList(),
+        actor);
+    Instant confirmedAt = Instant.now(clock);
+    List<TransactionBatch> batches = drafts.stream().map(ReviewedDraft::batch).toList();
+    batches.forEach(batch -> confirm(batch, actor, confirmedAt));
+    batchFinalizer.finalizeConfirmedBatches(batches, sender);
+    return batches.stream().map(this::responseOf).toList();
+  }
+
+  private record ReviewedDraft(TransactionBatch batch, Long reviewedVersion) {}
+
+  private static void requireEachBatchOnce(List<ReviewedBatch> reviewedBatches) {
+    long distinctBatches = reviewedBatches.stream().map(ReviewedBatch::id).distinct().count();
+    if (distinctBatches != reviewedBatches.size()) {
+      throw new ResponseStatusException(
+          BAD_REQUEST,
+          "A batch is listed more than once: ids="
+              + reviewedBatches.stream().map(ReviewedBatch::id).toList());
+    }
+  }
+
+  private void confirm(TransactionBatch batch, String actor, Instant confirmedAt) {
     batch.setStatus(BatchStatus.CONFIRMED);
     batch.setConfirmedBy(actor);
-    batch.setConfirmedAt(Instant.now(clock));
+    batch.setConfirmedAt(confirmedAt);
     try {
       batchRepository.saveAndFlush(batch);
     } catch (ObjectOptimisticLockingFailureException e) {
-      throw new ResponseStatusException(CONFLICT, "Batch was modified concurrently: id=" + id);
+      throw new ResponseStatusException(
+          CONFLICT, "Batch was modified concurrently: id=" + batch.getId());
     }
-    batchFinalizer.finalizeConfirmedBatch(batch);
-    return responseOf(batch);
   }
 
   private TransactionBatch draftBatch(Long id) {

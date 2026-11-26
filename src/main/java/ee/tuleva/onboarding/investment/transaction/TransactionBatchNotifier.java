@@ -21,8 +21,8 @@ class TransactionBatchNotifier {
   void onBatchFinalized(BatchFinalizedEvent event) {
     try {
       String header =
-          "Transaction batch finalized: batchId=%s, %d orders, tradeDate=%s"
-              .formatted(event.batchId(), event.orderCount(), event.tradeDate());
+          "Transaction batches finalized: batchIds=%s, %d orders, tradeDate=%s"
+              .formatted(event.batchIds(), event.orderCount(), event.tradeDate());
 
       String driveLinks =
           event.driveFileUrls() == null || event.driveFileUrls().isEmpty()
@@ -40,7 +40,7 @@ class TransactionBatchNotifier {
 
       notificationService.sendMessage(header + driveLinks, INVESTMENT);
     } catch (Exception e) {
-      log.error("Failed to send batch finalization notification: batchId={}", event.batchId(), e);
+      log.error("Failed to send batch finalization notification: batchIds={}", event.batchIds(), e);
     }
   }
 }

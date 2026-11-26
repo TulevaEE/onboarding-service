@@ -68,7 +68,9 @@ public class NavReleaseService {
   private NavReleaseStatus sendAndStamp(
       TulevaFund fund, LocalDate navDate, NavReleaseApproval approval) {
     List<NavReportRow> rows =
-        latestCalculationOf(navReportRepository.findTheDatesRowsForUpdate(fund.getCode(), navDate))
+        latestCalculationOf(
+                navReportRepository.findTheDatesRowsForUpdateAfterAReplacementInProgress(
+                    fund.getCode(), navDate))
             .orElseThrow(() -> noCalculation(fund, navDate));
     NavReleaseStatus current = statusOf(fund, navDate, rows);
     refuseUnlessReleasable(current, approval);

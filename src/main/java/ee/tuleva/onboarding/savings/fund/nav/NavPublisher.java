@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.savings.fund.nav.NavPublication.SENT;
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueWriter;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
@@ -30,6 +31,7 @@ public class NavPublisher {
   private static final String NAV_ACCOUNT_TYPE = "NAV";
 
   private final FundValueWriter fundValueWriter;
+  private final FundValueQueries fundValueQueries;
   private final NavReportMapper navReportMapper;
   private final NavReportRepository navReportRepository;
   private final NavReportEmailSender navReportEmailSender;
@@ -148,6 +150,15 @@ public class NavPublisher {
           result, reportRows, gateFailure.get(), reviewActionMessage(result, gateFailure.get()));
       return NOT_SENT;
     }
+    Optional<String> publicNavDifference = publicNavDifference(result);
+    if (publicNavDifference.isPresent()) {
+      routeToInternalReview(
+          result,
+          reportRows,
+          publicNavDifference.get(),
+          publicNavActionMessage(result, publicNavDifference.get()));
+      return NOT_SENT;
+    }
 
     return requireNonNull(
         transactionOperations.execute(
@@ -187,6 +198,37 @@ public class NavPublisher {
             + result.positionReportDate(),
         SAVINGS);
     return NOT_SENT;
+  }
+
+  private Optional<String> publicNavDifference(NavCalculationResult result) {
+    if (!result.fund().isSavingsFund()) {
+      return Optional.empty();
+    }
+    LocalDate navDate = result.positionReportDate();
+    Optional<BigDecimal> publicNav = publicValue(result.fund().getIsin(), navDate);
+    Optional<BigDecimal> publicAum = publicValue(result.fund().getAumKey(), navDate);
+    if (!differs(publicNav, result.navPerUnit()) && !differs(publicAum, result.aum())) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        "The public NAV in index_values differs from the recalculation: publicNav=%s, recalculatedNav=%s, publicAum=%s, recalculatedAum=%s"
+            .formatted(
+                plain(publicNav),
+                result.navPerUnit().toPlainString(),
+                plain(publicAum),
+                result.aum().toPlainString()));
+  }
+
+  private Optional<BigDecimal> publicValue(String key, LocalDate navDate) {
+    return fundValueQueries.getValueForDate(key, navDate).map(FundValue::value);
+  }
+
+  private static boolean differs(Optional<BigDecimal> publicValue, BigDecimal recalculated) {
+    return publicValue.filter(value -> value.compareTo(recalculated) != 0).isPresent();
+  }
+
+  private static String plain(Optional<BigDecimal> value) {
+    return value.map(BigDecimal::toPlainString).orElse("not stored");
   }
 
   private boolean isReplacedByANewerCalculation(
@@ -238,6 +280,23 @@ public class NavPublisher {
         3. Optional (needs compliance sign-off) — widen the TD gate going forward:
            INSERT INTO investment_parameter (parameter_name, fund_code, effective_date, numeric_value) VALUES ('TRACKING_BREACH_THRESHOLD', NULL, CURRENT_DATE, 0.005);"""
         .formatted(reason, result.fund().getCode(), howToRelease(result));
+  }
+
+  private String publicNavActionMessage(NavCalculationResult result, String reason) {
+    return """
+        🔴 %s NAV recalculated to a value other than the public one — held for review, NOT sent to SEB.
+        %s
+        The CSV report was emailed to funds@tuleva.ee.
+        Issuing and redemptions price at the public NAV in index_values, which is append-only.
+        Until it is corrected or released, the NAV is recalculated every 5–15 minutes and this message repeats.
+
+        What to do now:
+        1. Check the recalculated NAV against the SEB custodian report.
+        2. If it is correct, correct the NAV and AUM of navDate=%s in index_values by hand. The next recalculation then goes to SEB on its own.
+        3. Or release it as it is. The release sends the report to SEB and leaves index_values unchanged.
+        %s"""
+        .formatted(
+            result.fund().getCode(), reason, result.positionReportDate(), howToRelease(result));
   }
 
   private String revisionActionMessage(NavCalculationResult result, String reason) {

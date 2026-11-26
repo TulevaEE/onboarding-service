@@ -381,6 +381,21 @@ class NavReportRepositoryTest {
   }
 
   @Test
+  void findTheDatesRowsForUpdateAfterAReplacementInProgress_returnsTheRowsAReplacementLeft() {
+    var navDate = LocalDate.of(2026, 11, 23);
+    navReportRepository.save(navRow(navDate, UUID.randomUUID(), "1.40660000", null));
+    var replacement = UUID.randomUUID();
+    navReportRepository.replaceByNavDateAndFundCode(
+        navDate, "TKF100", List.of(navRow(navDate, replacement, "1.40660000", null)));
+
+    assertThat(
+            navReportRepository.findTheDatesRowsForUpdateAfterAReplacementInProgress(
+                "TKF100", navDate))
+        .extracting(NavReportRow::getCalculationId)
+        .containsExactly(replacement);
+  }
+
+  @Test
   void findByCalculationIdOrderById_returnsOnlyThatCalculationsRowsInOrder() {
     var navDate = LocalDate.of(2026, 11, 23);
     var calculation = UUID.randomUUID();

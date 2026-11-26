@@ -117,6 +117,12 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
     saveAll(rows);
   }
 
+  default List<NavReportRow> findTheDatesRowsForUpdateAfterAReplacementInProgress(
+      String fundCode, LocalDate navDate) {
+    findTheDatesRowsForUpdate(fundCode, navDate);
+    return findTheDatesRowsForUpdate(fundCode, navDate);
+  }
+
   @Lock(PESSIMISTIC_WRITE)
   @Query(
       "SELECT row FROM NavReportRow row WHERE row.fundCode = :fundCode AND row.navDate = :navDate"

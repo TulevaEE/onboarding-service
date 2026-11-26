@@ -45,6 +45,7 @@ import org.springframework.transaction.support.TransactionOperations;
 class NavPublisherTest {
 
   @Mock private FundValueWriter fundValueWriter;
+  @Mock private FundValueQueries fundValueQueries;
   @Mock private NavReportMapper navReportMapper;
   @Mock private NavReportRepository navReportRepository;
   @Mock private NavReportEmailSender navReportEmailSender;
@@ -259,6 +260,7 @@ class NavPublisherTest {
     var publisher =
         new NavPublisher(
             fundValues,
+            fundValues,
             navReportMapper,
             navReportRepository,
             navReportEmailSender,
@@ -368,6 +370,83 @@ class NavPublisherTest {
     assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.SENT);
 
     then(navReportRepository).should().markAsPublished(reportRow.getCalculationId());
+  }
+
+  @Test
+  void publish_holdsATkf100RecalculationWhoseNavDiffersFromThePublicNav_insteadOfSendingIt() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TKF100, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build()));
+    given(fundValueQueries.getValueForDate(TKF100.getIsin(), yesterday))
+        .willReturn(Optional.of(publicValue(TKF100.getIsin(), yesterday, "9.70000")));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
+
+    then(navReportEmailSender).should(never()).send(any(), any());
+    then(navReportRepository).should(never()).markAsPublished(any(UUID.class));
+    then(notificationService)
+        .should()
+        .sendMessage(
+            contains(
+                "The public NAV in index_values differs from the recalculation: publicNav=9.70000, recalculatedNav=9.69941"),
+            eq(SAVINGS));
+  }
+
+  @Test
+  void publish_holdsATkf100RecalculationWhoseAumDiffersFromThePublicAum_insteadOfSendingIt() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TKF100, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build()));
+    given(fundValueQueries.getValueForDate(TKF100.getIsin(), yesterday))
+        .willReturn(Optional.of(publicValue(TKF100.getIsin(), yesterday, "9.69941")));
+    given(fundValueQueries.getValueForDate(TKF100.getAumKey(), yesterday))
+        .willReturn(Optional.of(publicValue(TKF100.getAumKey(), yesterday, "1.00")));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
+
+    then(navReportEmailSender).should(never()).send(any(), any());
+  }
+
+  @Test
+  void publish_sendsATkf100RecalculationThatMatchesThePublicNavAndAum() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TKF100, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build()));
+    given(fundValueQueries.getValueForDate(TKF100.getIsin(), yesterday))
+        .willReturn(Optional.of(publicValue(TKF100.getIsin(), yesterday, "9.699410")));
+    given(fundValueQueries.getValueForDate(TKF100.getAumKey(), yesterday))
+        .willReturn(
+            Optional.of(publicValue(TKF100.getAumKey(), yesterday, result.aum().toPlainString())));
+    given(navReportEmailSender.send(any(), eq(result))).willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.SENT);
+  }
+
+  @Test
+  void publish_doesNotLookUpAPublicNavForAPensionFund() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build()));
+    given(navReportEmailSender.send(any(), eq(result))).willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.SENT);
+
+    then(fundValueQueries).shouldHaveNoInteractions();
+  }
+
+  private static FundValue publicValue(String key, LocalDate date, String value) {
+    return new FundValue(
+        key, date, new BigDecimal(value), "TULEVA", Instant.parse("2025-01-15T13:20:00Z"));
   }
 
   @Test
@@ -517,7 +596,10 @@ class NavPublisherTest {
 
     @Override
     public Optional<FundValue> getValueForDate(String key, LocalDate date) {
-      throw new UnsupportedOperationException();
+      return values.stream()
+          .filter(value -> value.key().equals(key))
+          .filter(value -> value.date().equals(date))
+          .findFirst();
     }
 
     @Override

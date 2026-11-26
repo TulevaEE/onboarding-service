@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.pipeline.PipelineStep.REPORT_EMAIL;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.REPORT_PERSIST;
 import static ee.tuleva.onboarding.savings.fund.nav.NavPublication.NOT_SENT;
 import static ee.tuleva.onboarding.savings.fund.nav.NavPublication.SENT;
+import static java.math.RoundingMode.HALF_UP;
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -29,6 +30,7 @@ public class NavPublisher {
 
   private static final String NAV_PROVIDER = "TULEVA";
   private static final String NAV_ACCOUNT_TYPE = "NAV";
+  private static final int INDEX_VALUES_DECIMAL_PLACES = 5;
 
   private final FundValueWriter fundValueWriter;
   private final FundValueQueries fundValueQueries;
@@ -224,7 +226,8 @@ public class NavPublisher {
   }
 
   private static boolean differs(Optional<BigDecimal> publicValue, BigDecimal recalculated) {
-    return publicValue.filter(value -> value.compareTo(recalculated) != 0).isPresent();
+    BigDecimal asIndexValuesStoresIt = recalculated.setScale(INDEX_VALUES_DECIMAL_PLACES, HALF_UP);
+    return publicValue.filter(value -> value.compareTo(asIndexValuesStoresIt) != 0).isPresent();
   }
 
   private static String plain(Optional<BigDecimal> value) {

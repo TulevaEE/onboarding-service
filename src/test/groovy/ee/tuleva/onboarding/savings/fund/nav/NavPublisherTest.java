@@ -431,6 +431,24 @@ class NavPublisherTest {
   }
 
   @Test
+  void publish_comparesTheRecalculationWithThePublicNavAtThePrecisionIndexValuesStores() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result =
+        buildResult(
+            TKF100, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"), "969941.0712345");
+    given(navReportMapper.map(result))
+        .willReturn(List.of(NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build()));
+    given(fundValueQueries.getValueForDate(TKF100.getIsin(), yesterday))
+        .willReturn(Optional.of(publicValue(TKF100.getIsin(), yesterday, "9.69941")));
+    given(fundValueQueries.getValueForDate(TKF100.getAumKey(), yesterday))
+        .willReturn(Optional.of(publicValue(TKF100.getAumKey(), yesterday, "969941.07123")));
+    given(navReportEmailSender.send(any(), eq(result))).willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.SENT);
+  }
+
+  @Test
   void publish_doesNotLookUpAPublicNavForAPensionFund() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
@@ -554,6 +572,15 @@ class NavPublisherTest {
       LocalDate calculationDate,
       LocalDate positionReportDate,
       Instant calculatedAt) {
+    return buildResult(fund, calculationDate, positionReportDate, calculatedAt, "969941.07");
+  }
+
+  private NavCalculationResult buildResult(
+      ee.tuleva.onboarding.tulevafund.TulevaFund fund,
+      LocalDate calculationDate,
+      LocalDate positionReportDate,
+      Instant calculatedAt,
+      String aum) {
     return NavCalculationResult.builder()
         .fund(fund)
         .calculationDate(calculationDate)
@@ -566,7 +593,7 @@ class NavPublisherTest {
         .depotFeeAccrual(new BigDecimal("6.85"))
         .payables(new BigDecimal("5000.00"))
         .blackrockAdjustment(BigDecimal.ZERO)
-        .aum(new BigDecimal("969941.07"))
+        .aum(new BigDecimal(aum))
         .unitsOutstanding(new BigDecimal("100000.00000"))
         .navPerUnit(new BigDecimal("9.69941"))
         .positionReportDate(positionReportDate)

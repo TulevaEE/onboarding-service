@@ -44,7 +44,7 @@ public class MemberEmailService {
             decision.emailTags("memberNumber"));
 
     emailService
-        .send(user, message, templateName)
+        .sendFromBackgroundJob(user, message, templateName)
         .ifPresent(
             response ->
                 emailPersistenceService.save(

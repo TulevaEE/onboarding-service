@@ -18,6 +18,8 @@ final class MandrillHttp {
 
   private static final Duration CONNECT_TIMEOUT_FOR_BACKGROUND_JOB = Duration.ofSeconds(10);
   private static final Duration ANSWER_TIMEOUT_FOR_BACKGROUND_JOB = Duration.ofSeconds(30);
+  private static final Duration CONNECT_TIMEOUT_WHILE_A_USER_WAITS = Duration.ofSeconds(5);
+  private static final Duration ANSWER_TIMEOUT_WHILE_A_USER_WAITS = Duration.ofSeconds(10);
   private static final List<Class<? extends Throwable>> FAILURES_BEFORE_REACHING_MANDRILL =
       List.of(
           ConnectException.class, UnknownHostException.class, HttpConnectTimeoutException.class);
@@ -27,6 +29,11 @@ final class MandrillHttp {
   static RestClient restClientForBackgroundJob(URI mandrillApiUrl) {
     return restClient(
         mandrillApiUrl, CONNECT_TIMEOUT_FOR_BACKGROUND_JOB, ANSWER_TIMEOUT_FOR_BACKGROUND_JOB);
+  }
+
+  static RestClient restClientWhileAUserWaits(URI mandrillApiUrl) {
+    return restClient(
+        mandrillApiUrl, CONNECT_TIMEOUT_WHILE_A_USER_WAITS, ANSWER_TIMEOUT_WHILE_A_USER_WAITS);
   }
 
   static RestClient restClient(

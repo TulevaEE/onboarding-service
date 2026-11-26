@@ -65,7 +65,7 @@ class AdultAccountOpenedEmailSenderTest {
     var response = mandrillResponse("message-id", "sent");
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.attemptSend(unpaid.holder(), message, TEMPLATE))
+    given(emailService.attemptSendFromBackgroundJob(unpaid.holder(), message, TEMPLATE))
         .willReturn(Optional.of(response));
 
     sender.send(unpaid);
@@ -80,7 +80,7 @@ class AdultAccountOpenedEmailSenderTest {
     var response = mandrillResponse("message-id", "rejected");
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.attemptSend(unpaid.holder(), message, TEMPLATE))
+    given(emailService.attemptSendFromBackgroundJob(unpaid.holder(), message, TEMPLATE))
         .willReturn(Optional.of(response));
 
     sender.send(unpaid);
@@ -95,7 +95,7 @@ class AdultAccountOpenedEmailSenderTest {
     var response = mandrillResponse("message-id", "sent");
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.attemptSend(unpaid.holder(), message, TEMPLATE))
+    given(emailService.attemptSendFromBackgroundJob(unpaid.holder(), message, TEMPLATE))
         .willReturn(Optional.of(response));
     given(emailPersistenceService.save(any(), any(), any(), any()))
         .willThrow(new RuntimeException("database is down"));
@@ -126,7 +126,7 @@ class AdultAccountOpenedEmailSenderTest {
     var message = new MandrillMessage();
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.attemptSend(unpaid.holder(), message, TEMPLATE))
+    given(emailService.attemptSendFromBackgroundJob(unpaid.holder(), message, TEMPLATE))
         .willReturn(Optional.empty());
 
     sender.send(unpaid);

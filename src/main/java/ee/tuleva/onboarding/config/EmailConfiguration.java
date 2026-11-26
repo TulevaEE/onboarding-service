@@ -1,66 +1,26 @@
 package ee.tuleva.onboarding.config;
 
-import com.microtripit.mandrillapp.lutung.MandrillApi;
-import com.microtripit.mandrillapp.lutung.model.MandrillApiError;
 import io.github.erkoristhein.mailchimp.ApiClient;
 import io.github.erkoristhein.mailchimp.api.MessagesApi;
 import io.github.erkoristhein.mailchimp.marketing.api.CampaignsApi;
 import io.github.erkoristhein.mailchimp.marketing.api.ListsApi;
 import io.github.erkoristhein.mailchimp.marketing.api.ReportsApi;
-import java.io.IOException;
-import java.time.Duration;
-import java.util.Optional;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.retry.RetryPolicy;
-import org.springframework.core.retry.RetryTemplate;
 
 @Configuration
-@Slf4j
-@Getter
 public class EmailConfiguration {
 
   @Value("${mandrill.url}")
   private String mandrillUrl;
-
-  @Value("${mandrill.key:#{null}}")
-  private @Nullable String mandrillKey;
 
   @Value("${mailchimp.url}")
   private String mailchimpUrl;
 
   @Value("${mailchimp.key:#{null}}")
   private @Nullable String mailchimpKey;
-
-  private Optional<String> mandrillKey() {
-    return Optional.ofNullable(mandrillKey);
-  }
-
-  @Bean
-  public @Nullable MandrillApi mandrillApi() {
-    if (mandrillKey().isEmpty()) {
-      log.warn("Mandrill key not present.");
-    }
-
-    return mandrillKey().map(MandrillApi::new).orElse(null);
-  }
-
-  @Bean
-  RetryTemplate emailServiceRetryTemplate() {
-    var policy =
-        RetryPolicy.builder()
-            .includes(MandrillApiError.class, IOException.class)
-            .maxRetries(2)
-            .delay(Duration.ofMillis(200))
-            .multiplier(3)
-            .maxDelay(Duration.ofSeconds(2))
-            .build();
-    return new RetryTemplate(policy);
-  }
 
   @Bean
   public ApiClient mailchimpTransactionalApiClient() {

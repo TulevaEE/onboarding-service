@@ -3,8 +3,6 @@ package ee.tuleva.onboarding.notification.email;
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.MergeVarBucket;
 import static java.util.function.Predicate.not;
 
-import com.microtripit.mandrillapp.lutung.MandrillApi;
-import com.microtripit.mandrillapp.lutung.model.MandrillApiError;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MergeVar;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
@@ -12,13 +10,11 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import com.microtripit.mandrillapp.lutung.view.MandrillScheduledMessageInfo;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.config.EmailConfiguration;
-import java.io.IOException;
 import java.time.Instant;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,16 +26,13 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class EmailService {
 
-  private final EmailConfiguration emailConfiguration;
-  private final MandrillApi mandrillApi;
+  private final @Nullable MandrillClient mandrillClient;
   private final RetryTemplate emailServiceRetryTemplate;
 
-  public EmailService(
-      EmailConfiguration emailConfiguration,
-      @Autowired(required = false) MandrillApi mandrillApi,
+  EmailService(
+      @Autowired(required = false) @Nullable MandrillClient mandrillClient,
       RetryTemplate emailServiceRetryTemplate) {
-    this.emailConfiguration = emailConfiguration;
-    this.mandrillApi = mandrillApi;
+    this.mandrillClient = mandrillClient;
     this.emailServiceRetryTemplate = emailServiceRetryTemplate;
   }
 
@@ -114,14 +107,45 @@ public class EmailService {
         .filter(not(MandrillRecipientStatuses::hasFailed));
   }
 
+  public Optional<MandrillMessageStatus> sendFromBackgroundJob(
+      Person person, MandrillMessage message, String templateName) {
+    return attemptSendFromBackgroundJob(person, message, templateName)
+        .filter(not(MandrillRecipientStatuses::hasFailed));
+  }
+
   public Optional<MandrillMessageStatus> attemptSend(
       Person person, MandrillMessage message, String templateName) {
     return attemptSend(person, message, templateName, null);
   }
 
+  public Optional<MandrillMessageStatus> attemptSendFromBackgroundJob(
+      Person person, MandrillMessage message, String templateName) {
+    return attemptSend(
+        person,
+        message,
+        templateName,
+        null,
+        mandrillClient -> mandrillClient.sendTemplateFromBackgroundJob(templateName, message));
+  }
+
   private Optional<MandrillMessageStatus> attemptSend(
       Person person, MandrillMessage message, String templateName, @Nullable Instant sendAt) {
-    if (mandrillApi == null) {
+    return attemptSend(
+        person,
+        message,
+        templateName,
+        sendAt,
+        mandrillClient -> mandrillClient.sendTemplate(templateName, message, sendAt));
+  }
+
+  private Optional<MandrillMessageStatus> attemptSend(
+      Person person,
+      MandrillMessage message,
+      String templateName,
+      @Nullable Instant sendAt,
+      Function<MandrillClient, MandrillMessageStatus[]> delivery) {
+    var mandrillClient = this.mandrillClient;
+    if (mandrillClient == null) {
       log.warn(
           "Mandrill not initialised, not sending email for person: personalCode={}, sendAt={}, templateName={}",
           person.getPersonalCode(),
@@ -139,16 +163,13 @@ public class EmailService {
     }
 
     try {
-      Date sendDate = sendAt != null ? Date.from(sendAt) : null;
       log.info(
           "Sending email to person: personalCode={}, sendAt={}, templateName={}",
           person.getPersonalCode(),
-          sendDate,
+          sendAt,
           templateName);
 
-      MandrillMessageStatus response =
-          mandrillApi.messages()
-              .sendTemplate(templateName, Map.of(), message, false, null, sendDate)[0];
+      MandrillMessageStatus response = delivery.apply(mandrillClient)[0];
       MandrillRecipientStatuses.logStatus(response);
 
       if (MandrillRecipientStatuses.hasFailed(response)) {
@@ -165,8 +186,13 @@ public class EmailService {
       }
       return Optional.of(response);
 
-    } catch (MandrillApiError mandrillApiError) {
-      log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);
+    } catch (MandrillApiException e) {
+      log.error(
+          "Mandrill refused to send email: personalCode={}, templateName={}, error={}",
+          person.getPersonalCode(),
+          templateName,
+          e.getError(),
+          e);
       return Optional.empty();
     } catch (Exception e) {
       log.error(
@@ -179,7 +205,8 @@ public class EmailService {
   }
 
   public boolean sendSystemEmail(MandrillMessage message) {
-    if (mandrillApi == null) {
+    var mandrillClient = this.mandrillClient;
+    if (mandrillClient == null) {
       log.warn("Mandrill not initialised, not sending system email");
       return false;
     }
@@ -188,7 +215,7 @@ public class EmailService {
       emailServiceRetryTemplate.execute(
           () -> {
             log.info("Sending system email: to={}", message.getTo());
-            MandrillMessageStatus[] statuses = mandrillApi.messages().send(message, false);
+            MandrillMessageStatus[] statuses = mandrillClient.send(message);
             MandrillRecipientStatuses.of(message, statuses).requireAcceptedByEveryMainRecipient();
             return statuses;
           });
@@ -203,18 +230,29 @@ public class EmailService {
   }
 
   public Optional<MandrillScheduledMessageInfo> cancelScheduledEmail(String mandrillMessageId) {
+    var mandrillClient = this.mandrillClient;
+    if (mandrillClient == null) {
+      log.warn(
+          "Mandrill not initialised, not cancelling scheduled email: mandrillMessageId={}",
+          mandrillMessageId);
+      return Optional.empty();
+    }
     try {
-      return Optional.of(mandrillApi.messages().cancelScheduled(mandrillMessageId));
-    } catch (MandrillApiError mandrillApiError) {
-      if ("Unknown_Message".equals(mandrillApiError.getMandrillErrorName())) {
+      return Optional.of(mandrillClient.cancelScheduled(mandrillMessageId));
+    } catch (MandrillApiException e) {
+      if (e.isUnknownMessage()) {
         log.info(
-            "Mandrill email already sent out?, cannot cancel: {}",
-            mandrillApiError.getMandrillErrorAsJson());
+            "Mandrill email already sent out?, cannot cancel: mandrillMessageId={}",
+            mandrillMessageId);
       } else {
-        log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);
+        log.error(
+            "Mandrill refused to cancel scheduled email: mandrillMessageId={}, error={}",
+            mandrillMessageId,
+            e.getError(),
+            e);
       }
-    } catch (IOException e) {
-      log.error(e.getLocalizedMessage(), e);
+    } catch (RuntimeException e) {
+      log.error("Failed to cancel scheduled email: mandrillMessageId={}", mandrillMessageId, e);
     }
     return Optional.empty();
   }

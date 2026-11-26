@@ -963,7 +963,8 @@ class MandateBatchIntegrationTest {
         .send(any(), argThat(addressedTo(OLD_EMAIL)), eq("previous_contact_activity_en"));
     then(emailService)
         .should()
-        .send(any(), argThat(addressedTo(NEW_EMAIL)), eq(BATCH_FAILED.getTemplateName(ENGLISH)));
+        .sendFromBackgroundJob(
+            any(), argThat(addressedTo(NEW_EMAIL)), eq(BATCH_FAILED.getTemplateName(ENGLISH)));
     then(emailService).should(never()).send(any(), any(), eq("withdrawal_batch_en"));
   }
 

@@ -30,7 +30,7 @@ class ChildOnboardingAbandonmentReminderSender {
             reminder.parentEmail(), templateName, mergeVars(reminder), TAGS);
 
     emailService
-        .attemptSend(reminder.parent(), message, templateName)
+        .attemptSendFromBackgroundJob(reminder.parent(), message, templateName)
         .ifPresent(
             response ->
                 emailPersistenceService.save(

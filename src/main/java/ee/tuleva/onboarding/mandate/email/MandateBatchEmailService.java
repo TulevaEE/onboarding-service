@@ -92,7 +92,7 @@ public class MandateBatchEmailService {
             getMandateBatchTags(mandateBatch),
             getAttachments(user, mandateBatch));
     emailService
-        .send(user, mandrillMessage, templateName)
+        .sendFromBackgroundJob(user, mandrillMessage, templateName)
         .ifPresent(
             response ->
                 emailPersistenceService.saveWithMandateBatch(

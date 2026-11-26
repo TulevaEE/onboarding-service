@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static java.util.Comparator.comparing;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -29,6 +30,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 @NullMarked
 class TransactionAdminService {
+
+  private static final Comparator<ReviewedBatch>
+      BY_ID_SO_OVERLAPPING_SENDS_LOCK_THE_BATCHES_IN_ONE_ORDER = comparing(ReviewedBatch::id);
 
   private final TransactionCommandRepository commandRepository;
   private final TransactionBatchRepository batchRepository;
@@ -70,11 +74,13 @@ class TransactionAdminService {
 
   @Transactional
   List<TransactionBatchResponse> confirmAndSend(List<ReviewedBatch> reviewedBatches, String actor) {
-    requireEachBatchOnce(reviewedBatches);
+    SendRequestChecks.requireEachBatchOnce(reviewedBatches);
     List<ReviewedDraft> drafts =
         reviewedBatches.stream()
+            .sorted(BY_ID_SO_OVERLAPPING_SENDS_LOCK_THE_BATCHES_IN_ONE_ORDER)
             .map(reviewed -> new ReviewedDraft(draftBatch(reviewed.id()), reviewed.version()))
             .toList();
+    SendRequestChecks.requireOneBatchPerFund(drafts.stream().map(ReviewedDraft::batch).toList());
     OrderSender sender =
         drafts.stream()
             .map(
@@ -95,16 +101,6 @@ class TransactionAdminService {
   }
 
   private record ReviewedDraft(TransactionBatch batch, Long reviewedVersion) {}
-
-  private static void requireEachBatchOnce(List<ReviewedBatch> reviewedBatches) {
-    long distinctBatches = reviewedBatches.stream().map(ReviewedBatch::id).distinct().count();
-    if (distinctBatches != reviewedBatches.size()) {
-      throw new ResponseStatusException(
-          BAD_REQUEST,
-          "A batch is listed more than once: ids="
-              + reviewedBatches.stream().map(ReviewedBatch::id).toList());
-    }
-  }
 
   private void confirm(TransactionBatch batch, String actor, Instant confirmedAt) {
     batch.setStatus(BatchStatus.CONFIRMED);

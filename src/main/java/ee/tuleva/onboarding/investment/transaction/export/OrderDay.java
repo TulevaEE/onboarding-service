@@ -1,12 +1,13 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
+import static java.util.stream.Collectors.joining;
+
 import ee.tuleva.onboarding.investment.transaction.OrderSender;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public record OrderDay(
     List<Long> batchIds,
@@ -23,8 +24,6 @@ public record OrderDay(
   }
 
   String emailKey(OrderEmail email) {
-    return email.name()
-        + ":"
-        + batchIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+    return email.name() + ":" + batchIds.stream().map(String::valueOf).collect(joining(","));
   }
 }

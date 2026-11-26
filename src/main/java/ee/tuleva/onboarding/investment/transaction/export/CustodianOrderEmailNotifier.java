@@ -1,7 +1,13 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
+import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailSlackText.noResultRecorded;
+import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailSlackText.notBuilt;
+import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailSlackText.notSent;
+import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailSlackText.problemSeverity;
+import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailSlackText.resultUnknown;
+import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailSlackText.sent;
+import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailSlackText.sentButNotToEveryCopy;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.TRADING;
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
 import static ee.tuleva.onboarding.notification.email.EmailSendResult.Outcome.SENT;
 import static java.util.stream.Collectors.joining;
@@ -23,52 +29,39 @@ class CustodianOrderEmailNotifier {
   private final OperationsNotificationService notificationService;
   private final OrderEmailAlertRows alertRows;
 
-  void reportSendAttempt(String emailKey, MandrillMessage message) {
+  void reportSendAttempt(OrderEmailSummary summary) {
     alertRows.recordSendAttempt(
-        emailKey,
-        resultUnknown(
-            message.getSubject(),
-            "No send result was recorded: the service may have stopped while sending."));
+        summary.key(), noResultRecorded(summary), problemSeverity(summary.email()));
   }
 
-  void reportSendResult(String emailKey, MandrillMessage message, EmailSendResult result) {
+  void reportSendResult(
+      OrderEmailSummary summary, MandrillMessage message, EmailSendResult result) {
     var everyoneAccepted = result.notAccepted().isEmpty();
     var text =
         switch (result.outcome()) {
           case SENT ->
               everyoneAccepted
-                  ? "✅ Orders emailed: " + summary(message)
-                  : "🔴 Orders emailed, but not to every copy: %s\n%s\nThe orders went out, don't send them again. Find out why Mandrill rejected the copy."
-                      .formatted(summary(message), cause(result));
-          case FAILED -> ordersNotSent(message.getSubject(), cause(result));
-          case UNKNOWN -> resultUnknown(message.getSubject(), cause(result));
+                  ? sent(summary, message)
+                  : sentButNotToEveryCopy(summary, cause(result));
+          case FAILED -> notSent(summary, cause(result));
+          case UNKNOWN -> resultUnknown(summary, cause(result));
         };
-    post(emailKey, text, result.outcome() == SENT && everyoneAccepted ? INFO : ERROR);
+    post(
+        summary.key(),
+        text,
+        result.outcome() == SENT && everyoneAccepted ? INFO : problemSeverity(summary.email()));
   }
 
-  void recordNotBuilt(String emailKey, String subject, String problem) {
-    alertRows.recordFailedSend(emailKey, notBuilt(subject, problem));
+  void recordNotBuilt(OrderEmailSummary summary, String problem) {
+    alertRows.recordFailedSend(
+        summary.key(), notBuilt(summary, problem), problemSeverity(summary.email()));
   }
 
-  void postNotBuilt(String emailKey, String subject, String problem) {
-    var text = notBuilt(subject, problem);
-    if (postedToSlack(emailKey, text, ERROR)) {
-      markPosted(emailKey, text);
+  void postNotBuilt(OrderEmailSummary summary, String problem) {
+    var text = notBuilt(summary, problem);
+    if (postedToSlack(summary.key(), text, problemSeverity(summary.email()))) {
+      markPosted(summary.key(), text);
     }
-  }
-
-  private static String notBuilt(String subject, String problem) {
-    return ordersNotSent(subject, "The message could not be built: " + problem);
-  }
-
-  private static String resultUnknown(String subject, String cause) {
-    return "🔴 Orders email result UNKNOWN: %s\n%s\nIt may have gone out. Check the Cc copy or ask the desk before sending again."
-        .formatted(subject, cause);
-  }
-
-  private static String ordersNotSent(String subject, String cause) {
-    return "🔴 Orders NOT sent: %s\n%s\nNothing went out to the desk. Fix the cause, then send the orders again."
-        .formatted(subject, cause);
   }
 
   private void post(String emailKey, String text, Severity severity) {
@@ -137,17 +130,12 @@ class CustodianOrderEmailNotifier {
     }
   }
 
-  private static String summary(MandrillMessage message) {
-    return "%s, from %s, %d files"
-        .formatted(message.getSubject(), message.getFromEmail(), message.getAttachments().size());
-  }
-
   private static String cause(EmailSendResult result) {
     var notAccepted = result.notAccepted();
     if (notAccepted.isEmpty()) {
       return String.valueOf(result.problem());
     }
-    return "Not accepted: "
+    return "Vastu ei võetud: "
         + notAccepted.stream().map(CustodianOrderEmailNotifier::describe).collect(joining(", "));
   }
 

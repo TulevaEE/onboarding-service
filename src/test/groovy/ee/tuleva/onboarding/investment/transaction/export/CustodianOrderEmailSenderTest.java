@@ -55,6 +55,13 @@ class CustodianOrderEmailSenderTest {
   private static final String FT_KEY = "FT:12,13";
   private static final String SEB_FUND_KEY = "SEB_FUND:12,13";
   private static final String UUID_KEY = "UUID:12,13";
+  private static final BigDecimal ONE_ORDERS_AMOUNT = new BigDecimal("1000");
+  private static final OrderEmailSummary FT_SUMMARY =
+      new OrderEmailSummary(FT_KEY, OrderEmail.FT, 1, 0, ONE_ORDERS_AMOUNT);
+  private static final OrderEmailSummary SEB_FUND_SUMMARY =
+      new OrderEmailSummary(SEB_FUND_KEY, OrderEmail.SEB_FUND, 1, 0, ONE_ORDERS_AMOUNT);
+  private static final OrderEmailSummary UUID_SUMMARY =
+      new OrderEmailSummary(UUID_KEY, OrderEmail.UUID, 1, 0, ONE_ORDERS_AMOUNT);
   private static final String FT_SUBJECT = "Tuleva ETF orders 26.11.2026 – MOC";
   private static final String SEB_FUND_SUBJECT = "Tuleva fondide tehingukorraldused 26.11.2026";
   private static final String UUID_SUBJECT = "Tehingukorralduste UUID 26.11.2026";
@@ -75,11 +82,9 @@ class CustodianOrderEmailSenderTest {
 
     var sendTheOrders = sender.prepareSend(ftAndFundDay(MOC));
 
-    then(notifier).should().reportSendAttempt(eq(FT_KEY), messageWithSubject(FT_SUBJECT));
-    then(notifier)
-        .should()
-        .reportSendAttempt(eq(SEB_FUND_KEY), messageWithSubject(SEB_FUND_SUBJECT));
-    then(notifier).should().reportSendAttempt(eq(UUID_KEY), messageWithSubject(UUID_SUBJECT));
+    then(notifier).should().reportSendAttempt(FT_SUMMARY);
+    then(notifier).should().reportSendAttempt(SEB_FUND_SUMMARY);
+    then(notifier).should().reportSendAttempt(UUID_SUMMARY);
     then(orderEmailTransport).shouldHaveNoInteractions();
 
     sendTheOrders.run();
@@ -89,7 +94,7 @@ class CustodianOrderEmailSenderTest {
     then(orderEmailTransport).should().send(messageWithSubject(UUID_SUBJECT));
     then(notifier)
         .should()
-        .reportSendResult(eq(FT_KEY), messageWithSubject(FT_SUBJECT), eq(accepted));
+        .reportSendResult(eq(FT_SUMMARY), messageWithSubject(FT_SUBJECT), eq(accepted));
   }
 
   @Test
@@ -106,7 +111,7 @@ class CustodianOrderEmailSenderTest {
 
     sender.prepareSend(fundsOnly);
 
-    then(notifier).should().reportSendAttempt(eq(SEB_FUND_KEY), any());
+    then(notifier).should().reportSendAttempt(SEB_FUND_SUMMARY);
     then(notifier).shouldHaveNoMoreInteractions();
   }
 
@@ -177,7 +182,6 @@ class CustodianOrderEmailSenderTest {
     given(brokenFactory.create(day, OrderEmail.FT)).willReturn(message(FT_SUBJECT));
     given(brokenFactory.create(day, OrderEmail.UUID))
         .willThrow(new IllegalStateException("the UUID file has no content"));
-    given(brokenFactory.describe(day, OrderEmail.UUID)).willReturn("UUID workbook 26.11.2026");
     given(orderEmailTransport.send(any())).willReturn(new EmailSendResult(SENT, List.of(), null));
 
     var sendTheOrders = sender.prepareSend(day);
@@ -185,10 +189,8 @@ class CustodianOrderEmailSenderTest {
     then(notifier)
         .should()
         .recordNotBuilt(
-            UUID_KEY,
-            "UUID workbook 26.11.2026",
-            "java.lang.IllegalStateException: the UUID file has no content");
-    then(notifier).should(never()).reportSendAttempt(eq(UUID_KEY), any());
+            UUID_SUMMARY, "java.lang.IllegalStateException: the UUID file has no content");
+    then(notifier).should(never()).reportSendAttempt(UUID_SUMMARY);
 
     sendTheOrders.run();
 
@@ -196,9 +198,7 @@ class CustodianOrderEmailSenderTest {
     then(notifier)
         .should(notBuiltPostedBeforeTheSlowSends)
         .postNotBuilt(
-            UUID_KEY,
-            "UUID workbook 26.11.2026",
-            "java.lang.IllegalStateException: the UUID file has no content");
+            UUID_SUMMARY, "java.lang.IllegalStateException: the UUID file has no content");
     then(orderEmailTransport)
         .should(notBuiltPostedBeforeTheSlowSends)
         .send(messageWithSubject(FT_SUBJECT));
@@ -210,7 +210,7 @@ class CustodianOrderEmailSenderTest {
     var sender = new CustodianOrderEmailSender(properties, factory, orderEmailTransport, notifier);
     willThrow(new DataAccessResourceFailureException("database is down"))
         .given(notifier)
-        .reportSendAttempt(eq(FT_KEY), any());
+        .reportSendAttempt(FT_SUMMARY);
 
     assertThatThrownBy(() -> sender.prepareSend(ftOnlyDay()))
         .isInstanceOf(DataAccessResourceFailureException.class);
@@ -226,7 +226,7 @@ class CustodianOrderEmailSenderTest {
     then(notifier)
         .should()
         .reportSendResult(
-            eq(FT_KEY),
+            eq(FT_SUMMARY),
             messageWithSubject(FT_SUBJECT),
             argThat(result -> result.outcome() == UNKNOWN));
   }
@@ -237,7 +237,7 @@ class CustodianOrderEmailSenderTest {
     given(orderEmailTransport.send(any())).willReturn(new EmailSendResult(SENT, List.of(), null));
     willThrow(new IllegalStateException("a bug in the report"))
         .given(notifier)
-        .reportSendResult(eq(FT_KEY), any(), any());
+        .reportSendResult(eq(FT_SUMMARY), any(), any());
 
     sender.prepareSend(ftOnlyDay()).run();
 

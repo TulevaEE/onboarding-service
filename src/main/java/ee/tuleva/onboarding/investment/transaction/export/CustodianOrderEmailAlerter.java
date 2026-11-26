@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailAlert
 import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailAlertRows.isCandidate;
 import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailAlertRows.severity;
 import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailAlertRows.text;
+import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailDeliveryText.deliveryFailure;
+import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailDeliveryText.deliveryFailureSeverity;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.TRADING;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
@@ -41,7 +43,6 @@ import org.springframework.web.client.HttpClientErrorException;
 @RequiredArgsConstructor
 class CustodianOrderEmailAlerter {
 
-  private static final String DEFERRAL = "deferral";
   private static final List<String> RECORDED_TYPES =
       List.of(
           "TRADE_ORDER_EMAIL_HARD_BOUNCE",
@@ -89,13 +90,12 @@ class CustodianOrderEmailAlerter {
         event.eventType(),
         event.reason(),
         event.mandrillMessageId());
-    var delayed = DEFERRAL.equals(event.eventType());
     alertRows.recordDeliveryFailure(
         recordedType,
         event.mandrillMessageId(),
         event.timestamp(),
-        alertText(event),
-        delayed ? WARNING : ERROR);
+        deliveryFailure(event),
+        deliveryFailureSeverity(event));
   }
 
   @Scheduled(fixedRateString = "1m")
@@ -214,23 +214,7 @@ class CustodianOrderEmailAlerter {
       return text;
     }
     var lines = text.split("\n", 2);
-    var firstLine = "%s (at %s)".formatted(lines[0], EVENT_TIME.format(row.getTimestamp()));
+    var firstLine = "%s (toimus %s)".formatted(lines[0], EVENT_TIME.format(row.getTimestamp()));
     return lines.length == 1 ? firstLine : firstLine + "\n" + lines[1];
-  }
-
-  private static String alertText(EmailDeliveryFailedEvent event) {
-    return DEFERRAL.equals(event.eventType())
-        ? "🟠 Order email delayed: %s\n%s\nMandrill keeps trying. If the desk hasn't confirmed the orders before the cut-off, check with the desk."
-            .formatted(addressLine(event), causeLine(event))
-        : "🔴 Order email NOT delivered: %s\n%s\nThe orders did not reach this address. Check with the desk before sending them again."
-            .formatted(addressLine(event), causeLine(event));
-  }
-
-  private static String addressLine(EmailDeliveryFailedEvent event) {
-    return "to=%s, subject=%s".formatted(event.recipient(), event.subject());
-  }
-
-  private static String causeLine(EmailDeliveryFailedEvent event) {
-    return "%s: %s (id=%s)".formatted(event.eventType(), event.reason(), event.mandrillMessageId());
   }
 }

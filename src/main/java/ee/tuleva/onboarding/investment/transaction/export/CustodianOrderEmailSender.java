@@ -60,7 +60,7 @@ public class CustodianOrderEmailSender {
   }
 
   private PreparedEmail prepare(OrderDay day, OrderEmail email) {
-    String emailKey = day.emailKey(email);
+    var summary = OrderEmailSummary.of(day, email);
     MandrillMessage message;
     try {
       message = messageFactory.create(day, email);
@@ -68,15 +68,14 @@ public class CustodianOrderEmailSender {
       log.error(
           "Order email could not be built, recording it as not sent with the batches:"
               + " emailKey={}",
-          emailKey,
+          summary.key(),
           e);
-      var subject = messageFactory.describe(day, email);
       var problem = e.toString();
-      notifier.recordNotBuilt(emailKey, subject, problem);
-      return new PreparedEmail(() -> notifier.postNotBuilt(emailKey, subject, problem), Built.NO);
+      notifier.recordNotBuilt(summary, problem);
+      return new PreparedEmail(() -> notifier.postNotBuilt(summary, problem), Built.NO);
     }
-    notifier.reportSendAttempt(emailKey, message);
-    return new PreparedEmail(() -> send(emailKey, message), Built.YES);
+    notifier.reportSendAttempt(summary);
+    return new PreparedEmail(() -> send(summary, message), Built.YES);
   }
 
   private static void runOnItsOwn(Runnable send) {
@@ -87,18 +86,18 @@ public class CustodianOrderEmailSender {
     }
   }
 
-  private void send(String emailKey, MandrillMessage message) {
+  private void send(OrderEmailSummary summary, MandrillMessage message) {
     var result = sent(message);
-    notifier.reportSendResult(emailKey, message, result);
+    notifier.reportSendResult(summary, message, result);
     if (result.outcome() == SENT) {
       log.info(
           "Order email sent: emailKey={}, attachments={}",
-          emailKey,
+          summary.key(),
           message.getAttachments().size());
     } else {
       log.error(
           "Order email not confirmed as sent: emailKey={}, outcome={}, problem={}",
-          emailKey,
+          summary.key(),
           result.outcome(),
           result.problem());
     }

@@ -1,37 +1,47 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
+import static ee.tuleva.onboarding.notification.email.EmailDeliveryFailedEvent.TRADE_ORDER_TAG;
+import static java.util.Locale.ROOT;
+
+import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 enum OrderEmail {
-  FT(ExportFile.FT_ETF, Text.WRITTEN_HERE),
-  SEB_ETF(ExportFile.SEB_ETF, Text.FROM_CONFIGURATION),
-  SEB_FUND(ExportFile.SEB_FUND, Text.FROM_CONFIGURATION),
-  UUID(ExportFile.UUID_WORKBOOK, Text.WRITTEN_HERE);
-
-  private enum Text {
-    WRITTEN_HERE,
-    FROM_CONFIGURATION
-  }
+  FT(ExportFile.FT_ETF),
+  SEB_ETF(ExportFile.SEB_ETF),
+  SEB_FUND(ExportFile.SEB_FUND),
+  UUID(ExportFile.UUID_WORKBOOK);
 
   private final ExportFile file;
-  private final Text text;
 
-  OrderEmail(ExportFile file, Text text) {
+  OrderEmail(ExportFile file) {
     this.file = file;
-    this.text = text;
-  }
-
-  boolean takesItsTextFromConfiguration() {
-    return text == Text.FROM_CONFIGURATION;
   }
 
   ExportFile file() {
     return file;
   }
 
+  boolean takesItsTextFromConfiguration() {
+    return file == ExportFile.SEB_ETF || file == ExportFile.SEB_FUND;
+  }
+
+  String tag() {
+    return TRADE_ORDER_TAG + "-" + file.name().toLowerCase(ROOT).replace('_', '-');
+  }
+
+  boolean carries(TransactionOrder order) {
+    return file.takes(order);
+  }
+
   static List<OrderEmail> carrying(Map<ExportFile, byte[]> brokerFiles) {
     return Arrays.stream(values()).filter(email -> brokerFiles.containsKey(email.file)).toList();
+  }
+
+  static Optional<OrderEmail> taggedIn(List<String> tags) {
+    return Arrays.stream(values()).filter(email -> tags.contains(email.tag())).findFirst();
   }
 }

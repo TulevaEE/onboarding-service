@@ -18,6 +18,7 @@ import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 
@@ -248,6 +249,44 @@ class TransactionAdminServiceTest {
     assertThat(List.of(tuk75, tuv100))
         .extracting(TransactionBatch::getConfirmedBy, TransactionBatch::getConfirmedAt)
         .containsOnly(tuple("operator-7", Instant.parse("2026-06-11T09:00:00Z")));
+  }
+
+  @Test
+  void confirmAndSend_confirmsTheBatchesInIdOrder_soTwoOverlappingSendsLockThemInTheSameOrder() {
+    TransactionBatch tuk75 = batch(10L, DRAFT);
+    TransactionBatch tuv100 = batch(11L, TUV100, DRAFT);
+    given(batchRepository.findById(10L)).willReturn(Optional.of(tuk75));
+    given(batchRepository.findById(11L)).willReturn(Optional.of(tuv100));
+    given(batchConfirmations.requireAllowedToSend(tuk75, 3L, "operator-7")).willReturn(SENDER);
+    given(batchConfirmations.requireAllowedToSend(tuv100, 3L, "operator-7")).willReturn(SENDER);
+
+    service.confirmAndSend(
+        List.of(new ReviewedBatch(11L, 3L), new ReviewedBatch(10L, 3L)), "operator-7");
+
+    var lockOrder = inOrder(batchRepository);
+    then(batchRepository).should(lockOrder).saveAndFlush(tuk75);
+    then(batchRepository).should(lockOrder).saveAndFlush(tuv100);
+    then(batchFinalizer).should().finalizeConfirmedBatches(List.of(tuk75, tuv100), SENDER);
+  }
+
+  @Test
+  void confirmAndSend_twoBatchesOfOneFund_isABadRequest_sinceItsOrdersWouldGoOutTwice() {
+    TransactionBatch morning = batch(10L, DRAFT);
+    TransactionBatch rerun = batch(12L, DRAFT);
+    given(batchRepository.findById(10L)).willReturn(Optional.of(morning));
+    given(batchRepository.findById(12L)).willReturn(Optional.of(rerun));
+
+    assertThatThrownBy(
+            () ->
+                service.confirmAndSend(
+                    List.of(new ReviewedBatch(10L, 3L), new ReviewedBatch(12L, 3L)), "operator-7"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(400);
+    assertStillAnUnconfirmedDraft(morning);
+    assertStillAnUnconfirmedDraft(rerun);
+    then(batchConfirmations).shouldHaveNoInteractions();
+    then(batchFinalizer).shouldHaveNoInteractions();
   }
 
   @Test

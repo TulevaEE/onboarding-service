@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.investment.transaction.export.ExportFile;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import java.time.format.DateTimeFormatter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -15,14 +16,19 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class TransactionBatchNotifier {
 
+  private static final DateTimeFormatter TRADE_DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+
   private final OperationsNotificationService notificationService;
 
   @EventListener
   void onBatchFinalized(BatchFinalizedEvent event) {
     try {
       String header =
-          "Transaction batches finalized: batchIds=%s, %d orders, tradeDate=%s"
-              .formatted(event.batchIds(), event.orderCount(), event.tradeDate());
+          "Tehingukorraldused %s märgitud saadetuks: %s, batch'id %s"
+              .formatted(
+                  TRADE_DATE.format(event.tradeDate()),
+                  orders(event.orderCount()),
+                  event.batchIds().stream().map(String::valueOf).collect(joining(", ")));
 
       String driveLinks =
           event.driveFileUrls() == null || event.driveFileUrls().isEmpty()
@@ -42,5 +48,9 @@ class TransactionBatchNotifier {
     } catch (Exception e) {
       log.error("Failed to send batch finalization notification: batchIds={}", event.batchIds(), e);
     }
+  }
+
+  private static String orders(int count) {
+    return count == 1 ? "1 korraldus" : count + " korraldust";
   }
 }

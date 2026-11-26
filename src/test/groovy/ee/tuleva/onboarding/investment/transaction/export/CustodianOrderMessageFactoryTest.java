@@ -200,12 +200,12 @@ class CustodianOrderMessageFactoryTest {
   }
 
   @Test
-  void everyOrderEmailIsATaggedTradeOrderWithoutTrackingAndWithItsCopiesVisible() {
+  void everyOrderEmailIsATradeOrderTaggedWithItsKind_withoutTrackingAndWithItsCopiesVisible() {
     var day = day(order(TUK75, "IE00FT0001", BUY, ETF, FT, MOC, "1000"));
 
     var message = factory.create(day, OrderEmail.UUID);
 
-    assertThat(message.getTags()).containsExactly("trade-order");
+    assertThat(message.getTags()).containsExactly("trade-order", "trade-order-uuid-workbook");
     assertThat(message.getTrackOpens()).isFalse();
     assertThat(message.getTrackClicks()).isFalse();
     assertThat(message.getPreserveRecipients()).isTrue();

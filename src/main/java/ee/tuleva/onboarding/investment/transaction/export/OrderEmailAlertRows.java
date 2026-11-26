@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static java.util.Objects.requireNonNull;
 import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
 
@@ -61,14 +60,18 @@ class OrderEmailAlertRows {
         row(type, mandrillMessageId, failedAt, alertData(text, severity, NOT_POSTED)));
   }
 
-  void recordSendAttempt(String emailKey, String resultUnknown) {
+  void recordSendAttempt(String emailKey, String resultUnknown, Severity severity) {
     eventLogRepository.save(
-        row(SEND_RESULT_TYPE, emailKey, clock.instant(), alertData(resultUnknown, ERROR, SENDING)));
+        row(
+            SEND_RESULT_TYPE,
+            emailKey,
+            clock.instant(),
+            alertData(resultUnknown, severity, SENDING)));
   }
 
-  void recordFailedSend(String emailKey, String text) {
+  void recordFailedSend(String emailKey, String text, Severity severity) {
     eventLogRepository.save(
-        row(SEND_RESULT_TYPE, emailKey, clock.instant(), alertData(text, ERROR, NOT_POSTED)));
+        row(SEND_RESULT_TYPE, emailKey, clock.instant(), alertData(text, severity, NOT_POSTED)));
   }
 
   void recordSendResult(String emailKey, String text, Severity severity) {

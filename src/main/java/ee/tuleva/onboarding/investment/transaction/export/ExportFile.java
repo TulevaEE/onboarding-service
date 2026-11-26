@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.export;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 
+import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -100,6 +101,16 @@ public enum ExportFile {
       throw new IllegalStateException("Export file has no broker file name: exportFile=" + name());
     }
     return fileNameGenerator.apply(sentAt);
+  }
+
+  boolean takes(TransactionOrder order) {
+    return switch (this) {
+      case GENERIC_ORDERS -> true;
+      case SEB_FUND -> BrokerOrders.isSebFundOrder(order);
+      case SEB_ETF -> BrokerOrders.isSebEtfOrder(order);
+      case FT_ETF -> BrokerOrders.isFtOrder(order);
+      case UUID_WORKBOOK -> BrokerOrders.isUuidWorkbookOrder(order);
+    };
   }
 
   public String downloadFileName(Long batchId) {

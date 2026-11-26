@@ -8,7 +8,11 @@ import static ee.tuleva.onboarding.investment.transaction.export.ExportFile.UUID
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ee.tuleva.onboarding.investment.transaction.InstrumentType;
+import ee.tuleva.onboarding.investment.transaction.OrderVenue;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ExportFileTest {
@@ -47,5 +51,27 @@ class ExportFileTest {
     assertThatThrownBy(() -> GENERIC_ORDERS.fileName(FIVE_PAST_MIDNIGHT_IN_TALLINN))
         .isInstanceOf(IllegalStateException.class);
     assertThatThrownBy(GENERIC_ORDERS::driveLabel).isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void eachBrokerFileTakesTheOrdersOfItsVenue_andTheInternalWorkbookTakesThemAll() {
+    var ftEtf = order(InstrumentType.ETF, OrderVenue.FT);
+    var sebEtf = order(InstrumentType.ETF, OrderVenue.SEB);
+    var sebFund = order(InstrumentType.FUND, OrderVenue.SEB);
+    var orders = List.of(ftEtf, sebEtf, sebFund);
+
+    assertThat(orders.stream().filter(FT_ETF::takes)).containsExactly(ftEtf);
+    assertThat(orders.stream().filter(SEB_ETF::takes)).containsExactly(sebEtf);
+    assertThat(orders.stream().filter(SEB_FUND::takes)).containsExactly(sebFund);
+    assertThat(orders.stream().filter(UUID_WORKBOOK::takes)).containsExactly(ftEtf, sebEtf);
+    assertThat(orders.stream().filter(GENERIC_ORDERS::takes)).containsExactlyElementsOf(orders);
+  }
+
+  private static TransactionOrder order(InstrumentType type, OrderVenue venue) {
+    return TransactionOrder.builder()
+        .instrumentIsin("IE00TEST0001")
+        .instrumentType(type)
+        .orderVenue(venue)
+        .build();
   }
 }

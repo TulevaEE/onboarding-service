@@ -1,0 +1,87 @@
+package ee.tuleva.onboarding.investment.transaction.export;
+
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import ee.tuleva.onboarding.notification.email.EmailDeliveryFailedEvent;
+import java.time.Instant;
+import java.util.List;
+import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.Test;
+
+class OrderEmailDeliveryTextTest {
+
+  @Test
+  void aDelayedDelivery_isAmber_andAsksForNothingYet() {
+    var event =
+        deliveryFailure("deferral", "trade-order-ft-etf", "Tuleva ETF orders 26.11.2026 – MOC");
+
+    assertThat(OrderEmailDeliveryText.deliveryFailure(event))
+        .isEqualTo(
+            """
+            🟠 FT kirja kohaletoimetamine viibib: desk@example.com
+            „Tuleva ETF orders 26.11.2026 – MOC“ · deferral: 450 try later (id=msg_1)
+            Mida teha: praegu mitte midagi, Mandrill proovib ise uuesti. \
+            Kui kiri põrkab tagasi, tuleb uus teade.""");
+    assertThat(OrderEmailDeliveryText.deliveryFailureSeverity(event)).isEqualTo(WARNING);
+  }
+
+  @Test
+  void aBouncedOrderEmail_isRed_andSaysToCallTheRecipient() {
+    var event = deliveryFailure("hard_bounce", "trade-order-seb-fund", null);
+
+    assertThat(OrderEmailDeliveryText.deliveryFailure(event))
+        .isEqualTo(
+            """
+            🔴 SEB indeksfondide kiri ei jõudnud kohale: desk@example.com
+            hard_bounce: 450 try later (id=msg_1)
+            Mida teha: helista saajale ja kontrolli, kas korraldused jõudsid. \
+            Kui ei jõudnud, saada fail käsitsi.""");
+    assertThat(OrderEmailDeliveryText.deliveryFailureSeverity(event)).isEqualTo(ERROR);
+  }
+
+  @Test
+  void aBouncedUuidEmail_isAmber() {
+    var event =
+        deliveryFailure(
+            "reject", "trade-order-uuid-workbook", "Tehingukorralduste UUID 26.11.2026");
+
+    assertThat(OrderEmailDeliveryText.deliveryFailure(event))
+        .isEqualTo(
+            """
+            🟠 SEB UUID-kiri ei jõudnud kohale: desk@example.com
+            „Tehingukorralduste UUID 26.11.2026“ · reject: 450 try later (id=msg_1)
+            Mida teha: saada UUID-fail SEB-le käsitsi. Tehingukorraldused on eraldi kirjades.""");
+    assertThat(OrderEmailDeliveryText.deliveryFailureSeverity(event)).isEqualTo(WARNING);
+  }
+
+  @Test
+  void aBouncedEmailWithoutItsKindTag_isTreatedAsAnOrderEmail() {
+    var event =
+        new EmailDeliveryFailedEvent(
+            "desk@example.com",
+            "Orders",
+            "soft_bounce",
+            "450 try later",
+            "msg_1",
+            Instant.parse("2026-11-26T09:00:00Z"),
+            List.of("trade-order"));
+
+    assertThat(OrderEmailDeliveryText.deliveryFailure(event))
+        .startsWith("🔴 Tehingukorralduse kiri ei jõudnud kohale: desk@example.com\n");
+    assertThat(OrderEmailDeliveryText.deliveryFailureSeverity(event)).isEqualTo(ERROR);
+  }
+
+  private static EmailDeliveryFailedEvent deliveryFailure(
+      String eventType, String kindTag, @Nullable String subject) {
+    return new EmailDeliveryFailedEvent(
+        "desk@example.com",
+        subject,
+        eventType,
+        "450 try later",
+        "msg_1",
+        Instant.parse("2026-11-26T09:00:00Z"),
+        List.of("trade-order", kindTag));
+  }
+}

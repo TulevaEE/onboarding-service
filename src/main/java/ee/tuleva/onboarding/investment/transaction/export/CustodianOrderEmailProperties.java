@@ -28,21 +28,6 @@ public record CustodianOrderEmailProperties(
       to = to == null ? List.of() : List.copyOf(to);
       cc = cc == null ? List.of() : List.copyOf(cc);
     }
-
-    String requiredSubject(OrderEmail email) {
-      return required(subject, "subject", email);
-    }
-
-    String requiredText(OrderEmail email) {
-      return required(text, "text", email);
-    }
-
-    private static String required(@Nullable String value, String what, OrderEmail email) {
-      if (value == null || value.isBlank()) {
-        throw notConfigured(what, email);
-      }
-      return value;
-    }
   }
 
   Venue venueOf(OrderEmail email) {
@@ -54,15 +39,29 @@ public record CustodianOrderEmailProperties(
     };
   }
 
+  String subjectOf(OrderEmail email) {
+    return required(venueOf(email).subject(), "subject", email);
+  }
+
+  String textOf(OrderEmail email) {
+    return required(venueOf(email).text(), "text", email);
+  }
+
   void requireConfigured(OrderEmail email) {
-    Venue venue = venueOf(email);
-    if (venue.to().isEmpty()) {
+    if (venueOf(email).to().isEmpty()) {
       throw notConfigured("to", email);
     }
     if (email.takesItsTextFromConfiguration()) {
-      venue.requiredSubject(email);
-      venue.requiredText(email);
+      subjectOf(email);
+      textOf(email);
     }
+  }
+
+  private static String required(@Nullable String value, String what, OrderEmail email) {
+    if (value == null || value.isBlank()) {
+      throw notConfigured(what, email);
+    }
+    return value;
   }
 
   private static ResponseStatusException notConfigured(String what, OrderEmail email) {

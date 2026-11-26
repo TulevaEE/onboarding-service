@@ -21,10 +21,15 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
 
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
+import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.OrderSender;
+import ee.tuleva.onboarding.investment.transaction.OrderVenue;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.AtMostOnceEmailSender;
 import ee.tuleva.onboarding.notification.email.EmailSendResult;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -70,22 +75,32 @@ class CustodianOrderEmailNotifierIT {
           LocalDate.parse("2026-01-15"),
           SENT_AT,
           new OrderSender("fundmanager@tuleva.ee", "Fund Manager"),
-          List.of(),
+          List.of(
+              TransactionOrder.builder()
+                  .fund(TulevaFund.TUK00)
+                  .instrumentIsin("IE00TEST0001")
+                  .instrumentType(InstrumentType.FUND)
+                  .orderVenue(OrderVenue.SEB)
+                  .orderAmount(new BigDecimal("1000"))
+                  .build()),
           Map.of(ExportFile.SEB_FUND, new byte[] {1, 2}));
   private static final String ORDERS_NOT_SENT =
-      "🔴 Orders NOT sent: TUV100 ostu-/müügikorraldused 15.01.2026\n"
-          + "ConnectException: Connection refused\n"
-          + "Nothing went out to the desk. Fix the cause, then send the orders again.";
+      """
+      🔴 SEB indeksfondide kiri jäi saatmata: 1 korraldus, 1 000,00 €
+      ConnectException: Connection refused
+      Mida teha: paranda põhjus ja saada fail käsitsi.""";
   private static final String RESULT_UNKNOWN_POSTED_LATE =
-      "🔴 Orders email result UNKNOWN: TUV100 ostu-/müügikorraldused 15.01.2026"
-          + " (at 15.01.2026 12:00)\n"
-          + "No send result was recorded: the service may have stopped while sending.\n"
-          + "It may have gone out. Check the Cc copy or ask the desk before sending again.";
+      """
+      🔴 SEB indeksfondide kirja tulemus teadmata: 1 korraldus, 1 000,00 € \
+      (toimus 15.01.2026 12:00)
+      Saatmise tulemust ei salvestatud: teenus võis saatmise ajal seiskuda.
+      Mida teha: kiri võis välja minna. Kui Cc-koopia on olemas, ära saada uuesti. \
+      Kui pole, saada fail käsitsi.""";
   private static final String ORDERS_NOT_BUILT =
-      "🔴 Orders NOT sent: SEB indeksfondid 15.01.2026\n"
-          + "The message could not be built: java.lang.IllegalStateException: an export has no"
-          + " file name\n"
-          + "Nothing went out to the desk. Fix the cause, then send the orders again.";
+      """
+      🔴 SEB indeksfondide kiri jäi saatmata: 1 korraldus, 1 000,00 €
+      Kirja ei saanud koostada: java.lang.IllegalStateException: an export has no file name
+      Mida teha: paranda põhjus ja saada fail käsitsi.""";
   private static final Instant FOUR_MINUTES_LATER = SENT_AT.plus(Duration.ofMinutes(4));
   private static final Instant PAST_FIVE_MINUTES =
       SENT_AT.plus(Duration.ofMinutes(5)).plusSeconds(1);
@@ -225,7 +240,7 @@ class CustodianOrderEmailNotifierIT {
     then(notificationService)
         .should()
         .sendMessage(
-            startsWith("✅ Orders emailed: TUV100 ostu-/müügikorraldused 15.01.2026"),
+            startsWith("✅ SEB indeksfondide kiri saadetud: 1 korraldus, 1 000,00 €"),
             eq(TRADING),
             eq(INFO));
     then(notificationService).shouldHaveNoMoreInteractions();
@@ -319,10 +334,8 @@ class CustodianOrderEmailNotifierIT {
             row -> row.getData().get("alert"),
             row -> ((String) row.getData().get("text")).lines().findFirst().orElseThrow())
         .containsExactlyInAnyOrder(
-            tuple(
-                "POSTED",
-                "🔴 Orders email result UNKNOWN: TUV100 ostu-/müügikorraldused 15.01.2026"),
-            tuple("POSTED", "🔴 Orders NOT sent: TUV100 ostu-/müügikorraldused 15.01.2026"));
+            tuple("POSTED", "🔴 SEB indeksfondide kirja tulemus teadmata: 1 korraldus, 1 000,00 €"),
+            tuple("POSTED", "🔴 SEB indeksfondide kiri jäi saatmata: 1 korraldus, 1 000,00 €"));
   }
 
   @Test

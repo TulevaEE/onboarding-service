@@ -41,14 +41,10 @@ class CustodianOrderMessageFactory {
     message.setPreserveRecipients(true);
     message.setTrackOpens(false);
     message.setTrackClicks(false);
-    message.setTags(List.of(TRADE_ORDER_TAG));
+    message.setTags(List.of(TRADE_ORDER_TAG, email.tag()));
     message.setTo(recipients(day, properties.venueOf(email)));
     message.setAttachments(List.of(attachment(day, email)));
     return message;
-  }
-
-  String describe(OrderDay day, OrderEmail email) {
-    return email.file().driveLabel() + " " + EMAIL_DATE.format(day.tradeDate());
   }
 
   static void requireOneFtOrderType(OrderDay day) {
@@ -75,8 +71,7 @@ class CustodianOrderMessageFactory {
     return switch (email) {
       case FT -> "Tuleva ETF orders " + date + " – " + ftOrderTypeOf(day).name();
       case UUID -> "Tehingukorralduste UUID " + date;
-      case SEB_ETF, SEB_FUND ->
-          properties.venueOf(email).requiredSubject(email).replace(DATE_PLACEHOLDER, date);
+      case SEB_ETF, SEB_FUND -> properties.subjectOf(email).replace(DATE_PLACEHOLDER, date);
     };
   }
 
@@ -89,7 +84,7 @@ class CustodianOrderMessageFactory {
           "Tere,\n\nLisatud tänaste tehingukorralduste fail (" + date + ").\n\n" + signature;
       case SEB_ETF, SEB_FUND ->
           "Tere,\n\n"
-              + properties.venueOf(email).requiredText(email).replace(DATE_PLACEHOLDER, date)
+              + properties.textOf(email).replace(DATE_PLACEHOLDER, date)
               + "\n\n"
               + signature;
     };

@@ -96,7 +96,8 @@ class TransactionBatchFinalizerTest {
   }
 
   @Test
-  void finalizeConfirmedBatches_setsOrderTimestampsAndSettlementDatesAndStoresExports() {
+  void
+      finalizeConfirmedBatches_setsOrderTimestampsAndSettlementDates_andStoresTheFilesThatWereSent() {
     when(clock.instant()).thenReturn(Instant.parse("2026-01-15T10:00:00Z"));
 
     var batch =
@@ -139,12 +140,13 @@ class TransactionBatchFinalizerTest {
         .thenReturn(LocalDate.of(2026, 1, 19));
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, LocalDate.of(2026, 1, 15)))
         .thenReturn(List.of(allocation));
-    when(exportService.generateOrdersExport(any())).thenReturn(new byte[] {1, 2, 3});
-    when(exportService.generateSebFundExport(any(), any())).thenReturn(new byte[] {4, 5});
-    when(exportService.generateSebEtfExport(any(), any())).thenReturn(new byte[] {6, 7});
-    when(exportService.generateFtEtfExport(any(), any(), any(), any()))
-        .thenReturn(new byte[] {8, 9});
-    when(exportService.generateUuidWorkbook(any())).thenReturn(new byte[] {10, 11});
+    when(exportService.generateOrdersExport(List.of(order))).thenReturn(new byte[] {1, 2, 3});
+    when(brokerFileGenerator.generate(
+            eq(List.of(order)), any(), any(), any(), eq(LocalDate.of(2026, 1, 15))))
+        .thenReturn(
+            Map.of(
+                ExportFile.SEB_ETF, new byte[] {6, 7},
+                ExportFile.UUID_WORKBOOK, new byte[] {10, 11}));
 
     finalizer.finalizeConfirmedBatches(List.of(batch), SENDER);
 
@@ -152,16 +154,13 @@ class TransactionBatchFinalizerTest {
     assertThat(order.getExpectedSettlementDate()).isEqualTo(LocalDate.of(2026, 1, 19));
     assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.SENT);
     assertThat(batch.getStatus()).isEqualTo(SENT);
-    assertThat(batch.getMetadata()).containsKey("xlsxExport");
-    assertThat(batch.getMetadata()).containsKey("sebFundXlsx");
-    assertThat(batch.getMetadata()).containsKey("sebEtfXlsx");
-    assertThat(batch.getMetadata()).containsKey("ftEtfXlsx");
-    assertThat(batch.getMetadata()).containsKey("uuidWorkbookXlsx");
-
-    verify(exportService).generateSebFundExport(eq(List.of(order)), any());
-    verify(exportService).generateSebEtfExport(eq(List.of(order)), any());
-    verify(exportService).generateFtEtfExport(eq(List.of(order)), any(), any(), any());
-    verify(exportService).generateUuidWorkbook(eq(List.of(order)));
+    assertThat(batch.getMetadata())
+        .isEqualTo(
+            Map.of(
+                "commandId", 1L,
+                "xlsxExport", "AQID",
+                "sebEtfXlsx", "Bgc=",
+                "uuidWorkbookXlsx", "Cgs="));
     verify(orderRepository).saveAll(List.of(order));
     verify(batchRepository).save(batch);
     verify(auditEventRepository).save(argThat(event -> "system".equals(event.getActor())));
@@ -253,10 +252,6 @@ class TransactionBatchFinalizerTest {
     when(settlementDateCalculator.calculateSettlementDate(any(Instant.class), any(), any()))
         .thenReturn(LocalDate.of(2026, 1, 19));
     when(exportService.generateOrdersExport(any())).thenReturn(new byte[] {1});
-    when(exportService.generateSebFundExport(any(), any())).thenReturn(new byte[] {2});
-    when(exportService.generateSebEtfExport(any(), any())).thenReturn(new byte[] {3});
-    when(exportService.generateFtEtfExport(any(), any(), any(), any())).thenReturn(new byte[] {4});
-    when(exportService.generateUuidWorkbook(any())).thenReturn(new byte[] {5});
 
     finalizer.finalizeConfirmedBatches(List.of(batch), SENDER);
 
@@ -314,20 +309,19 @@ class TransactionBatchFinalizerTest {
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, LocalDate.of(2026, 1, 15)))
         .thenReturn(List.of(validAllocation, tickerlessAllocation));
     when(exportService.generateOrdersExport(any())).thenReturn(new byte[] {1});
-    when(exportService.generateSebFundExport(any(), any())).thenReturn(new byte[] {2});
-    when(exportService.generateSebEtfExport(any(), any())).thenReturn(new byte[] {3});
-    when(exportService.generateFtEtfExport(any(), any(), any(), any())).thenReturn(new byte[] {4});
-    when(exportService.generateUuidWorkbook(any())).thenReturn(new byte[] {5});
 
     finalizer.finalizeConfirmedBatches(List.of(batch), SENDER);
 
-    verify(exportService)
-        .generateSebEtfExport(
+    verify(brokerFileGenerator)
+        .generate(
             eq(List.of(order)),
+            any(),
             argThat(
                 ricByIsin ->
                     "ESGM.DE".equals(ricByIsin.get("IE00A"))
-                        && !ricByIsin.containsKey("IE00TICKERLESS")));
+                        && !ricByIsin.containsKey("IE00TICKERLESS")),
+            any(),
+            eq(LocalDate.of(2026, 1, 15)));
   }
 
   @Test
@@ -385,16 +379,16 @@ class TransactionBatchFinalizerTest {
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, LocalDate.of(2026, 1, 15)))
         .thenReturn(List.of(currentAllocation));
     when(exportService.generateOrdersExport(any())).thenReturn(new byte[] {1});
-    when(exportService.generateSebFundExport(any(), any())).thenReturn(new byte[] {2});
-    when(exportService.generateSebEtfExport(any(), any())).thenReturn(new byte[] {3});
-    when(exportService.generateFtEtfExport(any(), any(), any(), any())).thenReturn(new byte[] {4});
-    when(exportService.generateUuidWorkbook(any())).thenReturn(new byte[] {5});
 
     finalizer.finalizeConfirmedBatches(List.of(batch), SENDER);
 
-    verify(exportService)
-        .generateSebEtfExport(
-            eq(List.of(order)), argThat(ricByIsin -> "NEW.TICKER".equals(ricByIsin.get("IE00A"))));
+    verify(brokerFileGenerator)
+        .generate(
+            eq(List.of(order)),
+            argThat(labelsByIsin -> "New Label".equals(labelsByIsin.get("IE00A"))),
+            argThat(ricByIsin -> "NEW.TICKER".equals(ricByIsin.get("IE00A"))),
+            argThat(bbgByIsin -> "NEW GY".equals(bbgByIsin.get("IE00A"))),
+            eq(LocalDate.of(2026, 1, 15)));
   }
 
   @Test
@@ -428,10 +422,6 @@ class TransactionBatchFinalizerTest {
     given(settlementDateCalculator.calculateSettlementDate(any(Instant.class), any(), any()))
         .willReturn(LocalDate.of(2026, 1, 20));
     given(exportService.generateOrdersExport(any())).willReturn(new byte[] {1});
-    given(exportService.generateSebFundExport(any(), any())).willReturn(new byte[] {2});
-    given(exportService.generateSebEtfExport(any(), any())).willReturn(new byte[] {3});
-    given(exportService.generateFtEtfExport(any(), any(), any(), any())).willReturn(new byte[] {4});
-    given(exportService.generateUuidWorkbook(any())).willReturn(new byte[] {5});
 
     finalizer.finalizeConfirmedBatches(List.of(batch), SENDER);
 
@@ -495,10 +485,6 @@ class TransactionBatchFinalizerTest {
                 TUV100, LocalDate.of(2026, 1, 15)))
         .willReturn(List.of(allocation(TUV100, "IE00B", "ETF B")));
     given(exportService.generateOrdersExport(any())).willReturn(new byte[] {1});
-    given(exportService.generateSebFundExport(any(), any())).willReturn(new byte[] {2});
-    given(exportService.generateSebEtfExport(any(), any())).willReturn(new byte[] {3});
-    given(exportService.generateFtEtfExport(any(), any(), any(), any())).willReturn(new byte[] {4});
-    given(exportService.generateUuidWorkbook(any())).willReturn(new byte[] {5});
     Map<ExportFile, byte[]> theDaysFiles = Map.of(ExportFile.FT_ETF, new byte[] {8, 9});
     given(
             brokerFileGenerator.generate(
@@ -640,10 +626,6 @@ class TransactionBatchFinalizerTest {
     when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, LocalDate.of(2026, 1, 15)))
         .thenReturn(List.of());
     when(exportService.generateOrdersExport(any())).thenReturn(new byte[] {1});
-    when(exportService.generateSebFundExport(any(), any())).thenReturn(new byte[] {2});
-    when(exportService.generateSebEtfExport(any(), any())).thenReturn(new byte[] {3});
-    when(exportService.generateFtEtfExport(any(), any(), any(), any())).thenReturn(new byte[] {4});
-    when(exportService.generateUuidWorkbook(any())).thenReturn(new byte[] {5});
     when(driveProperties.enabled()).thenReturn(true);
     when(driveProperties.rootFolderId()).thenReturn("root-folder-id");
     when(exportUploader.uploadExports(any(), any(), any(), any()))
@@ -681,10 +663,6 @@ class TransactionBatchFinalizerTest {
 
     given(orderRepository.findByBatchId(batch.getId())).willReturn(List.of());
     given(exportService.generateOrdersExport(any())).willReturn(new byte[] {1});
-    given(exportService.generateSebFundExport(any(), any())).willReturn(new byte[] {2});
-    given(exportService.generateSebEtfExport(any(), any())).willReturn(new byte[] {3});
-    given(exportService.generateFtEtfExport(any(), any(), any(), any())).willReturn(new byte[] {4});
-    given(exportService.generateUuidWorkbook(any())).willReturn(new byte[] {5});
     given(driveProperties.enabled()).willReturn(true);
     given(driveProperties.rootFolderId()).willReturn("root-folder-id");
     var driveFileUrls = Map.of("sebFundXlsx", "https://drive.google.com/file1");
@@ -736,10 +714,6 @@ class TransactionBatchFinalizerTest {
                 TUV100, LocalDate.of(2026, 1, 15)))
         .willReturn(List.of());
     given(exportService.generateOrdersExport(any())).willReturn(new byte[] {1});
-    given(exportService.generateSebFundExport(any(), any())).willReturn(new byte[] {2});
-    given(exportService.generateSebEtfExport(any(), any())).willReturn(new byte[] {3});
-    given(exportService.generateFtEtfExport(any(), any(), any(), any())).willReturn(new byte[] {4});
-    given(exportService.generateUuidWorkbook(any())).willReturn(new byte[] {5});
     given(driveProperties.enabled()).willReturn(true);
     given(driveProperties.rootFolderId()).willReturn("root-folder-id");
     given(exportUploader.uploadExports(any(), any(), any(), any()))

@@ -15,11 +15,13 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.fund.FundAccounts;
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatch;
+import ee.tuleva.onboarding.investment.transaction.TransactionBatchRefusedException;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -96,6 +98,23 @@ class BrokerFileGeneratorTest {
             generator.generate(
                 List.of(sebEtf), Map.of(), Map.of(), Map.of(), LocalDate.of(2026, 1, 15)))
         .containsOnlyKeys(SEB_ETF, UUID_WORKBOOK);
+  }
+
+  @Test
+  void generate_aFundOrderAtFt_isRefusedBeforeAnyFile_soNoOrderGoesToTwoDesks() {
+    var fundAtFt =
+        buildOrder(buildBatch(), TUK00, "LU00C", BUY, FUND, FT, new BigDecimal("75000"), null);
+    var etfAtFt = buildOrder(buildBatch(), TUK75, "IE00FT", BUY, ETF, FT, new BigDecimal("1"), 1L);
+
+    assertThatThrownBy(
+            () ->
+                generator.generate(
+                    List.of(etfAtFt, fundAtFt),
+                    Map.of(),
+                    Map.of(),
+                    Map.of(),
+                    LocalDate.of(2026, 1, 15)))
+        .isInstanceOf(TransactionBatchRefusedException.class);
   }
 
   private static List<String> csvLines(byte[] csv) {

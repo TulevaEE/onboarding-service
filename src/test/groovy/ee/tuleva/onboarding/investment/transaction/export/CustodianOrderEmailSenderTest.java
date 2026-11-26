@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 
@@ -169,34 +170,38 @@ class CustodianOrderEmailSenderTest {
 
   @Test
   void
-      prepareSend_whenAMessageCannotBeBuilt_recordsItAsNotSentWithTheBatches_andPostsItAfterTheCommit() {
+      prepareSend_whenAMessageCannotBeBuilt_recordsItAsNotSentWithTheBatches_andPostsItFirstAfterTheCommit() {
     var sender =
         new CustodianOrderEmailSender(properties, brokenFactory, orderEmailTransport, notifier);
     var day = ftOnlyDay();
-    given(brokenFactory.create(day, OrderEmail.FT))
-        .willThrow(new IllegalStateException("the FT file has no attachment content"));
-    given(brokenFactory.create(day, OrderEmail.UUID)).willReturn(message(UUID_SUBJECT));
-    given(brokenFactory.describe(day, OrderEmail.FT)).willReturn("FT orders 26.11.2026");
+    given(brokenFactory.create(day, OrderEmail.FT)).willReturn(message(FT_SUBJECT));
+    given(brokenFactory.create(day, OrderEmail.UUID))
+        .willThrow(new IllegalStateException("the UUID file has no content"));
+    given(brokenFactory.describe(day, OrderEmail.UUID)).willReturn("UUID workbook 26.11.2026");
+    given(orderEmailTransport.send(any())).willReturn(new EmailSendResult(SENT, List.of(), null));
 
     var sendTheOrders = sender.prepareSend(day);
 
     then(notifier)
         .should()
         .recordNotBuilt(
-            FT_KEY,
-            "FT orders 26.11.2026",
-            "java.lang.IllegalStateException: the FT file has no attachment content");
-    then(notifier).should(never()).reportSendAttempt(eq(FT_KEY), any());
+            UUID_KEY,
+            "UUID workbook 26.11.2026",
+            "java.lang.IllegalStateException: the UUID file has no content");
+    then(notifier).should(never()).reportSendAttempt(eq(UUID_KEY), any());
 
     sendTheOrders.run();
 
+    var notBuiltPostedBeforeTheSlowSends = inOrder(notifier, orderEmailTransport);
     then(notifier)
-        .should()
+        .should(notBuiltPostedBeforeTheSlowSends)
         .postNotBuilt(
-            FT_KEY,
-            "FT orders 26.11.2026",
-            "java.lang.IllegalStateException: the FT file has no attachment content");
-    then(orderEmailTransport).should().send(messageWithSubject(UUID_SUBJECT));
+            UUID_KEY,
+            "UUID workbook 26.11.2026",
+            "java.lang.IllegalStateException: the UUID file has no content");
+    then(orderEmailTransport)
+        .should(notBuiltPostedBeforeTheSlowSends)
+        .send(messageWithSubject(FT_SUBJECT));
   }
 
   @Test

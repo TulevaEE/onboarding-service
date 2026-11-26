@@ -85,13 +85,14 @@ public class TransactionBatchFinalizer {
     List<Long> batchIds = batches.stream().map(TransactionBatch::getId).toList();
     log.info("Finalizing batches: ids={}", batchIds);
 
-    List<TransactionOrder> theDaysOrders = new ArrayList<>();
+    List<SentBatch> sentBatches = new ArrayList<>();
     InstrumentNames theDaysNames = InstrumentNames.NONE;
     for (TransactionBatch batch : batches) {
-      InstrumentNames names = instrumentNamesOf(batch.getFund(), tradeDate);
-      theDaysOrders.addAll(markSent(batch, batchIds, names, now, tradeDate));
-      theDaysNames = theDaysNames.orElse(names);
+      sentBatches.add(new SentBatch(batch, markOrdersSent(batch, now)));
+      theDaysNames = theDaysNames.orElse(instrumentNamesOf(batch.getFund(), tradeDate));
     }
+    List<TransactionOrder> theDaysOrders =
+        sentBatches.stream().map(SentBatch::orders).flatMap(List::stream).toList();
 
     Map<ExportFile, byte[]> brokerFiles =
         brokerFileGenerator.generate(
@@ -100,6 +101,10 @@ public class TransactionBatchFinalizer {
             theDaysNames.rics(),
             theDaysNames.bbgTickers(),
             tradeDate);
+    sentBatches.forEach(
+        sent ->
+            markSentWithTheDaysFiles(
+                sent.batch(), sent.orders(), brokerFiles, batchIds, now, tradeDate));
     var sendTheOrders =
         custodianOrderEmailSender.prepareSend(
             new OrderDay(batchIds, tradeDate, now, sender, theDaysOrders, brokerFiles));
@@ -113,12 +118,9 @@ public class TransactionBatchFinalizer {
     log.info("Batches finalized: ids={}, orderCount={}", batchIds, orderCount);
   }
 
-  private List<TransactionOrder> markSent(
-      TransactionBatch batch,
-      List<Long> sentTogetherWith,
-      InstrumentNames names,
-      Instant now,
-      LocalDate tradeDate) {
+  private record SentBatch(TransactionBatch batch, List<TransactionOrder> orders) {}
+
+  private List<TransactionOrder> markOrdersSent(TransactionBatch batch, Instant now) {
     List<TransactionOrder> orders = orderRepository.findByBatchId(batch.getId());
     orderFactory.requireQuantitiesForNonAmountOrders(batch, orders);
     for (TransactionOrder order : orders) {
@@ -129,20 +131,22 @@ public class TransactionBatchFinalizer {
       order.setOrderStatus(OrderStatus.SENT);
     }
     orderRepository.saveAll(orders);
+    return orders;
+  }
 
+  private void markSentWithTheDaysFiles(
+      TransactionBatch batch,
+      List<TransactionOrder> orders,
+      Map<ExportFile, byte[]> brokerFiles,
+      List<Long> sentTogetherWith,
+      Instant now,
+      LocalDate tradeDate) {
     Map<String, Object> updatedMetadata = new HashMap<>(batch.getMetadata());
-    updatedMetadata.put("xlsxExport", encodeExport(exportService.generateOrdersExport(orders)));
     updatedMetadata.put(
-        "sebFundXlsx", encodeExport(exportService.generateSebFundExport(orders, names.labels())));
-    updatedMetadata.put(
-        "sebEtfXlsx", encodeExport(exportService.generateSebEtfExport(orders, names.rics())));
-    updatedMetadata.put(
-        "ftEtfXlsx",
-        encodeExport(
-            exportService.generateFtEtfExport(
-                orders, names.labels(), names.bbgTickers(), tradeDate)));
-    updatedMetadata.put(
-        "uuidWorkbookXlsx", encodeExport(exportService.generateUuidWorkbook(orders)));
+        ExportFile.GENERIC_ORDERS.metadataKey(),
+        encodeExport(exportService.generateOrdersExport(orders)));
+    brokerFiles.forEach(
+        (file, content) -> updatedMetadata.put(file.metadataKey(), encodeExport(content)));
     batch.setMetadata(updatedMetadata);
 
     batch.setStatus(BatchStatus.SENT);
@@ -163,7 +167,6 @@ public class TransactionBatchFinalizer {
                     "sentTogetherWith",
                     sentTogetherWith))
             .build());
-    return orders;
   }
 
   private InstrumentNames instrumentNamesOf(TulevaFund fund, LocalDate tradeDate) {

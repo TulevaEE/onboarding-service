@@ -20,6 +20,7 @@ public class BrokerFileGenerator {
       Map<String, String> ricByIsin,
       Map<String, String> bbgByIsin,
       LocalDate tradeDate) {
+    BrokerOrders.requireOneVenueFileEach(orders);
     Map<ExportFile, byte[]> files = new EnumMap<>(ExportFile.class);
     if (orders.stream().anyMatch(BrokerOrders::isSebFundOrder)) {
       files.put(ExportFile.SEB_FUND, exportService.generateSebFundExport(orders, labelsByIsin));

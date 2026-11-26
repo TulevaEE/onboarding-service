@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.transaction.OrderVenue.FT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.investment.transaction.TransactionBatchRefusedException;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import java.math.BigDecimal;
 import java.util.List;
@@ -16,7 +17,7 @@ final class BrokerOrders {
   private BrokerOrders() {}
 
   static boolean isSebFundOrder(TransactionOrder order) {
-    return order.getInstrumentType() == FUND;
+    return order.getOrderVenue() == SEB && order.getInstrumentType() == FUND;
   }
 
   static boolean isSebEtfOrder(TransactionOrder order) {
@@ -24,7 +25,25 @@ final class BrokerOrders {
   }
 
   static boolean isFtOrder(TransactionOrder order) {
-    return order.getOrderVenue() == FT;
+    return order.getOrderVenue() == FT && order.getInstrumentType() == ETF;
+  }
+
+  static void requireOneVenueFileEach(List<TransactionOrder> orders) {
+    List<String> unroutable =
+        orders.stream()
+            .filter(order -> !isSebFundOrder(order) && !isSebEtfOrder(order) && !isFtOrder(order))
+            .map(
+                order ->
+                    order.getInstrumentIsin()
+                        + " "
+                        + order.getInstrumentType()
+                        + " at "
+                        + order.getOrderVenue())
+            .toList();
+    if (!unroutable.isEmpty()) {
+      throw new TransactionBatchRefusedException(
+          "No venue file takes these orders, nothing sent: orders=" + unroutable);
+    }
   }
 
   static boolean isUuidWorkbookOrder(TransactionOrder order) {

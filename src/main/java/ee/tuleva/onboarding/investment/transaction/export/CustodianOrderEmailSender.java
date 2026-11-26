@@ -8,6 +8,7 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.notification.email.AtMostOnceEmailSender;
 import ee.tuleva.onboarding.notification.email.EmailSendResult;
 import java.util.List;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -36,11 +37,29 @@ public class CustodianOrderEmailSender {
     if (emails.contains(FT)) {
       CustodianOrderMessageFactory.requireOneFtOrderType(day);
     }
-    List<Runnable> sends = emails.stream().map(email -> prepareSend(day, email)).toList();
-    return () -> sends.forEach(CustodianOrderEmailSender::runOnItsOwn);
+    List<PreparedEmail> prepared = emails.stream().map(email -> prepare(day, email)).toList();
+    List<Runnable> notBuiltPostsFirstThenSends =
+        Stream.concat(
+                prepared.stream().filter(PreparedEmail::notBuilt),
+                prepared.stream().filter(email -> !email.notBuilt()))
+            .map(PreparedEmail::afterCommit)
+            .toList();
+    return () -> notBuiltPostsFirstThenSends.forEach(CustodianOrderEmailSender::runOnItsOwn);
   }
 
-  private Runnable prepareSend(OrderDay day, OrderEmail email) {
+  private record PreparedEmail(Runnable afterCommit, Built built) {
+
+    boolean notBuilt() {
+      return built == Built.NO;
+    }
+  }
+
+  private enum Built {
+    YES,
+    NO
+  }
+
+  private PreparedEmail prepare(OrderDay day, OrderEmail email) {
     String emailKey = day.emailKey(email);
     MandrillMessage message;
     try {
@@ -54,10 +73,10 @@ public class CustodianOrderEmailSender {
       var subject = messageFactory.describe(day, email);
       var problem = e.toString();
       notifier.recordNotBuilt(emailKey, subject, problem);
-      return () -> notifier.postNotBuilt(emailKey, subject, problem);
+      return new PreparedEmail(() -> notifier.postNotBuilt(emailKey, subject, problem), Built.NO);
     }
     notifier.reportSendAttempt(emailKey, message);
-    return () -> send(emailKey, message);
+    return new PreparedEmail(() -> send(emailKey, message), Built.YES);
   }
 
   private static void runOnItsOwn(Runnable send) {

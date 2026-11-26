@@ -11,6 +11,7 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
 
 import ee.tuleva.onboarding.investment.transaction.export.BrokerFileGenerator;
 import ee.tuleva.onboarding.investment.transaction.export.CustodianOrderEmailSender;
+import ee.tuleva.onboarding.investment.transaction.export.ExportFile;
 import ee.tuleva.onboarding.investment.transaction.export.GoogleDriveProperties;
 import ee.tuleva.onboarding.investment.transaction.export.TransactionExportService;
 import ee.tuleva.onboarding.investment.transaction.export.TransactionExportUploader;
@@ -166,10 +167,13 @@ class TransactionBatchFinalizerTransactionTest {
 
   private void givenExportsUploadedToDrive() {
     given(exportService.generateOrdersExport(any())).willReturn(new byte[] {1});
-    given(exportService.generateSebFundExport(any(), any())).willReturn(new byte[] {2});
-    given(exportService.generateSebEtfExport(any(), any())).willReturn(new byte[] {3});
-    given(exportService.generateFtEtfExport(any(), any(), any(), any())).willReturn(new byte[] {4});
-    given(exportService.generateUuidWorkbook(any())).willReturn(new byte[] {5});
+    given(brokerFileGenerator.generate(any(), any(), any(), any(), any()))
+        .willReturn(
+            Map.of(
+                ExportFile.SEB_FUND, new byte[] {2},
+                ExportFile.SEB_ETF, new byte[] {3},
+                ExportFile.FT_ETF, new byte[] {4},
+                ExportFile.UUID_WORKBOOK, new byte[] {5}));
     given(exportUploader.uploadExports(eq(ROOT_FOLDER_ID), any(), eq(NOW), any()))
         .willReturn(DRIVE_FILE_URLS);
   }

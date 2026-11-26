@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.investment.config;
 
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ISSUE_REDEMPTION_PRICE_DEVIATION_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.NAV_IMPACT_VOLUME_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.REDEMPTION_LIQUIDITY_WARNING_SHARE_OF_AUM;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.REDEMPTION_PAYOUT_WARNING_THRESHOLD;
 
+import ee.tuleva.onboarding.savings.IssueRedemptionPriceThreshold;
 import ee.tuleva.onboarding.savings.RedemptionAlertThresholds;
 import ee.tuleva.onboarding.savings.fund.nav.NavImpactThreshold;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -15,7 +17,8 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-class InvestmentParameterValues implements NavImpactThreshold, RedemptionAlertThresholds {
+class InvestmentParameterValues
+    implements NavImpactThreshold, RedemptionAlertThresholds, IssueRedemptionPriceThreshold {
 
   private final InvestmentParameterRepository repository;
 
@@ -34,5 +37,10 @@ class InvestmentParameterValues implements NavImpactThreshold, RedemptionAlertTh
       TulevaFund fund, LocalDate asOf) {
     return repository.findLatestValueIfPresent(
         REDEMPTION_LIQUIDITY_WARNING_SHARE_OF_AUM, fund, asOf);
+  }
+
+  @Override
+  public BigDecimal issueRedemptionPriceDeviationThreshold(TulevaFund fund, LocalDate asOf) {
+    return repository.findLatestValue(ISSUE_REDEMPTION_PRICE_DEVIATION_THRESHOLD, fund, asOf);
   }
 }

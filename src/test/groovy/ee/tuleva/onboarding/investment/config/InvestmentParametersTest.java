@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.investment.config;
 
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ISSUE_REDEMPTION_PRICE_DEVIATION_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.REDEMPTION_LIQUIDITY_WARNING_SHARE_OF_AUM;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.REDEMPTION_PAYOUT_WARNING_THRESHOLD;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
+import ee.tuleva.onboarding.savings.IssueRedemptionPriceThreshold;
 import ee.tuleva.onboarding.savings.RedemptionAlertThresholds;
 import ee.tuleva.onboarding.savings.fund.nav.NavImpactThreshold;
 import java.math.BigDecimal;
@@ -72,5 +74,17 @@ class InvestmentParametersTest {
     RedemptionAlertThresholds thresholds = parameters;
 
     assertThat(thresholds.redemptionPayoutWarningThreshold(TKF100, asOf)).isEmpty();
+  }
+
+  @Test
+  void resolvesTheTkf100IssueRedemptionPriceDeviationThreshold() {
+    var asOf = LocalDate.parse("2026-11-26");
+    given(repository.findLatestValue(ISSUE_REDEMPTION_PRICE_DEVIATION_THRESHOLD, TKF100, asOf))
+        .willReturn(new BigDecimal("0.001"));
+
+    IssueRedemptionPriceThreshold threshold = parameters;
+
+    assertThat(threshold.issueRedemptionPriceDeviationThreshold(TKF100, asOf))
+        .isEqualByComparingTo(new BigDecimal("0.001"));
   }
 }

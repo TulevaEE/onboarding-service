@@ -163,6 +163,37 @@ class AtMostOnceEmailSenderSpec extends Specification {
     errorName << ["Invalid_Key", "ValidationError", "PaymentRequired", "Unknown_Subaccount"]
   }
 
+  def "counts the email as failed when Mandrill refuses it before sending even if its error code is not a number"() {
+    given:
+    server.expect(once(), requestTo(SEND_URL)).andRespond(
+        withStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body('{"status":"error","code":"invalid-key","name":"Invalid_Key","message":"Invalid API key"}'))
+
+    when:
+    def result = sender.send(message)
+
+    then:
+    server.verify()
+    result.outcome() == FAILED
+    result.problem() != null
+  }
+
+  def "counts the email as unknown when Mandrill's refusal cannot be read as a name and a message"() {
+    given:
+    server.expect(once(), requestTo(SEND_URL)).andRespond(
+        withStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body('{"status":"error","code":-1,"name":"Invalid_Key","message":{}}'))
+
+    when:
+    def result = sender.send(message)
+
+    then:
+    server.verify()
+    result.outcome() == UNKNOWN
+  }
+
   def "counts the email as unknown and does not send again when Mandrill answers with another error: #status"() {
     given:
     server.expect(once(), requestTo(SEND_URL)).andRespond(
@@ -263,7 +294,7 @@ class AtMostOnceEmailSenderSpec extends Specification {
     def closedPort = new ServerSocket(0).withCloseable { it.localPort }
     def realSender = new AtMostOnceEmailSender(
         "order-key",
-        AtMostOnceEmailSender.restClient(
+        MandrillHttp.restClient(
             URI.create("http://127.0.0.1:$closedPort/api/1.0"), Duration.ofSeconds(2), Duration.ofSeconds(2)),
         Duration.ofMillis(1))
 
@@ -290,7 +321,7 @@ class AtMostOnceEmailSenderSpec extends Specification {
     }
     def realSender = new AtMostOnceEmailSender(
         "order-key",
-        AtMostOnceEmailSender.restClient(
+        MandrillHttp.restClient(
             URI.create("http://127.0.0.1:$silentServer.localPort/api/1.0"), Duration.ofSeconds(2), Duration.ofMillis(300)),
         Duration.ofMillis(1))
 

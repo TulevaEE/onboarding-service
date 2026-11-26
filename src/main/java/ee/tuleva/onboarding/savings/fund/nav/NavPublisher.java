@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.pipeline.PipelineStep.REPORT_EMAIL;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.REPORT_PERSIST;
 import static ee.tuleva.onboarding.savings.fund.nav.NavPublication.NOT_SENT;
 import static ee.tuleva.onboarding.savings.fund.nav.NavPublication.SENT;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueWriter;
@@ -18,6 +19,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionOperations;
 
 @Slf4j
 @Service
@@ -35,6 +37,7 @@ public class NavPublisher {
   private final OperationsNotificationService notificationService;
   private final NavPublicationGate trackingDifferenceGate;
   private final PipelineTracker pipelineTracker;
+  private final TransactionOperations transactionOperations;
 
   public NavPublication publish(NavCalculationResult result) {
     publishToFundValueApi(result);
@@ -146,6 +149,26 @@ public class NavPublisher {
       return NOT_SENT;
     }
 
+    return requireNonNull(
+        transactionOperations.execute(
+            transaction -> sendToSebUnlessOvertaken(result, reportRows, calculationId)));
+  }
+
+  private NavPublication sendToSebUnlessOvertaken(
+      NavCalculationResult result, List<NavReportRow> reportRows, UUID calculationId) {
+    String fundCode = result.fund().getCode();
+    LocalDate navDate = result.positionReportDate();
+    navReportRepository.findTheDatesRowsForUpdate(fundCode, navDate);
+    if (navReportRepository.existsPublishedByNavDateAndFundCode(navDate, fundCode)
+        || isReplacedByANewerCalculation(fundCode, navDate, calculationId)) {
+      log.info(
+          "NAV not sent, a release or a newer calculation of the date overtook it while the gate ran: fund={}, date={}, calculationId={}",
+          fundCode,
+          navDate,
+          calculationId);
+      return NOT_SENT;
+    }
+
     pipelineTracker.stepStarted(REPORT_EMAIL);
     if (sendEmail(reportRows, result)) {
       navReportRepository.markAsPublished(calculationId);
@@ -164,6 +187,14 @@ public class NavPublisher {
             + result.positionReportDate(),
         SAVINGS);
     return NOT_SENT;
+  }
+
+  private boolean isReplacedByANewerCalculation(
+      String fundCode, LocalDate navDate, UUID calculationId) {
+    return navReportRepository
+        .findLatestCalculationId(fundCode, navDate)
+        .filter(latest -> !latest.equals(calculationId))
+        .isPresent();
   }
 
   private void routeToInternalReview(

@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -35,8 +36,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.support.TransactionOperations;
 
 @ExtendWith(MockitoExtension.class)
 class NavPublisherTest {
@@ -49,6 +52,9 @@ class NavPublisherTest {
   @Mock private OperationsNotificationService notificationService;
   @Mock private NavPublicationGate trackingDifferenceGate;
   @Mock private PipelineTracker pipelineTracker;
+
+  @Spy
+  private TransactionOperations transactionOperations = TransactionOperations.withoutTransaction();
 
   @InjectMocks private NavPublisher navPublisher;
 
@@ -259,7 +265,8 @@ class NavPublisherTest {
             navNotifier,
             notificationService,
             trackingDifferenceGate,
-            pipelineTracker);
+            pipelineTracker,
+            transactionOperations);
     var result =
         NavCalculationResult.builder()
             .fund(TKF100)
@@ -310,6 +317,57 @@ class NavPublisherTest {
             contains(
                 "SEB already has a NAV for this date: sentNav=9.75000, recalculatedNav=9.69941"),
             eq(SAVINGS));
+  }
+
+  @Test
+  void publish_sendsNothing_whenAReleaseReachedSebWhileTheGateRan() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build();
+    given(navReportMapper.map(result)).willReturn(List.of(reportRow));
+    given(navReportRepository.existsPublishedByNavDateAndFundCode(yesterday, "TUK75"))
+        .willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
+
+    then(navReportRepository).should().findTheDatesRowsForUpdate("TUK75", yesterday);
+    then(navReportEmailSender).should(never()).send(any(), any());
+    then(navReportEmailSender).should(never()).sendForReview(any(), any());
+    then(navReportRepository).should(never()).markAsPublished(any(UUID.class));
+  }
+
+  @Test
+  void publish_sendsNothing_whenANewerCalculationReplacedItWhileTheGateRan() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build();
+    given(navReportMapper.map(result)).willReturn(List.of(reportRow));
+    given(navReportRepository.findLatestCalculationId("TUK75", yesterday))
+        .willReturn(Optional.of(UUID.randomUUID()));
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
+
+    then(navReportEmailSender).should(never()).send(any(), any());
+    then(navReportRepository).should(never()).markAsPublished(any(UUID.class));
+  }
+
+  @Test
+  void publish_sendsTheDatesLatestCalculation_whenNothingOvertookIt() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build();
+    given(navReportMapper.map(result)).willReturn(List.of(reportRow));
+    willAnswer(invocation -> Optional.of(reportRow.getCalculationId()))
+        .given(navReportRepository)
+        .findLatestCalculationId("TUK75", yesterday);
+    given(navReportEmailSender.send(any(), eq(result))).willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.SENT);
+
+    then(navReportRepository).should().markAsPublished(reportRow.getCalculationId());
   }
 
   @Test

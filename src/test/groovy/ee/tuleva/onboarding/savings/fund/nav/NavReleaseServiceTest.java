@@ -284,18 +284,18 @@ class NavReleaseServiceTest {
   }
 
   @Test
-  void release_refusesACalculationOfAnotherFundOrDate() {
+  void release_ofACalculationOfAnotherFundOrDate_isNotFound() {
     var otherDate = calculation(TKF100, NAV_DATE.minusDays(1), "1.4066", "16000000.00");
     navReportRepository.markAsPublished(otherDate);
 
     assertThatThrownBy(
             () -> navReleaseService.release(TKF100, NAV_DATE, approval(otherDate, "1.4066")))
-        .isInstanceOf(NavReleaseRefusedException.class);
+        .isInstanceOf(NoSuchElementException.class);
     assertThatThrownBy(
             () ->
                 navReleaseService.release(
                     TUK75, NAV_DATE.minusDays(1), approval(otherDate, "1.4066")))
-        .isInstanceOf(NavReleaseRefusedException.class);
+        .isInstanceOf(NoSuchElementException.class);
     then(navReportEmailSender).shouldHaveNoInteractions();
   }
 

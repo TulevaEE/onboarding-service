@@ -122,11 +122,20 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
   void deleteUnpublishedByNavDateAndFundCode(
       @Param("navDate") LocalDate navDate, @Param("fundCode") String fundCode);
 
+  @Transactional
   default void replaceByNavDateAndFundCode(
       LocalDate navDate, String fundCode, List<NavReportRow> rows) {
+    findTheDatesRowsForUpdate(fundCode, navDate);
     deleteUnpublishedByNavDateAndFundCode(navDate, fundCode);
     saveAll(rows);
   }
+
+  @Lock(PESSIMISTIC_WRITE)
+  @Query(
+      "SELECT row FROM NavReportRow row WHERE row.fundCode = :fundCode AND row.navDate = :navDate"
+          + " ORDER BY row.id")
+  List<NavReportRow> findTheDatesRowsForUpdate(
+      @Param("fundCode") String fundCode, @Param("navDate") LocalDate navDate);
 
   @Transactional
   @Modifying(clearAutomatically = true, flushAutomatically = true)
@@ -148,11 +157,6 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
   void markAsSent(@Param("calculationId") UUID calculationId);
 
   List<NavReportRow> findByCalculationIdOrderById(UUID calculationId);
-
-  @Lock(PESSIMISTIC_WRITE)
-  @Query(
-      "SELECT row FROM NavReportRow row WHERE row.calculationId = :calculationId ORDER BY row.id")
-  List<NavReportRow> findCalculationRowsForUpdate(@Param("calculationId") UUID calculationId);
 
   @Query(
       value =

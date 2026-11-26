@@ -432,16 +432,18 @@ class NavReportRepositoryTest {
   }
 
   @Test
-  void findCalculationRowsForUpdate_returnsEveryRowOfTheCalculation() {
+  void findTheDatesRowsForUpdate_returnsEveryCalculationOfThatFundAndDateOnly() {
     var navDate = LocalDate.of(2026, 11, 23);
-    var calculation = UUID.randomUUID();
-    navReportRepository.save(navRow(navDate, calculation, "1.40660000", null));
-    navReportRepository.save(componentRow(navDate, calculation, "SECURITY", "1000.00"));
-    navReportRepository.save(navRow(navDate, UUID.randomUUID(), "1.50000000", null));
+    var first = UUID.randomUUID();
+    var second = UUID.randomUUID();
+    navReportRepository.save(navRow(navDate, first, "1.40660000", null));
+    navReportRepository.save(componentRow(navDate, first, "SECURITY", "1000.00"));
+    navReportRepository.save(navRow(navDate, second, "1.50000000", null));
+    navReportRepository.save(navRow(navDate.minusDays(1), UUID.randomUUID(), "1.39000000", null));
 
-    assertThat(navReportRepository.findCalculationRowsForUpdate(calculation))
+    assertThat(navReportRepository.findTheDatesRowsForUpdate("TKF100", navDate))
         .extracting(NavReportRow::getCalculationId)
-        .containsExactly(calculation, calculation);
+        .containsExactly(first, first, second);
   }
 
   private static NavReportRow componentRow(

@@ -68,10 +68,13 @@ public class NavReleaseService {
   private NavReleaseStatus sendAndStamp(
       TulevaFund fund, LocalDate navDate, NavReleaseApproval approval) {
     List<NavReportRow> rows =
-        navReportRepository.findCalculationRowsForUpdate(approval.calculationId());
+        navReportRepository.findTheDatesRowsForUpdate(fund.getCode(), navDate).stream()
+            .filter(row -> approval.calculationId().equals(row.getCalculationId()))
+            .toList();
     if (rows.isEmpty()) {
       throw new NoSuchElementException(
-          "NAV calculation not found: calculationId=" + approval.calculationId());
+          "NAV calculation not found for this fund and date: fund=%s, navDate=%s, calculationId=%s"
+              .formatted(fund.getCode(), navDate, approval.calculationId()));
     }
     NavReleaseStatus current = statusOf(fund, navDate, rows);
     refuseUnlessReleasable(current, approval);

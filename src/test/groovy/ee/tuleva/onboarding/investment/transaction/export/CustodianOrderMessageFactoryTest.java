@@ -59,13 +59,13 @@ class CustodianOrderMessageFactoryTest {
           new CustodianOrderEmailProperties.Venue(
               List.of("equities@seb.example"),
               List.of(),
-              "Tuleva ETF tehingud {date}",
-              "Manuses on Tuleva ETF-ide tehingukorraldused ({date})."),
+              "Tuleva ETF orders {date}",
+              "Please find attached Tuleva orders for today to be executed at MOC. Please confirm!"),
           new CustodianOrderEmailProperties.Venue(
               List.of("funds@seb.example", "custody@seb.example"),
               List.of(),
-              "Tuleva fondide tehingukorraldused {date}",
-              "Manuses on Tuleva fondide osakute tehingukorraldused ({date})."),
+              "Tuleva fund orders {date}",
+              "Please find attached Tuleva fund orders. Please confirm the receipt."),
           new CustodianOrderEmailProperties.Venue(
               List.of("custody@seb.example"), List.of(), null, null));
 
@@ -143,19 +143,20 @@ class CustodianOrderMessageFactoryTest {
   }
 
   @Test
-  void theSebFundEmail_takesItsSubjectAndTextFromConfiguration_withTheTradeDateAndTheSendersName() {
+  void theSebFundEmail_takesItsSubjectAndTextFromConfiguration_inTheSheetGuidesEnglishFrame() {
     var day = day(order(TUK00, "LU00SEB001", BUY, FUND, SEB, MOC, "75000"));
 
     var message = factory.create(day, OrderEmail.SEB_FUND);
 
-    assertThat(message.getSubject()).isEqualTo("Tuleva fondide tehingukorraldused 26.11.2026");
+    assertThat(message.getSubject()).isEqualTo("Tuleva fund orders 26.11.2026");
     assertThat(message.getText())
         .isEqualTo(
             """
-            Tere,
+            Hi!
 
-            Manuses on Tuleva fondide osakute tehingukorraldused (26.11.2026).
+            Please find attached Tuleva fund orders. Please confirm the receipt.
 
+            Best regards,
             Fund Manager
             Tuleva""");
     assertThat(message.getTo())

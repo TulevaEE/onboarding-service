@@ -133,7 +133,7 @@ class CustodianOrderEmailNotifierIT {
               List.of("desk@example.com"),
               List.of(),
               "TUV100 ostu-/müügikorraldused {date}",
-              "Manuses on tehingukorraldused."),
+              "Please find attached Tuleva fund orders. Please confirm the receipt."),
           null);
     }
   }

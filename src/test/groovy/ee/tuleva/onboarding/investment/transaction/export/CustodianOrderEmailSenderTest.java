@@ -63,7 +63,7 @@ class CustodianOrderEmailSenderTest {
   private static final OrderEmailSummary UUID_SUMMARY =
       new OrderEmailSummary(UUID_KEY, OrderEmail.UUID, 1, 0, ONE_ORDERS_AMOUNT);
   private static final String FT_SUBJECT = "Tuleva ETF orders 26.11.2026 – MOC";
-  private static final String SEB_FUND_SUBJECT = "Tuleva fondide tehingukorraldused 26.11.2026";
+  private static final String SEB_FUND_SUBJECT = "Tuleva fund orders 26.11.2026";
   private static final String UUID_SUBJECT = "Tehingukorralduste UUID 26.11.2026";
 
   @Mock private AtMostOnceEmailSender orderEmailTransport;
@@ -256,8 +256,8 @@ class CustodianOrderEmailSenderTest {
         new CustodianOrderEmailProperties.Venue(
             List.of("funds@seb.example"),
             List.of(),
-            "Tuleva fondide tehingukorraldused {date}",
-            "Manuses on tehingukorraldused."),
+            "Tuleva fund orders {date}",
+            "Please find attached Tuleva fund orders. Please confirm the receipt."),
         new CustodianOrderEmailProperties.Venue(
             List.of("custody@seb.example"), List.of(), null, null));
   }

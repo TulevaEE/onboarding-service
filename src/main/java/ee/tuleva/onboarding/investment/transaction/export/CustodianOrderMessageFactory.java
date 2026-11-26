@@ -83,9 +83,9 @@ class CustodianOrderMessageFactory {
       case UUID ->
           "Tere,\n\nLisatud tänaste tehingukorralduste fail (" + date + ").\n\n" + signature;
       case SEB_ETF, SEB_FUND ->
-          "Tere,\n\n"
+          "Hi!\n\n"
               + properties.textOf(email).replace(DATE_PLACEHOLDER, date)
-              + "\n\n"
+              + "\n\nBest regards,\n"
               + signature;
     };
   }

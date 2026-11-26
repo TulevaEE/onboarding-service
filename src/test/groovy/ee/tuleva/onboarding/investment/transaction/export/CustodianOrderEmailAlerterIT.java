@@ -62,8 +62,8 @@ class CustodianOrderEmailAlerterIT {
       """
       🟠 SEB indeksfondide kirja kohaletoimetamine viibib: desk@example.com
       „TUV100 ostu-/müügikorraldused 15.01.2026“ · deferral: 550 mailbox unavailable (id=msg_1)
-      Mida teha: praegu mitte midagi, Mandrill proovib ise uuesti. \
-      Kui kiri põrkab tagasi, tuleb uus teade.""";
+      Mida teha: Mandrill proovib ise uuesti. Kui saaja pole korraldusi enne lõikeaega \
+      kinnitanud, helista talle. Saada uuesti alles siis, kui ta ütleb, et need ei jõudnud.""";
 
   @Autowired MandrillWebhookService webhookService;
   @Autowired CustodianOrderEmailAlerter alerter;

@@ -21,10 +21,15 @@ final class OrderEmailDeliveryText {
     var email = OrderEmail.taggedIn(event.tags());
     var prefix = email.map(OrderEmailSlackText::prefix).orElse(ANY_ORDER_EMAIL);
     if (isDeferral(event)) {
-      return ("🟠 %skirja kohaletoimetamine viibib: %s\n%s\n"
-              + "Mida teha: praegu mitte midagi, Mandrill proovib ise uuesti."
-              + " Kui kiri põrkab tagasi, tuleb uus teade.")
-          .formatted(prefix, event.recipient(), eventLine(event));
+      var wait =
+          isUuid(email)
+              ? "Mida teha: praegu mitte midagi, Mandrill proovib ise uuesti."
+                  + " Kui kiri põrkab tagasi, tuleb uus teade."
+              : "Mida teha: Mandrill proovib ise uuesti. Kui saaja pole korraldusi enne"
+                  + " lõikeaega kinnitanud, helista talle. Saada uuesti alles siis, kui ta ütleb,"
+                  + " et need ei jõudnud.";
+      return "🟠 %skirja kohaletoimetamine viibib: %s\n%s\n%s"
+          .formatted(prefix, event.recipient(), eventLine(event), wait);
     }
     var action =
         isUuid(email)

@@ -13,7 +13,8 @@ import org.junit.jupiter.api.Test;
 class OrderEmailDeliveryTextTest {
 
   @Test
-  void aDelayedDelivery_isAmber_andAsksForNothingYet() {
+  void
+      aDelayedOrderEmail_isAmber_andAsksToCallTheRecipientIfTheOrdersAreNotConfirmedBeforeTheCutOff() {
     var event =
         deliveryFailure("deferral", "trade-order-ft-etf", "Tuleva ETF orders 26.11.2026 – MOC");
 
@@ -22,9 +23,22 @@ class OrderEmailDeliveryTextTest {
             """
             🟠 FT kirja kohaletoimetamine viibib: desk@example.com
             „Tuleva ETF orders 26.11.2026 – MOC“ · deferral: 450 try later (id=msg_1)
+            Mida teha: Mandrill proovib ise uuesti. Kui saaja pole korraldusi enne lõikeaega \
+            kinnitanud, helista talle. Saada uuesti alles siis, kui ta ütleb, et need ei jõudnud.""");
+    assertThat(OrderEmailDeliveryText.deliveryFailureSeverity(event)).isEqualTo(WARNING);
+  }
+
+  @Test
+  void aDelayedUuidEmail_asksForNothingYet() {
+    var event = deliveryFailure("deferral", "trade-order-uuid-workbook", null);
+
+    assertThat(OrderEmailDeliveryText.deliveryFailure(event))
+        .isEqualTo(
+            """
+            🟠 SEB UUID-kirja kohaletoimetamine viibib: desk@example.com
+            deferral: 450 try later (id=msg_1)
             Mida teha: praegu mitte midagi, Mandrill proovib ise uuesti. \
             Kui kiri põrkab tagasi, tuleb uus teade.""");
-    assertThat(OrderEmailDeliveryText.deliveryFailureSeverity(event)).isEqualTo(WARNING);
   }
 
   @Test

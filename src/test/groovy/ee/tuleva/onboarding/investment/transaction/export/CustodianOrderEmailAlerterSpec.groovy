@@ -81,7 +81,8 @@ class CustodianOrderEmailAlerterSpec extends Specification {
           it.data == notYetPostedData(
           "🟠 FT kirja kohaletoimetamine viibib: desk@example.com\n" +
               "„$subject“ · deferral: 450 4.7.25 try again later (id=msg_1)\n" +
-              "Mida teha: praegu mitte midagi, Mandrill proovib ise uuesti. Kui kiri põrkab tagasi, tuleb uus teade.",
+              "Mida teha: Mandrill proovib ise uuesti. Kui saaja pole korraldusi enne lõikeaega kinnitanud, helista talle. " +
+              "Saada uuesti alles siis, kui ta ütleb, et need ei jõudnud.",
           "WARNING")
     })
     0 * notificationService._

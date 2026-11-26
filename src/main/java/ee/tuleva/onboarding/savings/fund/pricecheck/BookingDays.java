@@ -4,13 +4,25 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Optional;
 
 record BookingDays(LocalDate first, LocalDate runDay) {
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
-  static BookingDays before(LocalDate runDay, PublicHolidays publicHolidays) {
-    return new BookingDays(publicHolidays.previousWorkingDay(runDay), runDay);
+  static BookingDays sinceLastChecked(
+      Optional<LocalDate> lastChecked, LocalDate runDay, PublicHolidays publicHolidays) {
+    return new BookingDays(
+        lastChecked.map(day -> day.plusDays(1)).orElse(publicHolidays.previousWorkingDay(runDay)),
+        runDay);
+  }
+
+  boolean isEmpty() {
+    return !first.isBefore(runDay);
+  }
+
+  LocalDate last() {
+    return runDay.minusDays(1);
   }
 
   Instant from() {
@@ -22,7 +34,6 @@ record BookingDays(LocalDate first, LocalDate runDay) {
   }
 
   String describe() {
-    LocalDate last = runDay.minusDays(1);
-    return first.equals(last) ? first.toString() : first + "–" + last;
+    return first.equals(last()) ? first.toString() : first + "–" + last();
   }
 }

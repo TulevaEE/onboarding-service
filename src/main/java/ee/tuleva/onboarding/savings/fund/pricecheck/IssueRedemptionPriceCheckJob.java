@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -33,43 +34,50 @@ class IssueRedemptionPriceCheckJob {
       name = "IssueRedemptionPriceCheckJob",
       lockAtMostFor = "10m",
       lockAtLeastFor = "1m")
-  void checkThePreviousWorkingDaysDeals() {
+  void checkTheDealsBookedSinceTheLastCheck() {
     LocalDate today = clock.instant().atZone(TALLINN).toLocalDate();
     if (!publicHolidays.isWorkingDay(today)) {
       return;
     }
-    BookingDays days = BookingDays.before(today, publicHolidays);
+    Optional<PriceCheckRun> run;
     try {
-      report(check.run(days));
+      run = check.run(today);
     } catch (RuntimeException e) {
-      log.error("Issue/redemption price check failed: bookingDays={}", days.describe(), e);
-      notificationService.sendMessage(couldNotRun(days, e), INVESTMENT, ERROR);
+      log.error("Issue/redemption price check failed: runDay={}", today, e);
+      notificationService.sendMessage(couldNotRun(today, e), INVESTMENT, ERROR);
+      return;
     }
+    run.ifPresent(this::report);
   }
 
   private void report(PriceCheckRun run) {
-    run.roundingOnly()
+    run.roundingOnly().forEach(price -> log.info("{}", offOnlyByRounding(price)));
+    run.reported()
         .forEach(
             price ->
-                log.info(
-                    "Issue/redemption price off its NAV only by rounding: transactionId={},"
-                        + " realisedPrice={}, nav={}, deviation={}",
+                log.warn(
+                    "Issue/redemption price not at its NAV: transactionId={}, verdict={}",
                     price.dealing().transactionId(),
-                    price.realisedPrice(),
-                    price.nav(),
-                    price.deviation()));
+                    price.verdict(run.deviationThreshold())));
+    run.alert().ifPresent(alert -> notificationService.sendMessage(alert, INVESTMENT));
+    check.recordChecked(run, clock.instant());
     log.info(
         "Issue/redemption price check done: bookingDays={}, deals={}, reported={}",
         run.days().describe(),
         run.dealings().size(),
         run.reported().size());
-    run.alert().ifPresent(alert -> notificationService.sendMessage(alert, INVESTMENT));
   }
 
-  private static String couldNotRun(BookingDays days, RuntimeException e) {
-    return "🛑 TKF100 issue/redemption price check could not run for deals booked %s: error=%s\n"
-            .formatted(days.describe(), e.getMessage())
-        + "Next: check those deals' prices against their NAV by hand and fix what stopped the"
-        + " check";
+  private static String offOnlyByRounding(DealingPrice price) {
+    return "Issue/redemption price off its NAV only by rounding: transactionId=%s, realisedPrice=%s, nav=%s, deviation=%s"
+        .formatted(
+            price.dealing().transactionId(), price.realisedPrice(), price.nav(), price.deviation());
+  }
+
+  static String couldNotRun(LocalDate runDay, RuntimeException e) {
+    return "🛑 TKF100 issue/redemption price check could not run on %s: error=%s\n"
+            .formatted(runDay, e.getMessage())
+        + "Next: fix what stopped it; the next run checks every deal booked since the last"
+        + " checked day";
   }
 }

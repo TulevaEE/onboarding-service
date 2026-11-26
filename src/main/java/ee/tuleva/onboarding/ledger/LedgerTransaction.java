@@ -17,7 +17,9 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.*;
+import java.util.function.Supplier;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -170,8 +172,16 @@ public class LedgerTransaction {
         transactionDate,
         findUserFundUnits().orElse(null),
         findDealingCash().orElse(null),
-        findNavPerUnit().orElse(null),
-        findNavDate().orElse(null));
+        readableOrNull(this::findNavPerUnit),
+        readableOrNull(this::findNavDate));
+  }
+
+  private static <T> @Nullable T readableOrNull(Supplier<Optional<T>> metadataValue) {
+    try {
+      return metadataValue.get().orElse(null);
+    } catch (NumberFormatException | DateTimeParseException unreadable) {
+      return null;
+    }
   }
 
   private Optional<BigDecimal> findDealingCash() {

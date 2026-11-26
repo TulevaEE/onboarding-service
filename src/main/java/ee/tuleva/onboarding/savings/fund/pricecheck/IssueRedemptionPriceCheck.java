@@ -4,10 +4,12 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.UnitDealing;
 import ee.tuleva.onboarding.ledger.UnitDealings;
 import ee.tuleva.onboarding.savings.IssueRedemptionPriceThreshold;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,16 +25,27 @@ class IssueRedemptionPriceCheck {
   private final UnitDealings unitDealings;
   private final FundValueQueries fundValueQueries;
   private final IssueRedemptionPriceThreshold threshold;
+  private final CheckedBookingDays checkedBookingDays;
+  private final PublicHolidays publicHolidays;
 
-  PriceCheckRun run(BookingDays days) {
+  Optional<PriceCheckRun> run(LocalDate runDay) {
+    BookingDays days =
+        BookingDays.sinceLastChecked(checkedBookingDays.lastChecked(), runDay, publicHolidays);
+    if (days.isEmpty()) {
+      return Optional.empty();
+    }
     BigDecimal deviationThreshold =
-        threshold.issueRedemptionPriceDeviationThreshold(TKF100, days.runDay());
+        threshold.issueRedemptionPriceDeviationThreshold(TKF100, runDay);
     Map<LocalDate, Optional<BigDecimal>> publishedNavs = new HashMap<>();
     var dealings =
         unitDealings.bookedBetween(days.from(), days.to()).stream()
             .map(dealing -> new DealingPrice(dealing, publishedNav(dealing, publishedNavs)))
             .toList();
-    return new PriceCheckRun(days, deviationThreshold, dealings);
+    return Optional.of(new PriceCheckRun(days, deviationThreshold, dealings));
+  }
+
+  void recordChecked(PriceCheckRun run, Instant checkedAt) {
+    checkedBookingDays.record(run, checkedAt);
   }
 
   private @Nullable BigDecimal publishedNav(

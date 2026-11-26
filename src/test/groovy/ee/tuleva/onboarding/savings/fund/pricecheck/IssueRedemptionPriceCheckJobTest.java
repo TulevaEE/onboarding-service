@@ -3,7 +3,11 @@ package ee.tuleva.onboarding.savings.fund.pricecheck;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REDEMPTION_REQUEST;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -16,6 +20,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,8 +33,11 @@ class IssueRedemptionPriceCheckJobTest {
 
   private static final BigDecimal THRESHOLD = new BigDecimal("0.001");
   private static final BigDecimal NAV = new BigDecimal("1.1000");
+  private static final LocalDate THURSDAY = LocalDate.parse("2026-11-26");
   private static final BookingDays WEDNESDAYS_BOOKINGS =
-      new BookingDays(LocalDate.parse("2026-11-25"), LocalDate.parse("2026-11-26"));
+      new BookingDays(LocalDate.parse("2026-11-25"), THURSDAY);
+
+  private static final Instant NOW = Instant.parse("2026-11-26T06:00:00Z");
 
   @Mock IssueRedemptionPriceCheck check;
   @Mock OperationsNotificationService notificationService;
@@ -38,24 +46,49 @@ class IssueRedemptionPriceCheckJobTest {
 
   @BeforeEach
   void setUp() {
-    job = jobRunningAt("2026-11-26T06:00:00Z");
+    job = jobRunningAt(NOW.toString());
   }
 
   @Test
   void postsTheDealsNotAtTheirNavToTheInvestmentChannel() {
     var run = run(deal("120.00"));
-    given(check.run(WEDNESDAYS_BOOKINGS)).willReturn(run);
+    given(check.run(THURSDAY)).willReturn(Optional.of(run));
 
-    job.checkThePreviousWorkingDaysDeals();
+    job.checkTheDealsBookedSinceTheLastCheck();
 
     verify(notificationService).sendMessage(run.alert().orElseThrow(), INVESTMENT);
+    verify(check).recordChecked(run, NOW);
+  }
+
+  @Test
+  void leavesTheDaysUncheckedWhenTheAlertCannotBePostedSoTheNextRunAlertsAgain() {
+    var run = run(deal("120.00"));
+    given(check.run(THURSDAY)).willReturn(Optional.of(run));
+    willThrow(new IllegalStateException("Slack unavailable"))
+        .given(notificationService)
+        .sendMessage(run.alert().orElseThrow(), INVESTMENT);
+
+    assertThatThrownBy(() -> job.checkTheDealsBookedSinceTheLastCheck())
+        .isInstanceOf(IllegalStateException.class);
+
+    verify(check, never()).recordChecked(any(), any());
+  }
+
+  @Test
+  void doesNothingWhenEveryBookingDayIsAlreadyChecked() {
+    given(check.run(THURSDAY)).willReturn(Optional.empty());
+
+    job.checkTheDealsBookedSinceTheLastCheck();
+
+    verifyNoInteractions(notificationService);
+    verify(check, never()).recordChecked(any(), any());
   }
 
   @Test
   void staysQuietWhenEveryDealIsAtItsNav() {
-    given(check.run(WEDNESDAYS_BOOKINGS)).willReturn(run(deal("110.00")));
+    given(check.run(THURSDAY)).willReturn(Optional.of(run(deal("110.00"))));
 
-    job.checkThePreviousWorkingDaysDeals();
+    job.checkTheDealsBookedSinceTheLastCheck();
 
     verifyNoInteractions(notificationService);
   }
@@ -73,32 +106,29 @@ class IssueRedemptionPriceCheckJobTest {
                 NAV,
                 LocalDate.parse("2026-11-24")),
             NAV);
-    given(check.run(WEDNESDAYS_BOOKINGS)).willReturn(run(tinyRedemptionRoundedToTheCent));
+    given(check.run(THURSDAY)).willReturn(Optional.of(run(tinyRedemptionRoundedToTheCent)));
 
-    job.checkThePreviousWorkingDaysDeals();
+    job.checkTheDealsBookedSinceTheLastCheck();
 
     verifyNoInteractions(notificationService);
   }
 
   @Test
   void saysTheCheckCouldNotRunWhenItFails() {
-    given(check.run(WEDNESDAYS_BOOKINGS))
-        .willThrow(new IllegalStateException("Investment parameter missing"));
+    var failure = new IllegalStateException("Investment parameter missing");
+    given(check.run(THURSDAY)).willThrow(failure);
 
-    job.checkThePreviousWorkingDaysDeals();
+    job.checkTheDealsBookedSinceTheLastCheck();
 
     verify(notificationService)
         .sendMessage(
-            """
-            🛑 TKF100 issue/redemption price check could not run for deals booked 2026-11-25: error=Investment parameter missing
-            Next: check those deals' prices against their NAV by hand and fix what stopped the check""",
-            INVESTMENT,
-            ERROR);
+            IssueRedemptionPriceCheckJob.couldNotRun(THURSDAY, failure), INVESTMENT, ERROR);
+    verify(check, never()).recordChecked(any(), any());
   }
 
   @Test
   void doesNotRunOnAPublicHoliday() {
-    jobRunningAt("2026-12-24T06:00:00Z").checkThePreviousWorkingDaysDeals();
+    jobRunningAt("2026-12-24T06:00:00Z").checkTheDealsBookedSinceTheLastCheck();
 
     verifyNoInteractions(check, notificationService);
   }

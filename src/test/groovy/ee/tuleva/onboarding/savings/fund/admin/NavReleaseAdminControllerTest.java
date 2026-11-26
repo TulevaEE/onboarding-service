@@ -115,8 +115,28 @@ class NavReleaseAdminControllerTest {
   }
 
   @Test
-  void release_withoutApprovers_isABadRequest() throws Exception {
+  void release_withoutTwoDifferentApprovers_isABadRequest() throws Exception {
     mockMvc.perform(release(releaseBody("[]"))).andExpect(status().isBadRequest());
+    mockMvc.perform(release(releaseBody("[\"approver-one\"]"))).andExpect(status().isBadRequest());
+    mockMvc
+        .perform(release(releaseBody("[\"approver-one\", \"approver-one\"]")))
+        .andExpect(status().isBadRequest());
+    mockMvc
+        .perform(release(releaseBody("[\"approver-one\", \" \"]")))
+        .andExpect(status().isBadRequest());
+    then(navReleaseService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void release_withoutTheApprovedValues_isABadRequest() throws Exception {
+    mockMvc
+        .perform(
+            release(
+                """
+                {"calculationId": "%s", "approvedBy": ["approver-one", "approver-two"]}
+                """
+                    .formatted(CALCULATION_ID)))
+        .andExpect(status().isBadRequest());
     then(navReleaseService).shouldHaveNoInteractions();
   }
 

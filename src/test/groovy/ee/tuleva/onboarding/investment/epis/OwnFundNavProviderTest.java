@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -25,6 +27,7 @@ class OwnFundNavProviderTest {
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 2, 9);
 
   @Mock private FundNavQueryService fundNavQueryService;
+  @Spy private PublicHolidays publicHolidays = new PublicHolidays();
 
   @InjectMocks private OwnFundNavProvider provider;
 
@@ -99,6 +102,31 @@ class OwnFundNavProviderTest {
 
     assertThat(provider.findLatestNav(TUV100, AS_OF_DATE)).isEmpty();
     verify(fundNavQueryService, never()).findLatestNavPerUnit(any(), any());
+  }
+
+  @Test
+  void findLatestNav_takesThePreviousNavTheTrusteeHasWhileTheNewestIsHeldForReview() {
+    var heldDate = LocalDate.of(2026, 2, 10);
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TUV100.getCode(), AS_OF_DATE))
+        .willReturn(Optional.of(NAV_DATE));
+    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUV100.getCode(), AS_OF_DATE))
+        .willReturn(Optional.of(heldDate));
+    given(fundNavQueryService.findPublishedNavPerUnit(TUV100.getCode(), NAV_DATE))
+        .willReturn(Optional.of(new BigDecimal("1.5")));
+
+    assertThat(provider.findLatestNav(TUV100, AS_OF_DATE)).hasValue(new BigDecimal("1.5"));
+  }
+
+  @Test
+  void latestNav_throwsRatherThanServeANavMoreThanOneNavDateBehindTheLatestCalculation() {
+    var calculatedButNeverSent = LocalDate.of(2026, 2, 10);
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TUV100.getCode(), AS_OF_DATE))
+        .willReturn(Optional.of(LocalDate.of(2026, 2, 6)));
+    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUV100.getCode(), AS_OF_DATE))
+        .willReturn(Optional.of(calculatedButNeverSent));
+
+    assertThatThrownBy(() -> provider.latestNav(TUV100, AS_OF_DATE))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   private void givenNav(BigDecimal nav) {

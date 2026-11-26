@@ -215,7 +215,7 @@ public class NavPublisher {
         1. Check the changed rows against the new SEB position report.
         2. If correct, release it. The release sends the revised report to SEB; do not forward the email by hand.
         %s
-        3. Until it is released, the NAV SEB has stays the fund's NAV in onboarding-service.%s"""
+        3. Until it is released, onboarding-service reads only a NAV SEB has received.%s"""
         .formatted(
             fundCode,
             result.positionReportDate(),

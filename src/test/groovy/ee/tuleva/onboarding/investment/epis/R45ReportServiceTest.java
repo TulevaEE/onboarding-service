@@ -16,6 +16,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser;
 import ee.tuleva.onboarding.investment.epis.parser.R45ReportParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
@@ -47,7 +48,7 @@ class R45ReportServiceTest {
       new R45ReportService(
           reportRepository,
           summaryRepository,
-          new OwnFundNavProvider(fundNavQueryService),
+          new OwnFundNavProvider(fundNavQueryService, new PublicHolidays()),
           new R45ReportParser(new EpisCsvParser()),
           new EpisCsvParser(),
           notificationService);

@@ -29,7 +29,7 @@ class R16FlowCalculationServiceTest {
   private final R16FlowCalculationService service =
       new R16FlowCalculationService(
           summaryRepository,
-          new OwnFundNavProvider(fundNavQueryService),
+          new OwnFundNavProvider(fundNavQueryService, new PublicHolidays()),
           new EstonianCalendar(new PublicHolidays()));
 
   @Test

@@ -7,9 +7,11 @@ import static ee.tuleva.onboarding.savings.fund.nav.NavReleaseState.REVISION;
 import static ee.tuleva.onboarding.savings.fund.nav.NavReleaseState.SENT;
 import static java.util.Objects.requireNonNull;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.NavCalculationCompleted;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -34,6 +36,8 @@ public class NavReleaseService {
   private final NavCalendar navCalendar;
   private final OperationsNotificationService notificationService;
   private final TransactionTemplate transactionTemplate;
+  private final PublicHolidays publicHolidays;
+  private final Clock clock;
   private final ApplicationEventPublisher eventPublisher;
 
   @Transactional(readOnly = true)
@@ -50,7 +54,7 @@ public class NavReleaseService {
         requireNonNull(
             transactionTemplate.execute(transaction -> sendAndStamp(fund, navDate, approval)));
     announce(released, approval);
-    rerunTheChecksOfTheReleasedNav(fund);
+    rerunTheChecksOfTheReleasedNav(fund, navDate);
     return new NavReleaseStatus(
         released.fundCode(),
         navDate,
@@ -72,7 +76,7 @@ public class NavReleaseService {
     NavReleaseStatus current = statusOf(fund, navDate, rows);
     refuseUnlessReleasable(current, approval);
 
-    if (!navReportEmailSender.send(rows, fund, navDate, navCalendar.calculationDateOf(navDate))) {
+    if (!sendToTheTrustee(rows, fund, navDate)) {
       throw new NavReleaseEmailFailedException(
           "NAV report email to the trustee failed, nothing released: fund=%s, navDate=%s, calculationId=%s"
               .formatted(fund.getCode(), navDate, approval.calculationId()));
@@ -81,7 +85,24 @@ public class NavReleaseService {
     return current;
   }
 
-  private void rerunTheChecksOfTheReleasedNav(TulevaFund fund) {
+  private boolean sendToTheTrustee(List<NavReportRow> rows, TulevaFund fund, LocalDate navDate) {
+    try {
+      return navReportEmailSender.send(rows, fund, navDate, navCalendar.calculationDateOf(navDate));
+    } catch (RuntimeException e) {
+      log.error(
+          "NAV report email to the trustee threw: fund={}, navDate={}", fund.getCode(), navDate, e);
+      return false;
+    }
+  }
+
+  private void rerunTheChecksOfTheReleasedNav(TulevaFund fund, LocalDate navDate) {
+    if (!navDate.equals(publicHolidays.previousWorkingDay(LocalDate.now(clock)))) {
+      log.info(
+          "NAV released after its own NAV day, its checks are not rerun: fund={}, navDate={}",
+          fund.getCode(),
+          navDate);
+      return;
+    }
     try {
       eventPublisher.publishEvent(new NavCalculationCompleted(List.of(fund)));
     } catch (RuntimeException e) {

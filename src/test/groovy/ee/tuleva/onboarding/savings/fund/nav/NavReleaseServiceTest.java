@@ -25,22 +25,40 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.NavCalculationCompleted;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 
 @DataJpaTest
-@Import({NavReleaseService.class, NavCalendar.class, PublicHolidays.class})
+@Import({
+  NavReleaseService.class,
+  NavCalendar.class,
+  PublicHolidays.class,
+  NavReleaseServiceTest.OnTheWorkingDayAfterTheNavDate.class
+})
 @RecordApplicationEvents
 class NavReleaseServiceTest {
+
+  @TestConfiguration
+  static class OnTheWorkingDayAfterTheNavDate {
+    @Bean
+    Clock clock() {
+      return Clock.fixed(Instant.parse("2026-11-23T10:00:00Z"), ZoneId.of("Europe/Tallinn"));
+    }
+  }
 
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 11, 20);
   private static final LocalDate CALCULATION_DATE = LocalDate.of(2026, 11, 23);
@@ -141,6 +159,31 @@ class NavReleaseServiceTest {
 
     assertThat(events.stream(NavCalculationCompleted.class))
         .containsExactly(new NavCalculationCompleted(List.of(TKF100)));
+  }
+
+  @Test
+  void release_ofAnOlderNavDate_doesNotRerunTodaysChecks() {
+    var olderDate = LocalDate.of(2026, 11, 19);
+    var held = calculation(TKF100, olderDate, "1.4066", "16000000.00");
+    navReportRepository.markAsPublished(held);
+    given(navReportEmailSender.send(anyList(), eq(TKF100), eq(olderDate), eq(NAV_DATE)))
+        .willReturn(true);
+
+    navReleaseService.release(TKF100, olderDate, approval(held, "1.4066"));
+
+    assertThat(events.stream(NavCalculationCompleted.class)).isEmpty();
+  }
+
+  @Test
+  void release_whoseEmailSenderThrows_stampsNothing() {
+    var held = calculation(TKF100, NAV_DATE, "1.4066", "16000000.00");
+    navReportRepository.markAsPublished(held);
+    given(navReportEmailSender.send(anyList(), eq(TKF100), eq(NAV_DATE), eq(CALCULATION_DATE)))
+        .willThrow(new IllegalStateException("Mandrill rejected the recipient"));
+
+    assertThatThrownBy(() -> navReleaseService.release(TKF100, NAV_DATE, approval(held, "1.4066")))
+        .isInstanceOf(NavReleaseEmailFailedException.class);
+    assertThat(navReportRepository.existsSentByNavDateAndFundCode(NAV_DATE, "TKF100")).isFalse();
   }
 
   @Test

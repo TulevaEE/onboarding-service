@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser;
 import ee.tuleva.onboarding.investment.epis.parser.R16ReportParser;
@@ -44,6 +45,7 @@ import org.springframework.test.context.event.RecordApplicationEvents;
   EpisReportIngestionService.class,
   R45ReportService.class,
   OwnFundNavProvider.class,
+  PublicHolidays.class,
   PevaRavaPeriodService.class,
   Target2Calendar.class,
   EpisCsvParser.class,

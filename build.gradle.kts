@@ -174,7 +174,7 @@ dependencies {
     }
     implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
-    implementation("org.bouncycastle:bcutil-jdk18on:1.86")
+    implementation("org.bouncycastle:bcutil-jdk18on:1.87")
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
     implementation("io.sentry:sentry-spring-boot-4:8.62.0")

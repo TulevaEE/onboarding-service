@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.notification.email;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Named.named;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import ch.qos.logback.classic.Level;
@@ -88,7 +89,7 @@ class MandrillConfigurationTest {
   @ParameterizedTest(name = "{0}")
   @MethodSource("failuresAndAttempts")
   void emailServiceRetryTemplateSendsAgainBeforeAnAnswerAndOnRefusalsButNotOnceAnAnswerBegan(
-      String failure, RuntimeException thrown, int expectedAttempts) {
+      RuntimeException thrown, int expectedAttempts) {
     RetryTemplate retryTemplate =
         MandrillConfiguration.emailServiceRetryTemplateWithFirstDelay(Duration.ofMillis(1));
     var attempts = new AtomicInteger();
@@ -106,31 +107,39 @@ class MandrillConfigurationTest {
 
   static Stream<Arguments> failuresAndAttempts() {
     return Stream.of(
-        arguments("the connection was refused", neverReachedMandrill(), 3),
+        arguments(named("the connection was refused", neverReachedMandrill()), 3),
         arguments(
-            "the connection timed out",
-            new ResourceAccessException(
-                "I/O error", new HttpConnectTimeoutException("HTTP connect timed out")),
+            named(
+                "the connection timed out",
+                new ResourceAccessException(
+                    "I/O error", new HttpConnectTimeoutException("HTTP connect timed out"))),
             3),
         arguments(
-            "the connection was reset before any answer",
-            new ResourceAccessException("I/O error", new IOException("Connection reset")),
+            named(
+                "the connection was reset before any answer",
+                new ResourceAccessException("I/O error", new IOException("Connection reset"))),
             3),
         arguments(
-            "Mandrill or its edge answered with an error",
-            new MandrillApiException(
-                "/messages/send.json", new MandrillError(502, null, null, null)),
+            named(
+                "Mandrill or its edge answered with an error",
+                new MandrillApiException(
+                    "/messages/send.json", new MandrillError(502, null, null, null))),
             3),
         arguments(
-            "Mandrill did not answer in time",
-            new ResourceAccessException("I/O error", new HttpTimeoutException("request timed out")),
+            named(
+                "Mandrill did not answer in time",
+                new ResourceAccessException(
+                    "I/O error", new HttpTimeoutException("request timed out"))),
             1),
         arguments(
-            "the answer stalled or broke off after it began",
-            new RestClientException("Error while extracting response", new IOException("closed")),
+            named(
+                "the answer stalled or broke off after it began",
+                new RestClientException(
+                    "Error while extracting response", new IOException("closed"))),
             1),
         arguments(
-            "the answer could not be read", new JsonSyntaxException("Expected BEGIN_ARRAY"), 1));
+            named("the answer could not be read", new JsonSyntaxException("Expected BEGIN_ARRAY")),
+            1));
   }
 
   @Test

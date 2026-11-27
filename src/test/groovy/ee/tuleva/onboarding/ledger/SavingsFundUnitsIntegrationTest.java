@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.LEGAL_ENTITY;
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FUND_SUBSCRIPTION;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
@@ -26,7 +27,8 @@ import org.springframework.context.annotation.Import;
 })
 class SavingsFundUnitsIntegrationTest {
 
-  private static final String REGISTRY_CODE = "10000000";
+  private static final PartyRef COMPANY = new PartyRef(LEGAL_ENTITY, "10000000");
+  private static final PartyRef PERSON_WITH_THE_COMPANYS_CODE = new PartyRef(PERSON, "10000000");
   private static final Instant START_OF_OCTOBER = Instant.parse("2026-09-30T21:00:00Z");
 
   @Autowired private LedgerService ledgerService;
@@ -36,37 +38,62 @@ class SavingsFundUnitsIntegrationTest {
 
   @Test
   void aCompanyHoldsItsFreeAndItsReservedUnitsAtTheCutoff() {
-    issueUnits(FUND_UNITS, "200000.00000", START_OF_OCTOBER.minusSeconds(86_400));
-    issueUnits(FUND_UNITS_RESERVED, "901.49000", START_OF_OCTOBER.minusSeconds(3_600));
+    issueUnits(COMPANY, FUND_UNITS, "200000.00000", START_OF_OCTOBER.minusSeconds(86_400));
+    issueUnits(COMPANY, FUND_UNITS_RESERVED, "901.49000", START_OF_OCTOBER.minusSeconds(3_600));
 
-    assertThat(savingsFundUnits.unitsHeldAt(REGISTRY_CODE, START_OF_OCTOBER))
+    assertThat(savingsFundUnits.unitsHeldAt(COMPANY, START_OF_OCTOBER))
         .hasValueSatisfying(units -> assertThat(units).isEqualByComparingTo("200901.49"));
   }
 
   @Test
   void unitsIssuedAfterTheCutoffAreNotYetHeld() {
-    issueUnits(FUND_UNITS, "1000.00000", START_OF_OCTOBER.minusSeconds(3_600));
-    issueUnits(FUND_UNITS, "500.00000", START_OF_OCTOBER.plusSeconds(3_600));
+    issueUnits(COMPANY, FUND_UNITS, "1000.00000", START_OF_OCTOBER.minusSeconds(3_600));
+    issueUnits(COMPANY, FUND_UNITS, "500.00000", START_OF_OCTOBER.plusSeconds(3_600));
 
-    assertThat(savingsFundUnits.unitsHeldAt(REGISTRY_CODE, START_OF_OCTOBER))
+    assertThat(savingsFundUnits.unitsHeldAt(COMPANY, START_OF_OCTOBER))
         .hasValueSatisfying(units -> assertThat(units).isEqualByComparingTo("1000"));
   }
 
   @Test
   void aCompanyWhoseUnitAccountIsEmptyAtTheCutoffHoldsZeroUnits() {
-    issueUnits(FUND_UNITS, "1000.00000", START_OF_OCTOBER.plusSeconds(3_600));
+    issueUnits(COMPANY, FUND_UNITS, "1000.00000", START_OF_OCTOBER.plusSeconds(3_600));
 
-    assertThat(savingsFundUnits.unitsHeldAt(REGISTRY_CODE, START_OF_OCTOBER))
+    assertThat(savingsFundUnits.unitsHeldAt(COMPANY, START_OF_OCTOBER))
         .hasValueSatisfying(units -> assertThat(units).isEqualByComparingTo("0"));
   }
 
   @Test
-  void aCompanyWithoutUnitAccountsHasNoHoldingToShow() {
-    assertThat(savingsFundUnits.unitsHeldAt(REGISTRY_CODE, START_OF_OCTOBER)).isEmpty();
+  void aPersonHoldsTheirFreeAndTheirReservedUnitsAtTheCutoff() {
+    issueUnits(
+        PERSON_WITH_THE_COMPANYS_CODE,
+        FUND_UNITS,
+        "300.00000",
+        START_OF_OCTOBER.minusSeconds(86_400));
+    issueUnits(
+        PERSON_WITH_THE_COMPANYS_CODE,
+        FUND_UNITS_RESERVED,
+        "12.50000",
+        START_OF_OCTOBER.minusSeconds(3_600));
+
+    assertThat(savingsFundUnits.unitsHeldAt(PERSON_WITH_THE_COMPANYS_CODE, START_OF_OCTOBER))
+        .hasValueSatisfying(units -> assertThat(units).isEqualByComparingTo("312.5"));
   }
 
-  private void issueUnits(UserAccount account, String units, Instant date) {
-    var holder = ledgerService.getPartyAccount(REGISTRY_CODE, LEGAL_ENTITY, account);
+  @Test
+  void aPersonsUnitsAreNotTheUnitsOfACompanyWithTheSameCode() {
+    issueUnits(COMPANY, FUND_UNITS, "1000.00000", START_OF_OCTOBER.minusSeconds(3_600));
+
+    assertThat(savingsFundUnits.unitsHeldAt(PERSON_WITH_THE_COMPANYS_CODE, START_OF_OCTOBER))
+        .isEmpty();
+  }
+
+  @Test
+  void aCompanyWithoutUnitAccountsHasNoHoldingToShow() {
+    assertThat(savingsFundUnits.unitsHeldAt(COMPANY, START_OF_OCTOBER)).isEmpty();
+  }
+
+  private void issueUnits(PartyRef party, UserAccount account, String units, Instant date) {
+    var holder = ledgerService.getPartyAccount(party.code(), party.type(), account);
     var outstanding = ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100);
     var transaction =
         LedgerTransaction.builder()

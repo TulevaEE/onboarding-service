@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.fund;
 
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.LEGAL_ENTITY;
+
+import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundUnits;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -30,6 +33,6 @@ class SavingsFundUnitStatsAdapter implements SavingsFundUnitStats {
 
   @Override
   public Optional<BigDecimal> unitsHeldAt(String registryCode, Instant cutoff) {
-    return savingsFundUnits.unitsHeldAt(registryCode, cutoff);
+    return savingsFundUnits.unitsHeldAt(new PartyRef(LEGAL_ENTITY, registryCode), cutoff);
   }
 }

@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.util.stream.Collectors.toSet;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.event.RunOverdueSettlementRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
@@ -53,6 +54,7 @@ class SettlementCheckJob {
   private int scanLookbackDays = 60;
 
   private final Clock clock;
+  private final PublicHolidays publicHolidays;
   private final TransactionOrderRepository orderRepository;
   private final InvestmentReportService reportService;
   private final SebPendingTransactionExtractor extractor;
@@ -66,6 +68,15 @@ class SettlementCheckJob {
 
   @Scheduled(cron = "0 0 10 * * *", zone = TIMEZONE)
   @SchedulerLock(name = "SettlementCheckJob", lockAtMostFor = "10m", lockAtLeastFor = "1m")
+  public void runOnWorkingDays() {
+    LocalDate today = LocalDate.now(clock);
+    if (!publicHolidays.isWorkingDay(today)) {
+      log.info("Settlement check skipped on a non-working day: today={}", today);
+      return;
+    }
+    run();
+  }
+
   public void run() {
     LocalDate today = LocalDate.now(clock);
     RegistryComparisons comparisons = compareReportWithRegistry(today);

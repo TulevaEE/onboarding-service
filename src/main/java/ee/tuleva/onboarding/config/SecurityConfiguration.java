@@ -86,6 +86,8 @@ public class SecurityConfiguration {
                     .permitAll()
                     .requestMatchers(POST, "/v1/connect/*/deny")
                     .permitAll()
+                    .requestMatchers(POST, "/v1/t/anonymous")
+                    .permitAll()
                     .requestMatchers(POST, "/v1/t")
                     .hasAuthority(USER)
                     .requestMatchers(MEMBER_READS_THAT_TRANSACT)

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.fees.ocf;
 
 import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.AGREEMENT;
 import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.STANDARD_AFTER_AGREEMENT;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -42,7 +43,8 @@ class OcfSnapshotRepositoryTest {
 
   private static final OcfAudit NO_AUDIT =
       new OcfAudit(
-          null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+          null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+          null, null, null);
 
   private OcfSnapshot snapshot(LocalDate month, String totalOcf) {
     return snapshot(month, totalOcf, NO_AUDIT);
@@ -58,6 +60,7 @@ class OcfSnapshotRepositoryTest {
         BigDecimal.ZERO,
         RebateBasis.NET,
         BigDecimal.ZERO,
+        ZERO,
         new BigDecimal(totalOcf),
         true,
         null,
@@ -151,6 +154,7 @@ class OcfSnapshotRepositoryTest {
             BigDecimal.ZERO,
             RebateBasis.NET,
             BigDecimal.ZERO,
+            ZERO,
             BigDecimal.ZERO,
             false,
             "{\"unresolvedIsins\":[\"XX0000000001\"]}",
@@ -175,6 +179,7 @@ class OcfSnapshotRepositoryTest {
             new BigDecimal("0.00150000"),
             RebateBasis.NET,
             BigDecimal.ZERO,
+            ZERO,
             new BigDecimal("0.00150000"),
             true,
             null,
@@ -195,7 +200,35 @@ class OcfSnapshotRepositoryTest {
 
     var found = repository.findByFundAndMonth("TUK75", APRIL).orElseThrow();
 
-    assertThat(found.methodology()).isEqualTo(OcfMethodology.EX_ANTE_NET_ASSETS_V2);
+    assertThat(found.methodology()).isEqualTo(OcfMethodology.EX_ANTE_NET_ASSETS_V3);
+  }
+
+  @Test
+  void theBankChargesRateSurvivesTheRoundTripAndOverwritesTheWorkingVersion() {
+    repository.save(withBankChargesRate("0.00000000"), List.of());
+    repository.save(withBankChargesRate("0.00012000"), List.of());
+
+    var found = repository.findByFundAndMonth("TUK75", APRIL).orElseThrow();
+
+    assertThat(found.bankChargesRate()).isEqualByComparingTo("0.00012");
+    assertThat(found.version()).isEqualTo(1);
+  }
+
+  private static OcfSnapshot withBankChargesRate(String bankChargesRate) {
+    return OcfSnapshot.computed(
+        "TUK75",
+        APRIL,
+        new BigDecimal("0.00340000"),
+        ZERO,
+        ZERO,
+        ZERO,
+        RebateBasis.NET,
+        ZERO,
+        new BigDecimal(bankChargesRate),
+        new BigDecimal("0.00340000").add(new BigDecimal(bankChargesRate)),
+        true,
+        null,
+        NO_AUDIT);
   }
 
   @Test
@@ -217,7 +250,10 @@ class OcfSnapshotRepositoryTest {
             "[\"2026-04-29\",\"2026-04-30\"]",
             UnderlyingWeightBasis.MONTH_AVERAGE,
             new BigDecimal("0.940000000000"),
-            new BigDecimal("0.970000000000"));
+            new BigDecimal("0.970000000000"),
+            LocalDate.of(2026, 3, 1),
+            new BigDecimal("0.18"),
+            new BigDecimal("4.20"));
 
     repository.save(snapshot(APRIL, "0.00340000", audit), List.of());
 
@@ -322,6 +358,10 @@ class OcfSnapshotRepositoryTest {
 
     assertThat(found.version()).isEqualTo(1);
     assertThat(found.complete()).isFalse();
+    assertThat(found.bankChargesRate()).isNull();
+    assertThat(found.audit().bankChargesWindowStart()).isNull();
+    assertThat(found.audit().bankFees()).isNull();
+    assertThat(found.audit().overdraftInterest()).isNull();
   }
 
   @Test

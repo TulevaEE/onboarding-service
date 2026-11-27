@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static ee.tuleva.onboarding.investment.fees.ocf.OcfPublicationBasis.MONTHLY_ESTIMATE;
 import static ee.tuleva.onboarding.investment.fees.ocf.UnderlyingWeightBasis.MONTH_AVERAGE;
 import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.AGREEMENT;
+import static ee.tuleva.onboarding.ledger.SystemAccount.BANK_FEE;
+import static ee.tuleva.onboarding.ledger.SystemAccount.INTEREST_INCOME;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,6 +28,8 @@ import ee.tuleva.onboarding.investment.fees.rate.DailyRates;
 import ee.tuleva.onboarding.investment.fees.rate.InstrumentOcfService;
 import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
 import ee.tuleva.onboarding.investment.fees.rate.RebateKind;
+import ee.tuleva.onboarding.ledger.BankChargesRepository;
+import ee.tuleva.onboarding.ledger.BankStatementLedgerLines;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRow;
@@ -33,6 +37,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +68,8 @@ import tools.jackson.databind.json.JsonMapper;
   OcfExceptionRepository.class,
   OcfKidReviewRepository.class,
   HistoricalTransactionFeeRepository.class,
+  BankChargesRepository.class,
+  BankChargesCalculator.class,
   OcfJson.class,
   MonthEndNavCheck.class,
   UnderlyingWeights.class,
@@ -121,6 +128,62 @@ class OcfCalculationServiceIT {
                     FIXED,
                     LocalDate.of(2026, 1, 1),
                     null)));
+  }
+
+  @BeforeEach
+  void theFundsBankStatementsAreInTheLedgerFromJanuary2026() {
+    new BankStatementLedgerLines(jdbcClient)
+        .book(
+            TUK75,
+            "INTEREST_RECEIVED",
+            LocalDateTime.of(2026, 1, 15, 8, 0),
+            INTEREST_INCOME,
+            "-0.01");
+  }
+
+  @Test
+  void theBankFeesAndOverdraftInterestInTheLedgerAreAnnualisedOverTheMonthsItCoversIntoTheOcf() {
+    publishedNav(TUESDAY_SEPTEMBER_29);
+    publishedNav(WEDNESDAY_SEPTEMBER_30);
+    var ledger = new BankStatementLedgerLines(jdbcClient);
+    ledger.book(TUK75, "BANK_FEE", LocalDateTime.of(2026, 9, 15, 8, 0), BANK_FEE, "0.18");
+    ledger.book(
+        TUK75, "INTEREST_RECEIVED", LocalDateTime.of(2026, 9, 30, 8, 0), INTEREST_INCOME, "4.20");
+
+    service.calculateOcf(TUK75, SEPTEMBER);
+
+    var stored = storedSnapshot(SEPTEMBER);
+    assertThat(stored.bankChargesRate()).isEqualByComparingTo("0.00000586");
+    assertThat(stored.totalOcf())
+        .isEqualByComparingTo(
+            stored
+                .managementFeeRate()
+                .add(stored.depotFeeRate())
+                .add(stored.underlyingFundCost())
+                .add(stored.transactionCostRate())
+                .add(stored.bankChargesRate()));
+    assertThat(stored.complete()).isTrue();
+    assertThat(stored.audit().bankChargesWindowStart()).isEqualTo(LocalDate.of(2026, 1, 1));
+    assertThat(stored.audit().bankFees()).isEqualByComparingTo("0.18");
+    assertThat(stored.audit().overdraftInterest()).isEqualByComparingTo("4.20");
+  }
+
+  @Test
+  void aMonthBeforeTheFundsBankStatementsReachTheLedgerIsIncompleteUntilAnEarlierOneIsBooked() {
+    var november2025 = YearMonth.of(2025, 11);
+    service.calculateOcf(TUK75, november2025);
+    assertThat(storedSnapshot(november2025).checks()).contains("BANK_CHARGES_NOT_IN_LEDGER");
+
+    new BankStatementLedgerLines(jdbcClient)
+        .book(
+            TUK75,
+            "INTEREST_RECEIVED",
+            LocalDateTime.of(2025, 6, 10, 8, 0),
+            INTEREST_INCOME,
+            "-0.01");
+    service.calculateOcf(TUK75, november2025);
+
+    assertThat(storedSnapshot(november2025).checks()).doesNotContain("BANK_CHARGES_NOT_IN_LEDGER");
   }
 
   @Test

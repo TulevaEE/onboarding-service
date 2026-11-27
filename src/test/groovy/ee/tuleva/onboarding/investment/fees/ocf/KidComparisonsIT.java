@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.fees.ocf;
 import static ee.tuleva.onboarding.investment.fees.ocf.OcfPublicationBasis.MONTHLY_ESTIMATE;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -159,12 +160,13 @@ class KidComparisonsIT {
             new BigDecimal(totalOcf),
             RebateBasis.NET,
             BigDecimal.ZERO,
+            ZERO,
             new BigDecimal(totalOcf),
             complete,
             checks,
             new OcfAudit(
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null)),
+                null, null, null, null)),
         List.of());
     return snapshotRepository.findByFundAndMonth(fund.getCode(), APRIL).orElseThrow();
   }

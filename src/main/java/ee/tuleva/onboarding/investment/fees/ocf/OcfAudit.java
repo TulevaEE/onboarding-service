@@ -24,7 +24,10 @@ public record OcfAudit(
     @Nullable String txnNavDates,
     @Nullable UnderlyingWeightBasis underlyingWeightBasis,
     @Nullable BigDecimal investedRatioMonthEnd,
-    @Nullable BigDecimal investedRatioMonthAverage) {
+    @Nullable BigDecimal investedRatioMonthAverage,
+    @Nullable LocalDate bankChargesWindowStart,
+    @Nullable BigDecimal bankFees,
+    @Nullable BigDecimal overdraftInterest) {
 
   public static OcfAudit fromResultSet(ResultSet rs) throws SQLException {
     return new OcfAudit(
@@ -42,7 +45,10 @@ public record OcfAudit(
         rs.getString("txn_nav_dates"),
         weightBasis(rs),
         rs.getBigDecimal("invested_ratio_month_end"),
-        rs.getBigDecimal("invested_ratio_month_average"));
+        rs.getBigDecimal("invested_ratio_month_average"),
+        localDate(rs, "bank_charges_window_start"),
+        rs.getBigDecimal("bank_fees"),
+        rs.getBigDecimal("overdraft_interest"));
   }
 
   private static @Nullable UnderlyingWeightBasis weightBasis(ResultSet rs) throws SQLException {

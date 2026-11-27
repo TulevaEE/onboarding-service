@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.fees.ocf;
 
 import static ee.tuleva.onboarding.investment.fees.ocf.OcfPublicationBasis.MONTHLY_ESTIMATE;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
@@ -46,12 +47,13 @@ class OcfKidReviewRepositoryTest {
             new BigDecimal("0.00250000"),
             RebateBasis.NET,
             BigDecimal.ZERO,
+            ZERO,
             new BigDecimal("0.00450000"),
             true,
             "{\"gaps\":[]}",
             new OcfAudit(
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null)),
+                null, null, null, null)),
         List.of());
     calculation = snapshotRepository.findByFundAndMonth("TUK75", APRIL).orElseThrow();
     kid = publicationRepository.recordGiven(kidOf("0.00460000", 2, "KID 01.03.2026"));
@@ -110,12 +112,13 @@ class OcfKidReviewRepositoryTest {
             new BigDecimal("0.00240000"),
             RebateBasis.NET,
             BigDecimal.ZERO,
+            ZERO,
             new BigDecimal("0.00440000"),
             true,
             "{\"gaps\":[]}",
             new OcfAudit(
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null)),
+                null, null, null, null)),
         List.of());
 
     assertThat(repository.recordUnlessPublishedOrRecalculated(calculation, kid, REVIEW)).isFalse();

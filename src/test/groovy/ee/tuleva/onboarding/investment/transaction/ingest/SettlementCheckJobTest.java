@@ -13,6 +13,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.BDDMockito.given;
@@ -104,7 +105,7 @@ class SettlementCheckJobTest {
     return job(clock, publicHolidays, registryComparisonsEnabled);
   }
 
-  private SettlementCheckJob jobOnTheEstonianCalendarRunningOn(LocalDate day) {
+  private SettlementCheckJob jobOnTheRealCalendarsRunningOn(LocalDate day) {
     return job(
         Clock.fixed(day.atStartOfDay(TALLINN).toInstant(), TALLINN),
         new PublicHolidays(),
@@ -116,6 +117,7 @@ class SettlementCheckJobTest {
     return new SettlementCheckJob(
         jobClock,
         jobCalendar,
+        new Target2Calendar(),
         orderRepository,
         reportService,
         extractor,
@@ -127,41 +129,62 @@ class SettlementCheckJobTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"2026-05-16", "2026-02-24"})
-  void scheduledRun_onAWeekendOrAWeekdayPublicHolidayWithoutAFreshReport_sendsNothing(
-      LocalDate nonWorkingDay) {
+  @ValueSource(strings = {"2026-05-16", "2026-05-17", "2026-05-01"})
+  void scheduledRun_onADayClosedForEstonianBanksAndTarget2WithoutAFreshReport_sendsNothing(
+      LocalDate closedDay) {
     givenNoReportAndAnEmptyRegistry();
 
-    jobOnTheEstonianCalendarRunningOn(nonWorkingDay).runScheduled();
+    jobOnTheRealCalendarsRunningOn(closedDay).runScheduled();
 
     then(notificationService).shouldHaveNoInteractions();
   }
 
   @Test
-  void scheduledRun_onAWeekdayPublicHolidayWithAFreshReport_sendsTheDigest() {
-    LocalDate midsummerDay = LocalDate.of(2026, 6, 24);
-    InvestmentReport victoryDaysReport = report(LocalDate.of(2026, 6, 23));
+  void scheduledRun_onADayClosedForEstonianBanksAndTarget2WithAFreshReport_sendsTheDigest() {
+    LocalDate mayDay = LocalDate.of(2026, 5, 1);
+    InvestmentReport reportOfTheDayBefore = report(LocalDate.of(2026, 4, 30));
     given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS))
-        .willReturn(Optional.of(victoryDaysReport));
-    given(extractor.extract(victoryDaysReport)).willReturn(List.of());
+        .willReturn(Optional.of(reportOfTheDayBefore));
+    given(extractor.extract(reportOfTheDayBefore)).willReturn(List.of());
     given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
         .willReturn(List.of());
     given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
-    given(unmatchedFinder.collectUnmatched(victoryDaysReport))
+    given(unmatchedFinder.collectUnmatched(reportOfTheDayBefore))
         .willReturn(List.of(unmatchedRow("Tuleva Täiendav Kogumisfond")));
 
-    jobOnTheEstonianCalendarRunningOn(midsummerDay).runScheduled();
+    jobOnTheRealCalendarsRunningOn(mayDay).runScheduled();
 
     then(notificationService)
         .should()
-        .sendMessage(startsWith(DIGEST_TITLE + "2026-06-24"), eq(INVESTMENT));
+        .sendMessage(startsWith(DIGEST_TITLE + "2026-05-01"), eq(INVESTMENT));
+  }
+
+  @Test
+  void
+      scheduledRun_onAnEstonianHolidayWhenTarget2IsOpen_staleReport_stillReportsAnOverdueSentOrder() {
+    LocalDate independenceDay = LocalDate.of(2026, 2, 24);
+    InvestmentReport lastWeeksReport = report(LocalDate.of(2026, 2, 20));
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS))
+        .willReturn(Optional.of(lastWeeksReport));
+    given(extractor.extract(lastWeeksReport)).willReturn(List.of());
+    TransactionOrder sentEtf =
+        order(1L, ETF, SENT, dateOnly(2026, 2, 18), TulevaFund.TUK75, "IE000F60HVH9", SENT_UUID);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(sentEtf));
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+
+    jobOnTheRealCalendarsRunningOn(independenceDay).runScheduled();
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("[SAADETUD, täitmist pole] Order 1"), eq(INVESTMENT));
   }
 
   @Test
   void scheduledRun_onAWorkingDayWithoutAFreshReport_stillSendsTheDigest() {
     givenNoReportAndAnEmptyRegistry();
 
-    jobOnTheEstonianCalendarRunningOn(TODAY).runScheduled();
+    jobOnTheRealCalendarsRunningOn(TODAY).runScheduled();
 
     then(notificationService)
         .should()
@@ -172,7 +195,7 @@ class SettlementCheckJobTest {
   void requestedRun_onAWeekend_stillSendsTheDigest() {
     givenNoReportAndAnEmptyRegistry();
 
-    jobOnTheEstonianCalendarRunningOn(SATURDAY).onOverdueSettlementRequested();
+    jobOnTheRealCalendarsRunningOn(SATURDAY).onOverdueSettlementRequested();
 
     then(notificationService)
         .should()

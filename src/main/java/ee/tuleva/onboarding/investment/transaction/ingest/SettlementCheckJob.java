@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.event.RunOverdueSettlementRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
@@ -55,6 +56,7 @@ class SettlementCheckJob {
 
   private final Clock clock;
   private final PublicHolidays publicHolidays;
+  private final Target2Calendar target2Calendar;
   private final TransactionOrderRepository orderRepository;
   private final InvestmentReportService reportService;
   private final SebPendingTransactionExtractor extractor;
@@ -71,9 +73,10 @@ class SettlementCheckJob {
   public void runScheduled() {
     LocalDate today = LocalDate.now(clock);
     RegistryComparisons comparisons = compareReportWithRegistry(today);
-    if (!comparisons.fresh() && !publicHolidays.isWorkingDay(today)) {
+    if (!comparisons.fresh() && isClosedForEstonianBanksAndTarget2(today)) {
       log.info(
-          "Settlement check skipped, no fresh SEB pending report on a non-working day: today={}",
+          "Settlement check skipped, no fresh SEB pending report on a day closed for Estonian"
+              + " banks and TARGET2: today={}",
           today);
       return;
     }
@@ -83,6 +86,10 @@ class SettlementCheckJob {
   void run() {
     LocalDate today = LocalDate.now(clock);
     postDigest(today, compareReportWithRegistry(today));
+  }
+
+  private boolean isClosedForEstonianBanksAndTarget2(LocalDate day) {
+    return !publicHolidays.isWorkingDay(day) && !target2Calendar.isBusinessDay(day);
   }
 
   private void postDigest(LocalDate today, RegistryComparisons comparisons) {

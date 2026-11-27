@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.RegistryComparison;
@@ -21,6 +22,7 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -47,6 +49,7 @@ class SebFundConfirmationImportJobTest {
   @Mock private SebFundConfirmationMissingFinder missingFinder;
   @Mock private SebFundConfirmationAuditRecorder auditRecorder;
   @Mock private SebFundConfirmationDigest digest;
+  @Mock private SebFundConfirmationRecorder confirmationRecorder;
   @Mock private SebFundConfirmationNavDateWriter navDateWriter;
 
   private SebFundConfirmationImportJob job;
@@ -60,7 +63,7 @@ class SebFundConfirmationImportJobTest {
             verificationService,
             missingFinder,
             auditRecorder,
-            navDateWriter,
+            new SebFundConfirmationPricingDateKeeper(confirmationRecorder, navDateWriter),
             digest);
     given(s3Source.recentKeys()).willReturn(List.of(FIRST_KEY, SECOND_KEY));
     given(s3Source.get(FIRST_KEY)).willReturn(Optional.of(FIRST_PDF));
@@ -212,34 +215,82 @@ class SebFundConfirmationImportJobTest {
   }
 
   @Test
-  void run_offersThePricingDateOfEveryConfirmationToTheRegistry() {
+  void run_recordsEveryConfirmationWithItsPdfAndOffersItsPricingDateToTheRegistry() {
     job.run();
 
-    then(navDateWriter).should().write(confirmation("DLA0000001"));
-    then(navDateWriter).should().write(confirmation("DLA0000002"));
+    InOrder inOrder = inOrder(confirmationRecorder, navDateWriter);
+    inOrder
+        .verify(confirmationRecorder)
+        .record(new SebFundConfirmationUpload(FIRST_KEY, confirmation("DLA0000001")));
+    inOrder.verify(navDateWriter).write("DLA0000001");
+    inOrder
+        .verify(confirmationRecorder)
+        .record(new SebFundConfirmationUpload(SECOND_KEY, confirmation("DLA0000002")));
+    inOrder.verify(navDateWriter).write("DLA0000002");
   }
 
   @Test
-  void run_writesThePricingDateOfAConfirmationItCouldNotVerify() {
+  void run_recordsOnlyTheLatestUploadOfATradeSebConfirmedTwice() {
+    String correctedKey = "seb-confirmations/DLA0000001-002.pdf";
+    byte[] correctedPdf = {3};
+    given(s3Source.recentKeys()).willReturn(List.of(FIRST_KEY, SECOND_KEY, correctedKey));
+    given(s3Source.get(correctedKey)).willReturn(Optional.of(correctedPdf));
+    given(parser.parse(correctedPdf)).willReturn(confirmation("DLA0000001", "12.5"));
+
+    job.run();
+
+    then(confirmationRecorder)
+        .should()
+        .record(new SebFundConfirmationUpload(correctedKey, confirmation("DLA0000001", "12.5")));
+    then(confirmationRecorder)
+        .should(never())
+        .record(new SebFundConfirmationUpload(FIRST_KEY, confirmation("DLA0000001")));
+  }
+
+  @Test
+  void run_recordsAndWritesThePricingDateOfAConfirmationItCouldNotVerify() {
     willThrow(new IllegalStateException("report store down"))
         .given(verificationService)
         .verify(confirmation("DLA0000001"));
 
     job.run();
 
-    then(navDateWriter).should().write(confirmation("DLA0000001"));
-    then(navDateWriter).should().write(confirmation("DLA0000002"));
+    then(confirmationRecorder)
+        .should()
+        .record(new SebFundConfirmationUpload(FIRST_KEY, confirmation("DLA0000001")));
+    then(navDateWriter).should().write("DLA0000001");
+    then(navDateWriter).should().write("DLA0000002");
+  }
+
+  @Test
+  void run_reportsAConfirmationThatCouldNotBeRecordedAndStillRecordsTheOthers() {
+    willThrow(new IllegalStateException("database down"))
+        .given(confirmationRecorder)
+        .record(new SebFundConfirmationUpload(FIRST_KEY, confirmation("DLA0000001")));
+
+    job.run();
+
+    then(navDateWriter).should(never()).write("DLA0000001");
+    then(navDateWriter).should().write("DLA0000002");
+    then(digest)
+        .should()
+        .publish(
+            List.of(outcome("DLA0000001"), outcome("DLA0000002")),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(
+                new SebFundConfirmationCheckFailure(
+                    "tehingu DLA0000001 hinnapäeva salvestamine", "database down")));
   }
 
   @Test
   void run_reportsAPricingDateThatCouldNotBeWrittenAndStillWritesTheOthers() {
-    willThrow(new IllegalStateException("registry down"))
-        .given(navDateWriter)
-        .write(confirmation("DLA0000001"));
+    willThrow(new IllegalStateException("registry down")).given(navDateWriter).write("DLA0000001");
 
     job.run();
 
-    then(navDateWriter).should().write(confirmation("DLA0000002"));
+    then(navDateWriter).should().write("DLA0000002");
     then(digest)
         .should()
         .publish(
@@ -256,7 +307,7 @@ class SebFundConfirmationImportJobTest {
   void run_leavesAPricingDateForTheNextRunWhenTheExecutionChangedMeanwhile() {
     willThrow(new OptimisticLockingFailureException("execution changed"))
         .given(navDateWriter)
-        .write(confirmation("DLA0000001"));
+        .write("DLA0000001");
 
     job.run();
 

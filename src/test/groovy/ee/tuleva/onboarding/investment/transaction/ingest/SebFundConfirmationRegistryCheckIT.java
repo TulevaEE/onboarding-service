@@ -269,33 +269,6 @@ class SebFundConfirmationRegistryCheckIT {
                     "instrumendi liik FUND vs ETF")));
   }
 
-  @Test
-  void executionOfTheSameTrade_findsTheExecutionOfTheConfirmedFundTrade() {
-    TransactionExecution execution = persist(TUK75, ISIN, BUY, FUND, "1", "1", "1");
-
-    assertThat(check.executionOfTheSameTrade(confirmation()))
-        .hasValueSatisfying(found -> assertThat(found.getId()).isEqualTo(execution.getId()));
-  }
-
-  @Test
-  void executionOfTheSameTrade_ignoresAnExecutionOfAnotherInstrument() {
-    persist(TUK75, "IE00BFG1TM61", BUY, FUND, "1", "1", "1");
-
-    assertThat(check.executionOfTheSameTrade(confirmation())).isEmpty();
-  }
-
-  @Test
-  void executionOfTheSameTrade_ignoresAnEtfFillWithTheSameReference() {
-    persist(TUK75, ISIN, BUY, ETF, "1", "1", "1");
-
-    assertThat(check.executionOfTheSameTrade(confirmation())).isEmpty();
-  }
-
-  @Test
-  void executionOfTheSameTrade_waitsUntilTheTradeIsInTheRegistry() {
-    assertThat(check.executionOfTheSameTrade(confirmation())).isEmpty();
-  }
-
   private TransactionExecution persist(
       TulevaFund fund,
       String isin,

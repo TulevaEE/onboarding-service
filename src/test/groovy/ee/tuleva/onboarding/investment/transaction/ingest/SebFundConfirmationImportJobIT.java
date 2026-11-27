@@ -443,6 +443,22 @@ class SebFundConfirmationImportJobIT {
   }
 
   @Test
+  void run_recordsEachConfirmationUnderItsTradeReferenceWithThePdfItCameFrom() {
+    job.run();
+
+    assertThat(confirmationRepository().findByTradeReference("DLA0000001"))
+        .contains(
+            new RecordedSebFundConfirmation(
+                "DLA0000001",
+                TUK75,
+                ISIN,
+                BUY,
+                Instant.parse("2026-01-05T09:48:17Z"),
+                LocalDate.of(2026, 1, 6),
+                "seb-confirmations/DLA0000001-001.pdf"));
+  }
+
+  @Test
   void run_checksAConfirmationReceivedBeforeAlertsFromOnlyAgainstTheRegistry() {
     job = jobWith(new SebFundConfirmationProperties(2, 2, LocalDate.of(2026, 1, 6)));
     seedTwoTradesAndANavBelowTheConfirmedPrice();
@@ -554,12 +570,15 @@ class SebFundConfirmationImportJobIT {
             clock,
             properties),
         auditRecorder,
-        new SebFundConfirmationNavDateWriter(
-            new SebFundConfirmationRegistryCheck(
-                executionRepository, orderRepository, new ReportedQuantityNormalizer()),
-            executionRepository,
-            auditRecorder),
+        new SebFundConfirmationPricingDateKeeper(
+            new SebFundConfirmationRecorder(confirmationRepository(), auditRecorder, clock),
+            new SebFundConfirmationNavDateWriter(
+                confirmationRepository(), executionRepository, orderRepository, auditRecorder)),
         new SebFundConfirmationDigest(notificationService, auditRecorder, properties));
+  }
+
+  private SebFundConfirmationRepository confirmationRepository() {
+    return new SebFundConfirmationRepository(jdbcClient);
   }
 
   private void registerExecution(String reference, String price, String total) {

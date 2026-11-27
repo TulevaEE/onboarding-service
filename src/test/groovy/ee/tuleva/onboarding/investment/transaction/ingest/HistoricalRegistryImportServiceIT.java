@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.investment.transaction.HistoricalImportResult;
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
+import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatch;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -17,6 +18,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlement;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionType;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -45,6 +47,8 @@ class HistoricalRegistryImportServiceIT {
   @Autowired private TransactionOrderRepository orderRepository;
   @Autowired private TransactionExecutionRepository executionRepository;
   @Autowired private TransactionSettlementRepository settlementRepository;
+  @Autowired private TransactionAuditEventRepository auditEventRepository;
+  @Autowired private SebFundConfirmationRecorder confirmationRecorder;
 
   @Test
   void importCreatesOrdersExecutionsAndSettlements() {
@@ -105,6 +109,49 @@ class HistoricalRegistryImportServiceIT {
     assertThat(sentOrder.getOrderQuantity()).isNull();
     assertThat(executionRepository.findAllByOrderId(sentOrder.getId())).isEmpty();
     assertThat(sentOrder.getBatch().getId()).isNotEqualTo(batch.getId());
+  }
+
+  @Test
+  void importGivesAFundTradeThePricingDateOfTheSebConfirmationRecordedBeforeItAndSetsItOnce() {
+    LocalDate pricingDate = LocalDate.of(2025, 5, 6);
+    confirmationRecorder.record(
+        new SebFundConfirmationUpload(
+            "seb-confirmations/DLA0000009-001.pdf",
+            new SebFundConfirmation(
+                TUK75,
+                "DLA0000009",
+                Instant.parse("2025-05-05T08:00:00Z"),
+                pricingDate,
+                LocalDate.of(2025, 5, 9),
+                "LU0826455353",
+                TransactionType.BUY,
+                new BigDecimal("400.00"),
+                new BigDecimal("12.5"),
+                new BigDecimal("5000.00"),
+                new BigDecimal("0.00"),
+                new BigDecimal("5000.00"))));
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-2025-009,EE3600109435,LU0826455353,DLA0000009,BUY,FUND,5000.00,,2025-05-05 09:00:00,EXECUTED,2025-05-09,,2025-05-06 14:00:00,400.000000,12.50,5000.00,5000.00,,fund buy
+        """;
+
+    importService.importCsv(csv);
+    importService.importCsv(csv);
+
+    TransactionExecution execution =
+        executionRepository.findByBrokerTransactionId("DLA0000009").orElseThrow();
+    assertThat(execution.getNavDate()).isEqualTo(pricingDate);
+    assertThat(
+            auditEventRepository.findByEventTypeAndDedupKey(
+                "SEB_FUND_CONFIRMATION_NAV_DATE_SET", "DLA0000009"))
+        .singleElement()
+        .satisfies(
+            event ->
+                assertThat(event.getPayload())
+                    .containsEntry("executionId", String.valueOf(execution.getId()))
+                    .containsEntry("navDate", "2025-05-06")
+                    .doesNotContainKey("previousNavDate"));
   }
 
   @Test

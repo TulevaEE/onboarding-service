@@ -73,6 +73,23 @@ class SebFundConfirmationS3SourceTest {
   }
 
   @Test
+  void allKeys_listsEveryPdfWhateverItsAgeOldestFirst() {
+    given(s3Client.listObjectsV2(any(ListObjectsV2Request.class)))
+        .willReturn(
+            ListObjectsV2Response.builder()
+                .contents(
+                    object("seb-confirmations/", NOW),
+                    object("seb-confirmations/DLA0000001-001.pdf", NOW.minusSeconds(3600)),
+                    object("seb-confirmations/DLA0000002-001.pdf", NOW.minusSeconds(86_400 * 290L)))
+                .isTruncated(false)
+                .build());
+
+    assertThat(source.allKeys())
+        .containsExactly(
+            "seb-confirmations/DLA0000002-001.pdf", "seb-confirmations/DLA0000001-001.pdf");
+  }
+
+  @Test
   void get_returnsTheObjectBytes() {
     given(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
         .willReturn(

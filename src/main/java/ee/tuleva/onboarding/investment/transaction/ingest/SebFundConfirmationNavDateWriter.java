@@ -2,7 +2,10 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import java.time.LocalDate;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,19 +14,30 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class SebFundConfirmationNavDateWriter {
 
-  private final SebFundConfirmationRegistryCheck registryCheck;
+  private final SebFundConfirmationRepository confirmationRepository;
   private final TransactionExecutionRepository executionRepository;
+  private final TransactionOrderRepository orderRepository;
   private final SebFundConfirmationAuditRecorder auditRecorder;
 
   @Transactional
-  void write(SebFundConfirmation confirmation) {
-    registryCheck
-        .executionOfTheSameTrade(confirmation)
-        .filter(execution -> !confirmation.pricingDate().equals(execution.getNavDate()))
-        .ifPresent(execution -> setNavDate(execution, confirmation));
+  void write(String tradeReference) {
+    executionRepository
+        .findByBrokerTransactionId(tradeReference)
+        .ifPresent(
+            execution ->
+                writeTo(execution, orderRepository.getReferenceById(execution.getOrderId())));
   }
 
-  private void setNavDate(TransactionExecution execution, SebFundConfirmation confirmation) {
+  void writeTo(TransactionExecution execution, TransactionOrder order) {
+    Optional.ofNullable(execution.getBrokerTransactionId())
+        .flatMap(confirmationRepository::findByTradeReference)
+        .filter(confirmation -> confirmation.isTheTradeOf(order))
+        .filter(confirmation -> !confirmation.pricingDate().equals(execution.getNavDate()))
+        .ifPresent(confirmation -> setNavDate(execution, confirmation));
+  }
+
+  private void setNavDate(
+      TransactionExecution execution, RecordedSebFundConfirmation confirmation) {
     LocalDate replaced = execution.getNavDate();
     execution.setNavDate(confirmation.pricingDate());
     executionRepository.save(execution);

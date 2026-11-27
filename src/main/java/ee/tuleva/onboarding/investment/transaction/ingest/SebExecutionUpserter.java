@@ -25,6 +25,7 @@ class SebExecutionUpserter {
   private final TransactionExecutionRepository executionRepository;
   private final TransactionOrderRepository orderRepository;
   private final ReconciliationAuditRecorder auditRecorder;
+  private final SebFundConfirmationNavDateWriter navDateWriter;
 
   boolean upsert(
       SebPendingTransactionRow row,
@@ -40,8 +41,9 @@ class SebExecutionUpserter {
     Optional<TransactionExecution> existing =
         executionRepository.findByBrokerTransactionId(
             requireNonNull(row.ourRef(), "Missing ourRef: orderId=" + order.getId()));
+    TransactionExecution execution;
     if (existing.isPresent()) {
-      TransactionExecution execution = existing.get();
+      execution = existing.get();
       Map<String, Object> before = executionMapper.mutableFieldsForDeltaAudit(execution);
       executionMapper.applyTo(execution, row, order);
       if (run.mode() == ReconciliationMode.REPLAY) {
@@ -54,10 +56,11 @@ class SebExecutionUpserter {
             order, row, reportDate, before, after, sebReportedQuantity);
       }
     } else {
-      executionRepository.save(
-          executionMapper.toExecution(row, order, firstListedOn(run, row, asOfDate)));
+      execution = executionMapper.toExecution(row, order, firstListedOn(run, row, asOfDate));
+      executionRepository.save(execution);
       auditRecorder.recordExecutionMatched(order, row, reportDate, sebReportedQuantity);
     }
+    navDateWriter.writeTo(execution, order);
 
     order.setOrderStatus(OrderStatus.EXECUTED);
     orderRepository.save(order);

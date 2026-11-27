@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.*;
+import static ee.tuleva.onboarding.ledger.UserAccount.REDEMPTIONS;
+import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
 import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.UUID;
 import static org.hibernate.generator.EventType.INSERT;
@@ -78,6 +80,10 @@ public class LedgerEntry {
 
   boolean isUserFundUnit() {
     return assetType == FUND_UNIT && account.isUserAccount();
+  }
+
+  boolean isUserDealingCash() {
+    return account.isUserAccount(SUBSCRIPTIONS) || account.isUserAccount(REDEMPTIONS);
   }
 
   public Optional<BigDecimal> findOwnersFundUnitsChange() {

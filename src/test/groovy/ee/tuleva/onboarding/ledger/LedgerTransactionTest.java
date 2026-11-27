@@ -11,6 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class LedgerTransactionTest {
@@ -78,6 +79,29 @@ class LedgerTransactionTest {
             .build();
 
     assertThat(transaction.findNavPerUnit()).contains(new BigDecimal("123.45"));
+  }
+
+  @Test
+  void aDealingWhoseNavMetadataCannotBeReadComesBackWithoutItsNavInsteadOfFailing() {
+    var id = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    var transaction =
+        LedgerTransaction.builder()
+            .id(id)
+            .transactionType(LedgerTransaction.TransactionType.FUND_SUBSCRIPTION)
+            .transactionDate(Instant.parse("2026-11-25T14:05:00Z"))
+            .metadata(Map.of("navPerUnit", "not a number", "navDate", "2026-11-24T00:00"))
+            .build();
+
+    assertThat(transaction.toUnitDealing())
+        .isEqualTo(
+            new UnitDealing(
+                id,
+                LedgerTransaction.TransactionType.FUND_SUBSCRIPTION,
+                Instant.parse("2026-11-25T14:05:00Z"),
+                null,
+                null,
+                null,
+                null));
   }
 
   @Test

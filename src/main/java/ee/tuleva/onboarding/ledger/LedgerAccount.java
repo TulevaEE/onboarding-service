@@ -137,6 +137,10 @@ public class LedgerAccount {
     return purpose == USER_ACCOUNT;
   }
 
+  boolean isUserAccount(UserAccount userAccount) {
+    return isUserAccount() && userAccount.name().equals(name);
+  }
+
   boolean isOwnedBy(@Nullable LedgerParty party) {
     return owner != null
         && party != null

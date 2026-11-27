@@ -14,6 +14,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -50,6 +51,8 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -61,10 +64,8 @@ class SettlementCheckJobTest {
   private static final LocalDate TODAY = LocalDate.of(2026, 5, 18); // Monday
   private static final LocalDate LAST_WORKING_DAY = LocalDate.of(2026, 5, 15); // Friday
   private static final LocalDate SATURDAY = LocalDate.of(2026, 5, 16);
-  private static final String STALE_REPORT_WARNING =
-      "\n\nHOIATUS: värske SEB ootel-tehingute raport puudub või on aegunud —"
-          + " arveldatud staatust ei saa tuvastada, kõik hilinenud täidetud tellimused"
-          + " on allpool loetletud.";
+  private static final String DIGEST_TITLE = "⚠️ SEB arveldus- ja tehingukontroll – ";
+  private static final boolean REGISTRY_COMPARISONS_ON = true;
   private static final UUID SENT_UUID = UUID.randomUUID();
   private static final UUID PRESENT_UUID = UUID.randomUUID();
   private static final UUID SETTLED_UUID = UUID.randomUUID();
@@ -100,78 +101,89 @@ class SettlementCheckJobTest {
   }
 
   private SettlementCheckJob job(boolean registryComparisonsEnabled) {
+    return job(clock, publicHolidays, registryComparisonsEnabled);
+  }
+
+  private SettlementCheckJob jobOnTheEstonianCalendarRunningOn(LocalDate day) {
+    return job(
+        Clock.fixed(day.atStartOfDay(TALLINN).toInstant(), TALLINN),
+        new PublicHolidays(),
+        REGISTRY_COMPARISONS_ON);
+  }
+
+  private SettlementCheckJob job(
+      Clock jobClock, PublicHolidays jobCalendar, boolean registryComparisonsEnabled) {
     return new SettlementCheckJob(
-        clock,
-        publicHolidays,
+        jobClock,
+        jobCalendar,
         orderRepository,
         reportService,
         extractor,
         unmatchedFinder,
         fundResolver,
         notificationService,
-        detector(),
+        new OverdueSettlementDetector(jobCalendar, settlementDateCalculator(), executionRepository),
         registryComparisonsEnabled);
   }
 
-  private SettlementCheckJob jobRunningOn(LocalDate day) {
-    return new SettlementCheckJob(
-        Clock.fixed(day.atStartOfDay(TALLINN).toInstant(), TALLINN),
-        publicHolidays,
-        orderRepository,
-        reportService,
-        extractor,
-        unmatchedFinder,
-        fundResolver,
-        notificationService,
-        detector(),
-        true);
-  }
+  @ParameterizedTest
+  @ValueSource(strings = {"2026-05-16", "2026-02-24"})
+  void scheduledRun_onAWeekendOrAWeekdayPublicHolidayWithoutAFreshReport_sendsNothing(
+      LocalDate nonWorkingDay) {
+    givenNoReportAndAnEmptyRegistry();
 
-  private OverdueSettlementDetector detector() {
-    return new OverdueSettlementDetector(
-        publicHolidays, settlementDateCalculator(), executionRepository);
-  }
+    jobOnTheEstonianCalendarRunningOn(nonWorkingDay).runScheduled();
 
-  @Test
-  void scheduledRun_onANonWorkingDay_readsNoReportAndSendsNothing() {
-    given(publicHolidays.isWorkingDay(SATURDAY)).willReturn(false);
-
-    jobRunningOn(SATURDAY).runOnWorkingDays();
-
-    then(reportService).shouldHaveNoInteractions();
-    then(orderRepository).shouldHaveNoInteractions();
     then(notificationService).shouldHaveNoInteractions();
   }
 
   @Test
-  void scheduledRun_onAWorkingDay_sendsTheStaleReportWarning() {
-    given(publicHolidays.isWorkingDay(TODAY)).willReturn(true);
-    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.empty());
+  void scheduledRun_onAWeekdayPublicHolidayWithAFreshReport_sendsTheDigest() {
+    LocalDate midsummerDay = LocalDate.of(2026, 6, 24);
+    InvestmentReport victoryDaysReport = report(LocalDate.of(2026, 6, 23));
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS))
+        .willReturn(Optional.of(victoryDaysReport));
+    given(extractor.extract(victoryDaysReport)).willReturn(List.of());
     given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
         .willReturn(List.of());
     given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+    given(unmatchedFinder.collectUnmatched(victoryDaysReport))
+        .willReturn(List.of(unmatchedRow("Tuleva Täiendav Kogumisfond")));
 
-    job().runOnWorkingDays();
+    jobOnTheEstonianCalendarRunningOn(midsummerDay).runScheduled();
 
     then(notificationService)
         .should()
-        .sendMessage(
-            "⚠️ SEB arveldus- ja tehingukontroll – 2026-05-18" + STALE_REPORT_WARNING, INVESTMENT);
+        .sendMessage(startsWith(DIGEST_TITLE + "2026-06-24"), eq(INVESTMENT));
   }
 
   @Test
-  void requestedRun_onANonWorkingDay_stillRunsTheCheck() {
+  void scheduledRun_onAWorkingDayWithoutAFreshReport_stillSendsTheDigest() {
+    givenNoReportAndAnEmptyRegistry();
+
+    jobOnTheEstonianCalendarRunningOn(TODAY).runScheduled();
+
+    then(notificationService)
+        .should()
+        .sendMessage(startsWith(DIGEST_TITLE + "2026-05-18"), eq(INVESTMENT));
+  }
+
+  @Test
+  void requestedRun_onAWeekend_stillSendsTheDigest() {
+    givenNoReportAndAnEmptyRegistry();
+
+    jobOnTheEstonianCalendarRunningOn(SATURDAY).onOverdueSettlementRequested();
+
+    then(notificationService)
+        .should()
+        .sendMessage(startsWith(DIGEST_TITLE + "2026-05-16"), eq(INVESTMENT));
+  }
+
+  private void givenNoReportAndAnEmptyRegistry() {
     given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.empty());
     given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
         .willReturn(List.of());
     given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
-
-    jobRunningOn(SATURDAY).onOverdueSettlementRequested();
-
-    then(notificationService)
-        .should()
-        .sendMessage(
-            "⚠️ SEB arveldus- ja tehingukontroll – 2026-05-16" + STALE_REPORT_WARNING, INVESTMENT);
   }
 
   @Test

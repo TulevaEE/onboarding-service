@@ -68,19 +68,24 @@ class SettlementCheckJob {
 
   @Scheduled(cron = "0 0 10 * * *", zone = TIMEZONE)
   @SchedulerLock(name = "SettlementCheckJob", lockAtMostFor = "10m", lockAtLeastFor = "1m")
-  public void runOnWorkingDays() {
-    LocalDate today = LocalDate.now(clock);
-    if (!publicHolidays.isWorkingDay(today)) {
-      log.info("Settlement check skipped on a non-working day: today={}", today);
-      return;
-    }
-    run();
-  }
-
-  public void run() {
+  public void runScheduled() {
     LocalDate today = LocalDate.now(clock);
     RegistryComparisons comparisons = compareReportWithRegistry(today);
+    if (!comparisons.fresh() && !publicHolidays.isWorkingDay(today)) {
+      log.info(
+          "Settlement check skipped, no fresh SEB pending report on a non-working day: today={}",
+          today);
+      return;
+    }
+    postDigest(today, comparisons);
+  }
 
+  void run() {
+    LocalDate today = LocalDate.now(clock);
+    postDigest(today, compareReportWithRegistry(today));
+  }
+
+  private void postDigest(LocalDate today, RegistryComparisons comparisons) {
     if (!registryComparisonsEnabled) {
       log.info(
           "Settlement check registry comparisons switched off, nothing sent: today={},"

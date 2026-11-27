@@ -13,7 +13,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
-import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.report.ReportType;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
@@ -49,7 +48,7 @@ class PevaRavaFlowServiceTest {
   private final PevaRavaFlowService service =
       new PevaRavaFlowService(
           summaryRepository,
-          new OwnFundNavProvider(fundNavQueryService, new PublicHolidays()),
+          new OwnFundNavProvider(fundNavQueryService),
           parameterRepository,
           cycleRepository,
           periodService,

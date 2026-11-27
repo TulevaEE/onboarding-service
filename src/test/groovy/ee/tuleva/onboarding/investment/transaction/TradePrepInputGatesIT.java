@@ -441,8 +441,6 @@ class TradePrepInputGatesIT {
   private void givenNav(TulevaFund fund, LocalDate asOfDate, String nav) {
     given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(fund.getCode(), asOfDate))
         .willReturn(Optional.of(asOfDate.minusDays(1)));
-    given(fundNavQueryService.findLatestNavDateOnOrBefore(fund.getCode(), asOfDate))
-        .willReturn(Optional.of(asOfDate.minusDays(1)));
     given(fundNavQueryService.findPublishedNavPerUnit(fund.getCode(), asOfDate.minusDays(1)))
         .willReturn(Optional.of(new BigDecimal(nav)));
   }

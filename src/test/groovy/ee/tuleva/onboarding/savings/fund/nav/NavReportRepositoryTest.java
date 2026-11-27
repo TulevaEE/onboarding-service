@@ -330,6 +330,22 @@ class NavReportRepositoryTest {
   }
 
   @Test
+  void findLatestPublishedNavDateByFundOnOrBefore_skipsEveryHeldDateBackToTheLatestOneSebHas() {
+    var sentFriday = UUID.randomUUID();
+    navReportRepository.save(navRow(LocalDate.of(2026, 11, 20), sentFriday, "1.40000000", null));
+    navReportRepository.markAsPublished(sentFriday);
+    navReportRepository.save(
+        navRow(LocalDate.of(2026, 11, 23), UUID.randomUUID(), "1.41000000", null));
+    navReportRepository.save(
+        navRow(LocalDate.of(2026, 11, 24), UUID.randomUUID(), "1.42000000", null));
+
+    assertThat(
+            navReportRepository.findLatestPublishedNavDateByFundOnOrBefore(
+                "TKF100", LocalDate.of(2026, 11, 25)))
+        .hasValue(LocalDate.of(2026, 11, 20));
+  }
+
+  @Test
   void findLatestPublishedNavDateByFundOnOrBefore_isEmptyWhenNothingWasEverPublished() {
     var monthEnd = LocalDate.of(2026, 5, 29);
     navReportRepository.save(navRow(monthEnd, UUID.randomUUID(), "1.41000000", null));

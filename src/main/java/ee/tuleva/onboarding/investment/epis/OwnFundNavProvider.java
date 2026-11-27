@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.epis;
 
-import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -19,7 +18,6 @@ class OwnFundNavProvider {
   private static final BigDecimal MAX_REASONABLE_NAV = new BigDecimal("10.0");
 
   private final FundNavQueryService fundNavQueryService;
-  private final PublicHolidays publicHolidays;
 
   BigDecimal latestNav(TulevaFund fund, LocalDate asOfDate) {
     BigDecimal nav =
@@ -45,16 +43,7 @@ class OwnFundNavProvider {
   private Optional<BigDecimal> queryNav(TulevaFund fund, LocalDate asOfDate) {
     return fundNavQueryService
         .findLatestPublishedNavDateOnOrBefore(fund.getCode(), asOfDate)
-        .filter(sentDate -> isAtMostOneNavBehindTheLatestCalculation(fund, asOfDate, sentDate))
         .flatMap(navDate -> fundNavQueryService.findPublishedNavPerUnit(fund.getCode(), navDate));
-  }
-
-  private boolean isAtMostOneNavBehindTheLatestCalculation(
-      TulevaFund fund, LocalDate asOfDate, LocalDate sentDate) {
-    return fundNavQueryService
-        .findLatestNavDateOnOrBefore(fund.getCode(), asOfDate)
-        .map(calculated -> !sentDate.isBefore(publicHolidays.previousWorkingDay(calculated)))
-        .orElse(true);
   }
 
   private boolean isReasonable(TulevaFund fund, LocalDate asOfDate, BigDecimal nav) {

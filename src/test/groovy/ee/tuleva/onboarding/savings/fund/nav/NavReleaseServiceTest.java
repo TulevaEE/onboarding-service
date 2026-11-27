@@ -143,7 +143,13 @@ class NavReleaseServiceTest {
             eq(CALCULATION_DATE));
     then(notificationService)
         .should()
-        .sendMessage(contains("approvedBy=approver-one, approver-two"), eq(SAVINGS));
+        .sendMessage(
+            argThat(
+                message ->
+                    message.contains("approved by 2 people")
+                        && !message.contains("approver-one")
+                        && !message.contains("approver-two")),
+            eq(SAVINGS));
   }
 
   @Test

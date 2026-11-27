@@ -123,6 +123,9 @@ class NavReleaseAdminControllerTest {
     mockMvc
         .perform(release(releaseBody("[\"approver-one\", \" \"]")))
         .andExpect(status().isBadRequest());
+    mockMvc
+        .perform(release(releaseBody("[\"Approver\", \"approver \"]")))
+        .andExpect(status().isBadRequest());
     then(navReleaseService).shouldHaveNoInteractions();
   }
 

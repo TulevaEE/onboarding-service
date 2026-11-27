@@ -199,9 +199,9 @@ public class NavReleaseService {
   }
 
   private void postReleaseMessage(NavReleaseStatus released, NavReleaseApproval approval) {
-    String approvers = String.join(", ", approval.approvedBy());
+    int approvers = approval.numberOfApprovers();
     log.info(
-        "NAV released to the trustee: fund={}, navDate={}, calculationId={}, state={}, navPerUnit={}, approvedBy={}",
+        "NAV released to the trustee: fund={}, navDate={}, calculationId={}, state={}, navPerUnit={}, approvers={}",
         released.fundCode(),
         released.navDate(),
         released.calculationId(),
@@ -209,7 +209,7 @@ public class NavReleaseService {
         released.navPerUnit(),
         approvers);
     notificationService.sendMessage(
-        "✅ NAV released and sent to SEB: fund=%s, navDate=%s, navPerUnit=%s, %s, approvedBy=%s"
+        "✅ NAV released and sent to SEB: fund=%s, navDate=%s, navPerUnit=%s, %s, approved by %d people"
             .formatted(
                 released.fundCode(),
                 released.navDate(),

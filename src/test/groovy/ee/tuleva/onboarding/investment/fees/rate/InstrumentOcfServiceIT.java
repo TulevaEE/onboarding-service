@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.investment.fees.rate;
 import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.AGREEMENT;
 import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.PUBLISHED_FALLBACK;
 import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.STANDARD_AFTER_AGREEMENT;
+import static ee.tuleva.onboarding.investment.fees.rate.RateStatus.PROVISIONAL;
+import static ee.tuleva.onboarding.investment.fees.rate.RateStatus.RESOLVED;
 import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.FIXED;
 import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.FIXED_NET;
 import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.NONE;
@@ -10,10 +12,12 @@ import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.TIERED_VOLUME
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.time.ZoneOffset.UTC;
+import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
@@ -39,6 +43,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -46,6 +51,8 @@ import tools.jackson.databind.json.JsonMapper;
 @Import({
   InstrumentOcfServiceIT.Json.class,
   InstrumentOcfService.class,
+  AgreementRates.class,
+  AccrualRates.class,
   InstrumentFeeAgreementRepository.class,
   InstrumentFeeRateRepository.class,
   MonthVolumeReader.class,
@@ -73,6 +80,10 @@ class InstrumentOcfServiceIT {
           .withIgnoredFields("agreementId")
           .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
           .build();
+  private static final RecursiveComparisonConfiguration AMOUNTS_BY_VALUE =
+      RecursiveComparisonConfiguration.builder()
+          .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+          .build();
   private static final YearMonth APRIL = YearMonth.of(2026, 4);
   private static final LocalDate APRIL_28 = LocalDate.of(2026, 4, 28);
   private static final LocalDate APRIL_29 = LocalDate.of(2026, 4, 29);
@@ -94,6 +105,7 @@ class InstrumentOcfServiceIT {
   @MockitoBean private FundValueProvider fundValueProvider;
 
   @Autowired private InstrumentOcfService service;
+  @Autowired private AccrualRates accrualRates;
   @Autowired private NavReportRepository navReportRepository;
   @Autowired private JdbcClient jdbcClient;
 
@@ -629,6 +641,140 @@ class InstrumentOcfServiceIT {
 
     assertThatThrownBy(() -> service.resolve(APRIL)).isInstanceOf(IllegalArgumentException.class);
     assertThat(storedRates()).isZero();
+  }
+
+  @Test
+  void anAgreementWithoutAProviderAgreementIsNotAccruedAndIsNamedInstead() {
+    givenAnAgreement("FIXED", "{\"rate\":\"0.00020000\"}");
+
+    assertThat(accrualRates.on(APRIL_29)).isEmpty();
+    assertThat(accrualRates.isinsWithoutAProviderAgreementOn(APRIL_29)).containsExactly(ISIN);
+  }
+
+  @Test
+  void aDayOfAMonthResolvedAfterItClosedAccruesAtTheResolvedRate() {
+    givenAnAgreement("FIXED", "{\"rate\":\"0.00020000\"}");
+    var providerAgreementId = linkedToAProviderAgreement();
+    var rateId = service.resolve(APRIL).getFirst().id();
+
+    assertThat(accrualRates.on(APRIL_29))
+        .usingRecursiveFieldByFieldElementComparator(AMOUNTS_BY_VALUE)
+        .containsExactly(
+            new AccrualRate(
+                agreementId(),
+                ISIN,
+                providerAgreementId,
+                RESOLVED,
+                rateId,
+                new BigDecimal("0.0002"),
+                BigDecimal.ZERO));
+    assertThat(accrualRates.isinsWithoutAProviderAgreementOn(APRIL_29)).isEmpty();
+  }
+
+  @Test
+  void withoutAResolvedRateTheDayAccruesAtAProvisionalRateFromTheAgreementInForce() {
+    givenAnAgreement("FIXED", "{\"rate\":\"0.00020000\"}");
+    var providerAgreementId = linkedToAProviderAgreement();
+
+    assertThat(accrualRates.on(APRIL_29))
+        .usingRecursiveFieldByFieldElementComparator(AMOUNTS_BY_VALUE)
+        .containsExactly(
+            new AccrualRate(
+                agreementId(),
+                ISIN,
+                providerAgreementId,
+                PROVISIONAL,
+                null,
+                new BigDecimal("0.0002"),
+                BigDecimal.ZERO));
+    assertThat(storedRates()).isZero();
+  }
+
+  @Test
+  void aProvisionalTieredRateMeasuresTheMonthsVolumeOnTheLastNavUpToTheDay() {
+    givenAnAgreement(
+        "TIERED_VOLUME",
+        "{\"threshold\":\"50000000\",\"currency\":\"EUR\",\"rateBelow\":\"0.0003\","
+            + "\"rateAbove\":\"0.0001\",\"funds\":[\"TUK75\"]}");
+    linkedToAProviderAgreement();
+    heldOn(APRIL_28, TUK75, "80000000.00");
+    heldOn(APRIL_30, TUK75, "20000000.00");
+
+    assertThat(accrualRates.on(APRIL_29))
+        .singleElement()
+        .satisfies(
+            rate -> {
+              assertThat(rate.status()).isEqualTo(PROVISIONAL);
+              assertThat(rate.rebateRate()).isEqualByComparingTo("0.000225");
+            });
+  }
+
+  @Test
+  void beforeTheMonthsFirstNavAProvisionalTieredRateMeasuresThePreviousMonthsLastNav() {
+    givenAnAgreement(
+        "TIERED_VOLUME",
+        "{\"threshold\":\"50000000\",\"currency\":\"EUR\",\"rateBelow\":\"0.0003\","
+            + "\"rateAbove\":\"0.0001\",\"funds\":[\"TUK75\"]}");
+    linkedToAProviderAgreement();
+    heldOn(APRIL_28, TUK75, "20000000.00");
+    heldOn(APRIL_30, TUK75, "80000000.00");
+
+    assertThat(accrualRates.on(LocalDate.of(2026, 5, 1)))
+        .singleElement()
+        .satisfies(
+            rate -> {
+              assertThat(rate.status()).isEqualTo(PROVISIONAL);
+              assertThat(rate.rebateRate()).isEqualByComparingTo("0.000225");
+            });
+  }
+
+  @Test
+  void aProvisionalRateTakesTheExchangeRateOfTheDayWhenNoVolumeDatesIt() {
+    givenAnAgreement(
+        "TIERED_VOLUME",
+        "{\"threshold\":\"110000000\",\"currency\":\"USD\",\"rateBelow\":\"0.0002\","
+            + "\"rateAbove\":\"0.0001\"}");
+    linkedToAProviderAgreement();
+
+    accrualRates.on(APRIL_29);
+
+    then(fundValueProvider).should().getLatestValue("EURUSD.FOREX", APRIL_29);
+  }
+
+  @Test
+  void aRateStoredBeforeTheMonthClosedLeavesTheDayProvisional() {
+    givenAnAgreement("FIXED", "{\"rate\":\"0.00020000\"}");
+    linkedToAProviderAgreement();
+    service.resolve(APRIL);
+    jdbcClient
+        .sql("UPDATE investment_instrument_fee_rate SET created_at = :createdAt")
+        .param("createdAt", Timestamp.from(Instant.parse("2026-04-29T12:00:00Z")))
+        .update();
+
+    assertThat(accrualRates.on(APRIL_29))
+        .singleElement()
+        .satisfies(rate -> assertThat(rate.status()).isEqualTo(PROVISIONAL));
+  }
+
+  private long linkedToAProviderAgreement() {
+    var keyHolder = new GeneratedKeyHolder();
+    jdbcClient
+        .sql("INSERT INTO investment_provider_agreement (created_at) VALUES (CURRENT_TIMESTAMP)")
+        .update(keyHolder, "id");
+    var providerAgreementId = requireNonNull(keyHolder.getKey()).longValue();
+    jdbcClient
+        .sql("UPDATE investment_instrument_fee SET provider_agreement_id = :providerAgreementId")
+        .param("providerAgreementId", providerAgreementId)
+        .update();
+    return providerAgreementId;
+  }
+
+  private long agreementId() {
+    return jdbcClient
+        .sql("SELECT id FROM investment_instrument_fee WHERE isin = :isin")
+        .param("isin", ISIN)
+        .query(Long.class)
+        .single();
   }
 
   private void inTheInstrumentReference(String isin) {

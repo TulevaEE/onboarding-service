@@ -81,6 +81,7 @@ class InstrumentFeeAgreementRepository {
         rs.getBigDecimal("published_ocf"),
         RebateKind.valueOf(rs.getString("rebate_kind")),
         rs.getString("rebate_terms"),
-        rs.getBigDecimal("invoiced_fee_rate"));
+        rs.getBigDecimal("invoiced_fee_rate"),
+        rs.getObject("provider_agreement_id", Long.class));
   }
 }

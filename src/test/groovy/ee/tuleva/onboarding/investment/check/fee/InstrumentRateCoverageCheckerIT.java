@@ -54,6 +54,7 @@ class InstrumentRateCoverageCheckerIT {
               type = REGEX,
               pattern =
                   "ee\\.tuleva\\.onboarding\\.investment\\.fees\\.rate\\.(InstrumentOcfService"
+                      + "|AgreementRates"
                       + "|InstrumentFeeAgreementRepository|InstrumentFeeRateRepository"
                       + "|MonthVolumeReader|RebateCalculator)"))
   static class RateService {

@@ -192,6 +192,17 @@ class JobRunScheduleTest {
   }
 
   @Test
+  void instrumentFeeAccrual_firesEveryCalendarDayAfterTheDaysImportsAndNavs() {
+    ZonedDateTime weekStart = LocalDateTime.parse("2026-11-16T00:00:00").atZone(TALLINN);
+    List<ZonedDateTime> fires =
+        firesBetween(JobRunSchedule.INSTRUMENT_FEE_ACCRUAL, weekStart, weekStart.plusDays(7));
+
+    assertThat(fires).hasSize(7);
+    assertThat(fires)
+        .allSatisfy(fire -> assertThat(fire.toLocalTime()).isEqualTo(LocalTime.of(20, 0)));
+  }
+
+  @Test
   void modelRebalanceCheck_firesOncePerWeekdayMorningBeforeTheTradingDay() {
     ZonedDateTime weekStart = LocalDateTime.parse("2026-11-16T00:00:00").atZone(TALLINN);
     List<ZonedDateTime> fires =
@@ -232,6 +243,8 @@ class JobRunScheduleTest {
         JobRunSchedule.MODEL_REBALANCE_CHECK, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
     KID_CALCULATION_EACH_WORKING_DAY(
         JobRunSchedule.KID_CALCULATION_EACH_WORKING_DAY, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
+    INSTRUMENT_FEE_ACCRUAL(
+        JobRunSchedule.INSTRUMENT_FEE_ACCRUAL, STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
     INVESTMENT_REPORT_PUBLICATION_CHECK(
         JobRunSchedule.INVESTMENT_REPORT_PUBLICATION_CHECK, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
     FUND_PAGE_DISCLOSURE_CHECK(

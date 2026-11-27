@@ -197,6 +197,17 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
   Optional<NavReportRow> findFirstByFundCodeAndNavDateOrderByIdDesc(
       String fundCode, LocalDate navDate);
 
+  default boolean isReleasedOrReplacedOnceTheDateIsLocked(
+      String fundCode, LocalDate navDate, UUID calculationId) {
+    findTheDatesRowsForUpdate(fundCode, navDate);
+    return existsByCalculationIdAndPublishedAtIsNotNull(calculationId)
+        || findLatestCalculationId(fundCode, navDate)
+            .filter(latest -> !latest.equals(calculationId))
+            .isPresent();
+  }
+
+  boolean existsByCalculationIdAndPublishedAtIsNotNull(UUID calculationId);
+
   default boolean isOvertakenOnceTheDateIsLocked(
       String fundCode, LocalDate navDate, UUID calculationId) {
     findTheDatesRowsForUpdate(fundCode, navDate);

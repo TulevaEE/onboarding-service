@@ -148,13 +148,13 @@ public class NavPublisher {
           "SEB already has a NAV for this date: sentNav=%s, recalculatedNav=%s"
               .formatted(
                   navTheTrusteeHas.get().toPlainString(), result.navPerUnit().toPlainString());
-      routeToInternalReview(
-          result,
-          reportRows,
-          reason,
-          NavReviewMessages.revised(result, reason, reviewEmail),
-          reviewEmail);
-      return NOT_SENT;
+      Hold revision = new Hold(reason, NavReviewMessages.revised(result, reason, reviewEmail));
+      return requireNonNull(
+          transactionOperations.execute(
+              transaction ->
+                  isReleasedOrReplacedOnceTheDateIsLocked(result, calculationId)
+                      ? NOT_SENT
+                      : holdForReview(result, reportRows, revision, reviewEmail)));
     }
     Optional<Hold> hold =
         checkGates(result)
@@ -182,6 +182,21 @@ public class NavPublisher {
   }
 
   private record Hold(String reason, String actionMessage) {}
+
+  private boolean isReleasedOrReplacedOnceTheDateIsLocked(
+      NavCalculationResult result, UUID calculationId) {
+    boolean overtaken =
+        navReportRepository.isReleasedOrReplacedOnceTheDateIsLocked(
+            result.fund().getCode(), result.positionReportDate(), calculationId);
+    if (overtaken) {
+      log.info(
+          "Recalculation of a date SEB has not held for review, it was released or replaced meanwhile: fund={}, date={}, calculationId={}",
+          result.fund(),
+          result.positionReportDate(),
+          calculationId);
+    }
+    return overtaken;
+  }
 
   private boolean isOvertakenWhileTheChecksRan(NavCalculationResult result, UUID calculationId) {
     boolean overtaken =

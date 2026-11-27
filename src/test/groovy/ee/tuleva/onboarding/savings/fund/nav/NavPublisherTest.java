@@ -495,6 +495,26 @@ class NavPublisherTest {
   }
 
   @Test
+  void publish_postsNoRevisionAlarm_whenThisCalculationWasReleasedBeforeTheCheckSawIt() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build()));
+    given(navReportRepository.findPublishedNavPerUnit(yesterday, "TUK75", "NAV"))
+        .willReturn(Optional.of(new BigDecimal("9.69941")));
+    given(
+            navReportRepository.isReleasedOrReplacedOnceTheDateIsLocked(
+                eq("TUK75"), eq(yesterday), any()))
+        .willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
+
+    then(navReportEmailSender).shouldHaveNoInteractions();
+    then(notificationService).should(never()).sendMessage(any(), eq(SAVINGS));
+  }
+
+  @Test
   void publish_holdsNothingForReview_whenAReleaseReachedSebWhileTheGateRan() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);

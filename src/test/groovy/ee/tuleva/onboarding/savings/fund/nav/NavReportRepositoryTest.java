@@ -460,6 +460,48 @@ class NavReportRepositoryTest {
   }
 
   @Test
+  void isReleasedOrReplacedOnceTheDateIsLocked_isFalseForARecalculationOfADateSebHas() {
+    var navDate = LocalDate.of(2026, 11, 23);
+    var sent = UUID.randomUUID();
+    navReportRepository.save(navRow(navDate, sent, "1.40660000", null));
+    navReportRepository.markAsPublished(sent);
+    var recalculation = UUID.randomUUID();
+    navReportRepository.save(navRow(navDate, recalculation, "1.41000000", null));
+
+    assertThat(
+            navReportRepository.isReleasedOrReplacedOnceTheDateIsLocked(
+                "TKF100", navDate, recalculation))
+        .isFalse();
+  }
+
+  @Test
+  void isReleasedOrReplacedOnceTheDateIsLocked_isTrueOnceThatCalculationWasReleased() {
+    var navDate = LocalDate.of(2026, 11, 23);
+    var released = UUID.randomUUID();
+    navReportRepository.save(navRow(navDate, released, "1.40660000", null));
+    navReportRepository.markAsPublished(released);
+
+    assertThat(
+            navReportRepository.isReleasedOrReplacedOnceTheDateIsLocked(
+                "TKF100", navDate, released))
+        .isTrue();
+  }
+
+  @Test
+  void isReleasedOrReplacedOnceTheDateIsLocked_isTrueOnceANewerCalculationReplacedIt() {
+    var navDate = LocalDate.of(2026, 11, 23);
+    var replaced = UUID.randomUUID();
+    navReportRepository.save(navRow(navDate, replaced, "1.40660000", null));
+    navReportRepository.replaceByNavDateAndFundCode(
+        navDate, "TKF100", List.of(navRow(navDate, UUID.randomUUID(), "1.41000000", null)));
+
+    assertThat(
+            navReportRepository.isReleasedOrReplacedOnceTheDateIsLocked(
+                "TKF100", navDate, replaced))
+        .isTrue();
+  }
+
+  @Test
   void findLatestUnsentUnitsRow_readsTheUnitsRowOfTheDatesLatestUnsentCalculation() {
     var navDate = LocalDate.of(2026, 11, 23);
     var sent = UUID.randomUUID();

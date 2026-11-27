@@ -45,6 +45,7 @@ class ReadOnlyGets {
       "/v1/savings/onboarding/status/legal-entity",
       "/v1/savings/onboarding/status/person",
       "/v1/second-pillar-assets",
+      "/v1/tax-data-consents/{id}/document",
       "/v1/transactions",
       "/v1/withdrawals/eligibility",
       "/v1/withdrawals/fund-pension-status",

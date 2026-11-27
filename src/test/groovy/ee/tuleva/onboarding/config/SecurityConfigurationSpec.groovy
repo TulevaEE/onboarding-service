@@ -249,6 +249,10 @@ class SecurityConfigurationSpec extends Specification {
     "/v1/insurance-transfer-forms/1/signature/smart-id/status"  | wardToken
     "/v1/insurance-transfer-forms/1/signature/mobile-id/status" | wardToken
     "/v1/insurance-transfer-forms/1/signature/id-card/status"   | wardToken
+    "/v1/tax-data-consents/1/signature/smart-id/status"         | wardToken
+    "/v1/tax-data-consents/1/signature/mobile-id/status"        | wardToken
+    "/v1/tax-data-consents/1/signature/id-card/status"          | wardToken
+    "/v1/third-pillar/tax-headroom"                             | wardToken
     "/v1/capital-transfer-contracts/1/signature/smart-id/status"  | wardMemberToken
     "/v1/capital-transfer-contracts/1/signature/mobile-id/status" | wardMemberToken
     "/v1/capital-transfer-contracts/1/signature/id-card/status"   | wardMemberToken

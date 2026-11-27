@@ -133,6 +133,12 @@ population-register:
   url: ${POPULATION_REGISTER_URL:http://localhost:9000}
   client-id: ${POPULATION_REGISTER_CLIENT_ID:EE/COM/00000000/non-production}
 
+tax-headroom:
+  x-road-url: ${TAX_HEADROOM_X_ROAD_URL:https://localhost:8443}
+  client-id: ${TAX_HEADROOM_CLIENT_ID:ee-dev/COM/14118923/tuleva-fund-management}
+  tax-data-service: ${TAX_HEADROOM_TAX_DATA_SERVICE:ee-dev/GOV/70000349/mkrliides/TaxCertificate/v2}
+  consent-service: ${TAX_HEADROOM_CONSENT_SERVICE:ee-dev/GOV/70006317/consent/consent-stage}
+
 # Development and test defaults only. The pension fund values are SEB's public
 # Baltic Gateway TEST-environment accounts and synthetic ids; TKF100's values
 # are long-public company data (fund documents, order file fixtures). Real
@@ -649,6 +655,12 @@ mobile-id:
 population-register:
   url: ${POPULATION_REGISTER_URL:https://xroad-consumer.tuleva.ee/r1/EE/GOV/70008440/rr/domesticDataExchange/v1}
   client-id: ${POPULATION_REGISTER_CLIENT_ID:EE/COM/14118923/tuleva-fund-management}
+
+tax-headroom:
+  x-road-url: ${TAX_HEADROOM_X_ROAD_URL:https://xroad-consumer.tuleva.ee}
+  client-id: ${TAX_HEADROOM_CLIENT_ID:EE/COM/14118923/tuleva-fund-management}
+  tax-data-service: ${TAX_HEADROOM_TAX_DATA_SERVICE:EE/GOV/70000349/mkrliides/TaxCertificate/v2}
+  consent-service: ${TAX_HEADROOM_CONSENT_SERVICE:EE/GOV/70006317/consent/consent}
 
 third-pillar-payment-arrived:
   cron: "0 0 12 * * *"

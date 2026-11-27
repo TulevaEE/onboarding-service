@@ -1,0 +1,491 @@
+<?xml version="1.0" encoding="UTF-8"?><wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:xrd="http://x-road.eu/xsd/xroad.xsd" xmlns:tns="http://emta-v6.x-road.eu" targetNamespace="http://emta-v6.x-road.eu" name="TaxCertificate-v2-20012022">
+  <wsdl:types>
+    <schema xmlns="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://emta-v6.x-road.eu" targetNamespace="http://emta-v6.x-road.eu">
+
+      <import namespace="http://x-road.eu/xsd/xroad.xsd" schemaLocation="http://x-road.eu/xsd/xroad.xsd"/>
+
+      <element name="TaxCertificate">
+        <annotation>
+          <appinfo>
+            <xrd:title xml:lang="et">Maksuandmete päring</xrd:title>
+          </appinfo>
+        </annotation>
+        <complexType>
+          <sequence>
+            <element name="request" type="tns:TaxCertificateRequestType"/>
+          </sequence>
+        </complexType>
+      </element>
+
+      <element name="TaxCertificateResponse">
+        <annotation>
+          <appinfo>
+            <xrd:title xml:lang="et">Maksuandmete päringu vastus</xrd:title>
+          </appinfo>
+        </annotation>
+        <complexType>
+          <sequence>
+            <element name="request" type="tns:TaxCertificateRequestType"/>
+            <element name="response" type="tns:TaxCertificateResponseType"/>
+          </sequence>
+        </complexType>
+      </element>
+
+      <element name="error">
+        <complexType>
+          <sequence>
+            <element name="source" type="string"/>
+            <element name="type">
+              <simpleType>
+                <restriction base="string">
+                  <enumeration value="INVALID_CONSENT"/>
+                  <enumeration value="INVALID_PERIOD"/>
+                  <enumeration value="INVALID_REQUEST"/>
+                </restriction>
+              </simpleType>
+            </element>
+            <element name="message" type="string"/>
+          </sequence>
+        </complexType>
+      </element>
+
+      <complexType name="TaxCertificateRequestType">
+        <sequence>
+          <element name="code" type="string">
+            <annotation>
+              <appinfo>
+                <xrd:title xml:lang="et">Kliendi isikukood</xrd:title>
+              </appinfo>
+            </annotation>
+          </element>
+          <element name="consentReference" type="string">
+            <annotation>
+              <appinfo>
+                <xrd:title xml:lang="et">Nõusolekuviide</xrd:title>
+              </appinfo>
+            </annotation>
+          </element>
+          <element name="periodStart" type="tns:monthYearType">
+            <annotation>
+              <appinfo>
+                <xrd:title xml:lang="et">Alguskuupäev (kk.aaaa)</xrd:title>
+              </appinfo>
+            </annotation>
+          </element>
+          <element name="periodEnd" type="tns:monthYearType">
+            <annotation>
+              <appinfo>
+                <xrd:title xml:lang="et">Lõppkuupäev (kk.aaaa)</xrd:title>
+              </appinfo>
+            </annotation>
+          </element>
+        </sequence>
+      </complexType>
+
+      <complexType name="TaxCertificateResponseType">
+        <all minOccurs="0">
+          <element name="GEN" type="tns:GENType">
+            <annotation>
+              <appinfo>
+                <xrd:notes xml:lang="et">Tõendi üldosa.</xrd:notes>
+              </appinfo>
+            </annotation>
+          </element>
+          <element name="TSD-F" type="tns:TSD-FType" minOccurs="0">
+            <annotation>
+              <appinfo>
+                <xrd:notes xml:lang="et">
+                  Tööandja(te) deklareeritud väljamakse andmed deklaratsiooni TSD alusel.
+                </xrd:notes>
+              </appinfo>
+            </annotation>
+          </element>
+          <element name="EVK" type="tns:EVKType" minOccurs="0">
+            <annotation>
+              <appinfo>
+                <xrd:notes xml:lang="et">Sissetulek ettevõtluskontolt.</xrd:notes>
+              </appinfo>
+            </annotation>
+          </element>
+          <element name="TSD-F-P" type="tns:TSD-F-PType" minOccurs="0">
+            <annotation>
+              <appinfo>
+                <xrd:notes xml:lang="et">
+                  Töövõimetus-, töötuskindlustus- ja koondamishüvitised, pensionid, tööandjate väljamaksed
+                  III pensionisambasse, kogumispensioni väljamaksed deklaratsiooni TSD alusel.
+                </xrd:notes>
+              </appinfo>
+            </annotation>
+          </element>
+          <element name="TSD-F-PANK" type="tns:TSD-F-PType" minOccurs="0">
+            <annotation>
+              <appinfo>
+                <xrd:notes xml:lang="et">
+                  Isiku kõik tulud liikide kaupa (väljastatakse vaid kui deliveryMethod="X").
+                </xrd:notes>
+              </appinfo>
+            </annotation>
+          </element>
+          <element name="VOL" type="tns:VOLType" minOccurs="0">
+            <annotation>
+              <appinfo>
+                <xrd:notes xml:lang="et">Maksuvõlg.</xrd:notes>
+              </appinfo>
+            </annotation>
+          </element>
+          <element name="FIDEK" type="tns:FIDEKType" minOccurs="0">
+            <annotation>
+              <appinfo>
+                <xrd:notes xml:lang="et">
+                  Tulu füüsilise isiku tuludeklaratsiooni alusel ja ettevõtlustulu e-vormi alusel.
+                </xrd:notes>
+              </appinfo>
+            </annotation>
+          </element>
+          <element name="DIV" type="tns:DIVType" minOccurs="0">
+            <annotation>
+              <appinfo>
+                <xrd:notes xml:lang="et">Dividendid ja omakapitalist tehtud väljamaksed.</xrd:notes>
+              </appinfo>
+            </annotation>
+          </element>
+          <element name="TOR" type="tns:TORType" minOccurs="0">
+            <annotation>
+              <appinfo>
+                <xrd:notes xml:lang="et">Töötamise registrisse (TöR) tehtud kanded.</xrd:notes>
+              </appinfo>
+            </annotation>
+          </element>
+        </all>
+      </complexType>
+
+      <complexType name="GENType">
+        <sequence>
+          <element name="logo_url" type="string"/>
+          <element name="restrictionStart" type="tns:dateType"/>
+          <element name="restrictionEnd" type="tns:dateType"/>
+          <element name="docDate" type="tns:dateType"/>
+          <element name="docNumber" type="string"/>
+          <element name="name" type="string"/>
+          <element name="code" type="tns:codeType"/>
+          <element name="jurPhy" type="tns:jurPhyType"/>
+          <element name="onFie" type="tns:yesNoType" minOccurs="0"/>
+          <element name="assembleTime" type="tns:dateTimeType"/>
+          <element name="infoPeriodStart" type="tns:dateType"/>
+          <element name="infoPeriodEnd" type="tns:dateType"/>
+          <element name="sender" type="string"/>
+          <element name="applicant" type="tns:applicantType"/>
+          <element name="officer" type="tns:officerType"/>
+        </sequence>
+      </complexType>
+
+
+      <complexType name="TSD-FpaymentsSimpleType">
+        <sequence>
+          <element name="sum" type="tns:amountType" minOccurs="0"/>
+          <element name="incomeTax" type="tns:amountType" minOccurs="0"/>
+          <element name="unemploymentInsurancePay" type="tns:amountType" minOccurs="0"/>
+          <element name="fundedPensionPay" type="tns:amountType" minOccurs="0"/>
+        </sequence>
+      </complexType>
+      <complexType name="TSD-FpaymentsType">
+        <complexContent>
+          <extension base="tns:TSD-FpaymentsSimpleType">
+            <attribute name="code">
+              <simpleType>
+                <restriction base="string">
+                  <pattern value=".+"/>
+                </restriction>
+              </simpleType>
+            </attribute>
+          </extension>
+        </complexContent>
+      </complexType>
+      <complexType name="TSD-FemployerType">
+        <sequence>
+          <element name="employerCode" type="tns:codeType" minOccurs="0"/>
+          <element name="employerName" type="string" minOccurs="0"/>
+          <element name="salary" type="tns:TSD-FpaymentsType" minOccurs="0"/>
+          <element name="otherPayments" type="tns:TSD-FpaymentsType" minOccurs="0"/>
+        </sequence>
+      </complexType>
+      <complexType name="TSD-FperiodType">
+        <sequence>
+          <element name="year" type="tns:yearType"/>
+          <element name="month" type="tns:monthType"/>
+          <element name="employer" type="tns:TSD-FemployerType" minOccurs="0" maxOccurs="unbounded"/>
+          <element name="nodata" type="tns:nodataType" minOccurs="0"/>
+        </sequence>
+      </complexType>
+      <complexType name="TSD-FType">
+        <sequence>
+          <element name="period" type="tns:TSD-FperiodType" minOccurs="0" maxOccurs="27"/>
+          <element name="nodata" type="tns:nodataType" minOccurs="0"/>
+        </sequence>
+      </complexType>
+      <complexType name="TSD-F-PemployerType">
+        <sequence>
+          <element name="employerCode" type="tns:codeType" minOccurs="0"/>
+          <element name="employerName" type="string" minOccurs="0"/>
+          <element name="payments" type="tns:TSD-FpaymentsType" minOccurs="0" maxOccurs="unbounded"/>
+        </sequence>
+      </complexType>
+      <complexType name="TSD-F-PperiodType">
+        <sequence>
+          <element name="year" type="tns:yearType"/>
+          <element name="month" type="tns:monthType"/>
+          <element name="employer" type="tns:TSD-F-PemployerType" minOccurs="0" maxOccurs="unbounded"/>
+          <element name="nodata" type="tns:nodataType" minOccurs="0"/>
+        </sequence>
+      </complexType>
+      <complexType name="TSD-F-PType">
+        <sequence>
+          <element name="period" type="tns:TSD-F-PperiodType" minOccurs="0" maxOccurs="27"/>
+          <element name="nodata" type="tns:nodataType" minOccurs="0"/>
+        </sequence>
+      </complexType>
+      <complexType name="VOLperiodType">
+        <sequence>
+          <element name="year" type="tns:yearType"/>
+          <element name="month" type="tns:monthType" minOccurs="0"/>
+          <element name="dateDebt" type="tns:dateType"/>
+          <element name="sumDebt" type="tns:amountType"/>
+          <element name="sumRsDebt" type="tns:amountType" minOccurs="0"/>
+        </sequence>
+      </complexType>
+      <complexType name="VOLType">
+        <sequence>
+          <element name="period" type="tns:VOLperiodType" minOccurs="0" maxOccurs="27"/>
+        </sequence>
+      </complexType>
+      <complexType name="FIDEKperiodType">
+        <sequence>
+          <element name="year" type="tns:yearType"/>
+          <element name="income" type="tns:TSD-FpaymentsType" minOccurs="0"/>
+          <element name="nodata" type="tns:nodataType" minOccurs="0"/>
+        </sequence>
+      </complexType>
+      <complexType name="FIDEKType">
+        <sequence>
+          <element name="period" type="tns:FIDEKperiodType" minOccurs="0" maxOccurs="3"/>
+          <element name="nodata" type="tns:nodataType" minOccurs="0"/>
+          <element name="nodata-note" type="tns:nodataType" minOccurs="0"/>
+        </sequence>
+      </complexType>
+      <complexType name="DIVperiodType">
+        <sequence>
+          <element name="year" type="tns:yearType"/>
+          <element name="month" type="tns:monthType"/>
+          <element name="payer" type="tns:DIVPayerType" maxOccurs="unbounded"/>
+        </sequence>
+      </complexType>
+      <complexType name="DIVPayerType">
+        <sequence>
+          <element name="payerCode" type="tns:codeType"/>
+          <element name="payerName" type="string"/>
+          <element name="sumPayout" type="tns:amountType"/>
+        </sequence>
+      </complexType>
+      <complexType name="DIVType">
+        <sequence>
+          <element name="period" type="tns:DIVperiodType" minOccurs="0" maxOccurs="27"/>
+          <element name="nodata" type="tns:nodataType" minOccurs="0"/>
+        </sequence>
+      </complexType>
+      <complexType name="TORemployerType">
+        <sequence>
+          <element name="employerCode" type="tns:codeType"/>
+          <element name="employerName" type="string"/>
+          <element name="employmentBegin" type="tns:dateType"/>
+          <element name="employmentEnd" type="tns:dateType" minOccurs="0"/>
+          <element name="employmentType" type="string"/>
+        </sequence>
+      </complexType>
+      <complexType name="TORType">
+        <sequence>
+          <element name="employer" type="tns:TORemployerType" minOccurs="0" maxOccurs="unbounded"/>
+          <element name="nodata" type="tns:nodataType" minOccurs="0"/>
+        </sequence>
+      </complexType>
+      <complexType name="EVKType">
+        <sequence>
+          <element name="nodata" type="tns:nodataType" minOccurs="0"/>
+          <element name="period" type="tns:EVKperiodType" minOccurs="0" maxOccurs="27"/>
+        </sequence>
+      </complexType>
+      <complexType name="EVKperiodType">
+        <sequence>
+          <element name="year" type="tns:yearType"/>
+          <element name="month" type="tns:monthType"/>
+          <element name="payments" type="tns:EVKpaymentsType" minOccurs="0" maxOccurs="unbounded"/>
+          <element name="nodata" type="tns:nodataType" minOccurs="0"/>
+        </sequence>
+      </complexType>
+      <complexType name="EVKpaymentsType">
+        <sequence>
+          <element name="sum" type="tns:amountType" minOccurs="0"/>
+          <element name="grossIncome" type="tns:amountType" minOccurs="0"/>
+          <element name="socialTax" type="tns:amountType" minOccurs="0"/>
+          <element name="fundedPensionPay" type="tns:amountType" minOccurs="0"/>
+          <element name="incomeTax" type="tns:amountType" minOccurs="0"/>
+        </sequence>
+      </complexType>
+      <complexType name="applicantType">
+        <sequence>
+          <element name="deliveryMethod" type="tns:deliveryMethodType"/>
+          <element name="name" type="string" minOccurs="0"/>
+          <element name="address" type="string" minOccurs="0"/>
+          <element name="location" type="string" minOccurs="0"/>
+          <element name="email" type="tns:emailType" minOccurs="0"/>
+          <element name="submission" type="string" minOccurs="0"/>
+        </sequence>
+      </complexType>
+      <complexType name="officerType">
+        <sequence>
+          <element name="name" type="string" minOccurs="0"/>
+          <element name="title" type="string" minOccurs="0"/>
+          <element name="phone" type="string" minOccurs="0"/>
+          <element name="email" type="tns:emailType" minOccurs="0"/>
+          <element name="department" type="string" minOccurs="0"/>
+        </sequence>
+      </complexType>
+
+      <simpleType name="codeType">
+        <restriction base="string">
+          <pattern value="(\d{8})|(\d{11})"/>
+        </restriction>
+      </simpleType>
+      <simpleType name="dateType">
+        <restriction base="string">
+          <pattern value="\d{2}\.\d{2}\.\d{4}"/>
+        </restriction>
+      </simpleType>
+      <simpleType name="dateTimeType">
+        <restriction base="string">
+          <pattern value="\d{2}\.\d{2}\.\d{4}\s\d{2}:\d{2}:\d{2}"/>
+        </restriction>
+      </simpleType>
+      <simpleType name="monthYearType">
+        <restriction base="string">
+          <pattern value="\d{2}\.\d{4}"/>
+        </restriction>
+      </simpleType>
+      <simpleType name="yearType">
+        <restriction base="integer">
+          <minInclusive value="2014"/>
+        </restriction>
+      </simpleType>
+      <simpleType name="monthType">
+        <restriction base="integer">
+          <minInclusive value="1"/>
+          <maxInclusive value="12"/>
+        </restriction>
+      </simpleType>
+      <simpleType name="nodataType">
+        <restriction base="string">
+          <pattern value="\d"/>
+        </restriction>
+      </simpleType>
+      <simpleType name="jurPhyType">
+        <restriction base="string">
+          <pattern value="[FJ]"/>
+        </restriction>
+      </simpleType>
+      <simpleType name="yesNoType">
+        <restriction base="string">
+          <pattern value="[YN]"/>
+        </restriction>
+      </simpleType>
+      <simpleType name="emtakCodeType">
+        <restriction base="string">
+          <pattern value="\d+"/>
+        </restriction>
+      </simpleType>
+      <simpleType name="amountType">
+        <restriction base="string">
+          <pattern value="[+-]?(\s?\d{1,3})*[.,]?(\d{1,2})?"/>
+        </restriction>
+      </simpleType>
+      <simpleType name="cntType">
+        <restriction base="string">
+          <pattern value="\d*"/>
+        </restriction>
+      </simpleType>
+      <simpleType name="deliveryMethodType">
+        <restriction base="string">
+          <pattern value="[KEDXC]"/>
+        </restriction>
+      </simpleType>
+      <simpleType name="emailType">
+        <restriction base="token">
+          <pattern value=".*@.*\..*"/>
+        </restriction>
+      </simpleType>
+    </schema>
+  </wsdl:types>
+
+  <wsdl:message name="xroadHeader">
+    <wsdl:part element="xrd:client" name="client"/>
+    <wsdl:part element="xrd:service" name="service"/>
+    <wsdl:part element="xrd:id" name="id"/>
+    <wsdl:part element="xrd:userId" name="userId"/>
+    <wsdl:part element="xrd:issue" name="issue"/>
+    <wsdl:part element="xrd:protocolVersion" name="protocolVersion"/>
+  </wsdl:message>
+
+  <wsdl:message name="TaxCertificate">
+    <wsdl:part element="tns:TaxCertificate" name="parameters"/>
+  </wsdl:message>
+  <wsdl:message name="TaxCertificateResponse">
+    <wsdl:part element="tns:TaxCertificateResponse" name="parameters"/>
+  </wsdl:message>
+  <wsdl:message name="ErrorMessage">
+    <wsdl:part element="tns:error" name="fault"/>
+  </wsdl:message>
+
+  <wsdl:portType name="webServiceInterface">
+    <wsdl:operation name="TaxCertificate">
+      <wsdl:documentation>
+        <xrd:title xml:lang="et">Maksuandmete edastus (v2)</xrd:title>
+      </wsdl:documentation>
+      <wsdl:input message="tns:TaxCertificate"/>
+      <wsdl:output message="tns:TaxCertificateResponse"/>
+      <wsdl:fault message="tns:ErrorMessage" name="ErrorMessage"/>
+    </wsdl:operation>
+  </wsdl:portType>
+
+  <wsdl:binding name="soapBindings" type="tns:webServiceInterface">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="TaxCertificate">
+      <xrd:version>v2</xrd:version>
+      <soap:operation soapAction="" style="document"/>
+      <wsdl:input>
+        <soap:header message="tns:xroadHeader" part="client" use="literal"/>
+        <soap:header message="tns:xroadHeader" part="service" use="literal"/>
+        <soap:header message="tns:xroadHeader" part="id" use="literal"/>
+        <soap:header message="tns:xroadHeader" part="userId" use="literal"/>
+        <soap:header message="tns:xroadHeader" part="issue" use="literal"/>
+        <soap:header message="tns:xroadHeader" part="protocolVersion" use="literal"/>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:header message="tns:xroadHeader" part="client" use="literal"/>
+        <soap:header message="tns:xroadHeader" part="service" use="literal"/>
+        <soap:header message="tns:xroadHeader" part="id" use="literal"/>
+        <soap:header message="tns:xroadHeader" part="userId" use="literal"/>
+        <soap:header message="tns:xroadHeader" part="issue" use="literal"/>
+        <soap:header message="tns:xroadHeader" part="protocolVersion" use="literal"/>
+        <soap:body use="literal"/>
+      </wsdl:output>
+      <wsdl:fault name="ErrorMessage">
+        <soap:fault name="ErrorMessage" use="literal"/>
+      </wsdl:fault>
+    </wsdl:operation>
+  </wsdl:binding>
+
+  <wsdl:service name="webService">
+    <wsdl:port binding="tns:soapBindings" name="port">
+      <soap:address location="http://example.org/xroad-endpoint"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

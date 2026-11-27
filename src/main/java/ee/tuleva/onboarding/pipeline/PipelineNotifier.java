@@ -27,12 +27,22 @@ public class PipelineNotifier {
     try {
       if (pipeline.hasFailure()) {
         sendFailure(pipeline);
+      } else if (isASelfHealRetryThatLeftEveryFundHeld(pipeline)) {
+        log.info(
+            "Self-heal NAV run left every fund held, the held NAV's own message is the reminder: trigger={}",
+            pipeline.getTrigger());
       } else if (pipeline.isChanged() || pipeline.getType() == PipelineRun.PipelineType.NAV) {
         sendSuccess(pipeline);
       }
     } catch (Exception e) {
       log.error("Failed to send pipeline notification", e);
     }
+  }
+
+  private static boolean isASelfHealRetryThatLeftEveryFundHeld(PipelineRun pipeline) {
+    return pipeline.getType() == PipelineRun.PipelineType.NAV
+        && pipeline.getTriggerSource() == PipelineRun.TriggerSource.SELF_HEAL
+        && pipeline.isEveryFundHeld();
   }
 
   private void sendSuccess(PipelineRun pipeline) {

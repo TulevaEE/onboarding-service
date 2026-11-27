@@ -13,6 +13,7 @@ ADMIN_TOKEN_HOLDER GET /admin/kid/{fund}
 ADMIN_TOKEN_HOLDER GET /admin/kid/{fund}/calculations
 ADMIN_TOKEN_HOLDER GET /admin/kid/{fund}/past-performance
 ADMIN_TOKEN_HOLDER GET /admin/missed-mandate-batch-emails
+ADMIN_TOKEN_HOLDER GET /admin/nav/{fund}/{navDate}
 ADMIN_TOKEN_HOLDER GET /admin/preview-investment-report
 ADMIN_TOKEN_HOLDER GET /admin/savings-fund/unit-transfers/awaiting-approval
 ADMIN_TOKEN_HOLDER GET /admin/transaction-batches/{id}
@@ -115,6 +116,7 @@ ADMIN_TOKEN_HOLDER POST /admin/guardian-link
 ADMIN_TOKEN_HOLDER POST /admin/kid/{fund}/calculations
 ADMIN_TOKEN_HOLDER POST /admin/kid/{fund}/publications
 ADMIN_TOKEN_HOLDER POST /admin/missed-mandate-batch-emails/resend
+ADMIN_TOKEN_HOLDER POST /admin/nav/{fund}/{navDate}/release
 ADMIN_TOKEN_HOLDER POST /admin/ocf
 ADMIN_TOKEN_HOLDER POST /admin/ocf-backfill
 ADMIN_TOKEN_HOLDER POST /admin/ocf-publications

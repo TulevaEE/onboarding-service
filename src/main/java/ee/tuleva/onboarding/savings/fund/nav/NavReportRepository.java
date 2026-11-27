@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
+import static jakarta.persistence.LockModeType.PESSIMISTIC_WRITE;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -7,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -106,11 +109,26 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
   void deleteUnpublishedByNavDateAndFundCode(
       @Param("navDate") LocalDate navDate, @Param("fundCode") String fundCode);
 
+  @Transactional
   default void replaceByNavDateAndFundCode(
       LocalDate navDate, String fundCode, List<NavReportRow> rows) {
+    findTheDatesRowsForUpdate(fundCode, navDate);
     deleteUnpublishedByNavDateAndFundCode(navDate, fundCode);
     saveAll(rows);
   }
+
+  default List<NavReportRow> findTheDatesRowsForUpdateAfterAReplacementInProgress(
+      String fundCode, LocalDate navDate) {
+    findTheDatesRowsForUpdate(fundCode, navDate);
+    return findTheDatesRowsForUpdate(fundCode, navDate);
+  }
+
+  @Lock(PESSIMISTIC_WRITE)
+  @Query(
+      "SELECT row FROM NavReportRow row WHERE row.fundCode = :fundCode AND row.navDate = :navDate"
+          + " ORDER BY row.id")
+  List<NavReportRow> findTheDatesRowsForUpdate(
+      @Param("fundCode") String fundCode, @Param("navDate") LocalDate navDate);
 
   @Transactional
   @Modifying(clearAutomatically = true, flushAutomatically = true)
@@ -120,6 +138,21 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
               + " WHERE calculation_id = :calculationId AND published_at IS NULL",
       nativeQuery = true)
   void markAsPublished(@Param("calculationId") UUID calculationId);
+
+  List<NavReportRow> findByFundCodeAndNavDateOrderById(String fundCode, LocalDate navDate);
+
+  @Query(
+      value =
+          """
+          SELECT * FROM nav_report
+          WHERE fund_code = :fundCode AND nav_date = :navDate
+            AND account_type = 'UNITS'
+            AND published_at IS NULL
+          ORDER BY id DESC LIMIT 1
+          """,
+      nativeQuery = true)
+  Optional<NavReportRow> findLatestUnsentUnitsRow(
+      @Param("fundCode") String fundCode, @Param("navDate") LocalDate navDate);
 
   @Query(
       value =
@@ -163,6 +196,31 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
 
   Optional<NavReportRow> findFirstByFundCodeAndNavDateOrderByIdDesc(
       String fundCode, LocalDate navDate);
+
+  default boolean isReleasedOrReplacedOnceTheDateIsLocked(
+      String fundCode, LocalDate navDate, UUID calculationId) {
+    findTheDatesRowsForUpdate(fundCode, navDate);
+    return existsByCalculationIdAndPublishedAtIsNotNull(calculationId)
+        || findLatestCalculationId(fundCode, navDate)
+            .filter(latest -> !latest.equals(calculationId))
+            .isPresent();
+  }
+
+  boolean existsByCalculationIdAndPublishedAtIsNotNull(UUID calculationId);
+
+  default boolean isOvertakenOnceTheDateIsLocked(
+      String fundCode, LocalDate navDate, UUID calculationId) {
+    findTheDatesRowsForUpdate(fundCode, navDate);
+    return existsPublishedByNavDateAndFundCode(navDate, fundCode)
+        || findLatestCalculationId(fundCode, navDate)
+            .filter(latest -> !latest.equals(calculationId))
+            .isPresent();
+  }
+
+  default Optional<UUID> findLatestCalculationId(String fundCode, LocalDate navDate) {
+    return findFirstByFundCodeAndNavDateOrderByIdDesc(fundCode, navDate)
+        .map(NavReportRow::getCalculationId);
+  }
 
   Optional<NavReportRow>
       findFirstByFundCodeAndNavDateAndPublishedAtIsNotNullOrderByPublishedAtDescIdDesc(

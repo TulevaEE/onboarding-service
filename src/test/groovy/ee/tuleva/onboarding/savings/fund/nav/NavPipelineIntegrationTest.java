@@ -216,6 +216,9 @@ class NavPipelineIntegrationTest {
       assertThat(revisionNavRow.orElseThrow().getMarketPrice())
           .isEqualByComparingTo(expectedRevisedNav);
 
+      assertThat(fundNavQueryService.findPublishedNavPerUnit("TKF100", navData.navDate))
+          .contains(published.navPerUnit().setScale(8, HALF_UP));
+
       navReportRepository.markAsPublished(revisionRows.getFirst().getCalculationId());
 
       assertThat(fundNavQueryService.findPublishedNavPerUnit("TKF100", navData.navDate))

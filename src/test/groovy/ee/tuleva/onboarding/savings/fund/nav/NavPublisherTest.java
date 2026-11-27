@@ -30,18 +30,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.support.TransactionOperations;
 
 @ExtendWith(MockitoExtension.class)
 class NavPublisherTest {
 
   @Mock private FundValueWriter fundValueWriter;
+  @Mock private FundValueQueries fundValueQueries;
   @Mock private NavReportMapper navReportMapper;
   @Mock private NavReportRepository navReportRepository;
   @Mock private NavReportEmailSender navReportEmailSender;
@@ -50,7 +52,25 @@ class NavPublisherTest {
   @Mock private NavPublicationGate trackingDifferenceGate;
   @Mock private PipelineTracker pipelineTracker;
 
-  @InjectMocks private NavPublisher navPublisher;
+  private final TransactionOperations transactionOperations =
+      TransactionOperations.withoutTransaction();
+
+  private NavPublisher navPublisher;
+
+  @BeforeEach
+  void setUp() {
+    navPublisher =
+        new NavPublisher(
+            new SavingsFundPublicNav(fundValueWriter, fundValueQueries),
+            navReportMapper,
+            navReportRepository,
+            navReportEmailSender,
+            navNotifier,
+            notificationService,
+            trackingDifferenceGate,
+            pipelineTracker,
+            transactionOperations);
+  }
 
   @Test
   void publish_savesNavAndAumWithPositionReportDate() {
@@ -105,7 +125,7 @@ class NavPublisherTest {
     when(navReportMapper.map(result)).thenReturn(List.of(reportRow));
     when(navReportEmailSender.send(any(), eq(result))).thenReturn(false);
 
-    navPublisher.publish(result);
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
 
     verify(navReportRepository, never()).markAsPublished(any(UUID.class));
     verify(notificationService).sendMessage(any(String.class), eq(SAVINGS));
@@ -204,7 +224,7 @@ class NavPublisherTest {
         .when(navReportRepository)
         .replaceByNavDateAndFundCode(any(), any(), any());
 
-    navPublisher.publish(result);
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
 
     verify(fundValueWriter, times(2)).save(any());
     verifyNoInteractions(navReportEmailSender);
@@ -214,7 +234,7 @@ class NavPublisherTest {
   }
 
   @Test
-  void publish_routesToInternalReviewAndMarksPublished_whenTdGateBlocks() {
+  void publish_routesToInternalReviewAndLeavesItUnpublished_whenTdGateBlocks() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
     Instant calcTime = Instant.parse("2025-01-15T14:00:00Z");
@@ -227,13 +247,166 @@ class NavPublisherTest {
         .thenReturn(Optional.of("TD breach: fund=TKF100, MODEL_PORTFOLIO TD=0.015"));
     when(navReportEmailSender.sendForReview(any(), eq(result))).thenReturn(true);
 
-    navPublisher.publish(result);
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
 
     verify(navReportEmailSender).sendForReview(any(), eq(result));
     verify(navReportEmailSender, never()).send(any(), any());
-    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
-    verify(notificationService).sendMessage(contains("trustee@seb.ee"), eq(SAVINGS));
+    verify(navReportRepository, never()).markAsPublished(any(UUID.class));
+    verify(notificationService)
+        .sendMessage(
+            contains("agent-gateway nav_release (two ✅): fund=TKF100, navDate=2025-01-14\n"),
+            eq(SAVINGS));
+    verify(notificationService)
+        .sendMessage(
+            contains("POST navPerUnit, aum and approvedBy to /admin/nav/TKF100/2025-01-14/release"),
+            eq(SAVINGS));
+    verify(notificationService)
+        .sendMessage(contains("recalculated every 5–15 minutes"), eq(SAVINGS));
     verify(navNotifier).notify(result);
+  }
+
+  @Test
+  void aFirstHoldEmailsTheCsvForReviewAndPostsTheRedMessage() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(unitsRow(yesterday, "TUK75", "9.69941", "969941.07")));
+    given(trackingDifferenceGate.check(TUK75, yesterday))
+        .willReturn(Optional.of("TD breach: fund=TUK75, MODEL_PORTFOLIO TD=0.015"));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    navPublisher.publish(result);
+
+    then(navReportEmailSender).should().sendForReview(any(), eq(result));
+    then(notificationService).should().sendMessage(FIRST_HOLD_MESSAGE, SAVINGS);
+  }
+
+  @Test
+  void aRepeatedHoldWithTheSameValuesPostsOnlyTheRedMessage() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportRepository.findLatestUnsentUnitsRow("TUK75", yesterday))
+        .willReturn(Optional.of(unitsRow(yesterday, "TUK75", "9.699410", "969941.0700")));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(unitsRow(yesterday, "TUK75", "9.69941", "969941.07")));
+    given(trackingDifferenceGate.check(TUK75, yesterday))
+        .willReturn(Optional.of("TD breach: fund=TUK75, MODEL_PORTFOLIO TD=0.015"));
+
+    navPublisher.publish(result);
+
+    then(navReportEmailSender).shouldHaveNoInteractions();
+    then(notificationService).should().sendMessage(REPEATED_HOLD_MESSAGE, SAVINGS);
+    var inOrder = inOrder(navReportRepository);
+    inOrder.verify(navReportRepository).findLatestUnsentUnitsRow("TUK75", yesterday);
+    inOrder
+        .verify(navReportRepository)
+        .replaceByNavDateAndFundCode(eq(yesterday), eq("TUK75"), any());
+  }
+
+  @Test
+  void aRepeatedHoldWithAChangedNavEmailsTheCsvAgain() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportRepository.findLatestUnsentUnitsRow("TUK75", yesterday))
+        .willReturn(Optional.of(unitsRow(yesterday, "TUK75", "9.70000", "969941.07")));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(unitsRow(yesterday, "TUK75", "9.69941", "969941.07")));
+    given(trackingDifferenceGate.check(TUK75, yesterday))
+        .willReturn(Optional.of("TD breach: fund=TUK75, MODEL_PORTFOLIO TD=0.015"));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    navPublisher.publish(result);
+
+    then(navReportEmailSender).should().sendForReview(any(), eq(result));
+    then(notificationService).should().sendMessage(FIRST_HOLD_MESSAGE, SAVINGS);
+  }
+
+  @Test
+  void aRepeatedHoldWithAChangedAumEmailsTheCsvAgain() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportRepository.findLatestUnsentUnitsRow("TUK75", yesterday))
+        .willReturn(Optional.of(unitsRow(yesterday, "TUK75", "9.69941", "969941.08")));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(unitsRow(yesterday, "TUK75", "9.69941", "969941.07")));
+    given(trackingDifferenceGate.check(TUK75, yesterday))
+        .willReturn(Optional.of("TD breach: fund=TUK75, MODEL_PORTFOLIO TD=0.015"));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    navPublisher.publish(result);
+
+    then(navReportEmailSender).should().sendForReview(any(), eq(result));
+  }
+
+  @Test
+  void aRepeatedRevisionWithTheSameValuesPostsOnlyTheRedMessage() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportRepository.findLatestUnsentUnitsRow("TUK75", yesterday))
+        .willReturn(Optional.of(unitsRow(yesterday, "TUK75", "9.69941", "969941.07")));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(unitsRow(yesterday, "TUK75", "9.69941", "969941.07")));
+
+    navPublisher.publishRevision(result, new NavRevision(new BigDecimal("9.75000"), 4));
+
+    then(navReportEmailSender).shouldHaveNoInteractions();
+    then(notificationService).should().sendMessage(contains(CSV_EMAILED_EARLIER), eq(SAVINGS));
+  }
+
+  @Test
+  void aRepeatedRevisionWithChangedValuesEmailsTheCsvAgain() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportRepository.findLatestUnsentUnitsRow("TUK75", yesterday))
+        .willReturn(Optional.of(unitsRow(yesterday, "TUK75", "9.70000", "969941.07")));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(unitsRow(yesterday, "TUK75", "9.69941", "969941.07")));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    navPublisher.publishRevision(result, new NavRevision(new BigDecimal("9.75000"), 4));
+
+    then(navReportEmailSender).should().sendForReview(any(), eq(result));
+    then(notificationService).should().sendMessage(contains(CSV_EMAILED_NOW), eq(SAVINGS));
+  }
+
+  private static final String CSV_EMAILED_NOW = "The CSV report was emailed to funds@tuleva.ee.";
+  private static final String CSV_EMAILED_EARLIER =
+      "The CSV report was emailed to funds@tuleva.ee earlier, and its NAV and AUM have not changed since.";
+
+  private static final String FIRST_HOLD_MESSAGE =
+      """
+      🔴 NAV report HELD for review — NOT sent to SEB.
+      TD breach: fund=TUK75, MODEL_PORTFOLIO TD=0.015
+      The CSV report was emailed to funds@tuleva.ee.
+      Until it is released or passes the check, the NAV is recalculated every 5–15 minutes and this message repeats.
+
+      What to do now:
+      1. Verify the NAV in the "TUK75 NAV arvutamine ..." email (funds@tuleva.ee) reconciles with the SEB custodian report.
+      2. If correct, release it. The release sends the report to SEB; do not forward the email by hand.
+         agent-gateway nav_release (two ✅): fund=TUK75, navDate=2025-01-14
+         Until agent-gateway has nav_release: GET /admin/nav/TUK75/2025-01-14 shows the values to approve; POST navPerUnit, aum and approvedBy to /admin/nav/TUK75/2025-01-14/release
+      3. Optional (needs compliance sign-off) — widen the TD gate going forward:
+         INSERT INTO investment_parameter (parameter_name, fund_code, effective_date, numeric_value) VALUES ('TRACKING_BREACH_THRESHOLD', NULL, CURRENT_DATE, 0.005);""";
+
+  private static final String REPEATED_HOLD_MESSAGE =
+      FIRST_HOLD_MESSAGE.replace(CSV_EMAILED_NOW, CSV_EMAILED_EARLIER);
+
+  private static NavReportRow unitsRow(
+      LocalDate navDate, String fundCode, String navPerUnit, String aum) {
+    return NavReportRow.builder()
+        .navDate(navDate)
+        .fundCode(fundCode)
+        .accountType("UNITS")
+        .accountName("Total outstanding units:")
+        .marketPrice(new BigDecimal(navPerUnit))
+        .marketValue(new BigDecimal(aum))
+        .build();
   }
 
   @Test
@@ -243,14 +416,15 @@ class NavPublisherTest {
     var fundValues = new InMemoryFundValues();
     var publisher =
         new NavPublisher(
-            fundValues,
+            new SavingsFundPublicNav(fundValues, fundValues),
             navReportMapper,
             navReportRepository,
             navReportEmailSender,
             navNotifier,
             notificationService,
             trackingDifferenceGate,
-            pipelineTracker);
+            pipelineTracker,
+            transactionOperations);
     var result =
         NavCalculationResult.builder()
             .fund(TKF100)
@@ -281,6 +455,179 @@ class NavPublisherTest {
   }
 
   @Test
+  void publish_holdsARecalculationOfADateSebAlreadyHasForReview_insteadOfSendingIt() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build();
+    given(navReportMapper.map(result)).willReturn(List.of(reportRow));
+    given(navReportRepository.findPublishedNavPerUnit(yesterday, "TUK75", "NAV"))
+        .willReturn(Optional.of(new BigDecimal("9.75000")));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
+
+    verify(navReportEmailSender, never()).send(any(), any());
+    verify(navReportRepository, never()).markAsPublished(any(UUID.class));
+    verify(trackingDifferenceGate, never()).check(any(), any());
+    verify(notificationService)
+        .sendMessage(
+            contains(
+                "SEB already has a NAV for this date: sentNav=9.75000, recalculatedNav=9.69941"),
+            eq(SAVINGS));
+  }
+
+  @Test
+  void publish_sendsNothing_whenAReleaseReachedSebWhileTheGateRan() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build();
+    given(navReportMapper.map(result)).willReturn(List.of(reportRow));
+    given(navReportRepository.isOvertakenOnceTheDateIsLocked(eq("TUK75"), eq(yesterday), any()))
+        .willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
+
+    then(navReportEmailSender).should(never()).send(any(), any());
+    then(navReportEmailSender).should(never()).sendForReview(any(), any());
+    then(navReportRepository).should(never()).markAsPublished(any(UUID.class));
+  }
+
+  @Test
+  void publish_postsNoRevisionAlarm_whenThisCalculationWasReleasedBeforeTheCheckSawIt() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build()));
+    given(navReportRepository.findPublishedNavPerUnit(yesterday, "TUK75", "NAV"))
+        .willReturn(Optional.of(new BigDecimal("9.69941")));
+    given(
+            navReportRepository.isReleasedOrReplacedOnceTheDateIsLocked(
+                eq("TUK75"), eq(yesterday), any()))
+        .willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
+
+    then(navReportEmailSender).shouldHaveNoInteractions();
+    then(notificationService).should(never()).sendMessage(any(), eq(SAVINGS));
+  }
+
+  @Test
+  void publish_holdsNothingForReview_whenAReleaseReachedSebWhileTheGateRan() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build()));
+    given(trackingDifferenceGate.check(TUK75, yesterday))
+        .willReturn(Optional.of("TD breach: fund=TUK75, MODEL_PORTFOLIO TD=0.015"));
+    given(navReportRepository.isOvertakenOnceTheDateIsLocked(eq("TUK75"), eq(yesterday), any()))
+        .willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
+
+    then(navReportEmailSender).shouldHaveNoInteractions();
+    then(notificationService).should(never()).sendMessage(any(), eq(SAVINGS));
+  }
+
+  @Test
+  void publish_holdsATkf100RecalculationWhoseNavDiffersFromThePublicNav_insteadOfSendingIt() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TKF100, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build()));
+    given(fundValueQueries.getValueForDate(TKF100.getIsin(), yesterday))
+        .willReturn(Optional.of(publicValue(TKF100.getIsin(), yesterday, "9.70000")));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
+
+    then(navReportEmailSender).should(never()).send(any(), any());
+    then(navReportRepository).should(never()).markAsPublished(any(UUID.class));
+    then(notificationService)
+        .should()
+        .sendMessage(
+            contains(
+                "The public NAV in index_values differs from the recalculation: publicNav=9.70000, recalculatedNav=9.69941"),
+            eq(SAVINGS));
+  }
+
+  @Test
+  void publish_holdsATkf100RecalculationWhoseAumDiffersFromThePublicAum_insteadOfSendingIt() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TKF100, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build()));
+    given(fundValueQueries.getValueForDate(TKF100.getIsin(), yesterday))
+        .willReturn(Optional.of(publicValue(TKF100.getIsin(), yesterday, "9.69941")));
+    given(fundValueQueries.getValueForDate(TKF100.getAumKey(), yesterday))
+        .willReturn(Optional.of(publicValue(TKF100.getAumKey(), yesterday, "1.00")));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.NOT_SENT);
+
+    then(navReportEmailSender).should(never()).send(any(), any());
+  }
+
+  @Test
+  void publish_sendsATkf100RecalculationThatMatchesThePublicNavAndAum() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TKF100, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build()));
+    given(fundValueQueries.getValueForDate(TKF100.getIsin(), yesterday))
+        .willReturn(Optional.of(publicValue(TKF100.getIsin(), yesterday, "9.699410")));
+    given(fundValueQueries.getValueForDate(TKF100.getAumKey(), yesterday))
+        .willReturn(
+            Optional.of(publicValue(TKF100.getAumKey(), yesterday, result.aum().toPlainString())));
+    given(navReportEmailSender.send(any(), eq(result))).willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.SENT);
+  }
+
+  @Test
+  void publish_comparesTheRecalculationWithThePublicNavAtThePrecisionIndexValuesStores() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result =
+        buildResult(
+            TKF100, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"), "969941.0712345");
+    given(navReportMapper.map(result))
+        .willReturn(List.of(NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build()));
+    given(fundValueQueries.getValueForDate(TKF100.getIsin(), yesterday))
+        .willReturn(Optional.of(publicValue(TKF100.getIsin(), yesterday, "9.69941")));
+    given(fundValueQueries.getValueForDate(TKF100.getAumKey(), yesterday))
+        .willReturn(Optional.of(publicValue(TKF100.getAumKey(), yesterday, "969941.07123")));
+    given(navReportEmailSender.send(any(), eq(result))).willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.SENT);
+  }
+
+  @Test
+  void publish_doesNotLookUpAPublicNavForAPensionFund() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build()));
+    given(navReportEmailSender.send(any(), eq(result))).willReturn(true);
+
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.SENT);
+
+    then(fundValueQueries).shouldHaveNoInteractions();
+  }
+
+  private static FundValue publicValue(String key, LocalDate date, String value) {
+    return new FundValue(
+        key, date, new BigDecimal(value), "TULEVA", Instant.parse("2025-01-15T13:20:00Z"));
+  }
+
+  @Test
   void publish_sendsEmail_whenTdGatePasses() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
@@ -293,7 +640,7 @@ class NavPublisherTest {
     when(trackingDifferenceGate.check(TKF100, yesterday)).thenReturn(Optional.empty());
     when(navReportEmailSender.send(any(), eq(result))).thenReturn(true);
 
-    navPublisher.publish(result);
+    assertThat(navPublisher.publish(result)).isEqualTo(NavPublication.SENT);
 
     verify(navReportEmailSender).send(any(), eq(result));
     verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
@@ -320,7 +667,8 @@ class NavPublisherTest {
   }
 
   @Test
-  void publishRevision_persistsRowsAndRoutesToInternalReview_withoutTrusteeEmailOrFundValues() {
+  void
+      publishRevision_persistsRowsAndRoutesToInternalReviewUnpublished_withoutTrusteeEmailOrFundValues() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
     var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
@@ -333,7 +681,11 @@ class NavPublisherTest {
     verify(navReportRepository).replaceByNavDateAndFundCode(eq(yesterday), eq("TUK75"), any());
     assertThat(reportRow.getCalculationId()).isNotNull();
     verify(navReportEmailSender).sendForReview(any(), eq(result));
-    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
+    verify(navReportRepository, never()).markAsPublished(any(UUID.class));
+    verify(notificationService)
+        .sendMessage(
+            contains("agent-gateway nav_release (two ✅): fund=TUK75, navDate=2025-01-14\n"),
+            eq(SAVINGS));
     verify(notificationService)
         .sendMessage(
             contains(
@@ -380,6 +732,15 @@ class NavPublisherTest {
       LocalDate calculationDate,
       LocalDate positionReportDate,
       Instant calculatedAt) {
+    return buildResult(fund, calculationDate, positionReportDate, calculatedAt, "969941.07");
+  }
+
+  private NavCalculationResult buildResult(
+      ee.tuleva.onboarding.tulevafund.TulevaFund fund,
+      LocalDate calculationDate,
+      LocalDate positionReportDate,
+      Instant calculatedAt,
+      String aum) {
     return NavCalculationResult.builder()
         .fund(fund)
         .calculationDate(calculationDate)
@@ -392,7 +753,7 @@ class NavPublisherTest {
         .depotFeeAccrual(new BigDecimal("6.85"))
         .payables(new BigDecimal("5000.00"))
         .blackrockAdjustment(BigDecimal.ZERO)
-        .aum(new BigDecimal("969941.07"))
+        .aum(new BigDecimal(aum))
         .unitsOutstanding(new BigDecimal("100000.00000"))
         .navPerUnit(new BigDecimal("9.69941"))
         .positionReportDate(positionReportDate)
@@ -422,7 +783,10 @@ class NavPublisherTest {
 
     @Override
     public Optional<FundValue> getValueForDate(String key, LocalDate date) {
-      throw new UnsupportedOperationException();
+      return values.stream()
+          .filter(value -> value.key().equals(key))
+          .filter(value -> value.date().equals(date))
+          .findFirst();
     }
 
     @Override

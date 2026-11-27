@@ -204,7 +204,7 @@ class R45ReportServiceTest {
         RED;EE3600109443;0;1000.000;0;18.08.2026
         """;
     givenStoredReport(csv);
-    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUK00.getCode(), TODAY))
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TUK00.getCode(), TODAY))
         .willReturn(Optional.of(LocalDate.of(2026, 8, 13)));
     given(fundNavQueryService.findPublishedNavPerUnit(TUK00.getCode(), LocalDate.of(2026, 8, 13)))
         .willReturn(Optional.of(new BigDecimal("0.65")));

@@ -282,6 +282,22 @@ class LimitCheckIntegrationTest {
   }
 
   @Test
+  void getCalculatedAumIgnoresANavHeldForReviewThatSebDoesNotHave() {
+    insertTuk75Data();
+    insertHeldNavReportUnits("TUK75", NAV_DATE, 99_000_000);
+
+    var results = limitCheckService.runChecks().results();
+    var tuk75 = results.stream().filter(r -> r.fund() == TUK75).findFirst().orElseThrow();
+
+    var dwBreach =
+        tuk75.positionBreaches().stream()
+            .filter(b -> b.isin().equals("IE00BFG1TM61"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(dwBreach.actualPercent()).isEqualByComparingTo(new BigDecimal("28.99"));
+  }
+
+  @Test
   void denominatorUsesTotalFundNavNotSecuritiesOnly() {
     insertTuk75Data();
 
@@ -456,6 +472,20 @@ class LimitCheckIntegrationTest {
             INSERT INTO nav_report
             (nav_date, fund_code, account_type, account_name, market_value, calculation_id, published_at)
             VALUES (:navDate, :fund, 'UNITS', 'Total outstanding units:', :marketValue, gen_random_uuid(), now())
+            """)
+        .param("navDate", navDate)
+        .param("fund", fund)
+        .param("marketValue", BigDecimal.valueOf(aum))
+        .update();
+  }
+
+  private void insertHeldNavReportUnits(String fund, LocalDate navDate, long aum) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO nav_report
+            (nav_date, fund_code, account_type, account_name, market_value, calculation_id, published_at)
+            VALUES (:navDate, :fund, 'UNITS', 'Total outstanding units:', :marketValue, gen_random_uuid(), NULL)
             """)
         .param("navDate", navDate)
         .param("fund", fund)

@@ -20,6 +20,7 @@ public class PipelineRun {
   private final List<StepResult> steps = new ArrayList<>();
   private boolean changed;
   private boolean healthNotificationFired;
+  private boolean everyFundHeld;
 
   public PipelineRun(PipelineType type, String trigger) {
     this(type, trigger, TriggerSource.SCHEDULED);
@@ -49,6 +50,10 @@ public class PipelineRun {
 
   public void markHealthNotificationFired() {
     this.healthNotificationFired = true;
+  }
+
+  public void markEveryFundHeld() {
+    this.everyFundHeld = true;
   }
 
   public void stepStarted(String name) {

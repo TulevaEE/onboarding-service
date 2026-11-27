@@ -37,7 +37,7 @@ class OwnFundNavProviderTest {
 
   @Test
   void findLatestNav_returnsEmptyWhenNoNavIsRecorded() {
-    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUV100.getCode(), AS_OF_DATE))
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TUV100.getCode(), AS_OF_DATE))
         .willReturn(Optional.empty());
 
     assertThat(provider.findLatestNav(TUV100, AS_OF_DATE)).isEmpty();
@@ -83,18 +83,16 @@ class OwnFundNavProviderTest {
 
   @Test
   void latestNav_throwsWhenNoNavIsRecorded() {
-    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUV100.getCode(), AS_OF_DATE))
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TUV100.getCode(), AS_OF_DATE))
         .willReturn(Optional.empty());
 
     assertThatThrownBy(() -> provider.latestNav(TUV100, AS_OF_DATE))
         .isInstanceOf(IllegalStateException.class);
   }
 
-  // What reaches the registrar has to be the NAV that was published, never a recalculation that
-  // is still sitting unpublished in nav_report.
   @Test
-  void latestNav_neverServesAnUnpublishedCalculation() {
-    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUV100.getCode(), AS_OF_DATE))
+  void latestNav_neverServesACalculationTheTrusteeDoesNotHave() {
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TUV100.getCode(), AS_OF_DATE))
         .willReturn(Optional.of(NAV_DATE));
     given(fundNavQueryService.findPublishedNavPerUnit(TUV100.getCode(), NAV_DATE))
         .willReturn(Optional.empty());
@@ -103,8 +101,21 @@ class OwnFundNavProviderTest {
     verify(fundNavQueryService, never()).findLatestNavPerUnit(any(), any());
   }
 
+  @Test
+  void latestNav_takesTheLatestNavSebHasHoweverManyNewerNavDatesAreHeld() {
+    var asOf = LocalDate.of(2026, 11, 25);
+    var latestNavSebHas = LocalDate.of(2026, 11, 20);
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TUV100.getCode(), asOf))
+        .willReturn(Optional.of(latestNavSebHas));
+    given(fundNavQueryService.findPublishedNavPerUnit(TUV100.getCode(), latestNavSebHas))
+        .willReturn(Optional.of(new BigDecimal("1.5")));
+
+    assertThat(provider.latestNav(TUV100, asOf)).isEqualByComparingTo("1.5");
+    verify(fundNavQueryService, never()).findLatestNavDateOnOrBefore(any(), any());
+  }
+
   private void givenNav(BigDecimal nav) {
-    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUV100.getCode(), AS_OF_DATE))
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TUV100.getCode(), AS_OF_DATE))
         .willReturn(Optional.of(NAV_DATE));
     given(fundNavQueryService.findPublishedNavPerUnit(TUV100.getCode(), NAV_DATE))
         .willReturn(Optional.of(nav));

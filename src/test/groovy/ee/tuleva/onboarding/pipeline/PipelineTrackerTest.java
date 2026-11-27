@@ -66,6 +66,22 @@ class PipelineTrackerTest {
   }
 
   @Test
+  void markEveryFundHeldMarksTheCurrentRun() {
+    tracker.start(PipelineRun.PipelineType.NAV, "test");
+
+    tracker.markEveryFundHeld();
+
+    assertThat(tracker.current().isEveryFundHeld()).isTrue();
+  }
+
+  @Test
+  void markEveryFundHeldIsANoOpWhenNoPipeline() {
+    tracker.markEveryFundHeld();
+
+    assertThat(tracker.current()).isNull();
+  }
+
+  @Test
   void markHealthNotificationFiredMarksTheCurrentRun() {
     tracker.start(PipelineRun.PipelineType.IMPORT, "test");
 

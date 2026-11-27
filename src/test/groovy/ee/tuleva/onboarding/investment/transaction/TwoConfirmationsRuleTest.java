@@ -12,7 +12,7 @@ import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -26,6 +26,9 @@ class TwoConfirmationsRuleTest {
   private static final String FUND_MANAGER = "operator-7";
   private static final String SUBSTITUTE = "operator-8";
   private static final String WITHOUT_OWN_TOKEN = "operator-9";
+  private static final String OUTSIDE_TULEVA = "operator-10";
+  private static final OrderSender FUND_MANAGERS_OWN_ADDRESS =
+      new OrderSender("fundmanager@tuleva.ee", "Fund Manager");
   private static final Long VERSION = 3L;
 
   private static final AdminTokenAuthenticator AUTHENTICATOR =
@@ -34,12 +37,31 @@ class TwoConfirmationsRuleTest {
               "shared-token",
               "ops-token",
               Map.of(
-                  PORTFOLIO_MANAGER, "token-1", FUND_MANAGER, "token-7", SUBSTITUTE, "token-8")));
+                  PORTFOLIO_MANAGER,
+                  "token-1",
+                  FUND_MANAGER,
+                  "token-7",
+                  SUBSTITUTE,
+                  "token-8",
+                  OUTSIDE_TULEVA,
+                  "token-10")));
+
+  private static final Map<String, OrderSender> SEND_ACCESS =
+      Map.of(
+          FUND_MANAGER,
+          FUND_MANAGERS_OWN_ADDRESS,
+          SUBSTITUTE,
+          new OrderSender("substitute@tuleva.ee", "Substitute"),
+          WITHOUT_OWN_TOKEN,
+          new OrderSender("notoken@tuleva.ee", "No Token"),
+          "shared-admin-token",
+          new OrderSender("shared@tuleva.ee", "Shared"),
+          OUTSIDE_TULEVA,
+          new OrderSender("someone@example.com", "Someone"));
 
   private final TwoConfirmationsRule rule =
       new TwoConfirmationsRule(
-          AUTHENTICATOR,
-          Set.of(FUND_MANAGER, SUBSTITUTE, WITHOUT_OWN_TOKEN, "shared-admin-token")::contains);
+          AUTHENTICATOR, operator -> Optional.ofNullable(SEND_ACCESS.get(operator)));
 
   private final TwoConfirmationsRule ruleWhileSendAccessIsNotConnected =
       new TwoConfirmationsRule(AUTHENTICATOR, new OrderSendAccessNotConnected());
@@ -74,6 +96,23 @@ class TwoConfirmationsRuleTest {
   @ValueSource(strings = {PORTFOLIO_MANAGER, SUBSTITUTE})
   void letsTheFundManagerSendTheVersionAnotherOperatorConfirmed(String firstConfirmer) {
     assertSends(FUND_MANAGER, firstConfirmation(firstConfirmer, VERSION, 0L), 0L);
+  }
+
+  @Test
+  void sendsInTheNameOfTheAddressTheSendAccessGivesTheSender_neverAnAddressFromTheRequest() {
+    assertThat(
+            rule.requireAllowedToSend(
+                draft(),
+                VERSION,
+                FUND_MANAGER,
+                List.of(firstConfirmation(PORTFOLIO_MANAGER, VERSION, 0L)),
+                0L))
+        .isEqualTo(FUND_MANAGERS_OWN_ADDRESS);
+  }
+
+  @Test
+  void forbidsSendingFromAnAddressOutsideTulevaEvenWithSendAccess() {
+    assertForbiddenToSend(OUTSIDE_TULEVA, firstConfirmation(PORTFOLIO_MANAGER, VERSION, 0L), 0L);
   }
 
   @Test

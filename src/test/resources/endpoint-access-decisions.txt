@@ -145,7 +145,7 @@ ADMIN_TOKEN_HOLDER POST /admin/td-attribution
 ADMIN_TOKEN_HOLDER POST /admin/td-attribution-backfill
 ADMIN_TOKEN_HOLDER POST /admin/tracking-difference-backfill
 ADMIN_TOKEN_HOLDER POST /admin/transaction-batches/{id}/cancel
-ADMIN_TOKEN_HOLDER POST /admin/transaction-batches/{id}/confirm
+ADMIN_TOKEN_HOLDER POST /admin/transaction-batches/send
 ADMIN_TOKEN_HOLDER POST /admin/transaction-batches/{id}/discard
 ADMIN_TOKEN_HOLDER POST /admin/transaction-batches/{id}/first-confirmation
 ADMIN_TOKEN_HOLDER POST /admin/transaction-commands

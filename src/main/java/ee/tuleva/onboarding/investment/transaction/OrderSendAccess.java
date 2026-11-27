@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import java.util.Optional;
+
 @FunctionalInterface
 interface OrderSendAccess {
 
-  boolean canSend(String operator);
+  Optional<OrderSender> senderFor(String operator);
 }

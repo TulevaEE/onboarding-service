@@ -29,15 +29,26 @@ class TwoConfirmationsRule {
     requireTheReviewedVersion(batch, reviewedVersion, actor);
   }
 
-  void requireAllowedToSend(
+  OrderSender requireAllowedToSend(
       TransactionBatch batch,
       Long reviewedVersion,
       String sender,
       List<TransactionAuditEvent> firstConfirmations,
       long orderTypeChanges) {
-    if (!isNamedOperator(sender) || !sendAccess.canSend(sender)) {
+    if (!isNamedOperator(sender)) {
       throw refused("Only an operator with send access can send a batch", batch, sender);
     }
+    OrderSender ownAddress =
+        sendAccess
+            .senderFor(sender)
+            .filter(OrderSender::hasTulevaAddress)
+            .orElseThrow(
+                () ->
+                    refused(
+                        "Only an operator with send access and a tuleva.ee address can send a"
+                            + " batch",
+                        batch,
+                        sender));
     requireTheReviewedVersion(batch, reviewedVersion, sender);
     long contents = batch.getVersion() - orderTypeChanges;
     if (firstConfirmations.stream()
@@ -50,6 +61,7 @@ class TwoConfirmationsRule {
           batch,
           sender);
     }
+    return ownAddress;
   }
 
   static Map<String, Object> firstConfirmationPayload(

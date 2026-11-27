@@ -39,9 +39,9 @@ class CustodianOrderEmailAlerterSpec extends Specification {
   Instant aMinuteLater = t0.plus(Duration.ofMinutes(1))
   String subject = "TUV100 ostu-/müügikorraldused 15.01.2026"
   String bounce = "550 mailbox unavailable"
-  String greenLine = "✅ Orders emailed: $subject, 2 files"
+  String greenLine = "✅ FT email sent: 2 orders"
   String redAlert = redAlert("hard_bounce", "msg_1")
-  String sendAttemptText = "🔴 Orders email result UNKNOWN: $subject\nNo send result was recorded.\nAsk the desk."
+  String sendAttemptText = "🔴 FT email result UNKNOWN: 2 orders\nNo send result was recorded.\nAsk the desk."
 
   CustodianOrderEmailAlerter alerter = alerterAt(aMinuteLater)
 
@@ -79,12 +79,33 @@ class CustodianOrderEmailAlerterSpec extends Specification {
     1 * eventLogRepository.save({ EventLog it ->
       it.type == "TRADE_ORDER_EMAIL_DEFERRAL" &&
           it.data == notYetPostedData(
-          "🟠 Order email delayed: to=desk@example.com, subject=$subject\n" +
-              "deferral: 450 4.7.25 try again later (id=msg_1)\n" +
-              "Mandrill keeps trying. If the desk hasn't confirmed the orders before the cut-off, check with the desk.",
+          "🟠 FT email delivery delayed: desk@example.com\n" +
+              "\"$subject\" · deferral: 450 4.7.25 try again later (id=msg_1)\n" +
+              "What to do: Mandrill keeps trying. If the desk hasn't confirmed the orders before the cut-off, call the desk. " +
+              "Send by hand only if the desk agrees to leave the late original unexecuted.",
           "WARNING")
     })
     0 * notificationService._
+  }
+
+  def "records an undelivered UUID email amber, since the orders went in emails of their own"() {
+    given:
+    eventLogRepository.existsByTypeAndPrincipal("TRADE_ORDER_EMAIL_HARD_BOUNCE", "msg_1") >> false
+    def event = new EmailDeliveryFailedEvent(
+        "custody@example.com", "Tehingukorralduste UUID 15.01.2026", "hard_bounce", bounce, "msg_1", t0,
+        ["trade-order", "trade-order-uuid-workbook"])
+
+    when:
+    alerter.onEmailDeliveryFailed(event)
+
+    then:
+    1 * eventLogRepository.save({ EventLog it ->
+      it.data == notYetPostedData(
+          "🟠 SEB UUID email NOT delivered: custody@example.com\n" +
+              "\"Tehingukorralduste UUID 15.01.2026\" · hard_bounce: 550 mailbox unavailable (id=msg_1)\n" +
+              "What to do: send the UUID file to SEB by hand. The orders go in emails of their own.",
+          "WARNING")
+    })
   }
 
   def "records once per message and failure type"() {
@@ -157,7 +178,7 @@ class CustodianOrderEmailAlerterSpec extends Specification {
 
     then:
     posts * notificationService.sendMessage(
-        "🔴 Orders email result UNKNOWN: $subject (at 15.01.2026 12:01)\nNo send result was recorded.\nAsk the desk.",
+        "🔴 FT email result UNKNOWN: 2 orders (at 15.01.2026 12:01)\nNo send result was recorded.\nAsk the desk.",
         TRADING, ERROR)
     posts * eventLogRepository.save({ EventLog it -> it.data == postedData(sendAttemptText, "ERROR") })
 
@@ -287,8 +308,8 @@ class CustodianOrderEmailAlerterSpec extends Specification {
 
     where:
     text                                  | posted
-    "🔴 Orders NOT sent: SUBJ\ncause\nact" | "🔴 Orders NOT sent: SUBJ (at 15.01.2026 12:01)\ncause\nact"
-    "✅ Orders emailed: SUBJ, 2 files"     | "✅ Orders emailed: SUBJ, 2 files (at 15.01.2026 12:01)"
+    "🔴 FT email NOT sent: 2 orders\ncause\nact" | "🔴 FT email NOT sent: 2 orders (at 15.01.2026 12:01)\ncause\nact"
+    "✅ FT email sent: 2 orders"                 | "✅ FT email sent: 2 orders (at 15.01.2026 12:01)"
   }
 
   def "the run does not post a row that was already posted or given up"() {
@@ -491,13 +512,14 @@ class CustodianOrderEmailAlerterSpec extends Specification {
 
   private EmailDeliveryFailedEvent orderEmailFailure(String eventType, String reason) {
     new EmailDeliveryFailedEvent(
-        "desk@example.com", subject, eventType, reason, "msg_1", t0, ["trade-order"])
+        "desk@example.com", subject, eventType, reason, "msg_1", t0, ["trade-order", "trade-order-ft-etf"])
   }
 
   private String redAlert(String eventType, String mandrillMessageId) {
-    "🔴 Order email NOT delivered: to=desk@example.com, subject=$subject\n" +
-        "$eventType: 550 mailbox unavailable (id=$mandrillMessageId)\n" +
-        "The orders did not reach this address. Check with the desk before sending them again."
+    "🔴 FT email NOT delivered: desk@example.com\n" +
+        "\"$subject\" · $eventType: 550 mailbox unavailable (id=$mandrillMessageId)\n" +
+        "What to do: if this address is a copy, don't send the orders again. Otherwise call the desk and send the file by hand " +
+        "only if the desk confirms the orders did not arrive."
   }
 
   private static Map notYetPostedData(String text, String severity) {

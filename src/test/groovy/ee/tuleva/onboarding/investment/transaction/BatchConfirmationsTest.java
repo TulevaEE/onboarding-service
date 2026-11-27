@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,7 +48,10 @@ class BatchConfirmationsTest {
                   "shared-token",
                   "ops-token",
                   Map.of(PORTFOLIO_MANAGER, "token-1", FUND_MANAGER, "token-7"))),
-          FUND_MANAGER::equals);
+          operator ->
+              FUND_MANAGER.equals(operator)
+                  ? Optional.of(new OrderSender("fundmanager@tuleva.ee", "Fund Manager"))
+                  : Optional.empty());
 
   @Spy
   private Clock clock =

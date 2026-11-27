@@ -59,11 +59,12 @@ class CustodianOrderEmailAlerterIT {
   private static final String BOUNCE = "550 mailbox unavailable";
   private static final String RED_ALERT = redAlert("hard_bounce");
   private static final String AMBER_ALERT =
-      "🟠 Order email delayed: to=desk@example.com, subject="
-          + SUBJECT
-          + "\ndeferral: 550 mailbox unavailable (id=msg_1)\n"
-          + "Mandrill keeps trying. If the desk hasn't confirmed the orders before the cut-off,"
-          + " check with the desk.";
+      """
+      🟠 SEB index fund email delivery delayed: desk@example.com
+      "TUV100 ostu-/müügikorraldused 15.01.2026" · deferral: 550 mailbox unavailable (id=msg_1)
+      What to do: Mandrill keeps trying. If the desk hasn't confirmed the orders before \
+      the cut-off, call the desk. Send by hand only if the desk agrees to leave the late \
+      original unexecuted.""";
 
   @Autowired MandrillWebhookService webhookService;
   @Autowired CustodianOrderEmailAlerter alerter;
@@ -242,7 +243,7 @@ class CustodianOrderEmailAlerterIT {
         .data(
             Map.of(
                 "text",
-                "🔴 Orders email result UNKNOWN: TUV100 ostu-/müügikorraldused 15.01.2026",
+                "🔴 SEB index fund email result UNKNOWN: 1 order, EUR 1,000.00",
                 "severity",
                 "ERROR",
                 "alert",
@@ -264,7 +265,8 @@ class CustodianOrderEmailAlerterIT {
   private static String orderEmailBounce(String eventType) {
     return """
         [{"event": "%s", "ts": %d, "msg": {"_id": "msg_1", "email": "desk@example.com",
-          "subject": "%s", "bounce_description": "%s", "tags": ["trade-order"]}}]
+          "subject": "%s", "bounce_description": "%s",
+          "tags": ["trade-order", "trade-order-seb-fund"]}}]
         """
         .formatted(eventType, BOUNCED_AT.getEpochSecond(), SUBJECT, BOUNCE);
   }
@@ -297,12 +299,12 @@ class CustodianOrderEmailAlerterIT {
   }
 
   private static String redAlert(String eventType) {
-    return "🔴 Order email NOT delivered: to=desk@example.com, subject="
-        + SUBJECT
-        + "\n"
-        + eventType
-        + ": 550 mailbox unavailable (id=msg_1)\n"
-        + "The orders did not reach this address. Check with the desk before sending them"
-        + " again.";
+    return """
+        🔴 SEB index fund email NOT delivered: desk@example.com
+        "%s" · %s: 550 mailbox unavailable (id=msg_1)
+        What to do: if this address is a copy, don't send the orders again. Otherwise call \
+        the desk and send the file by hand only if the desk confirms the orders did not \
+        arrive."""
+        .formatted(SUBJECT, eventType);
   }
 }

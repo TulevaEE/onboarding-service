@@ -64,6 +64,8 @@ import org.springframework.transaction.annotation.Transactional;
 class TransactionPipelineIntegrationTest {
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+  private static final OrderSender SENDER =
+      new OrderSender("fundmanager@tuleva.ee", "Fund Manager");
   private static final LocalDate TEST_DATE = LocalDate.of(2026, 2, 10);
   private static final Instant FIXED_INSTANT =
       TEST_DATE.atStartOfDay(TALLINN).toInstant().plusSeconds(3600);
@@ -181,7 +183,7 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Test
-  void finalizeConfirmedBatch_generatesExportsAndSetsStatusToSent() {
+  void finalizeConfirmedBatches_generatesExportsAndSetsStatusToSent() {
     var command = createCommand(REBALANCE);
     var result = (ProcessCommandResult) preparationService.processCommand(command);
     entityManager.flush();
@@ -191,7 +193,7 @@ class TransactionPipelineIntegrationTest {
     batchRepository.save(batch);
     entityManager.flush();
 
-    batchFinalizer.finalizeConfirmedBatch(batch);
+    batchFinalizer.finalizeConfirmedBatches(List.of(batch), SENDER);
     entityManager.flush();
 
     assertThat(batch.getStatus()).isEqualTo(SENT);
@@ -226,7 +228,7 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Test
-  void finalizeConfirmedBatch_sebFundExportContainsCorrectData() throws Exception {
+  void finalizeConfirmedBatches_sebFundExportContainsCorrectData() throws Exception {
     var batch = runFullPipeline();
 
     byte[] sebFundCsv = decodeExport(batch.getMetadata(), "sebFundXlsx");
@@ -253,7 +255,7 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Test
-  void finalizeConfirmedBatch_sebEtfExportContainsCorrectData() throws Exception {
+  void finalizeConfirmedBatches_sebEtfExportContainsCorrectData() throws Exception {
     var batch = runFullPipeline();
 
     byte[] sebEtfXlsx = decodeExport(batch.getMetadata(), "sebEtfXlsx");
@@ -283,7 +285,7 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Test
-  void finalizeConfirmedBatch_ftEtfExportContainsCorrectData() throws Exception {
+  void finalizeConfirmedBatches_ftEtfExportContainsCorrectData() throws Exception {
     var batch = runFullPipeline();
 
     byte[] ftEtfXlsx = decodeExport(batch.getMetadata(), "ftEtfXlsx");
@@ -337,7 +339,7 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Test
-  void finalizeConfirmedBatch_etfExportsAskForWholeUnits() throws Exception {
+  void finalizeConfirmedBatches_etfExportsAskForWholeUnits() throws Exception {
     var batch = runFullPipeline();
 
     assertThat(quantitiesIn(decodeExport(batch.getMetadata(), "ftEtfXlsx"), 6, 2, 8, 9, 10))
@@ -389,7 +391,7 @@ class TransactionPipelineIntegrationTest {
     batchRepository.save(batch);
     entityManager.flush();
 
-    batchFinalizer.finalizeConfirmedBatch(batch);
+    batchFinalizer.finalizeConfirmedBatches(List.of(batch), SENDER);
     entityManager.flush();
     return batch;
   }

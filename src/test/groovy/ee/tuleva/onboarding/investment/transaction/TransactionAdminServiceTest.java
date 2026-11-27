@@ -8,14 +8,17 @@ import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 
@@ -58,10 +61,17 @@ class TransactionAdminServiceTest {
 
   @InjectMocks private TransactionAdminService service;
 
+  private static final OrderSender SENDER =
+      new OrderSender("fundmanager@tuleva.ee", "Fund Manager");
+
   private static TransactionBatch batch(Long id, BatchStatus status) {
+    return batch(id, TUK75, status);
+  }
+
+  private static TransactionBatch batch(Long id, TulevaFund fund, BatchStatus status) {
     return TransactionBatch.builder()
         .id(id)
-        .fund(TUK75)
+        .fund(fund)
         .status(status)
         .version(3L)
         .createdBy("system")
@@ -211,85 +221,135 @@ class TransactionAdminServiceTest {
   }
 
   @Test
-  void confirmAndFinalize_confirmsAwaitingBatchThroughExistingFinalizePath() {
-    TransactionBatch batch = batch(10L, DRAFT);
-    given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
+  void confirmAndSend_confirmsEveryFundsBatchAndSendsThemTogetherInTheSendersOwnName() {
+    TransactionBatch tuk75 = batch(10L, DRAFT);
+    TransactionBatch tuv100 = batch(11L, TUV100, DRAFT);
+    given(batchRepository.findById(10L)).willReturn(Optional.of(tuk75));
+    given(batchRepository.findById(11L)).willReturn(Optional.of(tuv100));
+    given(batchConfirmations.requireAllowedToSend(tuk75, 3L, "operator-7")).willReturn(SENDER);
+    given(batchConfirmations.requireAllowedToSend(tuv100, 3L, "operator-7")).willReturn(SENDER);
     willAnswer(
             invocation -> {
-              TransactionBatch finalized = invocation.getArgument(0);
-              finalized.setStatus(BatchStatus.SENT);
+              List<TransactionBatch> confirmed = invocation.getArgument(0);
+              assertThat(confirmed).extracting(TransactionBatch::getStatus).containsOnly(CONFIRMED);
+              confirmed.forEach(batch -> batch.setStatus(BatchStatus.SENT));
               return null;
             })
         .given(batchFinalizer)
-        .finalizeConfirmedBatch(batch);
-    given(orderRepository.findByBatchId(10L)).willReturn(List.of());
+        .finalizeConfirmedBatches(List.of(tuk75, tuv100), SENDER);
 
-    TransactionBatchResponse response = service.confirmAndFinalize(10L, 3L, "operator-7");
+    List<TransactionBatchResponse> responses =
+        service.confirmAndSend(
+            List.of(new ReviewedBatch(10L, 3L), new ReviewedBatch(11L, 3L)), "operator-7");
 
-    then(batchConfirmations).should().requireAllowedToSend(batch, 3L, "operator-7");
-    then(batchFinalizer).should().finalizeConfirmedBatch(batch);
-    assertThat(response.status()).isEqualTo(BatchStatus.SENT);
-    assertThat(batch.getConfirmedBy()).isEqualTo("operator-7");
-    assertThat(batch.getConfirmedAt()).isEqualTo(Instant.parse("2026-06-11T09:00:00Z"));
+    then(batchFinalizer).should().finalizeConfirmedBatches(List.of(tuk75, tuv100), SENDER);
+    assertThat(responses)
+        .extracting(TransactionBatchResponse::status)
+        .containsExactly(BatchStatus.SENT, BatchStatus.SENT);
+    assertThat(List.of(tuk75, tuv100))
+        .extracting(TransactionBatch::getConfirmedBy, TransactionBatch::getConfirmedAt)
+        .containsOnly(tuple("operator-7", Instant.parse("2026-06-11T09:00:00Z")));
   }
 
   @Test
-  void confirmAndFinalize_passesConfirmedStatusToFinalize() {
-    TransactionBatch batch = batch(10L, DRAFT);
-    given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
-    willAnswer(
-            invocation -> {
-              TransactionBatch confirmed = invocation.getArgument(0);
-              assertThat(confirmed.getStatus()).isEqualTo(CONFIRMED);
-              return null;
-            })
-        .given(batchFinalizer)
-        .finalizeConfirmedBatch(batch);
-    given(orderRepository.findByBatchId(10L)).willReturn(List.of());
+  void confirmAndSend_confirmsTheBatchesInIdOrder_soTwoOverlappingSendsLockThemInTheSameOrder() {
+    TransactionBatch tuk75 = batch(10L, DRAFT);
+    TransactionBatch tuv100 = batch(11L, TUV100, DRAFT);
+    given(batchRepository.findById(10L)).willReturn(Optional.of(tuk75));
+    given(batchRepository.findById(11L)).willReturn(Optional.of(tuv100));
+    given(batchConfirmations.requireAllowedToSend(tuk75, 3L, "operator-7")).willReturn(SENDER);
+    given(batchConfirmations.requireAllowedToSend(tuv100, 3L, "operator-7")).willReturn(SENDER);
 
-    service.confirmAndFinalize(10L, 3L, "operator-7");
+    service.confirmAndSend(
+        List.of(new ReviewedBatch(11L, 3L), new ReviewedBatch(10L, 3L)), "operator-7");
 
-    then(batchFinalizer).should().finalizeConfirmedBatch(batch);
+    var lockOrder = inOrder(batchRepository);
+    then(batchRepository).should(lockOrder).saveAndFlush(tuk75);
+    then(batchRepository).should(lockOrder).saveAndFlush(tuv100);
+    then(batchFinalizer).should().finalizeConfirmedBatches(List.of(tuk75, tuv100), SENDER);
   }
 
   @Test
-  void confirmAndFinalize_unknownBatch_throwsNotFound() {
+  void confirmAndSend_twoBatchesOfOneFund_isABadRequest_sinceItsOrdersWouldGoOutTwice() {
+    TransactionBatch morning = batch(10L, DRAFT);
+    TransactionBatch rerun = batch(12L, DRAFT);
+    given(batchRepository.findById(10L)).willReturn(Optional.of(morning));
+    given(batchRepository.findById(12L)).willReturn(Optional.of(rerun));
+
+    assertThatThrownBy(
+            () ->
+                service.confirmAndSend(
+                    List.of(new ReviewedBatch(10L, 3L), new ReviewedBatch(12L, 3L)), "operator-7"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(400);
+    assertStillAnUnconfirmedDraft(morning);
+    assertStillAnUnconfirmedDraft(rerun);
+    then(batchConfirmations).shouldHaveNoInteractions();
+    then(batchFinalizer).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void confirmAndSend_unknownBatch_throwsNotFound() {
     given(batchRepository.findById(999L)).willReturn(Optional.empty());
 
-    assertThatThrownBy(() -> service.confirmAndFinalize(999L, 3L, "admin"))
+    assertThatThrownBy(
+            () -> service.confirmAndSend(List.of(new ReviewedBatch(999L, 3L)), "operator-7"))
         .isInstanceOf(ResponseStatusException.class)
         .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
         .isEqualTo(404);
   }
 
   @Test
-  void confirmAndFinalize_concurrentlyModifiedBatch_throwsConflictAndNeverFinalizes() {
+  void confirmAndSend_theSameBatchListedTwice_isABadRequestAndConfirmsNothing() {
+    assertThatThrownBy(
+            () ->
+                service.confirmAndSend(
+                    List.of(new ReviewedBatch(10L, 3L), new ReviewedBatch(10L, 3L)), "operator-7"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(400);
+    then(batchRepository).shouldHaveNoInteractions();
+    then(batchFinalizer).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void confirmAndSend_concurrentlyModifiedBatch_throwsConflictAndNeverFinalizes() {
     TransactionBatch batch = batch(10L, DRAFT);
     given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
+    given(batchConfirmations.requireAllowedToSend(batch, 3L, "operator-7")).willReturn(SENDER);
     willThrow(new ObjectOptimisticLockingFailureException(TransactionBatch.class, 10L))
         .given(batchRepository)
         .saveAndFlush(batch);
 
-    assertThatThrownBy(() -> service.confirmAndFinalize(10L, 3L, "operator-7"))
+    assertThatThrownBy(
+            () -> service.confirmAndSend(List.of(new ReviewedBatch(10L, 3L)), "operator-7"))
         .isInstanceOf(ResponseStatusException.class)
         .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
         .isEqualTo(409);
-    then(batchFinalizer).should(never()).finalizeConfirmedBatch(any());
+    then(batchFinalizer).should(never()).finalizeConfirmedBatches(any(), any());
   }
 
   @Test
-  void confirmAndFinalize_refusedByTheConfirmations_isForbiddenAndLeavesItADraft() {
-    TransactionBatch batch = batch(10L, DRAFT);
-    given(batchRepository.findById(10L)).willReturn(Optional.of(batch));
+  void confirmAndSend_oneBatchRefusedByTheConfirmations_isForbiddenAndLeavesEveryBatchADraft() {
+    TransactionBatch tuk75 = batch(10L, DRAFT);
+    TransactionBatch tuv100 = batch(11L, TUV100, DRAFT);
+    given(batchRepository.findById(10L)).willReturn(Optional.of(tuk75));
+    given(batchRepository.findById(11L)).willReturn(Optional.of(tuv100));
+    given(batchConfirmations.requireAllowedToSend(tuk75, 3L, "operator-7")).willReturn(SENDER);
     willThrow(new ResponseStatusException(FORBIDDEN, "no first confirmation"))
         .given(batchConfirmations)
-        .requireAllowedToSend(batch, 3L, "operator-1");
+        .requireAllowedToSend(tuv100, 3L, "operator-7");
 
-    assertThatThrownBy(() -> service.confirmAndFinalize(10L, 3L, "operator-1"))
+    assertThatThrownBy(
+            () ->
+                service.confirmAndSend(
+                    List.of(new ReviewedBatch(10L, 3L), new ReviewedBatch(11L, 3L)), "operator-7"))
         .isInstanceOf(ResponseStatusException.class)
         .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
         .isEqualTo(403);
-    assertStillAnUnconfirmedDraft(batch);
+    assertStillAnUnconfirmedDraft(tuk75);
+    assertStillAnUnconfirmedDraft(tuv100);
   }
 
   @Test
@@ -325,10 +385,11 @@ class TransactionAdminServiceTest {
   }
 
   @Test
-  void confirmAndFinalize_alreadySentBatch_throwsConflict() {
+  void confirmAndSend_alreadySentBatch_throwsConflict() {
     given(batchRepository.findById(10L)).willReturn(Optional.of(batch(10L, BatchStatus.SENT)));
 
-    assertThatThrownBy(() -> service.confirmAndFinalize(10L, 3L, "admin"))
+    assertThatThrownBy(
+            () -> service.confirmAndSend(List.of(new ReviewedBatch(10L, 3L)), "operator-7"))
         .isInstanceOf(ResponseStatusException.class)
         .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
         .isEqualTo(409);

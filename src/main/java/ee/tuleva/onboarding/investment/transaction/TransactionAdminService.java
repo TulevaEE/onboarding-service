@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static java.util.Comparator.comparing;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
@@ -10,6 +11,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -28,6 +30,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 @NullMarked
 class TransactionAdminService {
+
+  private static final Comparator<ReviewedBatch>
+      BY_ID_SO_OVERLAPPING_SENDS_LOCK_THE_BATCHES_IN_ONE_ORDER = comparing(ReviewedBatch::id);
 
   private final TransactionCommandRepository commandRepository;
   private final TransactionBatchRepository batchRepository;
@@ -68,20 +73,45 @@ class TransactionAdminService {
   }
 
   @Transactional
-  TransactionBatchResponse confirmAndFinalize(Long id, Long reviewedVersion, String actor) {
-    TransactionBatch batch = draftBatch(id);
-    batchConfirmations.requireAllowedToSend(batch, reviewedVersion, actor);
-    log.info("Admin confirmed transaction batch: id={}, actor={}", id, actor);
+  List<TransactionBatchResponse> confirmAndSend(List<ReviewedBatch> reviewedBatches, String actor) {
+    SendRequestChecks.requireEachBatchOnce(reviewedBatches);
+    List<ReviewedDraft> drafts =
+        reviewedBatches.stream()
+            .sorted(BY_ID_SO_OVERLAPPING_SENDS_LOCK_THE_BATCHES_IN_ONE_ORDER)
+            .map(reviewed -> new ReviewedDraft(draftBatch(reviewed.id()), reviewed.version()))
+            .toList();
+    SendRequestChecks.requireOneBatchPerFund(drafts.stream().map(ReviewedDraft::batch).toList());
+    OrderSender sender =
+        drafts.stream()
+            .map(
+                draft ->
+                    batchConfirmations.requireAllowedToSend(
+                        draft.batch(), draft.reviewedVersion(), actor))
+            .toList()
+            .getFirst();
+    log.info(
+        "Admin confirmed transaction batches for sending: ids={}, actor={}",
+        reviewedBatches.stream().map(ReviewedBatch::id).toList(),
+        actor);
+    Instant confirmedAt = Instant.now(clock);
+    List<TransactionBatch> batches = drafts.stream().map(ReviewedDraft::batch).toList();
+    batches.forEach(batch -> confirm(batch, actor, confirmedAt));
+    batchFinalizer.finalizeConfirmedBatches(batches, sender);
+    return batches.stream().map(this::responseOf).toList();
+  }
+
+  private record ReviewedDraft(TransactionBatch batch, Long reviewedVersion) {}
+
+  private void confirm(TransactionBatch batch, String actor, Instant confirmedAt) {
     batch.setStatus(BatchStatus.CONFIRMED);
     batch.setConfirmedBy(actor);
-    batch.setConfirmedAt(Instant.now(clock));
+    batch.setConfirmedAt(confirmedAt);
     try {
       batchRepository.saveAndFlush(batch);
     } catch (ObjectOptimisticLockingFailureException e) {
-      throw new ResponseStatusException(CONFLICT, "Batch was modified concurrently: id=" + id);
+      throw new ResponseStatusException(
+          CONFLICT, "Batch was modified concurrently: id=" + batch.getId());
     }
-    batchFinalizer.finalizeConfirmedBatch(batch);
-    return responseOf(batch);
   }
 
   private TransactionBatch draftBatch(Long id) {

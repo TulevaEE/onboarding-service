@@ -6,6 +6,7 @@ import static java.util.Objects.requireNonNull;
 import ee.tuleva.onboarding.user.AsciiLetterCase;
 import ee.tuleva.onboarding.user.ContactChange;
 import ee.tuleva.onboarding.user.ContactChangeSource;
+import ee.tuleva.onboarding.user.ContactField;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
@@ -54,6 +55,30 @@ public class ContactChangeRepository {
             (rs, rowNum) ->
                 new ReplacedEmail(
                     requireNonNull(rs.getString("old_value")), rs.getString("current_email")))
+        .list();
+  }
+
+  public List<ContactChange> replacementsBetween(Long userId, Instant from, Instant until) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT field, old_value, new_value, changed_at
+            FROM user_contact_change
+            WHERE user_id = :userId
+              AND old_value IS NOT NULL
+              AND changed_at >= :from
+              AND changed_at <= :until
+            """)
+        .param("userId", userId)
+        .param("from", Timestamp.from(from))
+        .param("until", Timestamp.from(until))
+        .query(
+            (rs, rowNum) ->
+                new ContactChange(
+                    ContactField.valueOf(rs.getString("field")),
+                    requireNonNull(rs.getString("old_value")),
+                    rs.getString("new_value"),
+                    rs.getTimestamp("changed_at").toInstant()))
         .list();
   }
 

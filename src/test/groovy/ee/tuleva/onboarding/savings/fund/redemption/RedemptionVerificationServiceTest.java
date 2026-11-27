@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_ACTIVE;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.ACCOUNT_TAKEOVER_SIGNALS;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.HIGH_RISK;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.KYB_SCREENING_FAILED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.ONBOARDING_INCOMPLETE;
@@ -18,6 +19,9 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.TakeoverSignal.CONTACT_CHANGED;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.TakeoverSignal.LARGE_PAYOUT;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.TakeoverSignal.NEW_IBAN;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -38,11 +42,13 @@ import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.KycCountryService;
 import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.TakeoverSignal;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -81,6 +87,8 @@ class RedemptionVerificationServiceTest {
   @Mock private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Mock private LegalEntityScreener legalEntityScreener;
 
+  private List<TakeoverSignalCheck> takeoverSignalChecks = List.of();
+
   private RedemptionVerificationService serviceAt(Instant now) {
     var clock = Clock.fixed(now, TALLINN);
     return new RedemptionVerificationService(
@@ -93,7 +101,8 @@ class RedemptionVerificationServiceTest {
             sanctionAndPepScreener,
             riskLevels,
             savingsFundOnboardingRepository,
-            legalEntityScreener),
+            legalEntityScreener,
+            takeoverSignalChecks),
         new SavingFundDeadlinesService(new PublicHolidays(), clock),
         clock);
   }
@@ -125,7 +134,7 @@ class RedemptionVerificationServiceTest {
     service().process(personRequest(requestId));
 
     verify(holdService).freeze(requestId);
-    verify(holdService, never()).holdPayout(any(), any());
+    verify(holdService, never()).holdPayout(any(), any(), any());
     verifyNoInteractions(redemptionStatusService, riskLevels);
   }
 
@@ -169,7 +178,7 @@ class RedemptionVerificationServiceTest {
 
     serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(PEP));
+    verify(holdService).holdPayout(requestId, Set.of(PEP), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
@@ -198,7 +207,7 @@ class RedemptionVerificationServiceTest {
 
     serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(PEP));
+    verify(holdService).holdPayout(requestId, Set.of(PEP), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
     verify(redemptionRequestRepository, never()).markVerificationAttempted(any(), any());
   }
@@ -212,7 +221,7 @@ class RedemptionVerificationServiceTest {
 
     service().process(personRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(HIGH_RISK));
+    verify(holdService).holdPayout(requestId, Set.of(HIGH_RISK), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
@@ -225,7 +234,7 @@ class RedemptionVerificationServiceTest {
 
     service().process(personRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(HIGH_RISK));
+    verify(holdService).holdPayout(requestId, Set.of(HIGH_RISK), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
@@ -252,7 +261,7 @@ class RedemptionVerificationServiceTest {
 
     serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(SCREENING_UNAVAILABLE));
+    verify(holdService).holdPayout(requestId, Set.of(SCREENING_UNAVAILABLE), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
@@ -283,7 +292,7 @@ class RedemptionVerificationServiceTest {
 
     serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(RISK_LEVEL_UNAVAILABLE));
+    verify(holdService).holdPayout(requestId, Set.of(RISK_LEVEL_UNAVAILABLE), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
     verify(redemptionRequestRepository, never()).markVerificationAttempted(any(), any());
   }
@@ -311,7 +320,7 @@ class RedemptionVerificationServiceTest {
 
     serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(RISK_LEVEL_UNAVAILABLE));
+    verify(holdService).holdPayout(requestId, Set.of(RISK_LEVEL_UNAVAILABLE), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
@@ -339,7 +348,7 @@ class RedemptionVerificationServiceTest {
 
     serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(PEP));
+    verify(holdService).holdPayout(requestId, Set.of(PEP), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
@@ -369,7 +378,7 @@ class RedemptionVerificationServiceTest {
 
     serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(RISK_LEVEL_UNAVAILABLE));
+    verify(holdService).holdPayout(requestId, Set.of(RISK_LEVEL_UNAVAILABLE), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
     verify(redemptionRequestRepository, never()).markVerificationAttempted(any(), any());
   }
@@ -479,7 +488,7 @@ class RedemptionVerificationServiceTest {
 
     service().process(legalEntityRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(HIGH_RISK));
+    verify(holdService).holdPayout(requestId, Set.of(HIGH_RISK), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
     verifyNoInteractions(legalEntityScreener);
   }
@@ -512,7 +521,7 @@ class RedemptionVerificationServiceTest {
 
     serviceAt(FRIDAY_HALF_PAST_THREE).process(legalEntityRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(RISK_LEVEL_UNAVAILABLE));
+    verify(holdService).holdPayout(requestId, Set.of(RISK_LEVEL_UNAVAILABLE), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
     verify(redemptionRequestRepository, never()).markVerificationAttempted(any(), any());
   }
@@ -528,7 +537,7 @@ class RedemptionVerificationServiceTest {
 
     service().process(legalEntityRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(ONBOARDING_INCOMPLETE, HIGH_RISK));
+    verify(holdService).holdPayout(requestId, Set.of(ONBOARDING_INCOMPLETE, HIGH_RISK), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
@@ -547,7 +556,8 @@ class RedemptionVerificationServiceTest {
     serviceAt(FRIDAY_NOON).process(request);
 
     verify(holdService)
-        .holdPayout(request.getId(), Set.of(ONBOARDING_INCOMPLETE, RISK_LEVEL_UNAVAILABLE));
+        .holdPayout(
+            request.getId(), Set.of(ONBOARDING_INCOMPLETE, RISK_LEVEL_UNAVAILABLE), Set.of());
     verify(redemptionStatusService).changeStatus(request.getId(), RESERVED, VERIFIED);
     verify(redemptionRequestRepository, never()).markVerificationAttempted(any(), any());
   }
@@ -563,7 +573,7 @@ class RedemptionVerificationServiceTest {
 
     service().process(legalEntityRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(HIGH_RISK));
+    verify(holdService).holdPayout(requestId, Set.of(HIGH_RISK), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
@@ -591,7 +601,7 @@ class RedemptionVerificationServiceTest {
 
     service().process(legalEntityRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(ONBOARDING_INCOMPLETE));
+    verify(holdService).holdPayout(requestId, Set.of(ONBOARDING_INCOMPLETE), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
@@ -619,7 +629,7 @@ class RedemptionVerificationServiceTest {
 
     service().process(legalEntityRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(ONBOARDING_INCOMPLETE));
+    verify(holdService).holdPayout(requestId, Set.of(ONBOARDING_INCOMPLETE), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
@@ -667,7 +677,7 @@ class RedemptionVerificationServiceTest {
 
     serviceAt(FRIDAY_HALF_PAST_THREE).process(legalEntityRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(SCREENING_UNAVAILABLE));
+    verify(holdService).holdPayout(requestId, Set.of(SCREENING_UNAVAILABLE), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
@@ -682,7 +692,7 @@ class RedemptionVerificationServiceTest {
 
     service().process(legalEntityRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(KYB_SCREENING_FAILED));
+    verify(holdService).holdPayout(requestId, Set.of(KYB_SCREENING_FAILED), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
@@ -699,7 +709,7 @@ class RedemptionVerificationServiceTest {
 
     service().process(legalEntityRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(KYB_SCREENING_FAILED, HIGH_RISK));
+    verify(holdService).holdPayout(requestId, Set.of(KYB_SCREENING_FAILED, HIGH_RISK), Set.of());
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
@@ -719,7 +729,8 @@ class RedemptionVerificationServiceTest {
     serviceAt(FRIDAY_NOON).process(request);
 
     verify(holdService)
-        .holdPayout(request.getId(), Set.of(KYB_SCREENING_FAILED, RISK_LEVEL_UNAVAILABLE));
+        .holdPayout(
+            request.getId(), Set.of(KYB_SCREENING_FAILED, RISK_LEVEL_UNAVAILABLE), Set.of());
     verify(redemptionStatusService).changeStatus(request.getId(), RESERVED, VERIFIED);
     verify(redemptionRequestRepository, never()).markVerificationAttempted(any(), any());
   }
@@ -740,6 +751,142 @@ class RedemptionVerificationServiceTest {
 
     verify(redemptionRequestRepository).markVerificationAttempted(request.getId(), FRIDAY_NOON);
     verifyNoInteractions(holdService, redemptionStatusService);
+  }
+
+  @Test
+  void process_personRequest_holdsThePayoutWithTheTakeoverSignalsWhenTwoAreRaised() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
+    given(riskLevels.riskLevel(PERSONAL_CODE)).willReturn(NOT_HIGH_DECIDED_LAST_NIGHT);
+    givenChecksRaising(LARGE_PAYOUT, NEW_IBAN);
+
+    service().process(personRequest(requestId));
+
+    verify(holdService)
+        .holdPayout(requestId, Set.of(ACCOUNT_TAKEOVER_SIGNALS), Set.of(LARGE_PAYOUT, NEW_IBAN));
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
+  }
+
+  @Test
+  void process_personRequest_verifiesWithoutAHoldWhenASingleTakeoverSignalIsRaised() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
+    given(riskLevels.riskLevel(PERSONAL_CODE)).willReturn(NOT_HIGH_DECIDED_LAST_NIGHT);
+    givenChecksRaising(CONTACT_CHANGED);
+
+    service().process(personRequest(requestId));
+
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
+    verifyNoInteractions(holdService);
+  }
+
+  @Test
+  void process_personRequest_namesASingleTakeoverSignalOnAHighRiskHold() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
+    given(riskLevels.riskLevel(PERSONAL_CODE)).willReturn(HIGH_DECIDED_LAST_NIGHT);
+    givenChecksRaising(CONTACT_CHANGED);
+
+    service().process(personRequest(requestId));
+
+    verify(holdService).holdPayout(requestId, Set.of(HIGH_RISK), Set.of(CONTACT_CHANGED));
+  }
+
+  @Test
+  void process_personRequest_retriesTwoTakeoverSignalsWhileTheRiskLevelIsUnavailable() {
+    var request = personRequest(UUID.randomUUID());
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
+    willThrow(new RiskLevelUnavailableException("aml-service did not answer"))
+        .given(riskLevels)
+        .riskLevel(PERSONAL_CODE);
+    givenChecksRaising(NEW_IBAN, CONTACT_CHANGED);
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verify(redemptionRequestRepository).markVerificationAttempted(request.getId(), FRIDAY_NOON);
+    verifyNoInteractions(holdService, redemptionStatusService);
+  }
+
+  @Test
+  void process_personRequest_holdsForTheTakeoverSignalsTooOnceTheRetryDeadlineHasPassed() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
+    willThrow(new RiskLevelUnavailableException("aml-service did not answer"))
+        .given(riskLevels)
+        .riskLevel(PERSONAL_CODE);
+    givenChecksRaising(NEW_IBAN, CONTACT_CHANGED);
+
+    serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
+
+    verify(holdService)
+        .holdPayout(
+            requestId,
+            Set.of(RISK_LEVEL_UNAVAILABLE, ACCOUNT_TAKEOVER_SIGNALS),
+            Set.of(NEW_IBAN, CONTACT_CHANGED));
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
+  }
+
+  @Test
+  void process_legalEntityRequest_holdsAnOnboardedCompanysPayoutWhenTwoTakeoverSignalsAreRaised() {
+    var requestId = UUID.randomUUID();
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(true);
+    given(riskLevels.isHighRiskCompany(REGISTRY_CODE)).willReturn(false);
+    givenChecksRaising(LARGE_PAYOUT, CONTACT_CHANGED);
+
+    service().process(legalEntityRequest(requestId));
+
+    verify(holdService)
+        .holdPayout(
+            requestId, Set.of(ACCOUNT_TAKEOVER_SIGNALS), Set.of(LARGE_PAYOUT, CONTACT_CHANGED));
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
+  }
+
+  @Test
+  void process_personRequest_freezesASanctionsHitWithoutRunningTheTakeoverChecks() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE")))
+        .willReturn(SANCTION_HIT);
+    givenATakeoverCheckThatFails();
+
+    service().process(personRequest(requestId));
+
+    verify(holdService).freeze(requestId);
+  }
+
+  @Test
+  void process_legalEntityRequest_freezesACompanySanctionWithoutRunningTheTakeoverChecks() {
+    var requestId = UUID.randomUUID();
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(false);
+    given(legalEntityScreener.screenLatest(REGISTRY_CODE))
+        .willReturn(List.of(new KybCheck(COMPANY_SANCTION, false, Map.of())));
+    givenATakeoverCheckThatFails();
+
+    service().process(legalEntityRequest(requestId));
+
+    verify(holdService).freeze(requestId);
+  }
+
+  private void givenATakeoverCheckThatFails() {
+    takeoverSignalChecks =
+        List.of(
+            _ -> {
+              throw new IllegalStateException("Ledger unavailable");
+            });
+  }
+
+  private void givenChecksRaising(TakeoverSignal... signals) {
+    takeoverSignalChecks =
+        Arrays.stream(signals)
+            .<TakeoverSignalCheck>map(signal -> _ -> Optional.of(signal))
+            .toList();
   }
 
   private User givenPersonWithCountries() {

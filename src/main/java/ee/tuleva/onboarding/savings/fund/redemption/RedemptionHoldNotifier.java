@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldService.SYSTEM;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FROZEN;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,13 +32,24 @@ class RedemptionHoldNotifier {
 
   boolean notifyPayoutHold(RedemptionRequest request) {
     return send(
-        ("AML: redemption will be executed but the payout is held for review: "
-                + "id=%s, amount=%s EUR, reasons=%s. Release: POST /admin/redemptions/%s/release")
+        ("AML: redemption will be executed but the payout is held for review: %s."
+                + " Release: POST /admin/redemptions/%s/release")
+            .formatted(payoutHoldDetails(request), request.getId()));
+  }
+
+  private static String payoutHoldDetails(RedemptionRequest request) {
+    String details =
+        "id=%s, amount=%s EUR, reasons=%s"
             .formatted(
                 request.getId(),
                 request.getRequestedAmount().toPlainString(),
-                request.getHoldReasons(),
-                request.getId()));
+                request.getHoldReasons());
+    return systemHoldComment(request).map(comment -> details + ", " + comment).orElse(details);
+  }
+
+  private static Optional<String> systemHoldComment(RedemptionRequest request) {
+    return Optional.ofNullable(request.getHoldComment())
+        .filter(comment -> SYSTEM.equals(request.getHeldBy()));
   }
 
   boolean notifyPayoutHeldAtPricing(RedemptionRequest request) {

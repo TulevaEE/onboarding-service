@@ -14,6 +14,7 @@ import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_RED
 import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.ACCOUNT_TAKEOVER_SIGNALS;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SANCTION;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
@@ -867,7 +868,7 @@ class RedemptionIntegrationTest {
             testAuthenticatedPerson, redemptionAmount, EUR, VALID_IBAN);
     var requestId = request.getId();
 
-    redemptionHoldService.holdPayout(requestId, Set.of(PEP));
+    redemptionHoldService.holdPayout(requestId, Set.of(PEP), Set.of());
     redemptionStatusService.changeStatus(requestId, VERIFIED);
 
     ClockHolder.setClock(Clock.fixed(tuesday, UTC));
@@ -918,6 +919,64 @@ class RedemptionIntegrationTest {
     assertThat(briefVerdictsOn(tuesday))
         .contains(
             batchTie("payouts == transfer to withdrawal account", fundingBatch, "25.00 = 25.00"));
+  }
+
+  @Test
+  void aBoardMembersLargeRedemptionADayAfterTheirEmailChangeHoldsTheCompanysPayoutForReview() {
+    var friday = Instant.parse("2025-09-26T14:00:00Z");
+    var tuesday = Instant.parse("2025-09-30T15:00:00Z");
+    var boardMember = boardMemberOfACompanyWhoseEmailChangedTheDayBefore(friday);
+
+    ClockHolder.setClock(Clock.fixed(friday, UTC));
+    var request =
+        redemptionService.createRedemptionRequest(
+            boardMember, new BigDecimal("90.00"), EUR, VALID_IBAN);
+    var requestId = request.getId();
+    redemptionVerificationService.process(request);
+
+    ClockHolder.setClock(Clock.fixed(tuesday, UTC));
+    redemptionBatchJob.runJob();
+
+    var held = redemptionRequestRepository.findById(requestId).orElseThrow();
+    assertThat(held.getStatus()).isEqualTo(PAYOUT_HELD);
+    assertThat(held.getHoldReasons()).containsExactly(ACCOUNT_TAKEOVER_SIGNALS);
+    assertThat(held.getHoldComment()).isEqualTo("takeoverSignals=[LARGE_PAYOUT, CONTACT_CHANGED]");
+    verify(operationsNotificationService)
+        .sendMessage(
+            contains(
+                "id=%s, amount=90.00 EUR, reasons=[ACCOUNT_TAKEOVER_SIGNALS],".formatted(requestId)
+                    + " takeoverSignals=[LARGE_PAYOUT, CONTACT_CHANGED]"),
+            eq(AML));
+    assertThat(
+            applicationEvents.stream(RequestPaymentEvent.class)
+                .filter(e -> requestId.equals(e.sourceId())))
+        .isEmpty();
+  }
+
+  @Test
+  void aBoardMembersSmallRedemptionADayAfterTheirEmailChangeIsVerifiedWithoutAHold() {
+    var friday = Instant.parse("2025-09-26T14:00:00Z");
+    var boardMember = boardMemberOfACompanyWhoseEmailChangedTheDayBefore(friday);
+
+    ClockHolder.setClock(Clock.fixed(friday, UTC));
+    var request =
+        redemptionService.createRedemptionRequest(
+            boardMember, new BigDecimal("10.00"), EUR, VALID_IBAN);
+    redemptionVerificationService.process(request);
+
+    var verified = redemptionRequestRepository.findById(request.getId()).orElseThrow();
+    assertThat(verified.getStatus()).isEqualTo(VERIFIED);
+    assertThat(verified.getHoldReasons()).isEmpty();
+  }
+
+  private AuthenticatedPerson boardMemberOfACompanyWhoseEmailChangedTheDayBefore(
+      Instant requestedAt) {
+    ClockHolder.setClock(Clock.fixed(requestedAt.minus(Duration.ofDays(7)), UTC));
+    setUpLegalEntity(COMPANY_REGISTRY_CODE, COMPANY_NAME, VALID_IBAN);
+    changeEmailOn(requestedAt.minus(Duration.ofDays(1)));
+    return authenticatedPersonFromUser(testUser)
+        .role(new Role(LEGAL_ENTITY, COMPANY_REGISTRY_CODE, COMPANY_NAME))
+        .build();
   }
 
   private List<PaymentApprovalBrief.Verdict> briefVerdictsOn(Instant instant) {

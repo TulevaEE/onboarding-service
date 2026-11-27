@@ -10,7 +10,6 @@ import ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Evidence;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -41,30 +40,30 @@ public class RedemptionVerificationService {
         request.getPartyId());
 
     Evidence evidence = evidenceCollector.collect(request);
-    Set<RedemptionHoldReason> reasons = holdReasons(evidence);
 
     switch (outcome(evidence)) {
-      case RETRY -> retryLater(request, reasons);
+      case RETRY -> retryLater(request, evidence);
       case FREEZE -> holdService.freeze(request.getId());
-      case HOLD_PAYOUT -> {
-        holdService.holdPayout(request.getId(), reasons);
-        redemptionStatusService.changeStatus(request.getId(), RESERVED, VERIFIED);
-      }
+      case HOLD_PAYOUT -> holdPayoutAndVerify(request, evidence);
       case CLEAR -> {
         log.info(
-            "Redemption verification passed: id={}, party={}",
+            "Redemption verification passed: id={}, party={}, takeoverSignals={}",
             request.getId(),
-            request.getPartyId());
+            request.getPartyId(),
+            evidence.takeoverSignals());
         redemptionStatusService.changeStatus(request.getId(), RESERVED, VERIFIED);
       }
     }
   }
 
-  private void retryLater(
-      RedemptionRequest request, Set<RedemptionHoldReason> holdReasonsAtDeadline) {
+  private void holdPayoutAndVerify(RedemptionRequest request, Evidence evidence) {
+    holdService.holdPayout(request.getId(), holdReasons(evidence), evidence.takeoverSignals());
+    redemptionStatusService.changeStatus(request.getId(), RESERVED, VERIFIED);
+  }
+
+  private void retryLater(RedemptionRequest request, Evidence evidence) {
     if (!canStillRetry(request)) {
-      holdService.holdPayout(request.getId(), holdReasonsAtDeadline);
-      redemptionStatusService.changeStatus(request.getId(), RESERVED, VERIFIED);
+      holdPayoutAndVerify(request, evidence);
       return;
     }
     redemptionRequestRepository.markVerificationAttempted(request.getId(), Instant.now(clock));
@@ -73,7 +72,7 @@ public class RedemptionVerificationService {
             + " holdReasonsAtDeadline={}, deadline={}",
         request.getId(),
         request.getPartyId().type(),
-        holdReasonsAtDeadline,
+        holdReasons(evidence),
         deadlinesService.getScreeningRetryDeadline(request));
   }
 

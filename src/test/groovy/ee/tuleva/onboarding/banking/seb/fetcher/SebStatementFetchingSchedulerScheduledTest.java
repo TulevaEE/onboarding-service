@@ -9,6 +9,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @ScheduledTest(SebStatementFetchingScheduler.class)
 class SebStatementFetchingSchedulerScheduledTest {
 
+  @MockitoBean CurrentDayFetches currentDayFetches;
   @MockitoBean BankAccounts bankAccounts;
   @MockitoBean StatementCoverage statementCoverage;
   @MockitoBean Clock clock;

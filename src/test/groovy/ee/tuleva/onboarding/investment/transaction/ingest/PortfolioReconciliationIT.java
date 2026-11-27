@@ -1,12 +1,17 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.Compared;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.HoldingDifference;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatch;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatchRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
@@ -23,6 +28,7 @@ import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasis;
 import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasisRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -30,6 +36,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import net.javacrumbs.shedlock.core.LockProvider;
 import org.junit.jupiter.api.AfterEach;
@@ -63,6 +70,7 @@ class PortfolioReconciliationIT {
   @Autowired private TransactionBatchRepository batchRepository;
   @Autowired private TransactionOrderRepository orderRepository;
   @Autowired private TransactionExecutionRepository executionRepository;
+  @Autowired private FundPositionRepository fundPositionRepository;
 
   @BeforeEach
   void cleanRecorderAndData() {
@@ -275,6 +283,41 @@ class PortfolioReconciliationIT {
             .scheduledSettlementDate(tradeDate.plusDays(2))
             .source("SEB_OOTEL")
             .reportedDate(tradeDate)
+            .build());
+  }
+
+  @Test
+  void againstThePositionReport_comparesTheRegistryWithTheSebReportRowsOfThatDate() {
+    seedCostBasis(ISIN_A, "1000.0000");
+    seedCostBasis(ISIN_B, "500.0000");
+    seedPositionReport(ISIN_A, "990.000000");
+    seedPositionReport(ISIN_B, "500.400000");
+    seedNavReport(ISIN_A, new BigDecimal("1000.0000"));
+
+    assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of()))
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            new Compared(
+                List.of(
+                    new HoldingDifference(ISIN_A, new BigDecimal("1000"), new BigDecimal("990")))));
+    assertThat(recorder.events).isEmpty();
+    assertThat(recorder.skippedEvents).isEmpty();
+  }
+
+  private void seedPositionReport(String isin, String quantity) {
+    fundPositionRepository.save(
+        FundPosition.builder()
+            .navDate(AS_OF)
+            .fund(TUK75)
+            .accountType(SECURITY)
+            .accountName(isin)
+            .accountId(isin)
+            .quantity(new BigDecimal(quantity))
+            .marketValue(BigDecimal.ONE)
+            .currency("EUR")
+            .createdAt(Instant.now())
+            .updatedAt(Instant.now())
             .build());
   }
 

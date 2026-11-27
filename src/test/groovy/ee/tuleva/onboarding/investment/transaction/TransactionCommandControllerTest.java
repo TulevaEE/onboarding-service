@@ -7,9 +7,11 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.springframework.http.HttpStatus.CONFLICT;
@@ -38,6 +40,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.server.ResponseStatusException;
 
 @WebMvcTest(TransactionCommandController.class)
@@ -57,6 +60,7 @@ class TransactionCommandControllerTest {
 
   @MockitoBean private TransactionAdminService adminService;
   @MockitoBean private TransactionCommandRunner commandRunner;
+  @MockitoBean CurrentDayBankReportRefresh currentDayBankReportRefresh;
 
   private static TransactionOrderResponse orderResponse() {
     return orderResponse(OrderType.MOC);
@@ -90,6 +94,10 @@ class TransactionCommandControllerTest {
         null,
         null,
         List.of(),
+        List.of(),
+        null,
+        PriceDateRule.FRESHEST_PER_INSTRUMENT,
+        List.of(),
         List.of(orderResponse()),
         null);
   }
@@ -113,7 +121,16 @@ class TransactionCommandControllerTest {
     given(
             commandRunner.createAndProcess(
                 new CreateTransactionCommandRequest(
-                    TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), null, null),
+                    TUK75,
+                    REBALANCE,
+                    AS_OF_DATE,
+                    Map.of("IE00BFG1TM61", "1000.00"),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
                 "shared-admin-token"))
         .willReturn(commandResponse());
 
@@ -145,7 +162,8 @@ class TransactionCommandControllerTest {
   void createCommand_passesAdminActorToService() throws Exception {
     given(
             commandRunner.createAndProcess(
-                new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null),
+                new CreateTransactionCommandRequest(
+                    TUK75, REBALANCE, AS_OF_DATE, null, null, null, null, null, null, null),
                 "operator-7"))
         .willReturn(commandResponse());
 
@@ -164,7 +182,8 @@ class TransactionCommandControllerTest {
     then(commandRunner)
         .should()
         .createAndProcess(
-            new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null),
+            new CreateTransactionCommandRequest(
+                TUK75, REBALANCE, AS_OF_DATE, null, null, null, null, null, null, null),
             "operator-7");
   }
 
@@ -173,7 +192,8 @@ class TransactionCommandControllerTest {
     var cash = new CashOverride(new BigDecimal("40000"), "Gateway balance at 10:15");
     given(
             commandRunner.createAndProcess(
-                new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, cash, null),
+                new CreateTransactionCommandRequest(
+                    TUK75, REBALANCE, AS_OF_DATE, null, cash, null, null, null, null, null),
                 "shared-admin-token"))
         .willReturn(commandResponse());
 
@@ -193,7 +213,8 @@ class TransactionCommandControllerTest {
     then(commandRunner)
         .should()
         .createAndProcess(
-            new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, cash, null),
+            new CreateTransactionCommandRequest(
+                TUK75, REBALANCE, AS_OF_DATE, null, cash, null, null, null, null, null),
             "shared-admin-token");
   }
 
@@ -201,7 +222,16 @@ class TransactionCommandControllerTest {
   void createCommand_passesTheExcludedInstrumentsToService() throws Exception {
     var request =
         new CreateTransactionCommandRequest(
-            TUK75, REBALANCE, AS_OF_DATE, null, null, Set.of("IE00BFG1TM61", "IE00BMDBMY19"));
+            TUK75,
+            REBALANCE,
+            AS_OF_DATE,
+            null,
+            null,
+            Set.of("IE00BFG1TM61", "IE00BMDBMY19"),
+            null,
+            null,
+            null,
+            null);
     given(commandRunner.createAndProcess(request, "shared-admin-token"))
         .willReturn(commandResponse());
 
@@ -219,6 +249,40 @@ class TransactionCommandControllerTest {
         .andExpect(status().isOk());
 
     then(commandRunner).should().createAndProcess(request, "shared-admin-token");
+  }
+
+  @Test
+  void createCommand_anAcceptedDifferenceWithoutAnIsin_isRejectedByValidation() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10",
+                     "acceptedHoldingDifferences": {"isins": [null], "comment": "Late fill"}}
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            result ->
+                assertThat(result.getResolvedException())
+                    .isInstanceOf(MethodArgumentNotValidException.class));
+
+    then(commandRunner).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void requestingTheCurrentDayBankReportsOfAFundIsAcceptedAtOnce() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/funds/TKF100/current-day-bank-report-refresh")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isAccepted());
+
+    then(currentDayBankReportRefresh).should().requestFor(TKF100);
   }
 
   @Test
@@ -508,6 +572,10 @@ class TransactionCommandControllerTest {
                     11L,
                     null,
                     null,
+                    List.of(),
+                    List.of(),
+                    null,
+                    PriceDateRule.FRESHEST_PER_INSTRUMENT,
                     List.of(),
                     List.of(),
                     null)));

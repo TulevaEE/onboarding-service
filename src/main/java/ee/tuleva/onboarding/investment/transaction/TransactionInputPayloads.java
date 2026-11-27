@@ -27,6 +27,7 @@ final class TransactionInputPayloads {
               .map(position -> serializePosition(position, input.grossPortfolioValue()))
               .toList());
     }
+    result.putAll(input.positionAdjustments().payload());
     putIfPresent(
         result,
         "modelWeights",

@@ -110,6 +110,7 @@ ADMIN_TOKEN_HOLDER POST /admin/blackrock-adjustment
 ADMIN_TOKEN_HOLDER POST /admin/calculate-nav
 ADMIN_TOKEN_HOLDER POST /admin/child-aml-backfill
 ADMIN_TOKEN_HOLDER POST /admin/fetch-seb-history
+ADMIN_TOKEN_HOLDER POST /admin/funds/{fund}/current-day-bank-report-refresh
 ADMIN_TOKEN_HOLDER POST /admin/general-ledger/sync
 ADMIN_TOKEN_HOLDER POST /admin/guardian-link
 ADMIN_TOKEN_HOLDER POST /admin/kid/{fund}/calculations

@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
-import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
@@ -13,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +40,11 @@ class PendingOrderImpactService {
       return inPositionReport.cashToCount(order, absOrZero(execution.getTotalConsideration()));
     }
 
+    boolean bookedIn(Set<Long> executionIdsInTheBalance) {
+      Long id = execution.getId();
+      return id != null && executionIdsInTheBalance.contains(id);
+    }
+
     private boolean notYetShown() {
       return inPositionReport == InPositionReport.NOT_YET_SHOWN_SO_THE_ORDER_CARRIES_ITS_CASH;
     }
@@ -49,52 +54,148 @@ class PendingOrderImpactService {
   private final TransactionExecutionRepository executionRepository;
   private final PositionPriceResolver positionPriceResolver;
 
-  PendingOrderImpact calculate(TulevaFund fund, LocalDate asOfDate, LocalDate positionDate) {
+  PendingOrderImpact calculate(
+      TulevaFund fund,
+      LocalDate asOfDate,
+      LocalDate positionDate,
+      TradePrepPricing pricing,
+      Set<Long> executionIdsInTheBalance) {
+    UnreportedOrders unreported = new UnreportedOrders();
+    addSalesTheReportDoesNotShow(unreported, fund, asOfDate, positionDate, pricing);
     List<TransactionOrder> unsettled = orderRepository.findUnsettledOrders(fund, asOfDate);
     if (unsettled.isEmpty()) {
-      return PendingOrderImpact.none();
+      return unreported.impact(ZERO, ZERO, ZERO, ZERO);
     }
 
     Map<Long, List<TransactionExecution>> executionsByOrder = executionsByOrderId(unsettled);
 
     BigDecimal pendingBuys = ZERO;
     BigDecimal pendingSells = ZERO;
-    Map<String, BigDecimal> unreportedValues = new HashMap<>();
-    Map<String, BigDecimal> unreportedQuantities = new HashMap<>();
+    BigDecimal buysInTheBalance = ZERO;
+    BigDecimal sellsInTheBalance = ZERO;
 
     for (TransactionOrder order : unsettled) {
       List<TransactionExecution> executions =
           executionsByOrder.getOrDefault(order.getId(), List.of());
       ExecutedTotals executed = ExecutedTotals.of(executions);
       List<ClassifiedFill> fills = classifyAgainstPositionReport(order, executions, positionDate);
-      BigDecimal unfilledValue = unfilledValue(order, executed, asOfDate);
-      addUnreportedPositions(
-          order, fills, executed, unfilledValue, unreportedValues, unreportedQuantities);
+      BigDecimal unfilledValue = unfilledValue(order, executed, asOfDate, pricing);
+      List<ClassifiedFill> booked =
+          fills.stream().filter(fill -> fill.bookedIn(executionIdsInTheBalance)).toList();
+      List<ClassifiedFill> notYetBooked =
+          fills.stream().filter(fill -> !fill.bookedIn(executionIdsInTheBalance)).toList();
       BigDecimal cash =
           cashTheOrderStillCarries(
               order,
-              fills,
+              notYetBooked,
               unfilledValue,
               InPositionReport.ofUnfilledRemainder(order, positionDate));
+      BigDecimal inTheBalance = cashOfFills(order, booked);
       if (order.getTransactionType() == BUY) {
+        unreported.addPurchase(order, fills, unfilledValue);
         pendingBuys = pendingBuys.add(cash);
+        buysInTheBalance = buysInTheBalance.add(inTheBalance);
       } else {
         pendingSells = pendingSells.add(cash);
+        sellsInTheBalance = sellsInTheBalance.add(inTheBalance);
       }
     }
 
     log.info(
         "Pending order impact: fund={}, asOfDate={}, orderCount={}, pendingBuys={},"
-            + " pendingSells={}, unreportedIsins={}",
+            + " pendingSells={}, unreportedBuyIsins={}, unreportedSellIsins={}",
         fund,
         asOfDate,
         unsettled.size(),
         pendingBuys.toPlainString(),
         pendingSells.toPlainString(),
-        unreportedValues.keySet());
+        unreported.buyValues.keySet(),
+        unreported.sellQuantities.keySet());
 
-    return new PendingOrderImpact(
-        pendingBuys, pendingSells, Map.copyOf(unreportedValues), Map.copyOf(unreportedQuantities));
+    return unreported.impact(pendingBuys, pendingSells, buysInTheBalance, sellsInTheBalance);
+  }
+
+  private void addSalesTheReportDoesNotShow(
+      UnreportedOrders unreported,
+      TulevaFund fund,
+      LocalDate asOfDate,
+      LocalDate positionDate,
+      TradePrepPricing pricing) {
+    List<TransactionOrder> sales =
+        orderRepository.findSalesTheReportMayNotShowYet(fund, positionDate);
+    if (sales.isEmpty()) {
+      return;
+    }
+    Map<Long, List<TransactionExecution>> executionsByOrder = executionsByOrderId(sales);
+    sales.forEach(
+        sale -> {
+          List<TransactionExecution> executions =
+              executionsByOrder.getOrDefault(sale.getId(), List.of());
+          ExecutedTotals executed = ExecutedTotals.of(executions);
+          boolean stillOpen = sale.getOrderStatus() == OrderStatus.SENT;
+          unreported.addSale(
+              sale.getInstrumentIsin(),
+              classifyAgainstPositionReport(sale, executions, positionDate),
+              stillOpen ? unfilledQuantity(sale, executed) : ZERO,
+              stillOpen ? unfilledValue(sale, executed, asOfDate, pricing) : ZERO);
+        });
+  }
+
+  private static final class UnreportedOrders {
+
+    private final Map<String, BigDecimal> buyValues = new HashMap<>();
+    private final Map<String, BigDecimal> buyQuantities = new HashMap<>();
+    private final Map<String, BigDecimal> buyValuesWithoutUnits = new HashMap<>();
+    private final Map<String, BigDecimal> sellQuantities = new HashMap<>();
+    private final Map<String, BigDecimal> sellValues = new HashMap<>();
+
+    void addPurchase(TransactionOrder order, List<ClassifiedFill> fills, BigDecimal unfilledValue) {
+      String isin = order.getInstrumentIsin();
+      addUnreportedValue(isin, fills, unfilledValue, buyValues);
+      addUnreportedValue(
+          isin,
+          fills.stream().filter(fill -> !addsUnits(order, fill)).toList(),
+          unfilledValue,
+          buyValuesWithoutUnits);
+      BigDecimal quantity =
+          fills.stream()
+              .filter(fill -> addsUnits(order, fill))
+              .map(ClassifiedFill::unreportedQuantity)
+              .reduce(ZERO, BigDecimal::add);
+      if (quantity.signum() != 0) {
+        buyQuantities.merge(isin, quantity, BigDecimal::add);
+      }
+    }
+
+    void addSale(
+        String isin, List<ClassifiedFill> fills, BigDecimal openUnits, BigDecimal openValue) {
+      sellQuantities.merge(
+          isin,
+          fills.stream().map(ClassifiedFill::unreportedQuantity).reduce(openUnits, BigDecimal::add),
+          BigDecimal::add);
+      addUnreportedValue(isin, fills, openValue, sellValues);
+    }
+
+    PendingOrderImpact impact(
+        BigDecimal pendingBuys,
+        BigDecimal pendingSells,
+        BigDecimal buysInTheBalance,
+        BigDecimal sellsInTheBalance) {
+      return new PendingOrderImpact(
+          pendingBuys,
+          pendingSells,
+          Map.copyOf(buyValues),
+          Map.copyOf(buyQuantities),
+          buysInTheBalance,
+          sellsInTheBalance,
+          Map.copyOf(sellQuantities),
+          Map.copyOf(sellValues),
+          Map.copyOf(buyValuesWithoutUnits));
+    }
+
+    private static boolean addsUnits(TransactionOrder order, ClassifiedFill fill) {
+      return order.getInstrumentType() == ETF && fill.unreportedQuantity().signum() > 0;
+    }
   }
 
   private static List<ClassifiedFill> classifyAgainstPositionReport(
@@ -107,31 +208,17 @@ class PendingOrderImpactService {
         .toList();
   }
 
-  private static void addUnreportedPositions(
-      TransactionOrder order,
+  private static void addUnreportedValue(
+      String isin,
       List<ClassifiedFill> fills,
-      ExecutedTotals executed,
       BigDecimal unfilledValue,
-      Map<String, BigDecimal> unreportedValues,
-      Map<String, BigDecimal> unreportedQuantities) {
-    String isin = order.getInstrumentIsin();
-    for (ClassifiedFill fill : fills) {
-      BigDecimal consideration = fill.unreportedConsideration();
-      if (consideration.signum() != 0) {
-        unreportedValues.merge(isin, signed(order, consideration), BigDecimal::add);
-      }
-      BigDecimal quantity = fill.unreportedQuantity();
-      if (order.getInstrumentType() == ETF && quantity.signum() != 0) {
-        unreportedQuantities.merge(isin, signed(order, quantity), BigDecimal::add);
-      }
-    }
-
-    if (unfilledValue.signum() == 0) {
-      return;
-    }
-    unreportedValues.merge(isin, signed(order, unfilledValue), BigDecimal::add);
-    if (order.getTransactionType() == SELL) {
-      addUnfilledQuantity(order, executed, isin, unreportedQuantities);
+      Map<String, BigDecimal> values) {
+    BigDecimal value =
+        fills.stream()
+            .map(ClassifiedFill::unreportedConsideration)
+            .reduce(unfilledValue, BigDecimal::add);
+    if (value.signum() != 0) {
+      values.merge(isin, value, BigDecimal::add);
     }
   }
 
@@ -140,20 +227,14 @@ class PendingOrderImpactService {
       List<ClassifiedFill> fills,
       BigDecimal unfilledValue,
       InPositionReport unfilledRemainderInPositionReport) {
-    BigDecimal fillsCash =
-        fills.stream().map(fill -> fill.cashTheOrderCarries(order)).reduce(ZERO, BigDecimal::add);
-    return fillsCash.add(unfilledRemainderInPositionReport.cashToCount(order, unfilledValue));
+    return cashOfFills(order, fills)
+        .add(unfilledRemainderInPositionReport.cashToCount(order, unfilledValue));
   }
 
-  private static void addUnfilledQuantity(
-      TransactionOrder order,
-      ExecutedTotals executed,
-      String isin,
-      Map<String, BigDecimal> unreportedQuantities) {
-    BigDecimal unfilledQuantity = unfilledQuantity(order, executed);
-    if (order.getInstrumentType() == ETF && unfilledQuantity.signum() != 0) {
-      unreportedQuantities.merge(isin, signed(order, unfilledQuantity), BigDecimal::add);
-    }
+  private static BigDecimal cashOfFills(TransactionOrder order, List<ClassifiedFill> fills) {
+    return fills.stream()
+        .map(fill -> fill.cashTheOrderCarries(order))
+        .reduce(ZERO, BigDecimal::add);
   }
 
   private static BigDecimal unfilledQuantity(TransactionOrder order, ExecutedTotals executed) {
@@ -194,7 +275,10 @@ class PendingOrderImpactService {
   }
 
   private BigDecimal unfilledValue(
-      TransactionOrder order, ExecutedTotals executed, LocalDate asOfDate) {
+      TransactionOrder order,
+      ExecutedTotals executed,
+      LocalDate asOfDate,
+      TradePrepPricing pricing) {
     BigDecimal orderQuantity = order.getOrderQuantity();
     if (orderQuantity == null) {
       return unfilledAmount(order, executed);
@@ -203,7 +287,7 @@ class PendingOrderImpactService {
     if (unfilledQuantity.signum() == 0) {
       return ZERO;
     }
-    BigDecimal price = latestPrice(order.getInstrumentIsin(), asOfDate);
+    BigDecimal price = latestPrice(order.getInstrumentIsin(), asOfDate, pricing);
     return price == null ? unfilledAmount(order, executed) : unfilledQuantity.multiply(price);
   }
 
@@ -215,15 +299,11 @@ class PendingOrderImpactService {
   }
 
   @Nullable
-  private BigDecimal latestPrice(String isin, LocalDate date) {
-    return positionPriceResolver
-        .resolve(isin, date)
-        .map(resolved -> resolved.usedPrice())
+  private BigDecimal latestPrice(String isin, LocalDate date, TradePrepPricing pricing) {
+    return pricing
+        .resolve(positionPriceResolver, isin, date)
+        .map(TradePrepPrice::value)
         .filter(price -> price != null && price.signum() > 0)
         .orElse(null);
-  }
-
-  private static BigDecimal signed(TransactionOrder order, BigDecimal value) {
-    return order.getTransactionType() == BUY ? value.abs() : value.abs().negate();
   }
 }

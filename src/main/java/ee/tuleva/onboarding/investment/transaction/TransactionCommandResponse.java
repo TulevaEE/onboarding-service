@@ -20,6 +20,10 @@ public record TransactionCommandResponse(
     @Nullable BigDecimal cash,
     @Nullable String cashComment,
     List<String> excludeIsins,
+    List<PriceOverride> prices,
+    @Nullable AcceptedHoldingDifferences acceptedHoldingDifferences,
+    PriceDateRule priceDateRule,
+    List<PriceDeviationConfirmation> confirmedPriceDeviations,
     List<TransactionOrderResponse> orders,
     @Nullable Map<String, Object> calculationSnapshot) {
 
@@ -38,7 +42,17 @@ public record TransactionCommandResponse(
         command.getCash(),
         command.getCashComment(),
         command.sortedExcludeIsins(),
+        command.getPrices(),
+        acceptedInIsinOrder(command),
+        command.getPriceDateRule(),
+        command.sortedConfirmedPriceDeviations(),
         orders.stream().map(TransactionOrderResponse::from).toList(),
         calculationSnapshot);
+  }
+
+  @Nullable
+  private static AcceptedHoldingDifferences acceptedInIsinOrder(TransactionCommand command) {
+    AcceptedHoldingDifferences accepted = command.getAcceptedHoldingDifferences();
+    return accepted == null ? null : accepted.inIsinOrder();
   }
 }

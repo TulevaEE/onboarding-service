@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ZERO;
+import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -28,13 +29,46 @@ class PositionAssembler {
 
   private final FundPositionRepository fundPositionRepository;
 
-  List<PositionSnapshot> assemble(
-      TulevaFund fund, LocalDate positionDate, PendingOrderImpact pendingOrders) {
-    List<PositionSnapshot> positions = getPositions(fund, positionDate);
-    return applyUnreportedPositions(positions, pendingOrders);
+  record Assembled(
+      List<PositionSnapshot> positions,
+      Map<String, SellableUnits> sellableUnits,
+      PositionAdjustments adjustments) {}
+
+  Assembled assemble(
+      TulevaFund fund,
+      LocalDate positionDate,
+      PendingOrderImpact pendingOrders,
+      TradePrepPricing pricing) {
+    List<PositionSnapshot> report = reportPositions(fund, positionDate);
+    Map<String, SellableUnits> sellableUnits =
+        sellableUnits(report, pendingOrders.unreportedSellQuantities());
+    UnreportedSaleDeduction.Deducted deducted =
+        UnreportedSaleDeduction.deduct(report, sellableUnits, pendingOrders.unreportedSellValues());
+    PriceRevaluation.Revalued revalued =
+        PriceRevaluation.revalue(
+            applyUnreportedPurchases(deducted.positions(), pendingOrders),
+            pricing.revaluationPrices(),
+            pendingOrders.unreportedBuyValuesWithoutUnits());
+    return new Assembled(
+        revalued.positions(),
+        sellableUnits,
+        new PositionAdjustments(deducted.deductedSales(), revalued.valuations()));
   }
 
-  private List<PositionSnapshot> getPositions(TulevaFund fund, LocalDate date) {
+  private static Map<String, SellableUnits> sellableUnits(
+      List<PositionSnapshot> report, Map<String, BigDecimal> unitsInSales) {
+    return report.stream()
+        .filter(position -> position.isin() != null)
+        .collect(
+            toMap(
+                position -> Objects.requireNonNull(position.isin()),
+                position ->
+                    new SellableUnits(
+                        position.quantity(), unitsInSales.getOrDefault(position.isin(), ZERO)),
+                SellableUnits::togetherWith));
+  }
+
+  List<PositionSnapshot> reportPositions(TulevaFund fund, LocalDate date) {
     List<PositionSnapshot> positions = new ArrayList<>();
     for (FundPosition position :
         fundPositionRepository.findByNavDateAndFundAndAccountType(date, fund, SECURITY)) {
@@ -72,13 +106,13 @@ class PositionAssembler {
     return false;
   }
 
-  private List<PositionSnapshot> applyUnreportedPositions(
+  private List<PositionSnapshot> applyUnreportedPurchases(
       List<PositionSnapshot> positions, PendingOrderImpact pendingOrders) {
-    Map<String, BigDecimal> values = pendingOrders.unreportedPositionValues();
+    Map<String, BigDecimal> values = pendingOrders.unreportedBuyValues();
     if (values.isEmpty()) {
       return positions;
     }
-    Map<String, BigDecimal> quantities = pendingOrders.unreportedPositionQuantities();
+    Map<String, BigDecimal> quantities = pendingOrders.unreportedBuyQuantities();
 
     List<PositionSnapshot> adjusted = new ArrayList<>();
     Set<String> reported = new HashSet<>();

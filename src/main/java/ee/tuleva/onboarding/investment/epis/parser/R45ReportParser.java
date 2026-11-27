@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.epis.parser.EpisDates.findDate;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisNumbers.parseNumber;
 
 import ee.tuleva.onboarding.investment.epis.R45Result;
+import ee.tuleva.onboarding.investment.epis.R45Row;
 import ee.tuleva.onboarding.investment.epis.R45TransactionType;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -48,8 +49,14 @@ public class R45ReportParser {
     }
 
     Map<String, R45Result> fundResults = new LinkedHashMap<>();
-    flows.forEach((fundCode, accumulator) -> fundResults.put(fundCode, accumulator.toResult()));
-    return new R45ParseResult(fundResults, List.copyOf(unvaluedRows), List.copyOf(unknownRows));
+    Map<String, List<R45Row>> rowsByFundCode = new LinkedHashMap<>();
+    flows.forEach(
+        (fundCode, accumulator) -> {
+          fundResults.put(fundCode, accumulator.toResult());
+          rowsByFundCode.put(fundCode, List.copyOf(accumulator.rows));
+        });
+    return new R45ParseResult(
+        fundResults, List.copyOf(unvaluedRows), List.copyOf(unknownRows), rowsByFundCode);
   }
 
   private static Map<String, BigDecimal> collectNavs(
@@ -80,12 +87,13 @@ public class R45ReportParser {
   }
 
   private static boolean isSettledBefore(Map<String, String> row, LocalDate today) {
-    String settlementValue = findValue(row, "täitmise kuupäev", "taitmise kuupaev");
-    if (settlementValue == null) {
-      return false;
-    }
-    LocalDate settlementDate = findDate(settlementValue);
+    LocalDate settlementDate = settlementDate(row);
     return settlementDate != null && settlementDate.isBefore(today);
+  }
+
+  public static @Nullable LocalDate settlementDate(Map<String, String> row) {
+    String settlementValue = findValue(row, "täitmise kuupäev", "taitmise kuupaev");
+    return settlementValue == null ? null : findDate(settlementValue);
   }
 
   private static void validateTehtudDate(List<String> preHeaderLines, LocalDate today) {
@@ -173,8 +181,9 @@ public class R45ReportParser {
       }
       String fundCode = fund.get().getCode();
 
+      LocalDate settlementDate = settlementDate(row);
       if (amount.signum() != 0) {
-        accumulate(flows, fundCode, type.get(), amount.abs());
+        accumulate(flows, fundCode, type.get(), amount.abs(), settlementDate);
         return;
       }
       if (units.signum() == 0) {
@@ -186,7 +195,7 @@ public class R45ReportParser {
         flows.computeIfAbsent(fundCode, code -> new FlowAccumulator());
         return;
       }
-      accumulate(flows, fundCode, type.get(), units.multiply(nav).abs());
+      accumulate(flows, fundCode, type.get(), units.multiply(nav).abs(), settlementDate);
     }
 
     private static boolean isIncompleteRow(String typeCode, String isin) {
@@ -216,16 +225,22 @@ public class R45ReportParser {
         Map<String, FlowAccumulator> flows,
         String fundCode,
         R45TransactionType type,
-        BigDecimal orderValue) {
-      flows.computeIfAbsent(fundCode, code -> new FlowAccumulator()).add(type, orderValue);
+        BigDecimal orderValue,
+        @Nullable LocalDate settlementDate) {
+      flows
+          .computeIfAbsent(fundCode, code -> new FlowAccumulator())
+          .add(type, orderValue, settlementDate);
     }
   }
 
   private static final class FlowAccumulator {
     private BigDecimal inflow = BigDecimal.ZERO;
     private BigDecimal outflow = BigDecimal.ZERO;
+    private final List<R45Row> rows = new ArrayList<>();
 
-    private void add(R45TransactionType type, BigDecimal orderValue) {
+    private void add(
+        R45TransactionType type, BigDecimal orderValue, @Nullable LocalDate settlementDate) {
+      rows.add(new R45Row(type.getDirection(), orderValue, settlementDate));
       if (type.getDirection() == OUTFLOW) {
         outflow = outflow.add(orderValue);
       } else {

@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.investment.epis.SettlementTimingWarning;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -13,6 +12,8 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
 class TransactionAuditPayloads {
+
+  static final String NO_UNITS_THE_FUND_MAY_SELL = "noUnitsTheFundMaySell";
 
   private TransactionAuditPayloads() {}
 
@@ -106,24 +107,32 @@ class TransactionAuditPayloads {
   static List<Map<String, Object>> serializeTrades(
       List<TradeCalculation> trades,
       Map<String, TransactionOrder> ordersByIsin,
-      Map<String, @Nullable ResolvedPrice> priceResolutions) {
+      Map<String, @Nullable TradePrepPrice> priceResolutions,
+      List<String> droppedSales) {
     return trades.stream()
         .map(
-            trade ->
-                serializeTrade(
-                    trade, ordersByIsin.get(trade.isin()), priceResolutions.get(trade.isin())))
+            trade -> {
+              TransactionOrder order = ordersByIsin.get(trade.isin());
+              Map<String, Object> map =
+                  serializeTrade(trade, order, priceResolutions.get(trade.isin()));
+              if (order == null && droppedSales.contains(trade.isin())) {
+                map.put("dropped", true);
+                map.put("droppedReason", NO_UNITS_THE_FUND_MAY_SELL);
+              }
+              return map;
+            })
         .toList();
   }
 
   private static Map<String, Object> serializeTrade(
-      TradeCalculation trade,
-      @Nullable TransactionOrder order,
-      @Nullable ResolvedPrice resolvedPrice) {
+      TradeCalculation trade, @Nullable TransactionOrder order, @Nullable TradePrepPrice price) {
     Map<String, Object> map = new LinkedHashMap<>();
     putIfPresent(map, "isin", trade.isin());
     putIfPresent(map, "tradeAmount", plain(trade.tradeAmount()));
     putIfPresent(map, "projectedWeight", plain(trade.projectedWeight()));
-    putIfPresent(map, "price", resolvedPrice == null ? null : plain(resolvedPrice.usedPrice()));
+    if (price != null) {
+      price.describe(map);
+    }
     putIfPresent(
         map, "limitStatus", trade.limitStatus() == null ? null : trade.limitStatus().name());
     if (order != null) {
@@ -164,34 +173,15 @@ class TransactionAuditPayloads {
   }
 
   static List<Map<String, Object>> serializePriceResolutions(
-      Map<String, @Nullable ResolvedPrice> priceResolutions) {
+      Map<String, @Nullable TradePrepPrice> priceResolutions) {
     return priceResolutions.entrySet().stream()
         .map(entry -> serializePriceResolution(entry.getKey(), entry.getValue()))
         .toList();
   }
 
   private static Map<String, Object> serializePriceResolution(
-      String isin, @Nullable ResolvedPrice resolvedPrice) {
-    Map<String, Object> map = new LinkedHashMap<>();
-    putIfPresent(map, "isin", isin);
-    if (resolvedPrice != null) {
-      putIfPresent(map, "price", plain(resolvedPrice.usedPrice()));
-      putIfPresent(
-          map,
-          "priceDate",
-          resolvedPrice.priceDate() == null ? null : resolvedPrice.priceDate().toString());
-      putIfPresent(
-          map,
-          "priceSource",
-          resolvedPrice.priceSource() == null ? null : resolvedPrice.priceSource().name());
-      putIfPresent(
-          map,
-          "validationStatus",
-          resolvedPrice.validationStatus() == null
-              ? null
-              : resolvedPrice.validationStatus().name());
-    }
-    return map;
+      String isin, @Nullable TradePrepPrice price) {
+    return price == null ? Map.of("isin", isin) : price.resolution(isin);
   }
 
   @Nullable
@@ -203,14 +193,18 @@ class TransactionAuditPayloads {
     return position.marketValue().divide(grossPortfolioValue, 6, RoundingMode.HALF_UP);
   }
 
-  private static void putIfPresent(Map<String, Object> map, String key, @Nullable Object value) {
+  static void putIfPresent(Map<String, Object> map, String key, @Nullable Object value) {
     if (value != null) {
       map.put(key, value);
     }
   }
 
   @Nullable
-  private static String plain(@Nullable BigDecimal value) {
+  static String plain(@Nullable BigDecimal value) {
     return value == null ? null : value.toPlainString();
+  }
+
+  static String normalised(BigDecimal value) {
+    return value.stripTrailingZeros().toPlainString();
   }
 }

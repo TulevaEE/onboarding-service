@@ -4,6 +4,9 @@ import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexAdjustedPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.IndexPrice;
+import ee.tuleva.onboarding.investment.transaction.TradePrepPrice.ManualPrice;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -28,14 +31,17 @@ public class TransactionOrderFactory {
   private final PositionPriceResolver positionPriceResolver;
 
   CalculatedOrders createOrders(
-      TransactionBatch batch, FundCalculationResult result, LocalDate asOfDate, Instant createdAt) {
+      TransactionBatch batch,
+      FundCalculationResult result,
+      LocalDate asOfDate,
+      Instant createdAt,
+      TradePrepPricing pricing) {
     var input = result.input();
     List<TransactionOrder> orders = new ArrayList<>();
-    Map<String, @Nullable ResolvedPrice> priceResolutions = new LinkedHashMap<>();
+    SaleSizing saleSizing = new SaleSizing(result.fund(), input.sellableUnits(), input.positions());
+    Map<String, @Nullable TradePrepPrice> priceResolutions = new LinkedHashMap<>();
 
-    List<TradeCalculation> trades = result.trades();
-    for (int index = 0; index < trades.size(); index++) {
-      TradeCalculation trade = trades.get(index);
+    for (TradeCalculation trade : result.trades()) {
       if (trade.tradeAmount().compareTo(ZERO) == 0) {
         continue;
       }
@@ -45,11 +51,21 @@ public class TransactionOrderFactory {
       var instrumentType = input.instrumentTypes().getOrDefault(isin, InstrumentType.ETF);
       var transactionType =
           trade.tradeAmount().compareTo(ZERO) > 0 ? TransactionType.BUY : TransactionType.SELL;
-      var orderAmount = trade.tradeAmount().abs();
-      var orderQuantity =
-          resolveOrderQuantity(instrumentType, transactionType, isin, orderAmount, asOfDate);
-      BigDecimal quantity =
-          withinTheSoldHolding(input, index, trade, instrumentType, orderQuantity.quantity());
+      var engineAmount = trade.tradeAmount().abs();
+      var sized =
+          saleSizing.size(
+              transactionType,
+              instrumentType,
+              isin,
+              engineAmount,
+              resolveOrderQuantity(
+                  instrumentType, transactionType, isin, engineAmount, asOfDate, pricing));
+      if (sized.isEmpty()) {
+        continue;
+      }
+      var orderAmount = sized.get().amount();
+      var orderQuantity = sized.get().quantity();
+      BigDecimal quantity = orderQuantity.quantity();
       if (quantity != null && quantity.signum() == 0) {
         log.warn(
             "Skipping an order that rounds to zero units: fund={}, isin={}, side={}, amount={}",
@@ -60,7 +76,7 @@ public class TransactionOrderFactory {
         continue;
       }
       if (!isAmountBasedOrder(instrumentType, transactionType)) {
-        priceResolutions.put(isin, orderQuantity.resolvedPrice());
+        priceResolutions.put(isin, orderQuantity.price());
       }
       orders.add(
           TransactionOrder.builder()
@@ -76,7 +92,7 @@ public class TransactionOrderFactory {
               .createdAt(createdAt)
               .build());
     }
-    return new CalculatedOrders(orders, priceResolutions);
+    return new CalculatedOrders(orders, priceResolutions, saleSizing.sizedSales());
   }
 
   void requireQuantitiesForNonAmountOrders(TransactionBatch batch, List<TransactionOrder> orders) {
@@ -104,69 +120,49 @@ public class TransactionOrderFactory {
       TransactionType transactionType,
       String isin,
       BigDecimal orderAmount,
-      LocalDate asOfDate) {
+      LocalDate asOfDate,
+      TradePrepPricing pricing) {
     if (isAmountBasedOrder(instrumentType, transactionType)) {
       return new OrderQuantity(null, null, null);
     }
-    ResolvedPrice resolvedPrice = positionPriceResolver.resolve(isin, asOfDate).orElse(null);
-    if (resolvedPrice == null) {
-      log.warn(
-          "No price found for order quantity: isin={}, instrumentType={}, asOfDate={}",
-          isin,
-          instrumentType,
-          asOfDate);
-      return new OrderQuantity(null, null, null);
-    }
-    BigDecimal price = resolvedPrice.usedPrice();
+    TradePrepPrice price = pricing.resolve(positionPriceResolver, isin, asOfDate).orElse(null);
     if (price == null) {
       log.warn(
           "No price found for order quantity: isin={}, instrumentType={}, asOfDate={}",
           isin,
           instrumentType,
           asOfDate);
-      return new OrderQuantity(null, null, resolvedPrice);
+      return new OrderQuantity(null, null, null);
     }
-    if (price.signum() <= 0) {
+    BigDecimal value = price.value();
+    if (value == null) {
+      log.warn(
+          "No price found for order quantity: isin={}, instrumentType={}, asOfDate={}",
+          isin,
+          instrumentType,
+          asOfDate);
+      return new OrderQuantity(null, null, price);
+    }
+    if (value.signum() <= 0) {
       log.warn(
           "Non-positive price for order quantity, leaving quantity unset:"
               + " isin={}, instrumentType={}, price={}, asOfDate={}",
           isin,
           instrumentType,
-          price.toPlainString(),
+          value.toPlainString(),
           asOfDate);
-      return new OrderQuantity(null, null, resolvedPrice);
+      return new OrderQuantity(null, null, price);
     }
-    BigDecimal quantity = OrderUnits.of(instrumentType, transactionType, orderAmount, price);
-    String stalePriceComment = describeIfStale(isin, resolvedPrice, asOfDate);
-    return new OrderQuantity(quantity, stalePriceComment, resolvedPrice);
-  }
-
-  @Nullable
-  private static BigDecimal withinTheSoldHolding(
-      FundTransactionInput input,
-      int index,
-      TradeCalculation trade,
-      InstrumentType instrumentType,
-      @Nullable BigDecimal units) {
-    if (units == null || instrumentType != InstrumentType.ETF || trade.tradeAmount().signum() > 0) {
-      return units;
-    }
-    List<PositionSnapshot> positions = input.positions();
-    PositionSnapshot holding =
-        index < positions.size() && Objects.equals(positions.get(index).isin(), trade.isin())
-            ? positions.get(index)
-            : null;
-    BigDecimal heldUnits = holding == null ? null : holding.quantity();
-    if (holding == null || heldUnits == null) {
-      log.warn(
-          "ETF sale has no held units to size against, leaving its quantity unset:"
-              + " fund={}, isin={}, amount={}",
-          input.fund(),
-          trade.isin(),
-          trade.tradeAmount().abs().toPlainString());
-      return null;
-    }
-    return OrderUnits.etfSaleWithin(holding, heldUnits, units, trade.tradeAmount().abs());
+    BigDecimal quantity = OrderUnits.of(instrumentType, transactionType, orderAmount, value);
+    String stalePriceComment =
+        switch (price) {
+          case IndexPrice index ->
+              describeIfStale(isin, index.resolved(), pricing.stalenessReference(asOfDate));
+          case IndexAdjustedPrice adjusted ->
+              describeIfStale(isin, adjusted.fundPrice(), adjusted.positionDate());
+          case ManualPrice _ -> null;
+        };
+    return new OrderQuantity(quantity, stalePriceComment, price);
   }
 
   @Nullable

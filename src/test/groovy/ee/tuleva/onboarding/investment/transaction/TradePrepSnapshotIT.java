@@ -3,10 +3,14 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.EPIS;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
+import static ee.tuleva.onboarding.investment.transaction.TradePrepOverridesFixture.noOverrides;
+import static ee.tuleva.onboarding.investment.transaction.TradePrepPricingFixture.noResolvedPrices;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.context.annotation.FilterType.REGEX;
 import static org.springframework.transaction.TransactionDefinition.ISOLATION_REPEATABLE_READ;
 import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
@@ -29,6 +33,7 @@ import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
+import ee.tuleva.onboarding.ledger.RegistrarCashFlowRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -59,8 +64,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Import({
   TradePrepSnapshotIT.EpisNavProvider.class,
   TradePrepInputGates.class,
+  TradePrepPevaRavaGate.class,
   TradePrepInputGateNotifier.class,
   R16OutflowReader.class,
+  RegistrarCashFlowRepository.class,
   R16FlowCalculationService.class,
   R16PhaseCalculator.class,
   R45ReportService.class,
@@ -88,6 +95,8 @@ class TradePrepSnapshotIT {
   @MockitoBean FundNavQueryService fundNavQueryService;
   @MockitoBean InvestmentParameterRepository investmentParameterRepository;
   @MockitoBean OperationsNotificationService notificationService;
+  @MockitoBean TradePrepPriceGate priceGate;
+  @MockitoBean TradePrepPositionGate positionGate;
 
   @Autowired TradePrepInputGates gates;
   @Autowired R45ReportService r45ReportService;
@@ -118,6 +127,10 @@ class TradePrepSnapshotIT {
 
   @Test
   void aSameDayR45ReuploadDuringTradePrepDoesNotMixItsVersions() {
+    given(priceGate.check(any(), any(), any()))
+        .willReturn(new PriceCheck(List.of(), noResolvedPrices(), List.of(), List.of()));
+    given(positionGate.check(any(), any(), any()))
+        .willReturn(new PositionCheck(List.of(), List.of()));
     committed(
         () -> {
           positionId = position(TUV100, LocalDate.of(2026, 11, 17));
@@ -129,7 +142,7 @@ class TradePrepSnapshotIT {
 
     tradePrep.executeWithoutResult(
         status -> {
-          assertThat(gates.failures(TUV100, TRADE_DATE)).isEmpty();
+          assertThat(gates.check(TUV100, TRADE_DATE, noOverrides()).failures()).isEmpty();
 
           reuploadInItsOwnTransaction("SUB;EE3600109435;0.80000;0;1500.00;19.11.2026");
 

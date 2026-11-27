@@ -1,27 +1,31 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_BUFFER_PERCENT;
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_ROUNDING_STEP;
+import static ee.tuleva.onboarding.ledger.RegistrarPayoutReason.FUND_PENSION;
+import static ee.tuleva.onboarding.ledger.RegistrarPayoutReason.ONE_OFF_WITHDRAWAL;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
-import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
-import static java.math.RoundingMode.CEILING;
 
-import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.epis.R16FlowCalculationService;
 import ee.tuleva.onboarding.investment.epis.R16FundFlow;
 import ee.tuleva.onboarding.investment.epis.R16PaymentDates;
 import ee.tuleva.onboarding.investment.epis.R16Phase;
 import ee.tuleva.onboarding.investment.epis.R16PhaseCalculator;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR16;
+import ee.tuleva.onboarding.investment.transaction.R16Reserve.Basis;
+import ee.tuleva.onboarding.investment.transaction.R16TypeForecast.Status;
+import ee.tuleva.onboarding.ledger.RegistrarCashFlowRepository;
+import ee.tuleva.onboarding.ledger.RegistrarPayoutBooking;
+import ee.tuleva.onboarding.ledger.RegistrarPayoutReason;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
@@ -35,17 +39,16 @@ class R16OutflowReader {
 
   private final R16FlowCalculationService r16FlowCalculationService;
   private final R16PhaseCalculator r16PhaseCalculator;
-  private final InvestmentParameterRepository investmentParameterRepository;
+  private final RegistrarCashFlowRepository registrarCashFlows;
 
-  BigDecimal read(TulevaFund fund, LocalDate asOfDate) {
+  R16Reserve read(TulevaFund fund, LocalDate asOfDate, CashHorizon horizon, R16Reserves reserves) {
     if (!R16_FUNDS.contains(fund)) {
-      return ZERO;
+      return R16Reserve.NONE;
     }
-    Optional<R16FundFlow> flow = r16FlowCalculationService.calculateThisMonthsFlows(fund, asOfDate);
-    if (flow.isEmpty()) {
-      return ZERO;
-    }
-    return outflow(flow.get(), asOfDate);
+    return r16FlowCalculationService
+        .calculateThisMonthsFlows(fund, asOfDate)
+        .map(flow -> reserve(flow, asOfDate, horizon, reserves))
+        .orElse(R16Reserve.NONE);
   }
 
   Optional<InputGateFailure> missingR16(TulevaFund fund, LocalDate asOfDate) {
@@ -61,13 +64,61 @@ class R16OutflowReader {
     return Optional.of(new MissingR16(paymentMonth, dates.paymentDeadline(), dates.sellByDate()));
   }
 
-  private BigDecimal outflow(R16FundFlow flow, LocalDate asOfDate) {
-    return switch (r16PhaseCalculator.tradePrepPhaseFor(
-        flow.fund(), flow.paymentDates(), asOfDate)) {
-      case ACTIVE -> flow.totalOutflowEur().abs();
-      case BUFFERED -> bufferedOutflow(flow.totalOutflowEur(), asOfDate);
-      case IGNORE, VISIBLE -> ZERO;
-    };
+  private R16Reserve reserve(
+      R16FundFlow flow, LocalDate asOfDate, CashHorizon horizon, R16Reserves reserves) {
+    if (r16PhaseCalculator.isCoveredByTheTradeDaysR45(flow.fund(), flow.paymentDates(), asOfDate)) {
+      return new R16Reserve(
+          Basis.COVERED_BY_R45, List.of(), reserves.soft(), reserves.hard(), ZERO);
+    }
+    Set<RegistrarPayoutReason> booked = typesBooked(flow, horizon);
+    List<R16TypeForecast> types =
+        List.of(
+            forecast(FUND_PENSION, flow.fondimaksedUnits(), flow.fondimaksedEur(), booked),
+            forecast(ONE_OFF_WITHDRAWAL, flow.uhekordsedUnits(), flow.uhekordsedEur(), booked));
+    BigDecimal stillToPay =
+        types.stream()
+            .filter(R16TypeForecast::stillToPay)
+            .map(R16TypeForecast::eur)
+            .reduce(ZERO, BigDecimal::add);
+    return new R16Reserve(
+        Basis.FORECAST_NOT_YET_BOOKED,
+        types,
+        reserves.soft(),
+        reserves.hard(),
+        belowTheHardReserve(stillToPay, reserves));
+  }
+
+  private static BigDecimal belowTheHardReserve(BigDecimal stillToPay, R16Reserves reserves) {
+    BigDecimal hard = reserves.hard();
+    if (hard == null) {
+      return stillToPay;
+    }
+    return ZERO.max(stillToPay.subtract(reserves.soft().subtract(hard)));
+  }
+
+  private Set<RegistrarPayoutReason> typesBooked(R16FundFlow flow, CashHorizon horizon) {
+    LocalDate monthEnd = YearMonth.from(flow.paymentMonth()).atEndOfMonth();
+    LocalDate lastBookingDay = horizon.lastBookingDay();
+    LocalDate through = lastBookingDay.isBefore(monthEnd) ? lastBookingDay : monthEnd;
+    if (through.isBefore(flow.sellByDate())) {
+      return Set.of();
+    }
+    return registrarCashFlows.findPayoutBookings(flow.fund(), flow.sellByDate(), through).stream()
+        .filter(payout -> horizon.holds(payout.externalReference(), payout.bookingDate()))
+        .map(RegistrarPayoutBooking::reason)
+        .collect(Collectors.toUnmodifiableSet());
+  }
+
+  private static R16TypeForecast forecast(
+      RegistrarPayoutReason type,
+      BigDecimal units,
+      BigDecimal eur,
+      Set<RegistrarPayoutReason> booked) {
+    Status status =
+        units.signum() <= 0
+            ? Status.NOTHING_FORECAST
+            : booked.contains(type) ? Status.BOOKED : Status.NOT_BOOKED;
+    return new R16TypeForecast(type, units, eur, status);
   }
 
   private static boolean countsOutflow(R16Phase phase) {
@@ -75,21 +126,5 @@ class R16OutflowReader {
       case ACTIVE, BUFFERED -> true;
       case IGNORE, VISIBLE -> false;
     };
-  }
-
-  private BigDecimal bufferedOutflow(BigDecimal totalOutflowEur, LocalDate asOfDate) {
-    BigDecimal bufferPercent =
-        investmentParameterRepository.findLatestValue(R16_BUFFER_PERCENT, asOfDate);
-    BigDecimal step = investmentParameterRepository.findLatestValue(R16_ROUNDING_STEP, asOfDate);
-    if (step.signum() <= 0) {
-      throw new IllegalStateException(
-          "Invalid investment parameter: parameter=R16_ROUNDING_STEP, value="
-              + step.toPlainString());
-    }
-    return totalOutflowEur
-        .abs()
-        .multiply(ONE.add(bufferPercent))
-        .divide(step, 0, CEILING)
-        .multiply(step);
   }
 }

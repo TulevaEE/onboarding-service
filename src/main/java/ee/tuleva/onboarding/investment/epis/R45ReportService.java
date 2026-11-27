@@ -3,11 +3,11 @@ package ee.tuleva.onboarding.investment.epis;
 import static ee.tuleva.onboarding.investment.epis.SummaryData.dates;
 import static ee.tuleva.onboarding.investment.epis.SummaryData.number;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findValue;
-import static ee.tuleva.onboarding.investment.epis.parser.EpisDates.findDate;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.EPIS;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
+import ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction;
 import ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser;
 import ee.tuleva.onboarding.investment.epis.parser.R45ParseResult;
 import ee.tuleva.onboarding.investment.epis.parser.R45ReportParser;
@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -43,6 +44,7 @@ public class R45ReportService {
 
   private static final String RED_TRANSACTION_TYPE = "RED";
   private static final String HEADER_MARKER = "Tehingu liik";
+  private static final String ROWS = "rows";
 
   private final InvestmentReportRepository reportRepository;
   private final EpisReportSummaryRepository summaryRepository;
@@ -102,6 +104,7 @@ public class R45ReportService {
                         entry.getKey(),
                         entry.getValue(),
                         redRowDates,
+                        parsed.rowsByFundCode().getOrDefault(entry.getKey().getCode(), List.of()),
                         !incompleteFundCodes.contains(entry.getKey().getCode())))
             .toList());
     return results;
@@ -161,6 +164,44 @@ public class R45ReportService {
         .orElse(List.of());
   }
 
+  public Optional<List<R45Row>> getRowsOn(TulevaFund fund, LocalDate reportDate) {
+    return summariesOn(reportDate).stream()
+        .filter(summary -> summary.getFund() == fund)
+        .findFirst()
+        .map(R45ReportService::rowsOf)
+        .orElse(Optional.of(List.of()));
+  }
+
+  private static Optional<List<R45Row>> rowsOf(EpisReportSummary summary) {
+    if (!(summary.getData().get(ROWS) instanceof Collection<?> rows)) {
+      return Optional.empty();
+    }
+    try {
+      return Optional.of(rows.stream().map(row -> rowOf((Map<?, ?>) row)).toList());
+    } catch (RuntimeException e) {
+      log.warn("Stored R45 rows cannot be read: summaryId={}", summary.getId(), e);
+      return Optional.empty();
+    }
+  }
+
+  private static R45Row rowOf(Map<?, ?> row) {
+    Object settlementDate = row.get("settlementDate");
+    return new R45Row(
+        Direction.valueOf(String.valueOf(row.get("direction"))),
+        new BigDecimal(String.valueOf(row.get("valueEur"))),
+        settlementDate == null ? null : LocalDate.parse(String.valueOf(settlementDate)));
+  }
+
+  private static Map<String, Object> storedRow(R45Row row) {
+    Map<String, Object> map = new LinkedHashMap<>();
+    map.put("direction", row.direction().name());
+    map.put("valueEur", row.valueEur().toPlainString());
+    if (row.settlementDate() != null) {
+      map.put("settlementDate", row.settlementDate().toString());
+    }
+    return map;
+  }
+
   private Optional<EpisReportSummary> latestSummary(TulevaFund fund) {
     return summaryRepository.findTopByReportTypeAndFundOrderByReportDateDescIdDesc(R45, fund);
   }
@@ -170,6 +211,7 @@ public class R45ReportService {
       TulevaFund fund,
       R45Result result,
       Map<String, List<LocalDate>> redRowDates,
+      List<R45Row> rows,
       boolean complete) {
     return EpisReportSummary.builder()
         .reportId(report.getId())
@@ -180,13 +222,18 @@ public class R45ReportService {
         .complete(complete)
         .data(
             Map.of(
-                "inflowEur", result.inflowEur(),
-                "outflowEur", result.outflowEur(),
-                "netEur", result.netEur(),
+                "inflowEur",
+                result.inflowEur(),
+                "outflowEur",
+                result.outflowEur(),
+                "netEur",
+                result.netEur(),
                 "redRowSettlementDates",
-                    redRowDates.getOrDefault(fund.getCode(), List.of()).stream()
-                        .map(LocalDate::toString)
-                        .toList()))
+                redRowDates.getOrDefault(fund.getCode(), List.of()).stream()
+                    .map(LocalDate::toString)
+                    .toList(),
+                ROWS,
+                rows.stream().map(R45ReportService::storedRow).toList()))
         .build();
   }
 
@@ -225,7 +272,7 @@ public class R45ReportService {
         continue;
       }
       Optional<TulevaFund> fund = TulevaFund.findByIsin(trimmedUpperCase(findValue(row, "isin")));
-      LocalDate settlementDate = settlementDate(row);
+      LocalDate settlementDate = R45ReportParser.settlementDate(row);
       if (fund.isEmpty() || settlementDate == null) {
         continue;
       }
@@ -233,11 +280,6 @@ public class R45ReportService {
     }
     dates.replaceAll((fundCode, fundDates) -> fundDates.stream().distinct().sorted().toList());
     return dates;
-  }
-
-  private static @Nullable LocalDate settlementDate(Map<String, String> row) {
-    String value = findValue(row, "täitmise kuupäev", "taitmise kuupaev");
-    return value == null ? null : findDate(value);
   }
 
   private Map<String, BigDecimal> fallbackNavsByIsin(LocalDate asOfDate) {

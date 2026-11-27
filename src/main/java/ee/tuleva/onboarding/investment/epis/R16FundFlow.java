@@ -11,7 +11,9 @@ public record R16FundFlow(
     BigDecimal totalOutflowEur,
     LocalDate paymentMonth,
     LocalDate paymentDeadline,
-    LocalDate sellByDate) {
+    LocalDate sellByDate,
+    BigDecimal fondimaksedEur,
+    BigDecimal uhekordsedEur) {
 
   public R16PaymentDates paymentDates() {
     return new R16PaymentDates(paymentMonth, paymentDeadline, sellByDate);

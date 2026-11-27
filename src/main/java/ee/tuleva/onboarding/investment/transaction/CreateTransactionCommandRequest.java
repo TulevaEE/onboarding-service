@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.jspecify.annotations.NullMarked;
@@ -17,4 +18,15 @@ public record CreateTransactionCommandRequest(
     @NotNull LocalDate asOfDate,
     @Nullable Map<String, Object> manualAdjustments,
     @Nullable @Valid CashOverride cash,
-    @Nullable Set<@NotNull @Pattern(regexp = "[A-Z]{2}[A-Z0-9]{9}[0-9]") String> excludeIsins) {}
+    @Nullable Set<@NotNull @Pattern(regexp = "[A-Z]{2}[A-Z0-9]{9}[0-9]") String> excludeIsins,
+    @Nullable List<@NotNull @Valid PriceOverride> prices,
+    @Nullable @Valid AcceptedHoldingDifferences acceptedHoldingDifferences,
+    @Nullable PriceDateRule priceDateRule,
+    @Nullable List<@NotNull @Valid PriceDeviationConfirmation> confirmedPriceDeviations) {
+
+  static CreateTransactionCommandRequest withOnlyCash(
+      TulevaFund fund, TransactionMode mode, LocalDate asOfDate, @Nullable CashOverride cash) {
+    return new CreateTransactionCommandRequest(
+        fund, mode, asOfDate, null, cash, null, null, null, null, null);
+  }
+}

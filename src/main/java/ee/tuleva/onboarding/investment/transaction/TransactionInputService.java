@@ -1,31 +1,23 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
-import static ee.tuleva.onboarding.investment.transaction.CalculationWarningType.FEE_POLICY_UNRESOLVED;
-import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.investment.epis.FundCycleTimeline;
-import ee.tuleva.onboarding.investment.epis.PevaRavaFlowService;
-import ee.tuleva.onboarding.investment.epis.PevaRavaFlows;
-import ee.tuleva.onboarding.investment.epis.PevaRavaPeriodService;
 import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.epis.R45Result;
+import ee.tuleva.onboarding.investment.epis.R45Row;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
-import ee.tuleva.onboarding.investment.fees.FeePolicyUnresolvedException;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.transaction.GatewayCash.CurrentDayBalance;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -43,15 +35,12 @@ import org.springframework.stereotype.Service;
 @NullMarked
 public class TransactionInputService {
 
-  private static final Set<TulevaFund> PEVA_RAVA_FUNDS = Set.of(TUK75, TUK00);
-
   private final FundPositionRepository fundPositionRepository;
   private final FeeAccrualRepository feeAccrualRepository;
   private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final NavLedgerRepository navLedgerRepository;
   private final UnitRegisterCashFlows unitRegisterCashFlows;
-  private final PevaRavaPeriodService pevaRavaPeriodService;
-  private final PevaRavaFlowService pevaRavaFlowService;
+  private final PevaRavaForecastReader pevaRavaForecastReader;
   private final R45ReportService r45ReportService;
   private final R16OutflowReader r16OutflowReader;
   private final PendingOrderImpactService pendingOrderImpactService;
@@ -59,17 +48,24 @@ public class TransactionInputService {
   private final UnsettledTradeReader unsettledTradeReader;
   private final UnitReceivableReader unitReceivableReader;
   private final TransactionParameterLoader transactionParameterLoader;
+  private final SameDayCashReader sameDayCashReader;
+  private final TradeSettlementsInTheBalanceReader tradeSettlementsReader;
+  private final GatewayNetting gatewayNetting;
 
-  public FundTransactionInput gatherInput(
-      TulevaFund fund, LocalDate asOfDate, Map<String, Object> manualAdjustments) {
-    return gatherInput(fund, asOfDate, manualAdjustments, null);
-  }
-
-  public FundTransactionInput gatherInput(
+  FundTransactionInput gatherInput(
       TulevaFund fund,
       LocalDate asOfDate,
       Map<String, Object> manualAdjustments,
-      @Nullable BigDecimal cashOverride) {
+      TradePrepPricing pricing) {
+    return gatherInput(fund, asOfDate, manualAdjustments, null, pricing);
+  }
+
+  FundTransactionInput gatherInput(
+      TulevaFund fund,
+      LocalDate asOfDate,
+      Map<String, Object> manualAdjustments,
+      @Nullable BigDecimal cashOverride,
+      TradePrepPricing pricing) {
     LocalDate positionDate =
         fundPositionRepository
             .findLatestNavDateByFundAndAsOfDate(fund, asOfDate)
@@ -84,15 +80,55 @@ public class TransactionInputService {
         asOfDate,
         positionDate);
 
-    PendingOrderImpact pendingOrders =
-        pendingOrderImpactService.calculate(fund, asOfDate, positionDate);
-    List<PositionSnapshot> positions =
-        positionAssembler.assemble(fund, positionDate, pendingOrders);
     BigDecimal reportCash = getCashBalance(fund, positionDate);
-    BigDecimal appliedCash = cashOverride == null ? reportCash : cashOverride;
+    Optional<BigDecimal> pevaRavaInAnActiveCycle =
+        pevaRavaForecastReader.liquidityInAnActiveCycle(fund, asOfDate);
+    Optional<List<R45Row>> r45Rows = r45ReportService.getRowsOn(fund, asOfDate);
+    CashSourceReport cashSources =
+        sameDayCashReader.read(
+            fund,
+            asOfDate,
+            cashOverride,
+            reportCash,
+            GatewayHold.whatHoldsBack(pevaRavaInAnActiveCycle, r45Rows));
+    Optional<CurrentDayBalance> gatewayBalance = cashSources.gatewayBalanceInUse();
+    Optional<NettingWindow> netting =
+        gatewayBalance.map(
+            balance ->
+                new NettingWindow(
+                    fund,
+                    positionDate,
+                    asOfDate,
+                    balance.pendingEntryReferences(),
+                    balance.bookedTodayEntryReferences()));
+    Optional<TradeSettlementsInTheBalance> settlements = netting.map(tradeSettlementsReader::read);
+    BigDecimal appliedCash =
+        gatewayBalance
+            .map(
+                balance ->
+                    balance
+                        .balance()
+                        .subtract(
+                            settlements
+                                .map(TradeSettlementsInTheBalance::unmatchedInflows)
+                                .orElse(ZERO)))
+            .orElse(cashOverride == null ? reportCash : cashOverride);
+
+    PendingOrderImpact pendingOrders =
+        pendingOrderImpactService.calculate(
+            fund,
+            asOfDate,
+            positionDate,
+            pricing,
+            settlements.map(TradeSettlementsInTheBalance::carriedByPendingFills).orElse(Set.of()));
+    var assembled = positionAssembler.assemble(fund, positionDate, pendingOrders, pricing);
+    List<PositionSnapshot> positions = assembled.positions();
     List<CalculationWarning> inputWarnings = new ArrayList<>();
-    BigDecimal managementFee = getAccruedFees(fund, asOfDate, FeeType.MANAGEMENT, inputWarnings);
-    BigDecimal depotFee = getAccruedFees(fund, asOfDate, FeeType.DEPOT, inputWarnings);
+    var accruedFeeReader = new AccruedFeeReader(feeAccrualRepository, feeChargedToFundPolicy);
+    BigDecimal managementFee =
+        accruedFeeReader.accruedFees(fund, asOfDate, FeeType.MANAGEMENT, inputWarnings);
+    BigDecimal depotFee =
+        accruedFeeReader.accruedFees(fund, asOfDate, FeeType.DEPOT, inputWarnings);
     TransactionParameters parameters = transactionParameterLoader.load(fund, asOfDate);
 
     BigDecimal securityValue =
@@ -106,24 +142,42 @@ public class TransactionInputService {
     BigDecimal liabilities = managementFee.add(depotFee).add(registerCash.liabilities());
     BigDecimal receivables = registerCash.incomingPaymentsClearing();
 
-    BigDecimal pevaRava = getPevaRavaLiquidity(fund, asOfDate);
+    BigDecimal pevaRava = pevaRavaInAnActiveCycle.orElse(ZERO);
     liabilities = liabilities.add(pevaRava);
-    BigDecimal r16 = r16OutflowReader.read(fund, asOfDate);
+    R16Reserve r16Reserve =
+        r16OutflowReader.read(
+            fund,
+            asOfDate,
+            netting
+                .<CashHorizon>map(window -> window)
+                .orElse(new CashHorizon.ThroughTheReportDate(positionDate)),
+            parameters.r16Reserves());
+    BigDecimal r16 = r16Reserve.reserved();
     liabilities = liabilities.add(r16);
 
     BigDecimal r45Net = getR45Net(fund, asOfDate);
-    liabilities = liabilities.add(ZERO.max(r45Net.negate()));
+    BigDecimal r45Reserved = ZERO.max(r45Net.negate());
+    Optional<NettedForecast> r45OnTheBalance =
+        netting.map(
+            window ->
+                NettedForecast.netted("r45", gatewayNetting.r45(window, r45Rows.orElseThrow())));
+    BigDecimal r45Used = r45OnTheBalance.map(NettedForecast::after).orElse(r45Reserved);
+    liabilities = liabilities.add(r45Used);
 
     liabilities = liabilities.add(getAdjustment(manualAdjustments, "additionalLiabilities"));
     receivables = receivables.add(getAdjustment(manualAdjustments, "additionalReceivables"));
 
-    UnsettledTrades unsettledTrades = unsettledTradeReader.read(fund, positionDate);
+    UnsettledTrades reportedTrades = unsettledTradeReader.read(fund, positionDate);
+    Netted<UnsettledTrades> nettedTrades =
+        settlements
+            .map(inTheBalance -> inTheBalance.net(reportedTrades))
+            .orElse(new Netted<>(reportedTrades, reportedTrades));
+    UnsettledTrades unsettledTrades = nettedTrades.after();
     liabilities = liabilities.add(pendingOrders.pendingBuys()).add(unsettledTrades.payables());
     receivables = receivables.add(pendingOrders.pendingSells()).add(unsettledTrades.receivables());
 
     UnitReceivable unitReceivable = unitReceivableReader.read(fund, positionDate, asOfDate);
-    BigDecimal unitReceivableDue =
-        cashOverride == null ? unitReceivable.dueOnTopOfReportCash() : ZERO;
+    BigDecimal unitReceivableDue = unitReceivableDue(cashSources.source(), unitReceivable);
     receivables = receivables.add(unitReceivableDue);
 
     BigDecimal freeCash =
@@ -139,7 +193,7 @@ public class TransactionInputService {
             depotFee,
             pevaRava,
             r16,
-            r45Net,
+            r45OnTheBalance.isPresent() ? r45Used.negate() : r45Net,
             pendingOrders.pendingBuys(),
             pendingOrders.pendingSells(),
             unsettledTrades.payables(),
@@ -154,6 +208,8 @@ public class TransactionInputService {
     return FundTransactionInput.builder()
         .fund(fund)
         .positions(positions)
+        .sellableUnits(assembled.sellableUnits())
+        .positionAdjustments(assembled.adjustments())
         .modelWeights(parameters.modelWeights())
         .grossPortfolioValue(grossPortfolioValue)
         .cashBuffer(parameters.cashBuffer())
@@ -168,6 +224,19 @@ public class TransactionInputService {
         .liabilityBreakdown(liabilityBreakdown)
         .reportCash(reportCash)
         .appliedCash(appliedCash)
+        .cashSection(
+            new CashSection(
+                cashSources,
+                netting.isPresent()
+                    ? NettedForecast.onTheGatewayBalance(
+                        nettedTrades,
+                        pendingOrders,
+                        r45OnTheBalance.orElseThrow(),
+                        new Netted<>(unitReceivable.dueOnTopOfReportCash(), unitReceivableDue),
+                        registerCash.incomingPaymentsClearing())
+                    : List.of(),
+                settlements.map(TradeSettlementsInTheBalance::unmatched).orElse(List.of()),
+                r16Reserve))
         .ledgerCash(ledgerCash)
         .positionDate(positionDate)
         .modelEffectiveDate(parameters.modelEffectiveDate())
@@ -184,102 +253,12 @@ public class TransactionInputService {
         .reduce(ZERO, BigDecimal::add);
   }
 
-  private BigDecimal getAccruedFees(
-      TulevaFund fund,
-      LocalDate asOfDate,
-      FeeType feeType,
-      List<CalculationWarning> inputWarnings) {
-    LocalDate feeMonth = asOfDate.withDayOfMonth(1);
-    Map<LocalDate, BigDecimal> accrualsByDate =
-        feeAccrualRepository.getAccruedFeesByDateForMonth(
-            fund, feeMonth, List.of(feeType), asOfDate);
-    FeeChargedToFundPolicy.Resolver resolver;
-    try {
-      resolver = feeChargedToFundPolicy.resolverFor(fund, feeType);
-    } catch (FeePolicyUnresolvedException e) {
-      log.warn("Fee policy does not resolve, reserving every accrual day", e);
-      inputWarnings.add(
-          unresolvedFeePolicyWarning(
-              fund, asOfDate, feeType, accrualsByDate.size(), e.getReason()));
-      return sumOf(accrualsByDate.values());
-    }
-    return sumReservingUnresolvedDays(
-        resolver, accrualsByDate, fund, asOfDate, feeType, inputWarnings);
-  }
-
-  private BigDecimal sumReservingUnresolvedDays(
-      FeeChargedToFundPolicy.Resolver resolver,
-      Map<LocalDate, BigDecimal> accrualsByDate,
-      TulevaFund fund,
-      LocalDate asOfDate,
-      FeeType feeType,
-      List<CalculationWarning> inputWarnings) {
-    Map<LocalDate, String> unresolvedReasons = unresolvedReasons(resolver, accrualsByDate.keySet());
-    if (!unresolvedReasons.isEmpty()) {
-      inputWarnings.add(
-          unresolvedFeePolicyWarning(
-              fund,
-              asOfDate,
-              feeType,
-              unresolvedReasons.size(),
-              unresolvedReasons.values().iterator().next()));
-    }
-    return sumOf(
-        accrualsByDate.entrySet().stream()
-            .filter(
-                entry ->
-                    unresolvedReasons.containsKey(entry.getKey())
-                        || resolver.chargedOn(entry.getKey()))
-            .map(Map.Entry::getValue)
-            .toList());
-  }
-
-  private Map<LocalDate, String> unresolvedReasons(
-      FeeChargedToFundPolicy.Resolver resolver, Set<LocalDate> accrualDates) {
-    Map<LocalDate, String> reasons = new LinkedHashMap<>();
-    for (LocalDate date : accrualDates) {
-      try {
-        resolver.chargedOn(date);
-      } catch (FeePolicyUnresolvedException e) {
-        log.warn("Fee policy does not resolve for one accrual day, reserving it", e);
-        reasons.put(date, e.getReason());
-      }
-    }
-    return reasons;
-  }
-
-  private CalculationWarning unresolvedFeePolicyWarning(
-      TulevaFund fund, LocalDate asOfDate, FeeType feeType, int unresolvedDays, String reason) {
-    String message =
-        ("Fee policy does not resolve, reserving the unresolved days as if they were charged to the"
-                + " fund: fund=%s, feeType=%s, asOfDate=%s, unresolvedDays=%d, reason=%s")
-            .formatted(fund.name(), feeType, asOfDate, unresolvedDays, reason);
-    log.warn(message);
-    return new CalculationWarning(FEE_POLICY_UNRESOLVED, message);
-  }
-
-  private BigDecimal sumOf(Collection<BigDecimal> amounts) {
-    return amounts.stream().reduce(ZERO, BigDecimal::add);
-  }
-
-  private BigDecimal getPevaRavaLiquidity(TulevaFund fund, LocalDate asOfDate) {
-    if (!PEVA_RAVA_FUNDS.contains(fund)) {
-      return ZERO;
-    }
-    return pevaRavaPeriodService
-        .getCurrentPeriod(asOfDate)
-        .filter(period -> period.countsFlowsOf(fund))
-        .map(period -> getPevaRavaLiquidity(fund, asOfDate, period.timelineFor(fund)))
-        .orElse(ZERO);
-  }
-
-  private BigDecimal getPevaRavaLiquidity(
-      TulevaFund fund, LocalDate asOfDate, FundCycleTimeline timeline) {
-    PevaRavaFlows flows = pevaRavaFlowService.calculateFlows(asOfDate).get(fund);
-    if (flows == null) {
-      return ZERO;
-    }
-    return timeline.sellByReached() ? flows.tradeBufferedLiquidity() : flows.liquidityRequired();
+  private static BigDecimal unitReceivableDue(CashSource source, UnitReceivable unitReceivable) {
+    return switch (source) {
+      case POSITION_REPORT -> unitReceivable.dueOnTopOfReportCash();
+      case GATEWAY_BALANCE -> unitReceivable.dueOnTopOfGatewayBalance();
+      case OPERATOR_AMOUNT -> ZERO;
+    };
   }
 
   private BigDecimal getR45Net(TulevaFund fund, LocalDate asOfDate) {

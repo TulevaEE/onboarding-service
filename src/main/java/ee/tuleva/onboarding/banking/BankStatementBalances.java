@@ -9,4 +9,6 @@ public interface BankStatementBalances {
   Optional<BigDecimal> closingBalance(BankAccount account, LocalDate day);
 
   boolean isInsideAStatementClosingLater(BankAccount account, LocalDate day);
+
+  CurrentDayReport currentDayReport(BankAccount account, LocalDate day);
 }

@@ -36,7 +36,10 @@ public record FundTransactionInput(
     @Nullable BigDecimal ledgerCash,
     @Nullable LocalDate positionDate,
     @Nullable LocalDate modelEffectiveDate,
-    List<CalculationWarning> inputWarnings) {
+    List<CalculationWarning> inputWarnings,
+    @Nullable CashSection cashSection,
+    Map<String, SellableUnits> sellableUnits,
+    PositionAdjustments positionAdjustments) {
 
   public static FundTransactionInputBuilder builder() {
     return new FundTransactionInputBuilder();
@@ -71,7 +74,10 @@ public record FundTransactionInput(
         ledgerCash,
         positionDate,
         modelEffectiveDate,
-        inputWarnings);
+        inputWarnings,
+        cashSection,
+        sellableUnits,
+        positionAdjustments);
   }
 
   private List<PositionSnapshot> setAside(Set<String> isins) {
@@ -173,6 +179,9 @@ public record FundTransactionInput(
     private @Nullable LocalDate positionDate;
     private @Nullable LocalDate modelEffectiveDate;
     private List<CalculationWarning> inputWarnings = List.of();
+    private @Nullable CashSection cashSection;
+    private Map<String, SellableUnits> sellableUnits = Map.of();
+    private PositionAdjustments positionAdjustments = PositionAdjustments.NONE;
 
     public FundTransactionInputBuilder fund(TulevaFund fund) {
       this.fund = fund;
@@ -277,6 +286,22 @@ public record FundTransactionInput(
       return this;
     }
 
+    public FundTransactionInputBuilder sellableUnits(Map<String, SellableUnits> sellableUnits) {
+      this.sellableUnits = sellableUnits;
+      return this;
+    }
+
+    public FundTransactionInputBuilder positionAdjustments(
+        PositionAdjustments positionAdjustments) {
+      this.positionAdjustments = positionAdjustments;
+      return this;
+    }
+
+    public FundTransactionInputBuilder cashSection(@Nullable CashSection cashSection) {
+      this.cashSection = cashSection;
+      return this;
+    }
+
     public FundTransactionInputBuilder inputWarnings(List<CalculationWarning> inputWarnings) {
       this.inputWarnings = inputWarnings;
       return this;
@@ -304,14 +329,17 @@ public record FundTransactionInput(
           ledgerCash,
           positionDate,
           modelEffectiveDate,
-          inputWarnings);
+          inputWarnings,
+          cashSection,
+          sellableUnits,
+          positionAdjustments);
     }
+  }
 
-    private static <T> T requireField(@Nullable T value, String fieldName) {
-      if (value == null) {
-        throw new IllegalStateException("Missing required field: field=" + fieldName);
-      }
-      return value;
+  private static <T> T requireField(@Nullable T value, String fieldName) {
+    if (value == null) {
+      throw new IllegalStateException("Missing required field: field=" + fieldName);
     }
+    return value;
   }
 }

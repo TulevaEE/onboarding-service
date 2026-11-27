@@ -17,12 +17,14 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import ee.tuleva.onboarding.investment.transaction.CommandOutcome.StoppedByInputGates;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.HoldingMismatch;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPevaRavaReports;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPositionReport;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR16;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR45;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.StalePositionReport;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
@@ -78,6 +80,34 @@ class TradePrepInputGateNotifierTest {
             """,
             INVESTMENT);
     verifyNoMoreInteractions(notificationService);
+  }
+
+  @Test
+  void aBatchWhereTheR45StopsThePensionFundsAndAHoldingMismatchStopsTheSavingsFund() {
+    var r45 = new MissingR45(LocalDate.of(2026, 11, 18), LocalDate.of(2026, 11, 17));
+    notifier.notifyStopped(
+        List.of(
+            new StoppedByInputGates(TUK75, LocalDate.of(2026, 11, 18), List.of(r45)),
+            new StoppedByInputGates(TUK00, LocalDate.of(2026, 11, 18), List.of(r45)),
+            new StoppedByInputGates(TUV100, LocalDate.of(2026, 11, 18), List.of(r45)),
+            new StoppedByInputGates(
+                TKF100,
+                LocalDate.of(2026, 11, 18),
+                List.of(
+                    new HoldingMismatch(
+                        "IE00BFG1TM61",
+                        LocalDate.of(2026, 11, 17),
+                        new BigDecimal("1000"),
+                        new BigDecimal("990"))))));
+
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 Tehingute mustandit ei tehtud (2026-11-18): TUK75, TUK00, TUV100, TKF100. Käivita ettevalmistus uuesti, kui sisend on korras:
+            TUK75, TUK00, TUV100: R45 2026-11-18 puudub (viimane 2026-11-17): lae R45 EPIS-ist
+            TKF100: IE00BFG1TM61: registris 1000, SEB raportis 990 (2026-11-17): kontrolli registri tehinguid\
+            """,
+            INVESTMENT);
   }
 
   @Test

@@ -446,6 +446,10 @@ class SebStatementFetchingSchedulerTest {
 
   private SebStatementFetchingScheduler scheduler() {
     return new SebStatementFetchingScheduler(
-        eventPublisher, bankAccounts, statementCoverage, clock);
+        eventPublisher,
+        new CurrentDayFetches(eventPublisher, bankAccounts),
+        bankAccounts,
+        statementCoverage,
+        clock);
   }
 }

@@ -16,6 +16,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -48,7 +49,8 @@ public class RegistrarCashFlowRepository {
 
   private static final String PAYOUTS_BOOKED_BETWEEN =
       """
-      SELECT t.transaction_date, e.amount, t.metadata, suspense.metadata AS suspense_metadata
+      SELECT t.transaction_date, e.amount, t.metadata, suspense.metadata AS suspense_metadata,
+        t.external_reference
       FROM ledger.entry e
       JOIN ledger.account a ON e.account_id = a.id
       JOIN ledger.transaction t ON e.transaction_id = t.id
@@ -103,6 +105,19 @@ public class RegistrarCashFlowRepository {
                     bookingDate(rs),
                     rs.getBigDecimal("amount"),
                     RegistrarPayoutReason.fromRemittance(remittance(rs))))
+        .list();
+  }
+
+  public List<RegistrarPayoutBooking> findPayoutBookings(
+      TulevaFund fund, LocalDate fromInclusive, LocalDate toInclusive) {
+    return bookedBetween(PAYOUTS_BOOKED_BETWEEN, REGISTRAR_PAYOUT, fund, fromInclusive, toInclusive)
+        .param("suspenseType", UNCLASSIFIED_BANK_ENTRY.name())
+        .query(
+            (rs, rowNum) ->
+                new RegistrarPayoutBooking(
+                    bookingDate(rs),
+                    RegistrarPayoutReason.fromRemittance(remittance(rs)),
+                    rs.getObject("external_reference", UUID.class)))
         .list();
   }
 

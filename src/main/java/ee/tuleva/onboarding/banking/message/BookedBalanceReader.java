@@ -3,22 +3,36 @@ package ee.tuleva.onboarding.banking.message;
 import static ee.tuleva.onboarding.banking.BankType.SEB;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.banking.statement.TransactionType.CREDIT;
+import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import ee.tuleva.onboarding.banking.BankAccount;
+import ee.tuleva.onboarding.banking.BankEntryReference;
 import ee.tuleva.onboarding.banking.BankStatementBalances;
+import ee.tuleva.onboarding.banking.CurrentDayReport;
+import ee.tuleva.onboarding.banking.CurrentDayReport.Booked;
+import ee.tuleva.onboarding.banking.CurrentDayReport.Missing;
+import ee.tuleva.onboarding.banking.CurrentDayReport.NoBookedBalance;
+import ee.tuleva.onboarding.banking.CurrentDayReport.Unreadable;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
+import ee.tuleva.onboarding.banking.statement.BankStatementParseException;
 import ee.tuleva.onboarding.banking.statement.DayClosingBalance;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class BookedBalanceReader implements BankStatementBalances {
@@ -56,6 +70,62 @@ public class BookedBalanceReader implements BankStatementBalances {
   }
 
   @Override
+  public CurrentDayReport currentDayReport(BankAccount account, LocalDate day) {
+    List<BankingMessage> reports =
+        bankingMessageRepository.findProcessedCurrentDayReportsLatestFirst(
+            SEB, account.iban(), day);
+    if (reports.isEmpty()) {
+      return new Missing();
+    }
+    try {
+      List<Snapshot> latestFirst =
+          reports.stream()
+              .map(report -> new Snapshot(report, readStatement(report)))
+              .sorted(
+                  comparing(Snapshot::bankTime)
+                      .thenComparing(snapshot -> snapshot.message().getReceivedAt())
+                      .reversed())
+              .toList();
+      Snapshot latest = latestFirst.getFirst();
+      return latest
+          .statement()
+          .bookedBalance()
+          .<CurrentDayReport>map(
+              balance ->
+                  new Booked(
+                      balance,
+                      latest.message().getReceivedAt(),
+                      pendingEntryReferences(latest.statement(), account.iban()),
+                      bookedEntryReferences(
+                          latestFirst.stream().map(Snapshot::statement).toList(), account.iban())))
+          .orElseGet(NoBookedBalance::new);
+    } catch (BankStatementParseException e) {
+      return new Unreadable();
+    }
+  }
+
+  private record Snapshot(BankingMessage message, BankStatement statement) {
+
+    Instant bankTime() {
+      ZonedDateTime reportedUntil = statement.getReportedUntil();
+      if (reportedUntil == null) {
+        throw new BankStatementParseException(
+            "Current-day report has no reporting time: messageId=" + message.getId());
+      }
+      return reportedUntil.toInstant();
+    }
+  }
+
+  private BankStatement readStatement(BankingMessage report) {
+    try {
+      return statementOf(report);
+    } catch (BankStatementParseException e) {
+      log.error("Stored current-day report cannot be read: messageId={}", report.getId(), e);
+      throw e;
+    }
+  }
+
+  @Override
   public boolean isInsideAStatementClosingLater(BankAccount account, LocalDate day) {
     return catchUpStatementCovering(account, day).isPresent();
   }
@@ -63,6 +133,21 @@ public class BookedBalanceReader implements BankStatementBalances {
   private Optional<BankingMessage> catchUpStatementCovering(BankAccount account, LocalDate day) {
     return bankingMessageRepository.findLatestProcessedStatementCoveringAndClosingAfter(
         SEB, account.iban(), day);
+  }
+
+  private static Set<UUID> bookedEntryReferences(List<BankStatement> statements, String iban) {
+    return statements.stream()
+        .flatMap(statement -> statement.getEntries().stream())
+        .filter(BankStatementEntry::booked)
+        .map(entry -> BankEntryReference.of(iban, entry.externalId()))
+        .collect(toUnmodifiableSet());
+  }
+
+  private static Set<UUID> pendingEntryReferences(BankStatement statement, String iban) {
+    return statement.getEntries().stream()
+        .filter(entry -> !entry.booked())
+        .map(entry -> BankEntryReference.of(iban, entry.externalId()))
+        .collect(toUnmodifiableSet());
   }
 
   private static Set<String> creditedEndToEndIds(BankStatement statement) {

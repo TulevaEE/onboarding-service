@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.epis;
 
+import static ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction.INFLOW;
+import static ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction.OUTFLOW;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.EPIS;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
@@ -28,6 +30,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.junit.jupiter.api.Test;
 
 class R45ReportServiceTest {
@@ -92,7 +95,17 @@ class R45ReportServiceTest {
                         "inflowEur", new BigDecimal("1500.00"),
                         "outflowEur", new BigDecimal("500.00"),
                         "netEur", new BigDecimal("1000.00"),
-                        "redRowSettlementDates", List.of("2026-08-18"))),
+                        "redRowSettlementDates", List.of("2026-08-18"),
+                        "rows",
+                            List.of(
+                                Map.of(
+                                    "direction", "INFLOW",
+                                    "valueEur", "1500.00",
+                                    "settlementDate", "2026-08-17"),
+                                Map.of(
+                                    "direction", "OUTFLOW",
+                                    "valueEur", "500.00",
+                                    "settlementDate", "2026-08-18")))),
                 summary(
                     TUV100,
                     Map.of(
@@ -103,7 +116,17 @@ class R45ReportServiceTest {
                         "netEur",
                         new BigDecimal("-400.00"),
                         "redRowSettlementDates",
-                        List.of("2026-08-18", "2026-08-25")))));
+                        List.of("2026-08-18", "2026-08-25"),
+                        "rows",
+                        List.of(
+                            Map.of(
+                                "direction", "OUTFLOW",
+                                "valueEur", "300.00",
+                                "settlementDate", "2026-08-18"),
+                            Map.of(
+                                "direction", "OUTFLOW",
+                                "valueEur", "100.00",
+                                "settlementDate", "2026-08-25"))))));
     verify(notificationService, never()).sendMessage(any(), any());
   }
 
@@ -132,7 +155,9 @@ class R45ReportServiceTest {
                         "netEur",
                         BigDecimal.ZERO,
                         "redRowSettlementDates",
-                        List.of("2026-08-18")))));
+                        List.of("2026-08-18"),
+                        "rows",
+                        List.of()))));
     verify(notificationService).sendMessage(contains("EE3600109435"), eq(INVESTMENT));
   }
 
@@ -161,6 +186,8 @@ class R45ReportServiceTest {
                         "netEur",
                         BigDecimal.ZERO,
                         "redRowSettlementDates",
+                        List.of(),
+                        "rows",
                         List.of()))));
     verify(notificationService).sendMessage(contains("XXX"), eq(INVESTMENT));
   }
@@ -191,7 +218,13 @@ class R45ReportServiceTest {
                         "netEur",
                         new BigDecimal("2000.00"),
                         "redRowSettlementDates",
-                        List.of()))));
+                        List.of(),
+                        "rows",
+                        List.of(
+                            Map.of(
+                                "direction", "INFLOW",
+                                "valueEur", "2000.00",
+                                "settlementDate", "2026-08-18"))))));
     verify(notificationService).sendMessage(contains("XX0000000000"), eq(INVESTMENT));
   }
 
@@ -333,6 +366,47 @@ class R45ReportServiceTest {
 
     assertThat(service.getRedRowSettlementDatesOn(TUV100, TODAY))
         .containsExactly(LocalDate.of(2026, 8, 13), LocalDate.of(2026, 8, 18));
+  }
+
+  @Test
+  void rowsOnADayComeFromThatDaysStoredSummaryWithTheirDirectionValueAndSettlementDay() {
+    given(summaryRepository.findByReportTypeAndReportDate(R45, TODAY))
+        .willReturn(
+            List.of(
+                summary(
+                    TUV100,
+                    Map.of(
+                        "netEur",
+                        -100,
+                        "rows",
+                        List.of(
+                            Map.of(
+                                "direction", "OUTFLOW",
+                                "valueEur", "100.00",
+                                "settlementDate", "2026-08-14"),
+                            Map.of("direction", "INFLOW", "valueEur", "9.00"))))));
+
+    assertThat(service.getRowsOn(TUV100, TODAY).orElseThrow())
+        .usingRecursiveFieldByFieldElementComparator(
+            RecursiveComparisonConfiguration.builder()
+                .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+                .build())
+        .containsExactly(
+            new R45Row(OUTFLOW, new BigDecimal("100.00"), LocalDate.of(2026, 8, 14)),
+            new R45Row(INFLOW, new BigDecimal("9.00"), null));
+  }
+
+  @Test
+  void aFundWithNoRowsInThatDaysR45HasNoRows() {
+    assertThat(service.getRowsOn(TUV100, TODAY)).contains(List.of());
+  }
+
+  @Test
+  void aSummaryStoredBeforeRowsWereKeptCannotServeRows() {
+    given(summaryRepository.findByReportTypeAndReportDate(R45, TODAY))
+        .willReturn(List.of(summary(TUV100, Map.of("netEur", -100))));
+
+    assertThat(service.getRowsOn(TUV100, TODAY)).isEmpty();
   }
 
   @Test

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.CALCULATED;
@@ -8,13 +9,20 @@ import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.FT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
+import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.currentDayReport;
+import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.endOfDayStatement;
+import static ee.tuleva.onboarding.investment.transaction.SebStatementFixture.entry;
+import static ee.tuleva.onboarding.investment.transaction.TradePrepPricingFixture.noResolvedPrices;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
+import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
+import static java.math.RoundingMode.FLOOR;
 import static java.math.RoundingMode.HALF_UP;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.UUID.randomUUID;
@@ -25,13 +33,21 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
+import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.BankEntryReference;
+import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
+import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.persistence.EntityManager;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -53,14 +69,19 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
-@Sql("classpath:db/snapshots/transaction-pipeline/TKF100_2026-02-10.sql")
+@Sql({
+  "classpath:db/snapshots/transaction-pipeline/TKF100_2026-02-10.sql",
+  "classpath:db/snapshots/transaction-pipeline/TKF100_2026-02-10_registry.sql"
+})
 class TransactionPipelineIntegrationTest {
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
@@ -90,6 +111,7 @@ class TransactionPipelineIntegrationTest {
     }
   }
 
+  @Autowired private PositionPriceResolver positionPriceResolver;
   @Autowired private TransactionPreparationService preparationService;
   @Autowired private TransactionBatchFinalizer batchFinalizer;
   @Autowired private TransactionCommandRepository commandRepository;
@@ -99,10 +121,21 @@ class TransactionPipelineIntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private TransactionInputService transactionInputService;
   @Autowired private SavingsFundLedger savingsFundLedger;
+  @Autowired private TransactionCommandRunner commandRunner;
+  @Autowired private JdbcClient jdbcClient;
+  @Autowired private BankAccounts bankAccounts;
+  @Autowired private FundBankLedger fundBankLedger;
+  @Autowired private TransactionExecutionRepository executionRepository;
+  @MockitoBean private OperationsNotificationService notificationService;
 
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(FIXED_CLOCK);
+    storeInvestmentAccountMessage(
+        "INTRA_DAY_REPORT",
+        TEST_DATE,
+        FIXED_INSTANT,
+        currentDayReport(investmentIban(), TEST_DATE, "500000.00"));
   }
 
   @AfterEach
@@ -171,7 +204,9 @@ class TransactionPipelineIntegrationTest {
     savingsFundLedger.recordUnattributedPayment(new BigDecimal("700.00"), randomUUID());
 
     var breakdown =
-        transactionInputService.gatherInput(TKF100, TEST_DATE, Map.of()).liabilityBreakdown();
+        transactionInputService
+            .gatherInput(TKF100, TEST_DATE, Map.of(), noResolvedPrices())
+            .liabilityBreakdown();
 
     assertThat(breakdown.incomingPaymentsClearing()).isEqualByComparingTo("4200.00");
     assertThat(breakdown.unreconciledBankReceipts()).isEqualByComparingTo("700.00");
@@ -528,6 +563,1421 @@ class TransactionPipelineIntegrationTest {
 
     assertThatThrownBy(() -> commandRepository.saveAndFlush(command))
         .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  void aHeldModelInstrumentWithNoPriceInIndexValuesStopsTheFundAndSaysWhichOne() {
+    jdbcClient.sql("DELETE FROM index_values WHERE key = 'PAC.DE'").update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    assertThat(response.batchId()).isNull();
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            Hind puudub: LU1291106356: kontrolli hinnaallikaid ja instrument_reference'it\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void aHoldingTheRegistryAndTheSebReportDisagreeOnStopsTheFundAndShowsBothQuantities() {
+    registryQuantity("IE00BMDBMY19", "10010.0000");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    assertThat(response.errorMessage())
+        .isEqualTo(
+            "Trade prep inputs missing or stale, no DRAFT made: fund=TKF100, asOfDate=2026-02-10:"
+                + " IE00BMDBMY19: registris 10010, SEB raportis 10000 (2026-02-10): kontrolli"
+                + " registri tehinguid");
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            IE00BMDBMY19: registris 10010, SEB raportis 10000 (2026-02-10): kontrolli registri tehinguid\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void aRegistryWithoutTheHoldingsOfTheReportTradePrepUsesStopsTheFundEvenWhenThatReportIsNewer() {
+    jdbcClient
+        .sql("DELETE FROM investment_portfolio_cost_basis WHERE fund_isin = :fundIsin")
+        .param("fundIsin", TKF100.getIsin())
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            Registris pole 2026-02-10 positsioone: kontrolli portfelli baseline'i ja cost-basis tööd\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void aSecurityRowWithoutAQuantityStopsTheFundInsteadOfBeingLeftOutOfTheComparison() {
+    jdbcClient
+        .sql(
+            "UPDATE investment_fund_position SET quantity = NULL"
+                + " WHERE fund_code = 'TKF100' AND account_id = 'LU0476289540'")
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            SEB raportis pole kogust (2026-02-10): LU0476289540: kontrolli raporti importi\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void anInstrumentSoldOutOfTheFundAtZeroInOneSourceAndAbsentFromTheOtherMakesADraft() {
+    registryRow("IE00BFNM3G45", "0.0000");
+    sebSecurityRow("IE0009FT4LX4", "0.000000");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+  }
+
+  @Test
+  void aHoldingTheSebReportDoesNotListSaysItIsMissingThereInsteadOfShowingZero() {
+    registryRow("IE00BFNM3G45", "5.0000");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            IE00BFNM3G45: registris 5, SEB raportis puudub (2026-02-10): kontrolli registri tehinguid\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void anExcludedInstrumentWithNoPriceAndARegistryMismatchStillLetsTheFundMakeADraft() {
+    jdbcClient.sql("DELETE FROM index_values WHERE key = 'PAC.DE'").update();
+    registryQuantity("LU1291106356", "10010.0000");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                Set.of("LU1291106356"),
+                null,
+                null,
+                null,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.excludeIsins()).containsExactly("LU1291106356");
+  }
+
+  @Test
+  void aManualPriceForAnExcludedInstrumentIsRecordedAsNotMeasured() {
+    var manual = new PriceOverride("LU1291106356", new BigDecimal("60.12"), "Issuer's NAV");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                Set.of("LU1291106356"),
+                List.of(manual),
+                null,
+                null,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.calculationSnapshot().get("priceOverrides"))
+        .asInstanceOf(LIST)
+        .singleElement()
+        .asInstanceOf(MAP)
+        .containsEntry("neededByGate", false)
+        .containsEntry("deviationCheck", "SKIPPED_EXCLUDED");
+  }
+
+  @Test
+  void aManualPriceForAnInstrumentWithNoPriceInIndexValuesLetsTheFundMakeADraftAndIsRecorded() {
+    jdbcClient.sql("DELETE FROM index_values WHERE key = 'PAC.DE'").update();
+    var manual =
+        new PriceOverride("LU1291106356", new BigDecimal("60.12"), "Price from the issuer's site");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, List.of(manual), null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.prices()).containsExactly(manual);
+    assertThat(response.calculationSnapshot())
+        .containsEntry(
+            "priceOverrides",
+            List.of(
+                Map.of(
+                    "isin", "LU1291106356",
+                    "price", "60.12",
+                    "comment", "Price from the issuer's site",
+                    "neededByGate", true,
+                    "deviationCheck", "NO_INDEX_PRICE_HISTORY")));
+  }
+
+  @Test
+  void aManualPriceSizesTheOrderAndIsRecordedBesideTheIndexPriceItReplaced() {
+    var indexPrice = positionPriceResolver.resolve("IE000O58J820", TEST_DATE).orElseThrow();
+    var manual = new PriceOverride("IE000O58J820", new BigDecimal("5.00"), "Index price is stale");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(manual),
+                null,
+                null,
+                List.of(new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("5.00")))),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    var order =
+        response.orders().stream()
+            .filter(candidate -> candidate.instrumentIsin().equals("IE000O58J820"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(order.orderQuantity())
+        .isEqualByComparingTo(order.orderAmount().divide(new BigDecimal("5.00"), 0, FLOOR));
+    assertThat(response.confirmedPriceDeviations())
+        .containsExactly(new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("5.00")));
+    assertThat(response.calculationSnapshot())
+        .containsEntry(
+            "confirmedPriceDeviations",
+            List.of(
+                Map.of(
+                    "isin", "IE000O58J820",
+                    "manualPrice", "5.00",
+                    "lastIndexPrice", "50.00000",
+                    "lastIndexPriceDate", "2026-02-10",
+                    "gapPercent", "-90.0")));
+    assertThat(response.calculationSnapshot())
+        .containsEntry(
+            "priceOverrides",
+            List.of(
+                Map.of(
+                    "isin",
+                    "IE000O58J820",
+                    "price",
+                    "5.00",
+                    "comment",
+                    "Index price is stale",
+                    "neededByGate",
+                    false,
+                    "deviationCheck",
+                    "MEASURED",
+                    "indexPrice",
+                    indexPrice.usedPrice().toPlainString(),
+                    "indexPriceDate",
+                    indexPrice.priceDate().toString())));
+  }
+
+  @Test
+  void aManualPriceShowsAsManualInThePriceResolutionsAndTheOutput() {
+    var manual = new PriceOverride("IE000O58J820", new BigDecimal("5.00"), "Index price is stale");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(manual),
+                null,
+                null,
+                List.of(new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("5.00")))),
+            "operator");
+
+    assertThat(response.calculationSnapshot().get("priceResolutions"))
+        .asInstanceOf(LIST)
+        .contains(
+            Map.of(
+                "isin", "IE000O58J820",
+                "price", "5.00",
+                "priceSource", "MANUAL",
+                "comment", "Index price is stale"));
+    assertThat(response.calculationSnapshot().get("output"))
+        .asInstanceOf(LIST)
+        .filteredOn(trade -> "IE000O58J820".equals(((Map<?, ?>) trade).get("isin")))
+        .singleElement()
+        .asInstanceOf(MAP)
+        .containsEntry("price", "5.00")
+        .containsEntry("priceSource", "MANUAL");
+  }
+
+  @Test
+  void aManualPriceForAnInstrumentTheFundNeitherHoldsNorHasInItsModelFailsTheCommand() {
+    var stranger = new PriceOverride("IE0000000000", new BigDecimal("1"), "Wrong instrument");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(stranger),
+                null,
+                null,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    assertThat(auditEventRepository.findAll())
+        .filteredOn(event -> String.valueOf(response.id()).equals(event.getDedupKey()))
+        .singleElement()
+        .satisfies(
+            event ->
+                assertThat(event.getPayload())
+                    .containsEntry(
+                        "prices",
+                        List.of(
+                            Map.of(
+                                "isin",
+                                "IE0000000000",
+                                "price",
+                                "1",
+                                "comment",
+                                "Wrong instrument"))));
+  }
+
+  @Test
+  void anAcceptedHoldingDifferenceLetsTheFundMakeADraftAndIsRecordedWithBothQuantities() {
+    registryQuantity("IE00BMDBMY19", "10010.0000");
+    var accepted =
+        new AcceptedHoldingDifferences(
+            Set.of("IE00BMDBMY19", "LU1291099718"), "Fill booked in the registry a day early");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, accepted, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.acceptedHoldingDifferences()).isEqualTo(accepted);
+    assertThat(response.acceptedHoldingDifferences().isins())
+        .containsExactly("IE00BMDBMY19", "LU1291099718");
+    assertThat(response.calculationSnapshot())
+        .containsEntry(
+            "acceptedHoldingDifferences",
+            Map.of(
+                "comment",
+                "Fill booked in the registry a day early",
+                "instruments",
+                List.of(
+                    Map.of(
+                        "isin", "IE00BMDBMY19",
+                        "neededByGate", true,
+                        "registryQuantity", "10010.0000",
+                        "reportQuantity", "10000.00000000"),
+                    Map.of("isin", "LU1291099718", "neededByGate", false))));
+  }
+
+  @Test
+  void aDifferenceInAnInstrumentTheOverrideDoesNotNameStillStopsTheFund() {
+    registryQuantity("IE00BMDBMY19", "10010.0000");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                null,
+                new AcceptedHoldingDifferences(Set.of("LU1291099718"), "Yesterday's difference"),
+                null,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            IE00BMDBMY19: registris 10010, SEB raportis 10000 (2026-02-10): kontrolli registri tehinguid            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void anEmptyRegistryPassesOnlyWhenTheOverrideNamesEveryHoldingOfTheReport() {
+    jdbcClient
+        .sql("DELETE FROM investment_portfolio_cost_basis WHERE fund_isin = :fundIsin")
+        .param("fundIsin", TKF100.getIsin())
+        .update();
+    Set<String> reportHoldings =
+        Set.copyOf(
+            jdbcClient
+                .sql(
+                    """
+                    SELECT account_id FROM investment_fund_position
+                    WHERE fund_code = 'TKF100' AND nav_date = :navDate
+                      AND account_type = 'SECURITY' AND quantity <> 0
+                    """)
+                .param("navDate", TEST_DATE)
+                .query(String.class)
+                .list());
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                null,
+                new AcceptedHoldingDifferences(reportHoldings, "Baseline loads tonight"),
+                null,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+  }
+
+  @Test
+  void theCommonDateRuleValuesEveryInstrumentAtTheLatestDayTheyAllHaveAPriceOn() {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO index_values (key, date, value, provider, updated_at)
+            SELECT key, DATE '2026-02-09', value * 2, provider, updated_at
+            FROM index_values WHERE date = DATE '2026-02-10' AND provider = 'EODHD'
+            """)
+        .update();
+    jdbcClient
+        .sql("DELETE FROM index_values WHERE key = 'ESGM.DE' AND date = DATE '2026-02-10'")
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                null,
+                null,
+                PriceDateRule.LATEST_COMMON_DATE,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.priceDateRule()).isEqualTo(PriceDateRule.LATEST_COMMON_DATE);
+    assertThat(response.calculationSnapshot()).containsEntry("commonPriceDate", "2026-02-09");
+    assertThat(response.calculationSnapshot().get("priceResolutions"))
+        .asInstanceOf(LIST)
+        .isNotEmpty()
+        .allSatisfy(
+            resolution ->
+                assertThat(resolution).asInstanceOf(MAP).containsEntry("priceDate", "2026-02-09"));
+  }
+
+  @Test
+  void theCommonDateRuleStopsTheFundWhenNoDayHasEveryPrice() {
+    jdbcClient
+        .sql(
+            "UPDATE index_values SET date = DATE '2026-02-09'"
+                + " WHERE key = 'ESGM.DE' AND date = DATE '2026-02-10'")
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                null,
+                null,
+                PriceDateRule.LATEST_COMMON_DATE,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            Ühist hinnapäeva pole (2026-01-27–2026-02-10): kontrolli hinnaallikaid või kasuta igaühe värskeimat hinda\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void aManualPriceStillWinsUnderTheCommonDateRuleAndIsLeftOutOfTheSearch() {
+    jdbcClient
+        .sql(
+            "UPDATE index_values SET date = DATE '2026-02-09'"
+                + " WHERE key = 'ESGM.DE' AND date = DATE '2026-02-10'")
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(new PriceOverride("IE00BMDBMY19", new BigDecimal("44"), "Issuer's NAV")),
+                null,
+                PriceDateRule.LATEST_COMMON_DATE,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.calculationSnapshot()).containsEntry("commonPriceDate", "2026-02-10");
+    var order =
+        response.orders().stream()
+            .filter(candidate -> candidate.instrumentIsin().equals("IE00BMDBMY19"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(order.orderQuantity())
+        .isEqualByComparingTo(order.orderAmount().divide(new BigDecimal("44"), 0, FLOOR));
+  }
+
+  @Test
+  void theIndexAdjustedRuleValuesTheIndexFundOnThePositionDateMovedByItsScreenedIndex() {
+    jdbcClient
+        .sql("UPDATE index_values SET date = DATE '2026-02-09' WHERE key = '0P000152G5.F'")
+        .update();
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO index_values (key, date, value, provider, updated_at)
+            VALUES
+              ('MSCI_WORLD_SCREENED', DATE '2026-02-09', 1000, 'MSCI', TIMESTAMP '2026-02-10 20:00:00'),
+              ('MSCI_WORLD_SCREENED', DATE '2026-02-10', 1010, 'MSCI', TIMESTAMP '2026-02-10 20:00:00')
+            """)
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                null,
+                null,
+                PriceDateRule.INDEX_ADJUSTED_FUNDS,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.priceDateRule()).isEqualTo(PriceDateRule.INDEX_ADJUSTED_FUNDS);
+    assertThat(response.calculationSnapshot().get("positionDatePrices"))
+        .asInstanceOf(LIST)
+        .singleElement()
+        .asInstanceOf(MAP)
+        .containsEntry("isin", "IE00BFG1TM61")
+        .containsEntry("price", "20.200000")
+        .containsEntry("priceDate", "2026-02-10")
+        .containsEntry("priceSource", "INDEX_ADJUSTED")
+        .containsEntry("fundPriceDate", "2026-02-09")
+        .containsEntry("index", "MSCI_WORLD_SCREENED");
+    assertThat(
+            ((Map<?, ?>) response.calculationSnapshot().get("input")).get("positionDateValuations"))
+        .isEqualTo(
+            List.of(
+                Map.of(
+                    "isin", "IE00BFG1TM61",
+                    "units", "45000",
+                    "valueBeforePositionDatePrice", "900000",
+                    "positionDatePrice", "20.2",
+                    "valueUsed", "909000",
+                    "valuedAt", "POSITION_DATE_PRICE")));
+  }
+
+  @Test
+  void theIndexAdjustedRuleStopsTheFundWhenTheScreenedIndexHasNoLevelForThePositionDate() {
+    jdbcClient
+        .sql("UPDATE index_values SET date = DATE '2026-02-09' WHERE key = '0P000152G5.F'")
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                null,
+                null,
+                PriceDateRule.INDEX_ADJUSTED_FUNDS,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    assertThat(response.batchId()).isNull();
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            Indeksi tase puudub: IE00BFG1TM61 (MSCI_WORLD_SCREENED 2026-02-09), \
+            IE00BFG1TM61 (MSCI_WORLD_SCREENED 2026-02-10): oota MSCI taset või vali teine \
+            hinnapäeva reegel\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void aBalanceSebReportedTodayIsTheRunsCashAndEachForecastShowsWhatItWasBeforeNetting() {
+    gatewayRunTheDayAfterTheReport(
+        entry("SETTLEMENT-1", "120000.00", "DBIT", "BOOK"),
+        entry("SETTLEMENT-2", "15000.00", "DBIT", "BOOK"),
+        entry("SETTLEMENT-3", "30000.00", "CRDT", "BOOK"));
+    tradeShownInTheReport("SYNTHETIC-1", "IE00BFG1TM61");
+    bankBooksTradeSettlement("SETTLEMENT-1", "SYNTHETIC-1", "-120000.00");
+    bankBooksTradeSettlement("SETTLEMENT-2", "SYNTHETIC-2", "-15000.00");
+    bankBooksTradeSettlement("SETTLEMENT-3", "SYNTHETIC-3", "30000.00");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.calculationSnapshot().get("cash"))
+        .isEqualTo(
+            Map.of(
+                "source",
+                "GATEWAY_BALANCE",
+                "reportCash",
+                "500000.00",
+                "gateway",
+                Map.of(
+                    "status", "CURRENT_DAY_BALANCE",
+                    "balance", "520000.00",
+                    "fetchedAt", "2026-02-09T23:00:00Z"),
+                "gatewayMinusReportCash",
+                "20000.00",
+                "balanceUsed",
+                "490000.00",
+                "forecasts",
+                List.of(
+                    Map.of(
+                        "name", "unsettledTradePayables",
+                        "before", "300000.00",
+                        "after", "180000.00",
+                        "treatment", "NETTED_AGAINST_THE_BALANCE")),
+                "unmatchedTradeSettlements",
+                List.of(
+                    Map.of(
+                        "brokerReference", "SYNTHETIC-2",
+                        "isin", "IE00BFG1TM61",
+                        "bookingDate", "2026-02-10",
+                        "cash", "-15000.00",
+                        "treatment", "NOT_NETTED"),
+                    Map.of(
+                        "brokerReference", "SYNTHETIC-3",
+                        "isin", "IE00BFG1TM61",
+                        "bookingDate", "2026-02-10",
+                        "cash", "30000.00",
+                        "treatment", "EXCLUDED_FROM_THE_BALANCE"))));
+    assertThat(response.calculationSnapshot().get("input"))
+        .asInstanceOf(MAP)
+        .containsEntry("appliedCash", "490000.00");
+    assertThat(response.calculationSnapshot().get("calculationWarnings"))
+        .asInstanceOf(LIST)
+        .contains(
+            Map.of(
+                "type",
+                "UNMATCHED_TRADE_SETTLEMENT",
+                "message",
+                "⚠️ SEB booked a trade settlement no registered trade explains, its cash is left"
+                    + " out of the balance: fund=TKF100, isin=IE00BFG1TM61,"
+                    + " bookingDate=2026-02-10, amount=30000.00"));
+  }
+
+  @Test
+  void anUnexplainedTradeSettlementOutflowLeavesTheBalanceAsItIsButIsWarnedAbout() {
+    gatewayRunTheDayAfterTheReport(entry("SETTLEMENT-2", "15000.00", "DBIT", "BOOK"));
+    bankBooksTradeSettlement("SETTLEMENT-2", "SYNTHETIC-2", "-15000.00");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.calculationSnapshot().get("input"))
+        .asInstanceOf(MAP)
+        .containsEntry("appliedCash", "520000.00");
+    assertThat(response.calculationSnapshot().get("cash"))
+        .asInstanceOf(MAP)
+        .doesNotContainKey("balanceUsed");
+    assertThat(response.calculationSnapshot().get("calculationWarnings"))
+        .asInstanceOf(LIST)
+        .contains(
+            Map.of(
+                "type",
+                "UNMATCHED_TRADE_SETTLEMENT",
+                "message",
+                "⚠️ SEB booked a trade settlement no registered trade explains, the report's"
+                    + " payable for it stays reserved: fund=TKF100, isin=IE00BFG1TM61,"
+                    + " bookingDate=2026-02-10, amount=-15000.00"));
+  }
+
+  private void gatewayRunTheDayAfterTheReport(String... entries) {
+    jdbcClient.sql("DELETE FROM banking_message").update();
+    storeInvestmentAccountMessage(
+        "INTRA_DAY_REPORT",
+        TEST_DATE,
+        FIXED_INSTANT,
+        currentDayReport(investmentIban(), TEST_DATE, "520000.00", entries));
+    jdbcClient
+        .sql(
+            "UPDATE investment_fund_position SET nav_date = DATE '2026-02-09'"
+                + " WHERE fund_code = 'TKF100' AND nav_date = DATE '2026-02-10'")
+        .update();
+    jdbcClient
+        .sql(
+            "UPDATE investment_portfolio_cost_basis SET as_of_date = DATE '2026-02-09'"
+                + " WHERE as_of_date = DATE '2026-02-10'")
+        .update();
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fund_position
+              (nav_date, fund_code, account_type, account_name, account_id, quantity,
+               market_price, market_value, currency, created_at)
+            VALUES (DATE '2026-02-09', 'TKF100', 'LIABILITY',
+               'Total payables of unsettled transactions', 'PAYABLES', 0, 0, -300000.00, 'EUR',
+               CURRENT_TIMESTAMP)
+            """)
+        .update();
+  }
+
+  private void bankBooksTradeSettlement(String externalId, String brokerReference, String cash) {
+    fundBankLedger.recordTradeSettlement(
+        TKF100,
+        new BigDecimal(cash),
+        new BigDecimal("100"),
+        BankEntryReference.of(investmentIban(), externalId),
+        FUND_INVESTMENT_CASH_CLEARING,
+        new TradeSettlementDetails(
+            brokerReference, "IE00BFG1TM61", "TICK", "test instrument", BigDecimal.ONE),
+        TEST_DATE);
+  }
+
+  @Test
+  void aGatewayBalanceFarFromTheReportCashIsShownWithItsDifferenceAndAWarning() {
+    jdbcClient.sql("DELETE FROM banking_message").update();
+    storeInvestmentAccountMessage(
+        "INTRA_DAY_REPORT",
+        TEST_DATE,
+        FIXED_INSTANT,
+        currentDayReport(investmentIban(), TEST_DATE, "600000.00"));
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO nav_report
+              (nav_date, fund_code, account_type, account_name, account_id, quantity,
+               market_value, currency, calculation_id, published_at)
+            VALUES (DATE '2026-02-09', 'TKF100', 'UNITS', 'Fund units', 'TKF100', 1,
+               5000000.00, 'EUR', :calculationId, CURRENT_TIMESTAMP)
+            """)
+        .param("calculationId", randomUUID())
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.calculationSnapshot().get("cash"))
+        .asInstanceOf(MAP)
+        .containsEntry("reportCash", "500000.00")
+        .containsEntry("gatewayMinusReportCash", "100000.00");
+    assertThat(response.calculationSnapshot().get("calculationWarnings"))
+        .asInstanceOf(LIST)
+        .contains(
+            Map.of(
+                "type",
+                "CASH_SOURCES_DIFFER",
+                "message",
+                "⚠️ SEB current-day balance differs from the position report's cash by more than"
+                    + " 1% of NAV: fund=TKF100, gatewayBalance=600000.00, reportCash=500000.00,"
+                    + " difference=100000.00, nav=5000000.00"));
+  }
+
+  @Test
+  void withoutACurrentDayReportForTodayTheRunUsesReportCashAndSaysSo() {
+    jdbcClient.sql("DELETE FROM banking_message").update();
+    storeInvestmentAccountMessage(
+        "HISTORIC_STATEMENT",
+        TEST_DATE.minusDays(1),
+        FIXED_INSTANT,
+        endOfDayStatement(investmentIban(), TEST_DATE.minusDays(1), "500000.00"));
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.calculationSnapshot())
+        .containsEntry(
+            "cash",
+            Map.of(
+                "source",
+                "POSITION_REPORT",
+                "reportCash",
+                "500000.00",
+                "gateway",
+                Map.of("status", "NO_CURRENT_DAY_REPORT_TODAY")));
+  }
+
+  @Test
+  void aCurrentDayReportThatCannotBeReadLeavesTheRunOnReportCashAndSaysSo() {
+    jdbcClient.sql("DELETE FROM banking_message").update();
+    storeInvestmentAccountMessage("INTRA_DAY_REPORT", TEST_DATE, FIXED_INSTANT, "<not-a-report/>");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.calculationSnapshot())
+        .containsEntry(
+            "cash",
+            Map.of(
+                "source",
+                "POSITION_REPORT",
+                "reportCash",
+                "500000.00",
+                "gateway",
+                Map.of("status", "CURRENT_DAY_REPORT_UNREADABLE")));
+  }
+
+  @Test
+  void aCashAmountWithItsCommentLetsTheFundThroughWithoutABalanceFetchedToday() {
+    jdbcClient.sql("DELETE FROM banking_message").update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                new CashOverride(
+                    new BigDecimal("500000.00"), "Balance read from SEB's internet bank"),
+                null,
+                null,
+                null,
+                null,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.calculationSnapshot().get("cash"))
+        .asInstanceOf(MAP)
+        .containsEntry("source", "OPERATOR_AMOUNT");
+  }
+
+  private void tradeShownInTheReport(String brokerReference, String isin) {
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
+    TransactionOrder order =
+        orderRepository.save(
+            TransactionOrder.builder()
+                .batch(batch)
+                .fund(TKF100)
+                .instrumentIsin(isin)
+                .transactionType(TransactionType.BUY)
+                .instrumentType(InstrumentType.ETF)
+                .orderQuantity(new BigDecimal("1000"))
+                .orderVenue(OrderVenue.SEB)
+                .orderStatus(OrderStatus.SETTLED)
+                .orderTimestamp(Instant.parse("2026-02-09T09:00:00Z"))
+                .expectedSettlementDate(TEST_DATE)
+                .build());
+    executionRepository.save(
+        TransactionExecution.builder()
+            .orderId(order.getId())
+            .brokerTransactionId(brokerReference)
+            .executionTimestamp(Instant.parse("2026-02-09T10:00:00Z"))
+            .executedQuantity(new BigDecimal("1000"))
+            .totalConsideration(new BigDecimal("120000.00"))
+            .source("SEB_OOTEL")
+            .reportedDate(LocalDate.of(2026, 2, 9))
+            .build());
+  }
+
+  private String investmentIban() {
+    return bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR);
+  }
+
+  private void storeInvestmentAccountMessage(
+      String messageType, LocalDate statementDate, Instant receivedAt, String rawResponse) {
+    jdbcClient
+        .sql(
+            """
+            insert into banking_message (id, bank_type, request_id, tracking_id, raw_response,
+              timezone, message_type, account_iban, statement_from, statement_to, processed_at,
+              received_at)
+            values (:id, 'SEB', 'request', 'tracking', :rawResponse, 'Europe/Tallinn',
+              :messageType, :iban, :day, :day, :receivedAt, :receivedAt)
+            """)
+        .param("id", randomUUID())
+        .param("rawResponse", rawResponse)
+        .param("messageType", messageType)
+        .param("iban", investmentIban())
+        .param("day", statementDate)
+        .param("receivedAt", Timestamp.from(receivedAt))
+        .update();
+  }
+
+  @Test
+  void aSebReportWithoutSecuritiesStopsTheFundEvenWhenEveryHoldingIsAccepted() {
+    jdbcClient
+        .sql(
+            "DELETE FROM investment_fund_position WHERE fund_code = 'TKF100'"
+                + " AND nav_date = :navDate AND account_type = 'SECURITY'")
+        .param("navDate", TEST_DATE)
+        .update();
+    Set<String> registryHoldings =
+        Set.copyOf(
+            jdbcClient
+                .sql(
+                    "SELECT instrument_isin FROM investment_portfolio_cost_basis"
+                        + " WHERE fund_isin = :fundIsin AND quantity <> 0")
+                .param("fundIsin", TKF100.getIsin())
+                .query(String.class)
+                .list());
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                null,
+                new AcceptedHoldingDifferences(registryHoldings, "Report is late"),
+                null,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            SEB raportis pole 2026-02-10 väärtpabereid: kontrolli raporti importi\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void excludingTheOnlyInstrumentSebListsLeavesTheOtherDifferencesOpenToAcceptance() {
+    String onlyListed = "IE00BMDBMY19";
+    jdbcClient
+        .sql(
+            "DELETE FROM investment_fund_position WHERE fund_code = 'TKF100'"
+                + " AND nav_date = :navDate AND account_type = 'SECURITY'"
+                + " AND account_id <> :onlyListed")
+        .param("navDate", TEST_DATE)
+        .param("onlyListed", onlyListed)
+        .update();
+    Set<String> unlisted =
+        Set.copyOf(
+            jdbcClient
+                .sql(
+                    "SELECT instrument_isin FROM investment_portfolio_cost_basis"
+                        + " WHERE fund_isin = :fundIsin AND quantity <> 0"
+                        + " AND instrument_isin <> :onlyListed")
+                .param("fundIsin", TKF100.getIsin())
+                .param("onlyListed", onlyListed)
+                .query(String.class)
+                .list());
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                Set.of(onlyListed),
+                null,
+                new AcceptedHoldingDifferences(unlisted, "Report sent one row"),
+                null,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+  }
+
+  @Test
+  void aManualPriceFarFromTheLastIndexPriceStopsTheFundAndSaysByHowMuch() {
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(
+                    new PriceOverride(
+                        "IE000O58J820", new BigDecimal("5.00"), "Index price is stale")),
+                null,
+                null,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            ⚠️ IE000O58J820: käsitsi hind 5, viimane indeksihind 50 (2026-02-10), erinevus -90.0%: kontrolli hinda või kinnita see (confirmedPriceDeviations)\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void aManualPriceIsComparedWithTheLastIndexPriceHoweverOldItIs() {
+    jdbcClient
+        .sql("UPDATE index_values SET date = DATE '2025-12-01' WHERE key = 'PAC.DE'")
+        .update();
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(new PriceOverride("LU1291106356", new BigDecimal("60.12"), "Issuer's NAV")),
+                null,
+                null,
+                null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            ⚠️ LU1291106356: käsitsi hind 60.12, viimane indeksihind 10 (2025-12-01), erinevus 501.2%: kontrolli hinda või kinnita see (confirmedPriceDeviations)\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void
+      aConfirmationForAnotherManualPriceDoesNotLetTheNewPriceThroughAndTheStopSaysWhichPriceItConfirmed() {
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(
+                    new PriceOverride(
+                        "IE000O58J820", new BigDecimal("5.00"), "Index price is stale")),
+                null,
+                null,
+                List.of(new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("6.00")))),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            ⚠️ IE000O58J820: käsitsi hind 5, viimane indeksihind 50 (2026-02-10), erinevus -90.0%, kinnitus on hinnale 6: kontrolli hinda või kinnita see (confirmedPriceDeviations)\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void aStaleConfirmationBesideOneForTheCurrentManualPriceLetsThePriceThrough() {
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(
+                    new PriceOverride(
+                        "IE000O58J820", new BigDecimal("5.00"), "Index price is stale")),
+                null,
+                null,
+                List.of(
+                    new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("10.00")),
+                    new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("5.00")))),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+  }
+
+  @Test
+  void whenNoConfirmationMatchesTheStopNamesEveryPriceThatWasConfirmed() {
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(
+                    new PriceOverride(
+                        "IE000O58J820", new BigDecimal("5.00"), "Index price is stale")),
+                null,
+                null,
+                List.of(
+                    new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("7.00")),
+                    new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("6.00")))),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            ⚠️ IE000O58J820: käsitsi hind 5, viimane indeksihind 50 (2026-02-10), erinevus -90.0%, kinnitused on hindadele 6, 7: kontrolli hinda või kinnita see (confirmedPriceDeviations)\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void anOverdueSentSaleIsTakenOffThePositionBeforeTheCalculationSoTheEngineSellsOnlyWhatIsLeft() {
+    sellTheFundInstrumentOut();
+    sentSaleOfTheFundInstrument(LocalDate.of(2026, 2, 9));
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, null, null, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(engineTradeAmount(response.calculationSnapshot(), "IE00BFG1TM61"))
+        .isEqualByComparingTo("-300000");
+    var sale = saleOfTheFundInstrument(response);
+    assertThat(sale.orderQuantity()).isEqualByComparingTo("15000");
+    assertThat(sale.orderAmount()).isEqualByComparingTo("300000");
+    assertThat(((Map<?, ?>) response.calculationSnapshot().get("input")).get("deductedSales"))
+        .isEqualTo(deductedSaleOfTheFundInstrument());
+    assertThat(response.calculationSnapshot().get("sizedSales"))
+        .isEqualTo(List.of(sizedSaleOfTheFundInstrument("20", "300000", "300000")));
+  }
+
+  @Test
+  void aSentSaleInItsWindowComesOffAtTheReportsUnitValueAndTheRestIsValuedAtTheManualPrice() {
+    sellTheFundInstrumentOut();
+    sentSaleOfTheFundInstrument(LocalDate.of(2026, 2, 12));
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                List.of(new PriceOverride("IE00BFG1TM61", new BigDecimal("15.00"), "Issuer's NAV")),
+                null,
+                null,
+                List.of(new PriceDeviationConfirmation("IE00BFG1TM61", new BigDecimal("15.00")))),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(engineTradeAmount(response.calculationSnapshot(), "IE00BFG1TM61"))
+        .isEqualByComparingTo("-225000");
+    var sale = saleOfTheFundInstrument(response);
+    assertThat(sale.orderQuantity()).isEqualByComparingTo("15000");
+    assertThat(sale.orderAmount()).isEqualByComparingTo("225000");
+    assertThat(((Map<?, ?>) response.calculationSnapshot().get("input")).get("deductedSales"))
+        .isEqualTo(deductedSaleOfTheFundInstrument());
+    assertThat(
+            ((Map<?, ?>) response.calculationSnapshot().get("input")).get("manualPriceValuations"))
+        .isEqualTo(
+            List.of(
+                Map.of(
+                    "isin", "IE00BFG1TM61",
+                    "units", "15000",
+                    "valueBeforeManualPrice", "300000",
+                    "manualPrice", "15",
+                    "valueUsed", "225000",
+                    "valuedAt", "MANUAL_PRICE")));
+    assertThat(response.calculationSnapshot().get("sizedSales"))
+        .isEqualTo(List.of(sizedSaleOfTheFundInstrument("15", "225000", "225000")));
+  }
+
+  private void sellTheFundInstrumentOut() {
+    jdbcClient
+        .sql(
+            "UPDATE investment_model_portfolio_allocation SET weight = 0"
+                + " WHERE fund_code = 'TKF100' AND isin = 'IE00BFG1TM61'")
+        .update();
+    jdbcClient
+        .sql(
+            "UPDATE investment_model_portfolio_allocation SET weight = 0.29000000"
+                + " WHERE fund_code = 'TKF100' AND isin = 'IE00BMDBMY19'")
+        .update();
+  }
+
+  private void sentSaleOfTheFundInstrument(LocalDate expectedSettlementDate) {
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
+    orderRepository.save(
+        TransactionOrder.builder()
+            .batch(batch)
+            .fund(TKF100)
+            .instrumentIsin("IE00BFG1TM61")
+            .transactionType(TransactionType.SELL)
+            .instrumentType(InstrumentType.FUND)
+            .orderQuantity(new BigDecimal("30000"))
+            .orderVenue(OrderVenue.SEB)
+            .orderStatus(OrderStatus.SENT)
+            .orderTimestamp(Instant.parse("2026-02-06T08:00:00Z"))
+            .expectedSettlementDate(expectedSettlementDate)
+            .build());
+  }
+
+  private static BigDecimal engineTradeAmount(Map<String, Object> snapshot, String isin) {
+    return ((List<?>) snapshot.get("output"))
+        .stream()
+            .map(Map.class::cast)
+            .filter(trade -> isin.equals(trade.get("isin")))
+            .map(trade -> new BigDecimal((String) trade.get("tradeAmount")))
+            .findFirst()
+            .orElseThrow();
+  }
+
+  private static TransactionOrderResponse saleOfTheFundInstrument(
+      TransactionCommandResponse response) {
+    return response.orders().stream()
+        .filter(order -> order.instrumentIsin().equals("IE00BFG1TM61"))
+        .findFirst()
+        .orElseThrow();
+  }
+
+  private static List<Map<String, Object>> deductedSaleOfTheFundInstrument() {
+    return List.of(
+        Map.of(
+            "isin", "IE00BFG1TM61",
+            "reportUnits", "45000",
+            "reportValue", "900000",
+            "unitsInSentSales", "30000",
+            "valueDeducted", "600000",
+            "deductedBy", "UNITS"));
+  }
+
+  private static Map<String, Object> sizedSaleOfTheFundInstrument(
+      String price, String engineAmount, String orderAmount) {
+    return Map.of(
+        "isin",
+        "IE00BFG1TM61",
+        "reportUnits",
+        "45000",
+        "unitsInSentSales",
+        "30000",
+        "quantitySold",
+        "15000",
+        "price",
+        price,
+        "engineAmount",
+        engineAmount,
+        "orderAmount",
+        orderAmount,
+        "fullSale",
+        true);
+  }
+
+  @Test
+  void aConfirmationForAnInstrumentWithoutAManualPriceFailsTheCommand() {
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("5.00")))),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    assertThat(response.confirmedPriceDeviations())
+        .containsExactly(new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("5.00")));
+  }
+
+  @Test
+  void aConfirmationForAnExcludedInstrumentFailsTheCommandLikeOneWithoutAManualPrice() {
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100,
+                REBALANCE,
+                TEST_DATE,
+                null,
+                null,
+                Set.of("IE000O58J820"),
+                List.of(
+                    new PriceOverride(
+                        "IE000O58J820", new BigDecimal("5.00"), "Index price is stale")),
+                null,
+                null,
+                List.of(new PriceDeviationConfirmation("IE000O58J820", new BigDecimal("5.00")))),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+  }
+
+  private void registryRow(String isin, String quantity) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_portfolio_cost_basis
+              (fund_isin, instrument_isin, as_of_date, quantity, avg_unit_cost, total_cost, source)
+            VALUES (:fundIsin, :isin, :asOfDate, :quantity, 0, 0, 'TEST')
+            """)
+        .param("fundIsin", TKF100.getIsin())
+        .param("isin", isin)
+        .param("asOfDate", TEST_DATE)
+        .param("quantity", new BigDecimal(quantity))
+        .update();
+  }
+
+  private void sebSecurityRow(String isin, String quantity) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fund_position
+              (nav_date, fund_code, account_type, account_name, account_id, quantity,
+               market_price, market_value, currency, created_at)
+            VALUES (:navDate, 'TKF100', 'SECURITY', :isin, :isin, :quantity, 0, 0, 'EUR',
+               CURRENT_TIMESTAMP)
+            """)
+        .param("navDate", TEST_DATE)
+        .param("isin", isin)
+        .param("quantity", new BigDecimal(quantity))
+        .update();
+  }
+
+  private void registryQuantity(String isin, String quantity) {
+    jdbcClient
+        .sql(
+            """
+            UPDATE investment_portfolio_cost_basis SET quantity = :quantity
+            WHERE fund_isin = :fundIsin AND instrument_isin = :isin AND as_of_date = :asOfDate
+            """)
+        .param("quantity", new BigDecimal(quantity))
+        .param("fundIsin", TKF100.getIsin())
+        .param("isin", isin)
+        .param("asOfDate", TEST_DATE)
+        .update();
   }
 
   private TransactionCommand createCommand(TransactionMode mode) {

@@ -1,11 +1,10 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_BUFFER_PERCENT;
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_ROUNDING_STEP;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.position.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
+import static ee.tuleva.onboarding.investment.transaction.TradePrepPricingFixture.noResolvedPrices;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
@@ -24,7 +23,6 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
-import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.epis.FundCycleTimeline;
 import ee.tuleva.onboarding.investment.epis.PevaRavaCycle;
 import ee.tuleva.onboarding.investment.epis.PevaRavaFlowService;
@@ -32,10 +30,6 @@ import ee.tuleva.onboarding.investment.epis.PevaRavaFlows;
 import ee.tuleva.onboarding.investment.epis.PevaRavaPeriod;
 import ee.tuleva.onboarding.investment.epis.PevaRavaPeriodService;
 import ee.tuleva.onboarding.investment.epis.PevaRavaPhase;
-import ee.tuleva.onboarding.investment.epis.R16FlowCalculationService;
-import ee.tuleva.onboarding.investment.epis.R16FundFlow;
-import ee.tuleva.onboarding.investment.epis.R16Phase;
-import ee.tuleva.onboarding.investment.epis.R16PhaseCalculator;
 import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.epis.R45Result;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
@@ -52,12 +46,14 @@ import ee.tuleva.onboarding.ledger.RegistrarContribution;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -81,9 +77,10 @@ class TransactionInputServiceTest {
   @Mock private PevaRavaPeriodService pevaRavaPeriodService;
   @Mock private PevaRavaFlowService pevaRavaFlowService;
   @Mock private R45ReportService r45ReportService;
-  @Mock private R16FlowCalculationService r16FlowCalculationService;
-  @Mock private R16PhaseCalculator r16PhaseCalculator;
-  @Mock private InvestmentParameterRepository investmentParameterRepository;
+  @Mock private R16OutflowReader r16OutflowReader;
+  @Mock private SameDayCashReader sameDayCashReader;
+  @Mock private TradeSettlementsInTheBalanceReader tradeSettlementsReader;
+  @Mock private GatewayNetting gatewayNetting;
   @Mock private PendingOrderImpactService pendingOrderImpactService;
   @Mock private RegistrarCashFlowRepository registrarCashFlowRepository;
 
@@ -93,8 +90,21 @@ class TransactionInputServiceTest {
   void setUp() {
     lenient().when(navLedgerRepository.getSystemAccountBalance(anyString())).thenReturn(ZERO);
     lenient()
-        .when(pendingOrderImpactService.calculate(any(), any(), any()))
+        .when(pendingOrderImpactService.calculate(any(), any(), any(), any(), any()))
         .thenReturn(PendingOrderImpact.none());
+    lenient().when(r16OutflowReader.read(any(), any(), any(), any())).thenReturn(R16Reserve.NONE);
+    lenient()
+        .when(sameDayCashReader.read(any(), any(), any(), any(), any()))
+        .thenAnswer(
+            invocation ->
+                new CashSourceReport(
+                    invocation.getArgument(2) == null
+                        ? CashSource.POSITION_REPORT
+                        : CashSource.OPERATOR_AMOUNT,
+                    new GatewayCash.NotTodaysRun(),
+                    invocation.getArgument(3),
+                    List.of(),
+                    GatewayHold.NONE));
     lenient()
         .when(feeChargedToFundPolicy.resolverFor(any(), any()))
         .thenAnswer(
@@ -106,11 +116,9 @@ class TransactionInputServiceTest {
             feeChargedToFundPolicy,
             navLedgerRepository,
             new UnitRegisterCashFlows(navLedgerRepository, fundValueQueries),
-            pevaRavaPeriodService,
-            pevaRavaFlowService,
+            new PevaRavaForecastReader(pevaRavaPeriodService, pevaRavaFlowService),
             r45ReportService,
-            new R16OutflowReader(
-                r16FlowCalculationService, r16PhaseCalculator, investmentParameterRepository),
+            r16OutflowReader,
             pendingOrderImpactService,
             new PositionAssembler(fundPositionRepository),
             new UnsettledTradeReader(fundPositionRepository),
@@ -121,7 +129,10 @@ class TransactionInputServiceTest {
                     DAY_AFTER_THE_REPORT.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant(),
                     ZoneId.of("Europe/Tallinn"))),
             new TransactionParameterLoader(
-                modelPortfolioAllocationRepository, fundLimitRepository, positionLimitRepository));
+                modelPortfolioAllocationRepository, fundLimitRepository, positionLimitRepository),
+            sameDayCashReader,
+            tradeSettlementsReader,
+            gatewayNetting);
   }
 
   @Test
@@ -184,7 +195,7 @@ class TransactionInputServiceTest {
     when(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .thenReturn(List.of(positionLimit));
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.fund()).isEqualTo(TUV100);
     assertThat(result.positions()).hasSize(1);
@@ -227,7 +238,7 @@ class TransactionInputServiceTest {
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
     given(r45ReportService.getFlowsOn(AS_OF_DATE)).willReturn(Map.of());
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilityBreakdown().depotFee()).isEqualByComparingTo(ZERO);
     assertThat(result.liabilityBreakdown().managementFee()).isEqualByComparingTo("3000");
@@ -278,7 +289,8 @@ class TransactionInputServiceTest {
         service.gatherInput(
             TUV100,
             AS_OF_DATE,
-            Map.of("additionalLiabilities", "700", "additionalReceivables", "250"));
+            Map.of("additionalLiabilities", "700", "additionalReceivables", "250"),
+            noResolvedPrices());
 
     var breakdown = result.liabilityBreakdown();
     assertThat(breakdown.managementFee()).isEqualByComparingTo(new BigDecimal("3000"));
@@ -333,7 +345,7 @@ class TransactionInputServiceTest {
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.positionDate()).isEqualTo(LocalDate.of(2026, 1, 14));
     assertThat(result.modelEffectiveDate()).isEqualTo(LocalDate.of(2026, 1, 1));
@@ -364,7 +376,7 @@ class TransactionInputServiceTest {
     given(navLedgerRepository.getSystemAccountBalance("CASH_POSITION:TUV100"))
         .willReturn(new BigDecimal("95000"));
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.reportCash()).isEqualByComparingTo(new BigDecimal("100000"));
     assertThat(result.ledgerCash()).isEqualByComparingTo(new BigDecimal("95000"));
@@ -393,7 +405,7 @@ class TransactionInputServiceTest {
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.reportCash()).isEqualByComparingTo(new BigDecimal("100000"));
     assertThat(result.appliedCash()).isEqualByComparingTo(new BigDecimal("100000"));
@@ -423,7 +435,9 @@ class TransactionInputServiceTest {
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), new BigDecimal("40000"));
+    var result =
+        service.gatherInput(
+            TUV100, AS_OF_DATE, Map.of(), new BigDecimal("40000"), noResolvedPrices());
 
     assertThat(result.reportCash()).isEqualByComparingTo(new BigDecimal("100000"));
     assertThat(result.appliedCash()).isEqualByComparingTo(new BigDecimal("40000"));
@@ -436,7 +450,7 @@ class TransactionInputServiceTest {
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of()))
+    assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices()))
         .isInstanceOf(IllegalStateException.class);
   }
 
@@ -457,7 +471,7 @@ class TransactionInputServiceTest {
         .thenReturn(Optional.of(zeroFundLimit(TUV100)));
     when(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).thenReturn(List.of());
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.grossPortfolioValue()).isEqualByComparingTo(ZERO);
     assertThat(result.freeCash()).isEqualByComparingTo(ZERO);
@@ -512,7 +526,7 @@ class TransactionInputServiceTest {
         .willReturn(
             Optional.of(new FundValue("EE0000003283", null, new BigDecimal("50"), null, null)));
 
-    var result = service.gatherInput(TKF100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TKF100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilityBreakdown().incomingPaymentsClearing())
         .isEqualByComparingTo(new BigDecimal("12000"));
@@ -532,7 +546,7 @@ class TransactionInputServiceTest {
         .willReturn(new BigDecimal("-100"));
     given(fundValueQueries.findLastValueForFund("EE0000003283")).willReturn(Optional.empty());
 
-    assertThatThrownBy(() -> service.gatherInput(TKF100, AS_OF_DATE, Map.of()))
+    assertThatThrownBy(() -> service.gatherInput(TKF100, AS_OF_DATE, Map.of(), noResolvedPrices()))
         .isInstanceOf(IllegalStateException.class);
   }
 
@@ -557,7 +571,7 @@ class TransactionInputServiceTest {
         .thenReturn(Optional.of(zeroFundLimit(TUV100)));
     when(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).thenReturn(List.of());
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("1000"));
     assertThat(result.receivables()).isEqualByComparingTo(ZERO);
@@ -591,7 +605,7 @@ class TransactionInputServiceTest {
             "additionalLiabilities", 5000,
             "additionalReceivables", 3000);
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, adjustments);
+    var result = service.gatherInput(TUV100, AS_OF_DATE, adjustments, noResolvedPrices());
 
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("6000"));
     assertThat(result.receivables()).isEqualByComparingTo(new BigDecimal("3000"));
@@ -635,7 +649,7 @@ class TransactionInputServiceTest {
         .thenReturn(Optional.of(zeroFundLimit(TUV100)));
     when(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).thenReturn(List.of());
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.positions())
         .isEqualTo(List.of(new PositionSnapshot("IE00A", new BigDecimal("300000"))));
@@ -661,7 +675,8 @@ class TransactionInputServiceTest {
 
     Map<String, Object> adjustments = Map.of("additionalLiabilities", "not-a-number");
 
-    assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, adjustments))
+    assertThatThrownBy(
+            () -> service.gatherInput(TUV100, AS_OF_DATE, adjustments, noResolvedPrices()))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -710,15 +725,20 @@ class TransactionInputServiceTest {
             .orderStatus(OrderStatus.SENT)
             .expectedSettlementDate(AS_OF_DATE.plusDays(2))
             .build();
-    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any(), any(), any()))
         .willReturn(
             new PendingOrderImpact(
                 new BigDecimal("30000"),
                 new BigDecimal("10000"),
-                Map.of("IE00A", new BigDecimal("30000"), "IE00B", new BigDecimal("-10000")),
+                Map.of("IE00A", new BigDecimal("30000")),
+                Map.of(),
+                ZERO,
+                ZERO,
+                Map.of(),
+                Map.of("IE00B", new BigDecimal("10000")),
                 Map.of()));
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     // freeCash = cash(100000) - cashBuffer(0) - liabilities(0) + receivables(0)
     //            - pendingBuys(30000) + pendingSells(10000) = 80000
@@ -759,10 +779,20 @@ class TransactionInputServiceTest {
             .orderStatus(OrderStatus.EXECUTED)
             .expectedSettlementDate(AS_OF_DATE.plusDays(1))
             .build();
-    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
-        .willReturn(new PendingOrderImpact(new BigDecimal("25000"), ZERO, Map.of(), Map.of()));
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any(), any(), any()))
+        .willReturn(
+            new PendingOrderImpact(
+                new BigDecimal("25000"),
+                ZERO,
+                Map.of(),
+                Map.of(),
+                ZERO,
+                ZERO,
+                Map.of(),
+                Map.of(),
+                Map.of()));
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     // freeCash = cash(100000) - pendingBuys(25000) = 75000
     assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("75000"));
@@ -780,10 +810,25 @@ class TransactionInputServiceTest {
             Map.of(
                 TulevaFund.TUK75, pevaRavaFlows(new BigDecimal("10000"), new BigDecimal("11000"))));
 
-    var result = service.gatherInput(TulevaFund.TUK75, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TulevaFund.TUK75, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("10000"));
     assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("-10000"));
+  }
+
+  @Test
+  void gatherInput_duringAnActivePevaRavaCycleTheCashReadKnowsSoTodaysBalanceIsNotUsed() {
+    stubEmptyBaseline(TulevaFund.TUK75);
+    given(pevaRavaPeriodService.getCurrentPeriod(AS_OF_DATE))
+        .willReturn(
+            Optional.of(
+                pevaRavaPeriod(PevaRavaPhase.ACTIVE, timeline(true, false), timeline(true, true))));
+    given(pevaRavaFlowService.calculateFlows(AS_OF_DATE)).willReturn(Map.of());
+
+    service.gatherInput(TulevaFund.TUK75, AS_OF_DATE, Map.of(), noResolvedPrices());
+
+    verify(sameDayCashReader)
+        .read(TulevaFund.TUK75, AS_OF_DATE, null, ZERO, GatewayHold.PEVA_RAVA_CYCLE_ACTIVE);
   }
 
   @Test
@@ -799,7 +844,7 @@ class TransactionInputServiceTest {
             Map.of(
                 TulevaFund.TUK00, pevaRavaFlows(new BigDecimal("10000"), new BigDecimal("11000"))));
 
-    var result = service.gatherInput(TulevaFund.TUK00, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TulevaFund.TUK00, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("11000"));
   }
@@ -813,7 +858,7 @@ class TransactionInputServiceTest {
                 pevaRavaPeriod(
                     PevaRavaPhase.TUK00_ACTIVE, timeline(false, false), timeline(true, false))));
 
-    var result = service.gatherInput(TulevaFund.TUK75, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TulevaFund.TUK75, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
     org.mockito.Mockito.verifyNoInteractions(pevaRavaFlowService);
@@ -827,7 +872,7 @@ class TransactionInputServiceTest {
             Optional.of(
                 pevaRavaPeriod(PevaRavaPhase.DONE, timeline(true, true), timeline(true, true))));
 
-    var result = service.gatherInput(TulevaFund.TUK75, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TulevaFund.TUK75, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
     org.mockito.Mockito.verifyNoInteractions(pevaRavaFlowService);
@@ -842,7 +887,7 @@ class TransactionInputServiceTest {
                 pevaRavaPeriod(PevaRavaPhase.ACTIVE, timeline(true, false), timeline(true, true))));
     given(pevaRavaFlowService.calculateFlows(AS_OF_DATE)).willReturn(Map.of());
 
-    var result = service.gatherInput(TulevaFund.TUK75, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TulevaFund.TUK75, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
   }
@@ -851,7 +896,7 @@ class TransactionInputServiceTest {
   void gatherInput_forNonPevaRavaFund_doesNotQueryPevaRavaServices() {
     stubEmptyBaseline(TUV100);
 
-    service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     org.mockito.Mockito.verifyNoInteractions(pevaRavaPeriodService, pevaRavaFlowService);
   }
@@ -866,7 +911,7 @@ class TransactionInputServiceTest {
                 new R45Result(
                     new BigDecimal("1000"), new BigDecimal("5000"), new BigDecimal("-4000"))));
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("4000"));
     assertThat(result.receivables()).isEqualByComparingTo(ZERO);
@@ -883,7 +928,7 @@ class TransactionInputServiceTest {
                 new R45Result(
                     new BigDecimal("5000"), new BigDecimal("1000"), new BigDecimal("4000"))));
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
     assertThat(result.receivables()).isEqualByComparingTo(ZERO);
@@ -895,7 +940,7 @@ class TransactionInputServiceTest {
     stubEmptyBaseline(TUV100);
     given(r45ReportService.getFlowsOn(AS_OF_DATE)).willReturn(Map.of());
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
     assertThat(result.receivables()).isEqualByComparingTo(ZERO);
@@ -906,7 +951,7 @@ class TransactionInputServiceTest {
     stubEmptyBaseline(TUV100);
     given(r45ReportService.getIncompleteFundsOn(AS_OF_DATE)).willReturn(List.of(TUV100));
 
-    assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of()))
+    assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices()))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("R45 summary incomplete");
   }
@@ -921,122 +966,150 @@ class TransactionInputServiceTest {
                 new R45Result(
                     new BigDecimal("1000"), new BigDecimal("5000"), new BigDecimal("-4000"))));
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of("additionalLiabilities", 2000));
+    var result =
+        service.gatherInput(
+            TUV100, AS_OF_DATE, Map.of("additionalLiabilities", 2000), noResolvedPrices());
 
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("6000"));
   }
 
   @Test
-  void gatherInput_r16ActivePhase_addsTotalOutflowToLiabilities() {
+  void gatherInput_onTodaysSebBalanceSizesOnItAndCountsR16PaymentsBookedUpToToday() {
     stubEmptyBaseline(TUV100);
-    var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
-        .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
-        .willReturn(R16Phase.ACTIVE);
+    var balance =
+        new GatewayCash.CurrentDayBalance(
+            new BigDecimal("600000"), Instant.parse("2026-01-15T08:00:00Z"), Set.of(), Set.of());
+    given(sameDayCashReader.read(TUV100, AS_OF_DATE, null, ZERO, GatewayHold.NONE))
+        .willReturn(
+            new CashSourceReport(
+                CashSource.GATEWAY_BALANCE, balance, ZERO, List.of(), GatewayHold.NONE));
+    given(
+            tradeSettlementsReader.read(
+                new NettingWindow(TUV100, AS_OF_DATE, AS_OF_DATE, Set.of(), Set.of())))
+        .willReturn(new TradeSettlementsInTheBalance(List.of()));
+    given(r45ReportService.getRowsOn(TUV100, AS_OF_DATE)).willReturn(Optional.of(List.of()));
+    given(gatewayNetting.r45(any(), any())).willReturn(new Netted<>(ZERO, ZERO));
+    given(
+            r16OutflowReader.read(
+                TUV100,
+                AS_OF_DATE,
+                new NettingWindow(TUV100, AS_OF_DATE, AS_OF_DATE, Set.of(), Set.of()),
+                new R16Reserves(ZERO, null)))
+        .willReturn(
+            new R16Reserve(
+                R16Reserve.Basis.FORECAST_NOT_YET_BOOKED,
+                List.of(),
+                new BigDecimal("1000000"),
+                new BigDecimal("500000"),
+                new BigDecimal("10000")));
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
+
+    assertThat(result.appliedCash()).isEqualByComparingTo("600000");
+    assertThat(result.freeCash()).isEqualByComparingTo("590000");
+  }
+
+  @Test
+  void gatherInput_onTodaysSebBalanceTheBreakdownShowsTheR45ReserveTheRowsLeave() {
+    givenTodaysBalance(TUV100, "600000");
+    given(r45ReportService.getFlowsOn(AS_OF_DATE))
+        .willReturn(
+            Map.of(
+                TUV100,
+                new R45Result(
+                    new BigDecimal("10000"), new BigDecimal("60000"), new BigDecimal("-50000"))));
+    given(r45ReportService.getRowsOn(TUV100, AS_OF_DATE)).willReturn(Optional.of(List.of()));
+    given(gatewayNetting.r45(any(), any()))
+        .willReturn(new Netted<>(new BigDecimal("50000"), new BigDecimal("20000")));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
+
+    assertThat(result.liabilities()).isEqualByComparingTo("20000");
+    assertThat(result.liabilityBreakdown().r45Net()).isEqualByComparingTo("-20000");
+  }
+
+  @Test
+  void gatherInput_withoutStoredR45RowsTheRunStaysOnReportCashSoTodaysR45InflowIsNotCountedTwice() {
+    stubEmptyBaseline(TUV100);
+    given(sameDayCashReader.read(eq(TUV100), eq(AS_OF_DATE), any(), any(), any()))
+        .willAnswer(
+            invocation ->
+                invocation.<GatewayHold>getArgument(4) == GatewayHold.NONE
+                    ? new CashSourceReport(
+                        CashSource.GATEWAY_BALANCE,
+                        new GatewayCash.CurrentDayBalance(
+                            new BigDecimal("600000"),
+                            Instant.parse("2026-01-15T08:00:00Z"),
+                            Set.of(),
+                            Set.of()),
+                        ZERO,
+                        List.of(),
+                        GatewayHold.NONE)
+                    : new CashSourceReport(
+                        CashSource.POSITION_REPORT,
+                        new GatewayCash.CurrentDayBalance(
+                            new BigDecimal("600000"),
+                            Instant.parse("2026-01-15T08:00:00Z"),
+                            Set.of(),
+                            Set.of()),
+                        ZERO,
+                        List.of(),
+                        invocation.getArgument(4)));
+    given(r45ReportService.getFlowsOn(AS_OF_DATE))
+        .willReturn(
+            Map.of(
+                TUV100, new R45Result(new BigDecimal("100000"), new BigDecimal("100000"), ZERO)));
+    given(r45ReportService.getRowsOn(TUV100, AS_OF_DATE)).willReturn(Optional.empty());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
+
+    assertThat(result.cashSection().sources().source()).isEqualTo(CashSource.POSITION_REPORT);
+    assertThat(result.cashSection().sources().hold()).isEqualTo(GatewayHold.R45_ROWS_UNAVAILABLE);
+    assertThat(result.appliedCash()).isEqualByComparingTo("0");
+    assertThat(result.liabilities()).isEqualByComparingTo("0");
+  }
+
+  private void givenTodaysBalance(TulevaFund fund, String balance) {
+    stubEmptyBaseline(fund);
+    given(sameDayCashReader.read(fund, AS_OF_DATE, null, ZERO, GatewayHold.NONE))
+        .willReturn(
+            new CashSourceReport(
+                CashSource.GATEWAY_BALANCE,
+                new GatewayCash.CurrentDayBalance(
+                    new BigDecimal(balance),
+                    Instant.parse("2026-01-15T08:00:00Z"),
+                    Set.of(),
+                    Set.of()),
+                ZERO,
+                List.of(),
+                GatewayHold.NONE));
+    given(
+            tradeSettlementsReader.read(
+                new NettingWindow(fund, AS_OF_DATE, AS_OF_DATE, Set.of(), Set.of())))
+        .willReturn(new TradeSettlementsInTheBalance(List.of()));
+  }
+
+  @Test
+  void gatherInput_reservesTheR16AmountForThePayoutTypesNotBookedByTheReportDate() {
+    stubEmptyBaseline(TUV100);
+    given(
+            r16OutflowReader.read(
+                TUV100,
+                AS_OF_DATE,
+                new CashHorizon.ThroughTheReportDate(AS_OF_DATE),
+                new R16Reserves(ZERO, null)))
+        .willReturn(
+            new R16Reserve(
+                R16Reserve.Basis.FORECAST_NOT_YET_BOOKED,
+                List.of(),
+                new BigDecimal("1000000"),
+                new BigDecimal("500000"),
+                new BigDecimal("10500")));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("10500"));
     assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("-10500"));
-  }
-
-  @Test
-  void gatherInput_r16BufferedPhase_addsBufferedRoundedOutflowToLiabilities() {
-    stubEmptyBaseline(TUV100);
-    var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
-        .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
-        .willReturn(R16Phase.BUFFERED);
-    given(investmentParameterRepository.findLatestValue(R16_BUFFER_PERCENT, AS_OF_DATE))
-        .willReturn(new BigDecimal("0.02"));
-    given(investmentParameterRepository.findLatestValue(R16_ROUNDING_STEP, AS_OF_DATE))
-        .willReturn(new BigDecimal("1000"));
-
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
-
-    // 10500 * 1.02 = 10710 -> rounded up to step 1000 -> 11000
-    assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("11000"));
-  }
-
-  @Test
-  void gatherInput_r16BufferedPhase_rejectsZeroRoundingStep() {
-    stubEmptyBaseline(TUV100);
-    var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
-        .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
-        .willReturn(R16Phase.BUFFERED);
-    given(investmentParameterRepository.findLatestValue(R16_BUFFER_PERCENT, AS_OF_DATE))
-        .willReturn(new BigDecimal("0.02"));
-    given(investmentParameterRepository.findLatestValue(R16_ROUNDING_STEP, AS_OF_DATE))
-        .willReturn(ZERO);
-
-    assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of()))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("R16_ROUNDING_STEP")
-        .hasMessageContaining("value=0");
-  }
-
-  @Test
-  void gatherInput_r16BufferedPhase_rejectsNegativeRoundingStep() {
-    stubEmptyBaseline(TUV100);
-    var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
-        .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
-        .willReturn(R16Phase.BUFFERED);
-    given(investmentParameterRepository.findLatestValue(R16_BUFFER_PERCENT, AS_OF_DATE))
-        .willReturn(new BigDecimal("0.02"));
-    given(investmentParameterRepository.findLatestValue(R16_ROUNDING_STEP, AS_OF_DATE))
-        .willReturn(new BigDecimal("-1000"));
-
-    assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of()))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("R16_ROUNDING_STEP")
-        .hasMessageContaining("value=-1000");
-  }
-
-  @Test
-  void gatherInput_r16VisiblePhase_addsNothing() {
-    stubEmptyBaseline(TUV100);
-    var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
-        .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
-        .willReturn(R16Phase.VISIBLE);
-
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
-
-    assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
-    org.mockito.Mockito.verifyNoInteractions(investmentParameterRepository);
-  }
-
-  @Test
-  void gatherInput_r16IgnorePhase_addsNothing() {
-    stubEmptyBaseline(TUV100);
-    var flow = r16Flow(TUV100, new BigDecimal("10500"));
-    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
-        .willReturn(Optional.of(flow));
-    given(r16PhaseCalculator.tradePrepPhaseFor(TUV100, flow.paymentDates(), AS_OF_DATE))
-        .willReturn(R16Phase.IGNORE);
-
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
-
-    assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
-  }
-
-  @Test
-  void gatherInput_r16DataMissing_addsNothingAndSkipsPhaseCalculation() {
-    stubEmptyBaseline(TUV100);
-    given(r16FlowCalculationService.calculateThisMonthsFlows(TUV100, AS_OF_DATE))
-        .willReturn(Optional.empty());
-
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
-
-    assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
-    org.mockito.Mockito.verifyNoInteractions(r16PhaseCalculator);
   }
 
   @Test
@@ -1049,12 +1122,34 @@ class TransactionInputServiceTest {
                 custodianRow(LIABILITY, "Management Fee Payable", "-1200"),
                 custodianRow(LIABILITY, "Payables of redeemed units", "-5000")));
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilityBreakdown().unsettledTradePayables())
         .isEqualByComparingTo(new BigDecimal("30000"));
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("30000"));
     assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("-30000"));
+  }
+
+  @Test
+  void gatherInput_onReportCashTakesTheReportsUnsettledTradesAsTheyAreEvenBelowZero() {
+    stubEmptyBaseline(TUV100);
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF_DATE, TUV100, LIABILITY))
+        .willReturn(
+            List.of(custodianRow(LIABILITY, "Total payables of unsettled transactions", "4000")));
+    given(
+            fundPositionRepository.findByNavDateAndFundAndAccountType(
+                AS_OF_DATE, TUV100, RECEIVABLES))
+        .willReturn(
+            List.of(
+                custodianRow(RECEIVABLES, "Total receivables of unsettled transactions", "-5000")));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
+
+    assertThat(result.liabilityBreakdown().unsettledTradePayables())
+        .isEqualByComparingTo(new BigDecimal("-4000"));
+    assertThat(result.liabilityBreakdown().unsettledTradeReceivables())
+        .isEqualByComparingTo(new BigDecimal("-5000"));
+    assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("-1000"));
   }
 
   @Test
@@ -1074,7 +1169,7 @@ class TransactionInputServiceTest {
     given(r45ReportService.getFlowsOn(DAY_AFTER_THE_REPORT)).willReturn(Map.of());
     givenRegistrarReceiptsAfterTheReport(TUV100, "8000");
 
-    var result = service.gatherInput(TUV100, DAY_AFTER_THE_REPORT, Map.of());
+    var result = service.gatherInput(TUV100, DAY_AFTER_THE_REPORT, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilityBreakdown().unsettledTradeReceivables())
         .isEqualByComparingTo(new BigDecimal("20000"));
@@ -1090,7 +1185,7 @@ class TransactionInputServiceTest {
     givenTheReportCarriesOnlyAUnitReceivable(TUV100, "8000");
     givenRegistrarReceiptsAfterTheReport(TUV100, "5000");
 
-    var result = service.gatherInput(TUV100, DAY_AFTER_THE_REPORT, Map.of());
+    var result = service.gatherInput(TUV100, DAY_AFTER_THE_REPORT, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilityBreakdown().unitReceivableReported())
         .isEqualByComparingTo(new BigDecimal("8000"));
@@ -1108,7 +1203,7 @@ class TransactionInputServiceTest {
     givenTheReportCarriesOnlyAUnitReceivable(TUK75, "8000");
     givenRegistrarReceiptsAfterTheReport(TUK75, "5000");
 
-    var result = service.gatherInput(TUK75, DAY_AFTER_THE_REPORT, Map.of());
+    var result = service.gatherInput(TUK75, DAY_AFTER_THE_REPORT, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilityBreakdown().unitReceivableReported())
         .isEqualByComparingTo(new BigDecimal("8000"));
@@ -1124,7 +1219,8 @@ class TransactionInputServiceTest {
     givenRegistrarReceiptsAfterTheReport(TUV100, "5000");
 
     var result =
-        service.gatherInput(TUV100, DAY_AFTER_THE_REPORT, Map.of(), new BigDecimal("40000"));
+        service.gatherInput(
+            TUV100, DAY_AFTER_THE_REPORT, Map.of(), new BigDecimal("40000"), noResolvedPrices());
 
     assertThat(result.liabilityBreakdown().unitReceivableReported())
         .isEqualByComparingTo(new BigDecimal("8000"));
@@ -1178,27 +1274,6 @@ class TransactionInputServiceTest {
         .accountName(accountName)
         .marketValue(new BigDecimal(marketValue))
         .build();
-  }
-
-  @Test
-  void gatherInput_forNonR16Fund_doesNotQueryR16Services() {
-    stubEmptyBaseline(TKF100);
-    given(navLedgerRepository.getFundUnitsBalance("FUND_UNITS_RESERVED")).willReturn(ZERO);
-
-    service.gatherInput(TKF100, AS_OF_DATE, Map.of());
-
-    org.mockito.Mockito.verifyNoInteractions(r16FlowCalculationService, r16PhaseCalculator);
-  }
-
-  private static R16FundFlow r16Flow(TulevaFund fund, BigDecimal totalOutflowEur) {
-    return new R16FundFlow(
-        fund,
-        new BigDecimal("10000"),
-        new BigDecimal("500"),
-        totalOutflowEur,
-        LocalDate.of(2026, 1, 1),
-        LocalDate.of(2026, 1, 15),
-        LocalDate.of(2026, 1, 8));
   }
 
   private void stubEmptyBaseline(TulevaFund fund) {
@@ -1274,15 +1349,20 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any(), any(), any()))
         .willReturn(
             new PendingOrderImpact(
                 new BigDecimal("40000"),
                 ZERO,
                 Map.of("IE00A", new BigDecimal("40000")),
-                Map.of("IE00A", new BigDecimal("80"))));
+                Map.of("IE00A", new BigDecimal("80")),
+                ZERO,
+                ZERO,
+                Map.of(),
+                Map.of(),
+                Map.of()));
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.positions())
         .singleElement()
@@ -1333,7 +1413,7 @@ class TransactionInputServiceTest {
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.positions())
         .extracting(PositionSnapshot::isin, PositionSnapshot::marketValue)
@@ -1370,12 +1450,20 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any(), any(), any()))
         .willReturn(
             new PendingOrderImpact(
-                new BigDecimal("40000"), ZERO, Map.of("IE00A", new BigDecimal("40000")), Map.of()));
+                new BigDecimal("40000"),
+                ZERO,
+                Map.of("IE00A", new BigDecimal("40000")),
+                Map.of(),
+                ZERO,
+                ZERO,
+                Map.of(),
+                Map.of(),
+                Map.of()));
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     BigDecimal netInvestable =
         result
@@ -1422,7 +1510,7 @@ class TransactionInputServiceTest {
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
     given(r45ReportService.getFlowsOn(AS_OF_DATE)).willReturn(Map.of());
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilityBreakdown().depotFee()).isEqualByComparingTo("460");
     assertThat(result.liabilityBreakdown().managementFee()).isEqualByComparingTo("3000");
@@ -1470,7 +1558,7 @@ class TransactionInputServiceTest {
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
     given(r45ReportService.getFlowsOn(AS_OF_DATE)).willReturn(Map.of());
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilityBreakdown().depotFee()).isEqualByComparingTo("10");
     assertThat(result.liabilityBreakdown().managementFee()).isEqualByComparingTo("0");
@@ -1507,7 +1595,7 @@ class TransactionInputServiceTest {
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
     given(r45ReportService.getFlowsOn(AS_OF_DATE)).willReturn(Map.of());
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of(), noResolvedPrices());
 
     assertThat(result.liabilityBreakdown().depotFee()).isEqualByComparingTo("10");
     assertThat(result.liabilityBreakdown().managementFee()).isEqualByComparingTo("3000");

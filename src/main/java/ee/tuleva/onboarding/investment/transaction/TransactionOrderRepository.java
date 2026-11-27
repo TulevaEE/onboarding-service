@@ -41,6 +41,18 @@ public interface TransactionOrderRepository extends JpaRepository<TransactionOrd
       """
       SELECT o FROM TransactionOrder o
       WHERE o.fund = :fund
+        AND o.transactionType = ee.tuleva.onboarding.investment.transaction.TransactionType.SELL
+        AND (o.orderStatus = ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT
+          OR EXISTS (
+            SELECT e FROM TransactionExecution e
+            WHERE e.orderId = o.id AND e.reportedDate > :positionDate))
+      """)
+  List<TransactionOrder> findSalesTheReportMayNotShowYet(TulevaFund fund, LocalDate positionDate);
+
+  @Query(
+      """
+      SELECT o FROM TransactionOrder o
+      WHERE o.fund = :fund
         AND (o.orderStatus = ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT
              AND o.expectedSettlementDate > :asOfDate
           OR o.orderStatus = ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED

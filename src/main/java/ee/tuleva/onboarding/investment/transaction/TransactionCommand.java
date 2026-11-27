@@ -17,6 +17,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -62,6 +63,23 @@ public class TransactionCommand {
   @JdbcTypeCode(JSON)
   private Set<String> excludeIsins = Set.of();
 
+  @Builder.Default
+  @JdbcTypeCode(JSON)
+  private List<PriceOverride> prices = List.of();
+
+  @Nullable
+  @JdbcTypeCode(JSON)
+  private AcceptedHoldingDifferences acceptedHoldingDifferences;
+
+  @NotNull
+  @Enumerated(STRING)
+  @Builder.Default
+  private PriceDateRule priceDateRule = PriceDateRule.FRESHEST_PER_INSTRUMENT;
+
+  @Builder.Default
+  @JdbcTypeCode(JSON)
+  private List<PriceDeviationConfirmation> confirmedPriceDeviations = List.of();
+
   @NotNull
   @Enumerated(STRING)
   @Builder.Default
@@ -81,6 +99,9 @@ public class TransactionCommand {
     Map<String, Object> manualAdjustments = request.manualAdjustments();
     CashOverride cash = request.cash();
     Set<String> excludeIsins = request.excludeIsins();
+    List<PriceOverride> prices = request.prices();
+    PriceDateRule priceDateRule = request.priceDateRule();
+    List<PriceDeviationConfirmation> confirmedPriceDeviations = request.confirmedPriceDeviations();
     return TransactionCommand.builder()
         .fund(request.fund())
         .mode(request.mode())
@@ -89,9 +110,21 @@ public class TransactionCommand {
         .cash(cash == null ? null : cash.amount())
         .cashComment(cash == null ? null : cash.comment())
         .excludeIsins(excludeIsins == null ? Set.of() : Set.copyOf(excludeIsins))
+        .prices(prices == null ? List.of() : List.copyOf(prices))
+        .acceptedHoldingDifferences(request.acceptedHoldingDifferences())
+        .priceDateRule(
+            priceDateRule == null ? PriceDateRule.FRESHEST_PER_INSTRUMENT : priceDateRule)
+        .confirmedPriceDeviations(
+            confirmedPriceDeviations == null ? List.of() : List.copyOf(confirmedPriceDeviations))
         .actor(actor)
         .status(CommandStatus.PROCESSING)
         .build();
+  }
+
+  List<PriceDeviationConfirmation> sortedConfirmedPriceDeviations() {
+    return confirmedPriceDeviations.stream()
+        .sorted(Comparator.comparing(PriceDeviationConfirmation::isin))
+        .toList();
   }
 
   List<String> sortedExcludeIsins() {

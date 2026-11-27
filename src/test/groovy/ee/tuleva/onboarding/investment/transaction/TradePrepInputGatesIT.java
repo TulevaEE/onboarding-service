@@ -1,11 +1,15 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction.INFLOW;
+import static ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction.OUTFLOW;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.EPIS;
 import static ee.tuleva.onboarding.investment.report.ReportType.R16_FORECASTED_PAYMENTS;
 import static ee.tuleva.onboarding.investment.report.ReportType.R17_PEVA;
 import static ee.tuleva.onboarding.investment.report.ReportType.R21_RAVA;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
+import static ee.tuleva.onboarding.investment.transaction.TradePrepOverridesFixture.noOverrides;
+import static ee.tuleva.onboarding.investment.transaction.TradePrepPricingFixture.noResolvedPrices;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
@@ -16,7 +20,10 @@ import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.context.annotation.FilterType.REGEX;
 
@@ -32,6 +39,7 @@ import ee.tuleva.onboarding.investment.epis.PevaRavaPeriodService;
 import ee.tuleva.onboarding.investment.epis.R16FlowCalculationService;
 import ee.tuleva.onboarding.investment.epis.R16PhaseCalculator;
 import ee.tuleva.onboarding.investment.epis.R45ReportService;
+import ee.tuleva.onboarding.investment.epis.R45Row;
 import ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser;
 import ee.tuleva.onboarding.investment.epis.parser.R45ReportParser;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -40,12 +48,15 @@ import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
 import ee.tuleva.onboarding.investment.report.ReportType;
 import ee.tuleva.onboarding.investment.transaction.CommandOutcome.StoppedByInputGates;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.HoldingMismatch;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPevaRavaReports;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPositionReport;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPrices;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR16;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR45;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoR45Loaded;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.StalePositionReport;
+import ee.tuleva.onboarding.ledger.RegistrarCashFlowRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -58,6 +69,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,8 +83,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @Import({
   TradePrepInputGatesIT.EpisNavProvider.class,
   TradePrepInputGates.class,
+  TradePrepPevaRavaGate.class,
   TradePrepInputGateNotifier.class,
   R16OutflowReader.class,
+  RegistrarCashFlowRepository.class,
   R16FlowCalculationService.class,
   R16PhaseCalculator.class,
   R45ReportService.class,
@@ -104,6 +118,8 @@ class TradePrepInputGatesIT {
   @MockitoBean FundNavQueryService fundNavQueryService;
   @MockitoBean InvestmentParameterRepository investmentParameterRepository;
   @MockitoBean OperationsNotificationService notificationService;
+  @MockitoBean TradePrepPriceGate priceGate;
+  @MockitoBean TradePrepPositionGate positionGate;
 
   @Autowired TradePrepInputGates gates;
   @Autowired R16OutflowReader r16OutflowReader;
@@ -117,6 +133,10 @@ class TradePrepInputGatesIT {
 
   @BeforeEach
   void startFromNoStoredReportsOrPositions() {
+    given(priceGate.check(any(), any(), any()))
+        .willReturn(new PriceCheck(List.of(), noResolvedPrices(), List.of(), List.of()));
+    given(positionGate.check(any(), any(), any()))
+        .willReturn(new PositionCheck(List.of(), List.of()));
     summaryRepository.deleteAll();
     cycleRepository.deleteAll();
     summaryRepository.flush();
@@ -133,7 +153,7 @@ class TradePrepInputGatesIT {
     r45(WEDNESDAY);
     r16(YearMonth.of(2026, 11), TUK75);
 
-    assertThat(gates.failures(TUK75, WEDNESDAY)).isEmpty();
+    assertThat(gates.check(TUK75, WEDNESDAY, noOverrides()).failures()).isEmpty();
   }
 
   @Test
@@ -142,7 +162,7 @@ class TradePrepInputGatesIT {
     r45(WEDNESDAY, TUK75);
     r16(YearMonth.of(2026, 11), TUK75);
 
-    assertThat(gates.failures(TUK00, WEDNESDAY)).isEmpty();
+    assertThat(gates.check(TUK00, WEDNESDAY, noOverrides()).failures()).isEmpty();
   }
 
   @Test
@@ -151,7 +171,47 @@ class TradePrepInputGatesIT {
     r45(WEDNESDAY);
     r16(YearMonth.of(2026, 11), TUK75);
 
-    assertThat(gates.failures(TUK00, WEDNESDAY)).isEmpty();
+    assertThat(gates.check(TUK00, WEDNESDAY, noOverrides()).failures()).isEmpty();
+  }
+
+  @Test
+  void missingPricesAndHoldingsTheRegistryAndSebDisagreeOnJoinTheFundsOtherLines() {
+    positionReport(TUK75, TUESDAY);
+    r45(WEDNESDAY);
+    r16(YearMonth.of(2026, 11), TUK75);
+    var missingPrices = new MissingPrices(List.of("IE00BFG1TM61"));
+    var mismatch =
+        new HoldingMismatch("IE0009FT4LX4", TUESDAY, new BigDecimal("1000"), new BigDecimal("990"));
+    given(priceGate.check(TUK75, WEDNESDAY, noOverrides()))
+        .willReturn(
+            new PriceCheck(List.of(missingPrices), noResolvedPrices(), List.of(), List.of()));
+    given(positionGate.check(TUK75, TUESDAY, noOverrides()))
+        .willReturn(new PositionCheck(List.of(mismatch), List.of()));
+
+    assertThat(gates.check(TUK75, WEDNESDAY, noOverrides()).failures())
+        .containsExactly(missingPrices, mismatch);
+  }
+
+  @Test
+  void theRegistryIsComparedWithTheReportTradePrepUsesWhenItIsNewerThanTheRequiredOne() {
+    positionReport(TUK75, WEDNESDAY);
+    r45(WEDNESDAY);
+    r16(YearMonth.of(2026, 11), TUK75);
+
+    gates.check(TUK75, WEDNESDAY, noOverrides()).failures();
+
+    then(positionGate).should().check(TUK75, WEDNESDAY, noOverrides());
+  }
+
+  @Test
+  void theRegistryIsNotComparedWithAPositionReportThatIsAlreadyStale() {
+    positionReport(TUK75, LocalDate.of(2026, 11, 16));
+    r45(WEDNESDAY);
+    r16(YearMonth.of(2026, 11), TUK75);
+
+    assertThat(gates.check(TUK75, WEDNESDAY, noOverrides()).failures())
+        .containsExactly(new StalePositionReport(LocalDate.of(2026, 11, 16), TUESDAY));
+    then(positionGate).should(never()).check(any(), any(), any());
   }
 
   @Test
@@ -160,7 +220,7 @@ class TradePrepInputGatesIT {
     r45(WEDNESDAY);
     r16(YearMonth.of(2026, 11), TUK75);
 
-    assertThat(gates.failures(TUK75, WEDNESDAY))
+    assertThat(gates.check(TUK75, WEDNESDAY, noOverrides()).failures())
         .containsExactly(new StalePositionReport(LocalDate.of(2026, 11, 16), TUESDAY));
   }
 
@@ -170,7 +230,7 @@ class TradePrepInputGatesIT {
     r45(WEDNESDAY);
     r16(YearMonth.of(2026, 11), TUK75);
 
-    assertThat(gates.failures(TUK75, WEDNESDAY))
+    assertThat(gates.check(TUK75, WEDNESDAY, noOverrides()).failures())
         .containsExactly(new MissingPositionReport(TUESDAY));
   }
 
@@ -178,14 +238,14 @@ class TradePrepInputGatesIT {
   void onMondayFridaysPositionReportIsThePreviousWorkingDays() {
     positionReport(TKF100, LocalDate.of(2026, 11, 20));
 
-    assertThat(gates.failures(TKF100, LocalDate.of(2026, 11, 23))).isEmpty();
+    assertThat(gates.check(TKF100, LocalDate.of(2026, 11, 23), noOverrides()).failures()).isEmpty();
   }
 
   @Test
   void theRequiredPositionReportSkipsEstonianPublicHolidays() {
     positionReport(TKF100, LocalDate.of(2026, 2, 20));
 
-    assertThat(gates.failures(TKF100, LocalDate.of(2026, 2, 25)))
+    assertThat(gates.check(TKF100, LocalDate.of(2026, 2, 25), noOverrides()).failures())
         .containsExactly(
             new StalePositionReport(LocalDate.of(2026, 2, 20), LocalDate.of(2026, 2, 23)));
   }
@@ -196,7 +256,7 @@ class TradePrepInputGatesIT {
     r45(TUESDAY);
     r16(YearMonth.of(2026, 11), TUV100);
 
-    assertThat(gates.failures(TUV100, WEDNESDAY))
+    assertThat(gates.check(TUV100, WEDNESDAY, noOverrides()).failures())
         .containsExactly(new MissingR45(WEDNESDAY, TUESDAY));
   }
 
@@ -205,7 +265,8 @@ class TradePrepInputGatesIT {
     positionReport(TUV100, TUESDAY);
     r16(YearMonth.of(2026, 11), TUV100);
 
-    assertThat(gates.failures(TUV100, WEDNESDAY)).containsExactly(new NoR45Loaded(WEDNESDAY));
+    assertThat(gates.check(TUV100, WEDNESDAY, noOverrides()).failures())
+        .containsExactly(new NoR45Loaded(WEDNESDAY));
   }
 
   @Test
@@ -213,7 +274,7 @@ class TradePrepInputGatesIT {
     positionReport(TUV100, TUESDAY);
     r45(TUESDAY);
 
-    assertThat(gates.failures(TUV100, WEDNESDAY))
+    assertThat(gates.check(TUV100, WEDNESDAY, noOverrides()).failures())
         .containsExactly(new MissingR45(WEDNESDAY, TUESDAY));
   }
 
@@ -222,7 +283,7 @@ class TradePrepInputGatesIT {
     positionReport(TUK75, TUESDAY);
     r45(TUESDAY);
 
-    assertThat(gates.failures(TUK75, WEDNESDAY))
+    assertThat(gates.check(TUK75, WEDNESDAY, noOverrides()).failures())
         .containsExactly(
             new MissingR45(WEDNESDAY, TUESDAY),
             new MissingR16(
@@ -233,7 +294,7 @@ class TradePrepInputGatesIT {
   void theSavingsFundNeedsNoEpisReports() {
     positionReport(TKF100, TUESDAY);
 
-    assertThat(gates.failures(TKF100, WEDNESDAY)).isEmpty();
+    assertThat(gates.check(TKF100, WEDNESDAY, noOverrides()).failures()).isEmpty();
   }
 
   @Test
@@ -241,7 +302,7 @@ class TradePrepInputGatesIT {
     positionReport(TUK75, LocalDate.of(2026, 12, 21));
     r45(TUK75_COUNTS_FROM);
 
-    assertThat(gates.failures(TUK75, TUK75_COUNTS_FROM))
+    assertThat(gates.check(TUK75, TUK75_COUNTS_FROM, noOverrides()).failures())
         .containsExactly(
             new MissingPevaRavaReports(
                 List.of(R17_PEVA, R21_RAVA), DECEMBER_EXECUTION_CYCLE_DATE, TUK75_COUNTS_FROM));
@@ -253,7 +314,7 @@ class TradePrepInputGatesIT {
     positionReport(TUK75, LocalDate.of(2026, 12, 18));
     r45(dayBefore);
 
-    assertThat(gates.failures(TUK75, dayBefore)).isEmpty();
+    assertThat(gates.check(TUK75, dayBefore, noOverrides()).failures()).isEmpty();
   }
 
   @Test
@@ -263,7 +324,7 @@ class TradePrepInputGatesIT {
     r45(monday);
     cycleWithReports(reportOf(R17_PEVA, LocalDate.of(2026, 12, 3)), null);
 
-    assertThat(gates.failures(TUK00, monday))
+    assertThat(gates.check(TUK00, monday, noOverrides()).failures())
         .containsExactly(
             new MissingPevaRavaReports(
                 List.of(R21_RAVA), DECEMBER_EXECUTION_CYCLE_DATE, TUK00_COUNTS_FROM));
@@ -278,7 +339,7 @@ class TradePrepInputGatesIT {
         reportOf(R17_PEVA, LocalDate.of(2026, 12, 3)),
         reportOf(R21_RAVA, LocalDate.of(2026, 12, 4)));
 
-    assertThat(gates.failures(TUK00, monday)).isEmpty();
+    assertThat(gates.check(TUK00, monday, noOverrides()).failures()).isEmpty();
   }
 
   @Test
@@ -287,7 +348,7 @@ class TradePrepInputGatesIT {
     positionReport(TUK00, LocalDate.of(2026, 12, 18));
     r45(monday);
     cycleWithReports(reportOf(R17_PEVA, LocalDate.of(2026, 12, 3)), null);
-    assertThat(gates.failures(TUK00, monday))
+    assertThat(gates.check(TUK00, monday, noOverrides()).failures())
         .containsExactly(
             new MissingPevaRavaReports(
                 List.of(R21_RAVA), DECEMBER_EXECUTION_CYCLE_DATE, TUK00_COUNTS_FROM));
@@ -299,7 +360,7 @@ class TradePrepInputGatesIT {
         .setParameter("exec", DECEMBER_EXECUTION_CYCLE_DATE)
         .executeUpdate();
 
-    assertThat(gates.failures(TUK00, monday)).isEmpty();
+    assertThat(gates.check(TUK00, monday, noOverrides()).failures()).isEmpty();
   }
 
   @Test
@@ -308,7 +369,7 @@ class TradePrepInputGatesIT {
     positionReport(TUK75, LocalDate.of(2027, 1, 6));
     r45(doneDate);
 
-    assertThat(gates.failures(TUK75, doneDate)).isEmpty();
+    assertThat(gates.check(TUK75, doneDate, noOverrides()).failures()).isEmpty();
   }
 
   @Test
@@ -317,7 +378,7 @@ class TradePrepInputGatesIT {
     r45(WEDNESDAY);
     r16(YearMonth.of(2026, 10), TUK75);
 
-    assertThat(gates.failures(TUK75, WEDNESDAY))
+    assertThat(gates.check(TUK75, WEDNESDAY, noOverrides()).failures())
         .containsExactly(
             new MissingR16(
                 YearMonth.of(2026, 11), LocalDate.of(2026, 11, 16), LocalDate.of(2026, 11, 9)));
@@ -330,8 +391,8 @@ class TradePrepInputGatesIT {
     r45(LocalDate.of(2026, 11, 6));
     r45(LocalDate.of(2026, 11, 23));
 
-    assertThat(gates.failures(TUK75, LocalDate.of(2026, 11, 6))).isEmpty();
-    assertThat(gates.failures(TUK75, LocalDate.of(2026, 11, 23))).isEmpty();
+    assertThat(gates.check(TUK75, LocalDate.of(2026, 11, 6), noOverrides()).failures()).isEmpty();
+    assertThat(gates.check(TUK75, LocalDate.of(2026, 11, 23), noOverrides()).failures()).isEmpty();
   }
 
   @Test
@@ -339,7 +400,7 @@ class TradePrepInputGatesIT {
     positionReport(TUV100, TUESDAY);
     ingestR45(WEDNESDAY, "RED;EE3600001707;0.90000;0;300.00;19.11.2026");
 
-    assertThat(gates.failures(TUV100, WEDNESDAY)).isEmpty();
+    assertThat(gates.check(TUV100, WEDNESDAY, noOverrides()).failures()).isEmpty();
   }
 
   @Test
@@ -348,7 +409,7 @@ class TradePrepInputGatesIT {
     ingestR45(LocalDate.of(2026, 11, 13), "RED;EE3600001707;0.90000;0;300.00;17.11.2026");
     ingestR45(WEDNESDAY, "SUB;EE3600109435;0.80000;0;1500.00;19.11.2026");
 
-    assertThat(gates.failures(TUV100, WEDNESDAY))
+    assertThat(gates.check(TUV100, WEDNESDAY, noOverrides()).failures())
         .containsExactly(
             new MissingR16(
                 YearMonth.of(2026, 11), LocalDate.of(2026, 11, 16), LocalDate.of(2026, 11, 9)));
@@ -361,8 +422,16 @@ class TradePrepInputGatesIT {
     r16(YearMonth.of(2026, 11), TUV100, 1000);
     givenNav(TUV100, WEDNESDAY, "2.00000");
 
-    assertThat(gates.failures(TUV100, WEDNESDAY)).isEmpty();
-    assertThat(r16OutflowReader.read(TUV100, WEDNESDAY)).isZero();
+    assertThat(gates.check(TUV100, WEDNESDAY, noOverrides()).failures()).isEmpty();
+    assertThat(
+            r16OutflowReader
+                .read(
+                    TUV100,
+                    WEDNESDAY,
+                    new CashHorizon.ThroughTheReportDate(TUESDAY),
+                    new R16Reserves(new BigDecimal("1000000"), null))
+                .reserved())
+        .isZero();
   }
 
   @Test
@@ -372,7 +441,32 @@ class TradePrepInputGatesIT {
     r16(YearMonth.of(2026, 12), TUK75, 7000);
     givenNav(TUK75, thursday, "2.00000");
 
-    assertThat(r16OutflowReader.read(TUK75, thursday)).isEqualByComparingTo("2000");
+    assertThat(
+            r16OutflowReader
+                .read(
+                    TUK75,
+                    thursday,
+                    new CashHorizon.ThroughTheReportDate(thursday.minusDays(1)),
+                    new R16Reserves(new BigDecimal("1000000"), null))
+                .reserved())
+        .isEqualByComparingTo("2000");
+  }
+
+  @Test
+  void anIngestedR45KeepsItsRowsSoTodaysBalanceCanTellTodaysRowsFromLaterOnes() {
+    ingestR45(
+        WEDNESDAY,
+        "RED;EE3600001707;0.90000;0;300.00;18.11.2026",
+        "SUB;EE3600001707;0.90000;0;100.00;20.11.2026");
+
+    assertThat(r45Report.getRowsOn(TUV100, WEDNESDAY).orElseThrow())
+        .usingRecursiveFieldByFieldElementComparator(
+            RecursiveComparisonConfiguration.builder()
+                .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+                .build())
+        .containsExactly(
+            new R45Row(OUTFLOW, new BigDecimal("300.00"), WEDNESDAY),
+            new R45Row(INFLOW, new BigDecimal("100.00"), LocalDate.of(2026, 11, 20)));
   }
 
   @Test
@@ -424,7 +518,10 @@ class TradePrepInputGatesIT {
 
     notifier.notifyStopped(
         List.of(TUK75, TUK00, TUV100).stream()
-            .map(fund -> new StoppedByInputGates(fund, tradeDate, gates.failures(fund, tradeDate)))
+            .map(
+                fund ->
+                    new StoppedByInputGates(
+                        fund, tradeDate, gates.check(fund, tradeDate, noOverrides()).failures()))
             .toList());
 
     verify(notificationService)

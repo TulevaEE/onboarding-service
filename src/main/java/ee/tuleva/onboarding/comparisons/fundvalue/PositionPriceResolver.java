@@ -35,6 +35,10 @@ public class PositionPriceResolver {
             .orElseGet(PositionPriceResolver::noPriceData));
   }
 
+  public Optional<ResolvedPrice> resolveAnyAge(String isin, LocalDate date) {
+    return priorityPriceProvider.resolveAnyAge(isin, date).map(this::toResolvedPrice);
+  }
+
   private ResolvedPrice toResolvedPrice(FundValue fundValue) {
     return ResolvedPrice.builder()
         .usedPrice(fundValue.value())

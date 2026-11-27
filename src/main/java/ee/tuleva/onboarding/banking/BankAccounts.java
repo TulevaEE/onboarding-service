@@ -16,4 +16,10 @@ public interface BankAccounts {
   List<BankAccount> findAll();
 
   List<BankAccount> findAll(TulevaFund fund);
+
+  static Optional<BankAccount> investmentAccountAmong(List<BankAccount> accounts, TulevaFund fund) {
+    return accounts.stream()
+        .filter(account -> account.matches(fund, BankAccountType.FUND_INVESTMENT_EUR))
+        .findFirst();
+  }
 }

@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import ee.tuleva.onboarding.config.ScheduledTest;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -14,6 +16,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 class SettlementCheckJobScheduledTest {
 
   @MockitoBean Clock clock;
+  @MockitoBean PublicHolidays publicHolidays;
+  @MockitoBean Target2Calendar target2Calendar;
   @MockitoBean TransactionOrderRepository orderRepository;
   @MockitoBean InvestmentReportService reportService;
   @MockitoBean SebPendingTransactionExtractor extractor;

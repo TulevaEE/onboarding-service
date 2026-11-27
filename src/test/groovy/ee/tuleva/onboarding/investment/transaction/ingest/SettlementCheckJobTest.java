@@ -13,7 +13,9 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -50,6 +52,8 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -60,6 +64,9 @@ class SettlementCheckJobTest {
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final LocalDate TODAY = LocalDate.of(2026, 5, 18); // Monday
   private static final LocalDate LAST_WORKING_DAY = LocalDate.of(2026, 5, 15); // Friday
+  private static final LocalDate SATURDAY = LocalDate.of(2026, 5, 16);
+  private static final String DIGEST_TITLE = "⚠️ SEB arveldus- ja tehingukontroll – ";
+  private static final boolean REGISTRY_COMPARISONS_ON = true;
   private static final UUID SENT_UUID = UUID.randomUUID();
   private static final UUID PRESENT_UUID = UUID.randomUUID();
   private static final UUID SETTLED_UUID = UUID.randomUUID();
@@ -95,19 +102,111 @@ class SettlementCheckJobTest {
   }
 
   private SettlementCheckJob job(boolean registryComparisonsEnabled) {
-    OverdueSettlementDetector detector =
-        new OverdueSettlementDetector(
-            publicHolidays, settlementDateCalculator(), executionRepository);
+    return job(clock, publicHolidays, registryComparisonsEnabled);
+  }
+
+  private SettlementCheckJob jobOnTheRealCalendarsRunningOn(LocalDate day) {
+    return job(
+        Clock.fixed(day.atStartOfDay(TALLINN).toInstant(), TALLINN),
+        new PublicHolidays(),
+        REGISTRY_COMPARISONS_ON);
+  }
+
+  private SettlementCheckJob job(
+      Clock jobClock, PublicHolidays jobCalendar, boolean registryComparisonsEnabled) {
     return new SettlementCheckJob(
-        clock,
+        jobClock,
+        jobCalendar,
+        new Target2Calendar(),
         orderRepository,
         reportService,
         extractor,
         unmatchedFinder,
         fundResolver,
         notificationService,
-        detector,
+        new OverdueSettlementDetector(jobCalendar, settlementDateCalculator(), executionRepository),
         registryComparisonsEnabled);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"2026-05-16", "2026-05-17", "2026-05-01"})
+  void scheduledRun_onADayClosedForEstonianBanksAndTarget2WithoutAFreshReport_sendsNothing(
+      LocalDate closedDay) {
+    givenNoReportAndAnEmptyRegistry();
+
+    jobOnTheRealCalendarsRunningOn(closedDay).runScheduled();
+
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void scheduledRun_onADayClosedForEstonianBanksAndTarget2WithAFreshReport_sendsTheDigest() {
+    LocalDate mayDay = LocalDate.of(2026, 5, 1);
+    InvestmentReport reportOfTheDayBefore = report(LocalDate.of(2026, 4, 30));
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS))
+        .willReturn(Optional.of(reportOfTheDayBefore));
+    given(extractor.extract(reportOfTheDayBefore)).willReturn(List.of());
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of());
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+    given(unmatchedFinder.collectUnmatched(reportOfTheDayBefore))
+        .willReturn(List.of(unmatchedRow("Tuleva Täiendav Kogumisfond")));
+
+    jobOnTheRealCalendarsRunningOn(mayDay).runScheduled();
+
+    then(notificationService)
+        .should()
+        .sendMessage(startsWith(DIGEST_TITLE + "2026-05-01"), eq(INVESTMENT));
+  }
+
+  @Test
+  void
+      scheduledRun_onAnEstonianHolidayWhenTarget2IsOpen_staleReport_stillReportsAnOverdueSentOrder() {
+    LocalDate independenceDay = LocalDate.of(2026, 2, 24);
+    InvestmentReport lastWeeksReport = report(LocalDate.of(2026, 2, 20));
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS))
+        .willReturn(Optional.of(lastWeeksReport));
+    given(extractor.extract(lastWeeksReport)).willReturn(List.of());
+    TransactionOrder sentEtf =
+        order(1L, ETF, SENT, dateOnly(2026, 2, 18), TulevaFund.TUK75, "IE000F60HVH9", SENT_UUID);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(sentEtf));
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+
+    jobOnTheRealCalendarsRunningOn(independenceDay).runScheduled();
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("[SAADETUD, täitmist pole] Order 1"), eq(INVESTMENT));
+  }
+
+  @Test
+  void scheduledRun_onAWorkingDayWithoutAFreshReport_stillSendsTheDigest() {
+    givenNoReportAndAnEmptyRegistry();
+
+    jobOnTheRealCalendarsRunningOn(TODAY).runScheduled();
+
+    then(notificationService)
+        .should()
+        .sendMessage(startsWith(DIGEST_TITLE + "2026-05-18"), eq(INVESTMENT));
+  }
+
+  @Test
+  void requestedRun_onAWeekend_stillSendsTheDigest() {
+    givenNoReportAndAnEmptyRegistry();
+
+    jobOnTheRealCalendarsRunningOn(SATURDAY).onOverdueSettlementRequested();
+
+    then(notificationService)
+        .should()
+        .sendMessage(startsWith(DIGEST_TITLE + "2026-05-16"), eq(INVESTMENT));
+  }
+
+  private void givenNoReportAndAnEmptyRegistry() {
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.empty());
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of());
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
   }
 
   @Test

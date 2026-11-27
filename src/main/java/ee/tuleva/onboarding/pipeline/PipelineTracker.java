@@ -33,6 +33,13 @@ public class PipelineTracker {
     }
   }
 
+  public void markEveryFundHeld() {
+    var run = CURRENT.get();
+    if (run != null) {
+      run.markEveryFundHeld();
+    }
+  }
+
   public void stepStarted(String name) {
     var run = CURRENT.get();
     if (run != null) {

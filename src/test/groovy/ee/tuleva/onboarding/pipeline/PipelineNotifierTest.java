@@ -273,6 +273,67 @@ class PipelineNotifierTest {
   }
 
   @Test
+  void aSelfHealNavRunThatLeftEveryFundHeldPostsNoSuccessLine() {
+    var pipeline =
+        new PipelineRun(
+            PipelineRun.PipelineType.NAV, "NAV TUK75", PipelineRun.TriggerSource.SELF_HEAL);
+    pipeline.stepStarted("NAV Calculation");
+    pipeline.stepCompleted("NAV Calculation");
+    pipeline.markEveryFundHeld();
+
+    notifier.sendCompleted(pipeline);
+
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void aSelfHealNavRunThatLeftEveryFundHeldStillPostsAFailedStep() {
+    var pipeline =
+        new PipelineRun(
+            PipelineRun.PipelineType.NAV, "NAV TUK75", PipelineRun.TriggerSource.SELF_HEAL);
+    pipeline.stepStarted("NAV Calculation");
+    pipeline.stepFailed("NAV Calculation", "NAV calculation failed: funds=TUK00");
+    pipeline.markEveryFundHeld();
+
+    notifier.sendCompleted(pipeline);
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("❌ NAV TUK75 PIPELINE [self-heal] FAILED"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aScheduledNavRunThatLeftEveryFundHeldStillPostsItsSuccessLine() {
+    var pipeline =
+        new PipelineRun(
+            PipelineRun.PipelineType.NAV, "NAV TUK75", PipelineRun.TriggerSource.SCHEDULED);
+    pipeline.stepStarted("NAV Calculation");
+    pipeline.stepCompleted("NAV Calculation");
+    pipeline.markEveryFundHeld();
+
+    notifier.sendCompleted(pipeline);
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("✅ NAV TUK75 pipeline ("), eq(INVESTMENT));
+  }
+
+  @Test
+  void aSelfHealNavRunThatSentAFundStillPostsItsSuccessLine() {
+    var pipeline =
+        new PipelineRun(
+            PipelineRun.PipelineType.NAV, "NAV TUK75", PipelineRun.TriggerSource.SELF_HEAL);
+    pipeline.stepStarted("NAV Calculation");
+    pipeline.stepCompleted("NAV Calculation");
+
+    notifier.sendCompleted(pipeline);
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("✅ NAV TUK75 pipeline [self-heal] ("), eq(INVESTMENT));
+  }
+
+  @Test
   void manualTriggerSourceIsTaggedInTheMessage() {
     var pipeline =
         new PipelineRun(

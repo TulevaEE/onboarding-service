@@ -343,6 +343,76 @@ class NavCalculationJobTest {
   }
 
   @Test
+  void aSelfHealRunThatLeavesItsFundHeldPostsNoPipelineLine() {
+    var notificationService = mock(OperationsNotificationService.class);
+    var job = jobReportingTo(notificationService, "2025-01-15T09:30:00Z");
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    var result = buildTestResult(TUK75, today);
+    given(navCalculationService.calculate(TUK75, today)).willReturn(result);
+    given(navPublisher.publish(result)).willReturn(NOT_SENT);
+
+    job.recoverPipeline(TUK75, List.of(TUK75));
+
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void aScheduledRunThatLeavesItsFundHeldStillPostsItsPipelineLine() {
+    var notificationService = mock(OperationsNotificationService.class);
+    var job = jobReportingTo(notificationService, "2025-01-15T09:00:00Z");
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    var tkf100Result = buildTestResult(TKF100, today);
+    given(navCalculationService.calculate(TKF100, today)).willReturn(tkf100Result);
+    given(navPublisher.publish(tkf100Result)).willReturn(NOT_SENT);
+
+    job.calculateDailyNav();
+
+    then(notificationService)
+        .should()
+        .sendMessage(startsWith("✅ NAV TKF100 pipeline ("), eq(INVESTMENT));
+  }
+
+  @Test
+  void aSelfHealRunThatSendsOneOfItsFundsStillPostsItsPipelineLine() {
+    var notificationService = mock(OperationsNotificationService.class);
+    var job = jobReportingTo(notificationService, "2025-01-15T09:30:00Z");
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    var tuk75Result = buildTestResult(TUK75, today);
+    var tuk00Result = buildTestResult(TUK00, today);
+    given(navCalculationService.calculate(TUK75, today)).willReturn(tuk75Result);
+    given(navCalculationService.calculate(TUK00, today)).willReturn(tuk00Result);
+    given(navPublisher.publish(tuk75Result)).willReturn(NOT_SENT);
+    given(navPublisher.publish(tuk00Result)).willReturn(SENT);
+
+    job.recoverPipeline(TUK75, List.of(TUK75, TUK00));
+
+    then(notificationService)
+        .should()
+        .sendMessage(startsWith("✅ NAV TUK75 pipeline [self-heal] ("), eq(INVESTMENT));
+  }
+
+  @Test
+  void aSelfHealRunWhoseOtherFundWasAlreadyPublishedStillPostsItsPipelineLine() {
+    var notificationService = mock(OperationsNotificationService.class);
+    var job = jobReportingTo(notificationService, "2025-01-15T09:30:00Z");
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
+    given(navReportRepository.existsPublishedByNavDateAndFundCode(previousWorkingDay, "TUK75"))
+        .willReturn(false);
+    given(navReportRepository.existsPublishedByNavDateAndFundCode(previousWorkingDay, "TUK00"))
+        .willReturn(true);
+    var tuk75Result = buildTestResult(TUK75, today);
+    given(navCalculationService.calculate(TUK75, today)).willReturn(tuk75Result);
+    given(navPublisher.publish(tuk75Result)).willReturn(NOT_SENT);
+
+    job.recoverPipeline(TUK75, List.of(TUK75, TUK00));
+
+    then(notificationService)
+        .should()
+        .sendMessage(startsWith("✅ NAV TUK75 pipeline [self-heal] ("), eq(INVESTMENT));
+  }
+
+  @Test
   void aRunThatFailsBeforeReachingAnyFundIsReportedAsFailed() {
     var notificationService = mock(OperationsNotificationService.class);
     var job = jobReportingTo(notificationService, "2025-01-15T09:00:00Z");

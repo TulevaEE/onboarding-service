@@ -92,10 +92,20 @@ public class NavCalculationJob {
     pipelineTracker.stepStarted(NAV_CALCULATION);
     Map<FundOutcome, List<TulevaFund>> outcomes = calculateForFundsTrackingFailure(event.funds());
     recordCalculationStep(outcomes.getOrDefault(FAILED, List.of()));
+    if (leftEveryFundHeld(event.funds(), outcomes)) {
+      pipelineTracker.markEveryFundHeld();
+    }
     List<TulevaFund> publishedFunds = outcomes.getOrDefault(PUBLISHED, List.of());
     if (!publishedFunds.isEmpty()) {
       eventPublisher.publishEvent(new NavCalculationCompleted(publishedFunds));
     }
+  }
+
+  private static boolean leftEveryFundHeld(
+      List<TulevaFund> requested, Map<FundOutcome, List<TulevaFund>> outcomes) {
+    List<TulevaFund> held = outcomes.getOrDefault(HELD, List.of());
+    return !held.isEmpty()
+        && held.size() == requested.stream().filter(TulevaFund::hasNavCalculation).count();
   }
 
   private Map<FundOutcome, List<TulevaFund>> calculateForFundsTrackingFailure(

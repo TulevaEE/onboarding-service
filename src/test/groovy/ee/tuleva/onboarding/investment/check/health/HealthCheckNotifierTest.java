@@ -7,24 +7,26 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_FLOW_CONSISTENCY;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.UNSETTLED_TRADES;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -32,10 +34,20 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class HealthCheckNotifierTest {
 
   private static final LocalDate DATE = LocalDate.of(2026, 4, 15);
+  private static final Instant NOW = Instant.parse("2026-04-16T06:10:00Z");
 
   @Mock OperationsNotificationService notificationService;
   @Mock HealthCheckEventRepository eventRepository;
-  @InjectMocks HealthCheckNotifier notifier;
+  @Mock HealthCheckAlertRepository alertRepository;
+  HealthCheckNotifier notifier;
+
+  @BeforeEach
+  void setUp() {
+    notifier =
+        new HealthCheckNotifier(
+            new HealthCheckAlertOutbox(notificationService, alertRepository, Clock.fixed(NOW, UTC)),
+            eventRepository);
+  }
 
   @Test
   void silentWhenNoIssuesAndNoPriorState() {
@@ -44,7 +56,7 @@ class HealthCheckNotifierTest {
     var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isFalse();
-    verifyNoInteractions(notificationService);
+    verifyNoInteractions(notificationService, alertRepository);
   }
 
   @Test
@@ -55,10 +67,10 @@ class HealthCheckNotifierTest {
     var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isTrue();
-    verify(notificationService).sendMessage(contains("IMPORT BLOCKED"), eq(INVESTMENT));
-    verify(notificationService)
-        .sendMessage(contains("source files need to be fixed"), eq(INVESTMENT));
-    verify(notificationService).sendMessage(contains("[FAIL]"), eq(INVESTMENT));
+    verify(alertRepository).recordNotPosted(eq(SEB), eq(DATE), contains("IMPORT BLOCKED"), eq(NOW));
+    verify(alertRepository)
+        .recordNotPosted(eq(SEB), eq(DATE), contains("source files need to be fixed"), eq(NOW));
+    verify(alertRepository).recordNotPosted(eq(SEB), eq(DATE), contains("[FAIL]"), eq(NOW));
   }
 
   @Test
@@ -68,13 +80,15 @@ class HealthCheckNotifierTest {
     notifier.notify(
         SEB, DATE, List.of(new HealthCheckResult(TUK75, DATE, List.of(finding))), Map.of());
 
-    verify(notificationService)
-        .sendMessage(
+    verify(alertRepository)
+        .recordNotPosted(
+            eq(SEB),
+            eq(DATE),
             contains(
                 "Fix: ask SEB to resend the file, or email a corrected"
                     + " TULEVA_pos_raport_20260415_korrigeeritud.csv from funds@tuleva.ee to"
                     + " funds@tuleva.ee only"),
-            eq(INVESTMENT));
+            eq(NOW));
   }
 
   @Test
@@ -91,10 +105,12 @@ class HealthCheckNotifierTest {
             new HealthCheckResult(TUK00, DATE, List.of())),
         Map.of());
 
-    verify(notificationService)
-        .sendMessage(
+    verify(alertRepository)
+        .recordNotPosted(
+            eq(SEB),
+            eq(DATE),
             contains("Funds: TUK75 blocked, TUV100 imported with warnings, TUK00 imported"),
-            eq(INVESTMENT));
+            eq(NOW));
   }
 
   @Test
@@ -115,14 +131,16 @@ class HealthCheckNotifierTest {
             HealthCheckResult.missingFromReport(DATE, missing)),
         Map.of());
 
-    verify(notificationService)
-        .sendMessage(
+    verify(alertRepository)
+        .recordNotPosted(
+            SEB,
+            DATE,
             "Import warning: SEB 2026-04-15 — TUV100 not imported\n"
                 + "Funds: TUK75 imported, TUV100 not in the report\n"
                 + "\n⚠️ [WARNING] FUND_IN_REPORT TUV100: TUV100: not in SEB's position report for"
                 + " navDate=2026-04-15. Ask SEB to resend the report with TUV100 before the 15:20"
                 + " NAV",
-            INVESTMENT);
+            NOW);
   }
 
   @Test
@@ -141,13 +159,15 @@ class HealthCheckNotifierTest {
                 DATE, new HealthCheckFinding(TUV100, FUND_IN_REPORT, WARNING, rowsNotRead))),
         Map.of());
 
-    verify(notificationService)
-        .sendMessage(
+    verify(alertRepository)
+        .recordNotPosted(
+            SEB,
+            DATE,
             "Import warning: SEB 2026-04-15 — TUK75, TUV100 not imported\n"
                 + "Funds: TUK75 not read from the report, TUV100 not read from the report\n"
                 + "\n⚠️ [WARNING] FUND_IN_REPORT TUK75, TUV100: "
                 + rowsNotRead,
-            INVESTMENT);
+            NOW);
   }
 
   @Test
@@ -175,8 +195,10 @@ class HealthCheckNotifierTest {
                         TUV100, NAV_FLOW_CONSISTENCY, NOT_RUN, thresholdMissing)))),
         Map.of());
 
-    verify(notificationService)
-        .sendMessage(
+    verify(alertRepository)
+        .recordNotPosted(
+            SEB,
+            DATE,
             "Import warning: SEB 2026-04-15\n"
                 + "Funds: TUK75 imported with warnings, TUV100 imported, a check could not run\n"
                 + "\n⚠️ [WARNING] COMPLETENESS TUK75: no CASH"
@@ -185,7 +207,7 @@ class HealthCheckNotifierTest {
                 + thresholdMissing
                 + "\n⏸ [NOT_RUN] NAV_FLOW_CONSISTENCY TUV100: "
                 + thresholdMissing,
-            INVESTMENT);
+            NOW);
   }
 
   @Test
@@ -202,13 +224,15 @@ class HealthCheckNotifierTest {
             new HealthCheckResult(TUV100, DATE, List.of())),
         Map.of());
 
-    verify(notificationService)
-        .sendMessage(
+    verify(alertRepository)
+        .recordNotPosted(
+            SEB,
+            DATE,
             "✅ Import cleared: SEB 2026-04-15\n"
                 + "Funds: TUK75 imported, TUV100 imported\n"
                 + "\n[CLEARED] ISIN_MATCH TUK75"
                 + "\n[CLEARED] FUND_IN_REPORT TUK75, TUV100",
-            INVESTMENT);
+            NOW);
   }
 
   @Test
@@ -225,14 +249,16 @@ class HealthCheckNotifierTest {
             HealthCheckResult.missingFromReport(DATE, missing)),
         Map.of(TUV100, Instant.parse("2026-04-16T06:10:00Z")));
 
-    verify(notificationService)
-        .sendMessage(
+    verify(alertRepository)
+        .recordNotPosted(
+            eq(SEB),
+            eq(DATE),
             startsWith(
                 "Import warning: SEB 2026-04-15 — TUV100 positions written 2026-04-16 09:10 stay"
                     + " in use for NAV\n"
                     + "Funds: TUK75 imported, TUV100 not in the report (earlier positions in"
                     + " use)\n"),
-            eq(INVESTMENT));
+            eq(NOW));
   }
 
   @Test
@@ -250,14 +276,16 @@ class HealthCheckNotifierTest {
             HealthCheckResult.missingFromReport(DATE, missing)),
         Map.of(TUV100, Instant.parse("2026-04-16T06:10:00Z")));
 
-    verify(notificationService)
-        .sendMessage(
+    verify(alertRepository)
+        .recordNotPosted(
+            eq(SEB),
+            eq(DATE),
             startsWith(
                 "IMPORT BLOCKED: SEB 2026-04-15 — TUK75 not imported; TUV100 positions written"
                     + " 2026-04-16 09:10 stay in use for NAV, source files need to be fixed\n"
                     + "Funds: TUK75 blocked, TUV100 not in the report (earlier positions in"
                     + " use)\n"),
-            eq(INVESTMENT));
+            eq(NOW));
   }
 
   @Test
@@ -273,9 +301,12 @@ class HealthCheckNotifierTest {
             new HealthCheckResult(TUV100, DATE, List.of(warned))),
         Map.of());
 
-    verify(notificationService)
-        .sendMessage(
-            contains("IMPORT BLOCKED: SEB 2026-04-15 — TUK75 not imported"), eq(INVESTMENT));
+    verify(alertRepository)
+        .recordNotPosted(
+            eq(SEB),
+            eq(DATE),
+            contains("IMPORT BLOCKED: SEB 2026-04-15 — TUK75 not imported"),
+            eq(NOW));
   }
 
   @Test
@@ -297,13 +328,15 @@ class HealthCheckNotifierTest {
             new HealthCheckResult(TUV100, DATE, List.of(unknownIsin))),
         Map.of(TUK75, Instant.parse("2026-04-16T06:10:00Z")));
 
-    verify(notificationService)
-        .sendMessage(
+    verify(alertRepository)
+        .recordNotPosted(
+            eq(SEB),
+            eq(DATE),
             startsWith(
                 "IMPORT BLOCKED: SEB 2026-04-15 — TUV100 not imported; TUK75 positions written"
                     + " 2026-04-16 09:10 stay in use for NAV, source files need to be fixed\n"
                     + "Funds: TUK75 blocked (earlier positions in use), TUV100 blocked\n"),
-            eq(INVESTMENT));
+            eq(NOW));
   }
 
   @Test
@@ -314,8 +347,8 @@ class HealthCheckNotifierTest {
     var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isTrue();
-    verify(notificationService).sendMessage(contains("Import warning"), eq(INVESTMENT));
-    verify(notificationService).sendMessage(contains("[WARNING]"), eq(INVESTMENT));
+    verify(alertRepository).recordNotPosted(eq(SEB), eq(DATE), contains("Import warning"), eq(NOW));
+    verify(alertRepository).recordNotPosted(eq(SEB), eq(DATE), contains("[WARNING]"), eq(NOW));
   }
 
   // A check that declined to answer is not a clean import and not a warning about the fund, so
@@ -330,8 +363,8 @@ class HealthCheckNotifierTest {
     var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isTrue();
-    verify(notificationService).sendMessage(contains("could not run"), eq(INVESTMENT));
-    verify(notificationService).sendMessage(contains("[NOT_RUN]"), eq(INVESTMENT));
+    verify(alertRepository).recordNotPosted(eq(SEB), eq(DATE), contains("could not run"), eq(NOW));
+    verify(alertRepository).recordNotPosted(eq(SEB), eq(DATE), contains("[NOT_RUN]"), eq(NOW));
   }
 
   @Test
@@ -341,8 +374,8 @@ class HealthCheckNotifierTest {
 
     notifier.notify(SEB, DATE, List.of(result), Map.of());
 
-    verify(notificationService).sendMessage(contains("SEB"), eq(INVESTMENT));
-    verify(notificationService).sendMessage(contains("2026-04-15"), eq(INVESTMENT));
+    verify(alertRepository).recordNotPosted(eq(SEB), eq(DATE), contains("SEB"), eq(NOW));
+    verify(alertRepository).recordNotPosted(eq(SEB), eq(DATE), contains("2026-04-15"), eq(NOW));
   }
 
   @Test
@@ -354,7 +387,7 @@ class HealthCheckNotifierTest {
     var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isFalse();
-    verifyNoInteractions(notificationService);
+    verifyNoInteractions(notificationService, alertRepository);
   }
 
   @Test
@@ -366,7 +399,7 @@ class HealthCheckNotifierTest {
     var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isTrue();
-    verify(notificationService).sendMessage(contains("Import warning"), eq(INVESTMENT));
+    verify(alertRepository).recordNotPosted(eq(SEB), eq(DATE), contains("Import warning"), eq(NOW));
   }
 
   @Test
@@ -377,19 +410,36 @@ class HealthCheckNotifierTest {
     var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isTrue();
-    verify(notificationService).sendMessage(contains("Import cleared"), eq(INVESTMENT));
-    verify(notificationService).sendMessage(contains("[CLEARED]"), eq(INVESTMENT));
+    verify(alertRepository).recordNotPosted(eq(SEB), eq(DATE), contains("Import cleared"), eq(NOW));
+    verify(alertRepository).recordNotPosted(eq(SEB), eq(DATE), contains("[CLEARED]"), eq(NOW));
   }
 
   @Test
-  void swallowsExceptions() {
-    doThrow(new RuntimeException("Slack down")).when(notificationService).sendMessage(any(), any());
+  void aTransitionIsSavedForThePostingJobWithoutBeingPosted() {
+    var finding = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "test");
+    var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
+
+    var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
+
+    assertThat(notified).isTrue();
+    verify(alertRepository)
+        .recordNotPosted(eq(SEB), eq(DATE), startsWith("IMPORT BLOCKED"), eq(NOW));
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void aCheckWhoseEarlierStateCannotBeReadRaisesNoAlertAndDoesNotStopTheImport() {
+    given(
+            eventRepository.findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
+                any(), any(), any()))
+        .willThrow(new RuntimeException("database down"));
     var finding = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "test");
     var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
 
     var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isFalse();
+    verifyNoInteractions(notificationService, alertRepository);
   }
 
   // A check that could not run for a new reason needs saying out loud: the reasons call for
@@ -419,8 +469,12 @@ class HealthCheckNotifierTest {
             DATE, new HealthCheckFinding(TUK75, FUND_IN_REPORT, WARNING, "rows not read"));
 
     assertThat(notifier.notify(SEB, DATE, List.of(notRead), Map.of())).isTrue();
-    verify(notificationService)
-        .sendMessage(contains("⚠️ [WARNING] FUND_IN_REPORT TUK75: rows not read"), eq(INVESTMENT));
+    verify(alertRepository)
+        .recordNotPosted(
+            eq(SEB),
+            eq(DATE),
+            contains("⚠️ [WARNING] FUND_IN_REPORT TUK75: rows not read"),
+            eq(NOW));
   }
 
   @Test
@@ -452,13 +506,15 @@ class HealthCheckNotifierTest {
             Map.of(TUV100, Instant.parse("2026-04-16T06:10:00Z")));
 
     assertThat(notified).isTrue();
-    verify(notificationService)
-        .sendMessage(
+    verify(alertRepository)
+        .recordNotPosted(
+            SEB,
+            DATE,
             "Import warning: SEB 2026-04-15 — TUV100 positions written 2026-04-16 09:10 stay in"
                 + " use for NAV\n"
                 + "Funds: TKF100 imported, TUV100 not in the report (earlier positions in use)\n"
                 + "\n[CLEARED] FUND_IN_REPORT TKF100",
-            INVESTMENT);
+            NOW);
   }
 
   @Test
@@ -502,10 +558,12 @@ class HealthCheckNotifierTest {
             new HealthCheckResult(TUV100, DATE, List.of(newFail))),
         Map.of());
 
-    verify(notificationService)
-        .sendMessage(
+    verify(alertRepository)
+        .recordNotPosted(
+            eq(SEB),
+            eq(DATE),
             contains("IMPORT BLOCKED: SEB 2026-04-15 — TUK75, TUV100 not imported"),
-            eq(INVESTMENT));
+            eq(NOW));
   }
 
   private void givenPreviousPresence(HealthCheckResult previous) {

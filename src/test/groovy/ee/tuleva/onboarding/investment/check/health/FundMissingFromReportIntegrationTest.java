@@ -15,11 +15,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.AdditionalMatchers.and;
 import static org.mockito.AdditionalMatchers.not;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mockingDetails;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
@@ -36,6 +46,9 @@ import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -44,12 +57,18 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientException;
 
 @DataJpaTest
 @Import({
@@ -57,6 +76,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
   FundInReportChecker.class,
   CompletenessChecker.class,
   HealthCheckNotifier.class,
+  HealthCheckAlertOutbox.class,
+  HealthCheckAlertRepository.class,
+  HealthCheckAlertPostingJob.class,
   FundNavQueryService.class,
   PublicHolidays.class,
   ClockConfig.class
@@ -67,8 +89,11 @@ class FundMissingFromReportIntegrationTest {
 
   @Autowired HealthCheckService healthCheckService;
   @Autowired HealthCheckNotifier notifier;
+  @Autowired HealthCheckAlertPostingJob postingJob;
   @Autowired NavReportRepository navReportRepository;
+  @Autowired JdbcClient jdbcClient;
 
+  @MockitoSpyBean HealthCheckAlertRepository alertRepository;
   @MockitoBean OperationsNotificationService notificationService;
   @MockitoBean ReceivablesChecker receivablesChecker;
   @MockitoBean FundPositionRepository fundPositionRepository;
@@ -199,6 +224,184 @@ class FundMissingFromReportIntegrationTest {
   }
 
   @Test
+  void anAlertIsSavedWithoutAPostAndTheNextRunPostsItWithTheNormalText() {
+    importReport("2026-10-31T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+
+    var missingRaised = raiseAlerts("2026-10-31T07:00:00Z", complete(TUK75, TUK00, TKF100));
+
+    assertThat(missingRaised).isTrue();
+    then(notificationService).shouldHaveNoInteractions();
+    assertThat(alertRows()).containsExactly("NOT_POSTED, attempts 0");
+
+    runJobAt("2026-10-31T07:00:30Z");
+    runJobAt("2026-10-31T07:01:30Z");
+
+    verify(notificationService)
+        .sendMessage(
+            and(
+                startsWith("Import warning: SEB 2026-10-30 — TUV100 not imported\nFunds: "),
+                contains(missingLine(TUV100, "15:20"))),
+            eq(INVESTMENT));
+    verifyNoMoreInteractions(notificationService);
+    assertThat(alertRows()).containsExactly("POSTED, attempts 1");
+  }
+
+  @Test
+  void anAlertSavedBeforeTheServiceStoppedIsPostedWhenTheJobRunsAgainSayingWhenItWasFound() {
+    importReport("2026-10-31T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+    raiseAlerts("2026-10-31T07:00:00Z", complete(TUK75, TUK00, TKF100));
+
+    runJobAt("2026-10-31T07:20:30Z");
+
+    verify(notificationService)
+        .sendMessage(
+            and(
+                startsWith(
+                    "Import warning: SEB 2026-10-30 — TUV100 not imported"
+                        + " (found 2026-10-31 09:00, posted late)\nFunds: "),
+                contains(missingLine(TUV100, "15:20"))),
+            eq(INVESTMENT));
+    assertThat(alertRows()).containsExactly("POSTED, attempts 1");
+  }
+
+  @Test
+  void anAlertWhosePostAStopCutShortIsPostedAgainOnlyAfterItsGap() {
+    importReport("2026-10-31T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+    raiseAlerts("2026-10-31T07:00:00Z", complete(TUK75, TUK00, TKF100));
+    jdbcClient
+        .sql("UPDATE investment_health_check_alert SET attempts = 1, last_attempt_at = :at")
+        .param("at", Timestamp.from(Instant.parse("2026-10-31T07:00:30Z")))
+        .update();
+
+    runJobAt("2026-10-31T07:01:00Z");
+
+    then(notificationService).shouldHaveNoInteractions();
+
+    runJobAt("2026-10-31T07:01:30Z");
+
+    verify(notificationService)
+        .sendMessage(
+            startsWith("Import warning: SEB 2026-10-30 — TUV100 not imported\n"), eq(INVESTMENT));
+    assertThat(alertRows()).containsExactly("POSTED, attempts 2");
+  }
+
+  @Test
+  void alertsArePostedOldestFirstAndANewerOneNeverOvertakesAnOlderOneWaitingForItsGap() {
+    importReport("2026-10-31T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+    raiseAlerts("2026-10-31T07:00:00Z", complete(TUK75, TUK00, TKF100));
+    slackIsDown();
+    runJobAt("2026-10-31T07:00:30Z");
+    slackIsBack();
+    raiseAlerts("2026-10-31T07:01:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+
+    runJobAt("2026-10-31T07:01:05Z");
+
+    then(notificationService).shouldHaveNoInteractions();
+
+    runJobAt("2026-10-31T07:01:30Z");
+
+    var inOrder = inOrder(notificationService);
+    inOrder
+        .verify(notificationService)
+        .sendMessage(
+            startsWith("Import warning: SEB 2026-10-30 — TUV100 not imported\n"), eq(INVESTMENT));
+    inOrder
+        .verify(notificationService)
+        .sendMessage(
+            and(
+                startsWith("✅ Import cleared: SEB 2026-10-30\n"),
+                contains("\n[CLEARED] FUND_IN_REPORT TUV100")),
+            eq(INVESTMENT));
+    verifyNoMoreInteractions(notificationService);
+    assertThat(alertRows()).containsExactly("POSTED, attempts 2", "POSTED, attempts 1");
+  }
+
+  @Test
+  void anAlertSlackProvablyNeverReceivedGetsItsAttemptBackAndIsPostedByTheNextRun() {
+    importReport("2026-10-31T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+    raiseAlerts("2026-10-31T07:00:00Z", complete(TUK75, TUK00, TKF100));
+    willThrow(
+            new ResourceAccessException(
+                "I/O error on POST request: Connection refused",
+                new ConnectException("Connection refused")))
+        .given(notificationService)
+        .sendMessage(anyString(), eq(INVESTMENT));
+
+    runJobAt("2026-10-31T07:00:30Z");
+
+    assertThat(alertRows()).containsExactly("NOT_POSTED, attempts 0");
+
+    slackIsBack();
+    runJobAt("2026-10-31T07:01:30Z");
+
+    verify(notificationService)
+        .sendMessage(
+            startsWith("Import warning: SEB 2026-10-30 — TUV100 not imported\n"), eq(INVESTMENT));
+    assertThat(alertRows()).containsExactly("POSTED, attempts 1");
+  }
+
+  @Test
+  void anAlertSlackMayHaveReceivedWaitsOneThenTwoThenFourMinutesBeforeItsNextAttempts() {
+    importReport("2026-10-31T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+    raiseAlerts("2026-10-31T07:00:00Z", complete(TUK75, TUK00, TKF100));
+    willThrow(
+            new ResourceAccessException(
+                "I/O error on POST request: Read timed out",
+                new SocketTimeoutException("Read timed out")))
+        .given(notificationService)
+        .sendMessage(anyString(), eq(INVESTMENT));
+
+    var attemptsAfterEachRun =
+        IntStream.rangeClosed(0, 7)
+            .mapToObj(
+                minute -> {
+                  runJobAt("2026-10-31T07:0%d:30Z".formatted(minute));
+                  return mockingDetails(notificationService).getInvocations().size();
+                })
+            .toList();
+
+    assertThat(attemptsAfterEachRun).containsExactly(1, 2, 2, 3, 3, 3, 3, 4);
+    assertThat(alertRows()).containsExactly("NOT_POSTED, attempts 4");
+  }
+
+  @Test
+  void aPostWhoseRecordingFailsIsNotPostedAgainBeforeItsGap() {
+    importReport("2026-10-31T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+    raiseAlerts("2026-10-31T07:00:00Z", complete(TUK75, TUK00, TKF100));
+    willThrow(new DataAccessResourceFailureException("database down"))
+        .willCallRealMethod()
+        .given(alertRepository)
+        .markPosted(anyLong(), any());
+
+    runJobAt("2026-10-31T07:00:30Z");
+    runJobAt("2026-10-31T07:01:00Z");
+
+    verify(notificationService).sendMessage(anyString(), eq(INVESTMENT));
+
+    runJobAt("2026-10-31T07:01:30Z");
+
+    verify(notificationService, times(2))
+        .sendMessage(
+            startsWith("Import warning: SEB 2026-10-30 — TUV100 not imported\n"), eq(INVESTMENT));
+    assertThat(alertRows()).containsExactly("POSTED, attempts 2");
+  }
+
+  @Test
+  void anAlertNotPostedWithinADayOfItsStateBeingFoundIsGivenUpAndNeverPosted() {
+    importReport("2026-10-31T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+    raiseAlerts("2026-10-31T07:00:00Z", complete(TUK75, TUK00, TKF100));
+    slackIsDown();
+    runJobAt("2026-10-31T07:00:30Z");
+    slackIsBack();
+
+    runJobAt("2026-11-01T07:00:30Z");
+    runJobAt("2026-11-01T07:01:30Z");
+
+    then(notificationService).shouldHaveNoInteractions();
+    assertThat(alertRows()).containsExactly("GIVEN_UP, attempts 1");
+  }
+
+  @Test
   void aFundMissingFromAReSentReportAfterItsNavIsPublishedIsNotGivenANavDeadline() {
     navReportRepository.save(
         NavReportRow.builder()
@@ -326,9 +529,46 @@ class FundMissingFromReportIntegrationTest {
       List<FundPosition> positions,
       int positionRows,
       Map<TulevaFund, Instant> earlierImports) {
+    var raised = raiseAlerts(at, positions, positionRows, earlierImports);
+    postingJob.postAlertsNotYetPosted();
+    return raised;
+  }
+
+  private boolean raiseAlerts(String at, List<FundPosition> positions) {
+    return raiseAlerts(at, positions, positions.size(), Map.of());
+  }
+
+  private boolean raiseAlerts(
+      String at,
+      List<FundPosition> positions,
+      int positionRows,
+      Map<TulevaFund, Instant> earlierImports) {
     ClockHolder.setClock(Clock.fixed(Instant.parse(at), UTC));
     var results = healthCheckService.check(NAV_DATE, positions, positionRows);
     return notifier.notify(SEB, NAV_DATE, results, earlierImports);
+  }
+
+  private void slackIsDown() {
+    willThrow(new RestClientException("Slack is down"))
+        .given(notificationService)
+        .sendMessage(anyString(), eq(INVESTMENT));
+  }
+
+  private void slackIsBack() {
+    willDoNothing().given(notificationService).sendMessage(anyString(), eq(INVESTMENT));
+    clearInvocations(notificationService);
+  }
+
+  private void runJobAt(String at) {
+    ClockHolder.setClock(Clock.fixed(Instant.parse(at), UTC));
+    postingJob.postAlertsNotYetPosted();
+  }
+
+  private List<String> alertRows() {
+    return jdbcClient
+        .sql("SELECT status, attempts FROM investment_health_check_alert ORDER BY id")
+        .query((rs, rowNum) -> rs.getString("status") + ", attempts " + rs.getInt("attempts"))
+        .list();
   }
 
   private static String missingLine(TulevaFund fund, String navTime) {

@@ -2,23 +2,27 @@ package ee.tuleva.onboarding.notification.slack;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.util.List;
+import java.util.Optional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
-import org.springframework.boot.restclient.RestTemplateBuilder;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.boot.http.client.HttpClientSettings;
 import org.springframework.core.env.Environment;
-import org.springframework.http.HttpEntity;
+import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 @NullMarked
 @Service
 @Slf4j
 public class SlackService implements OperationsNotificationService {
 
-  private Environment environment;
-  private final RestTemplate restTemplate;
+  private final Environment environment;
+  private final RestClient restClient;
   private final SlackWebhookConfiguration configuration;
 
   @Getter
@@ -45,13 +49,31 @@ public class SlackService implements OperationsNotificationService {
     }
   }
 
+  @Autowired
   public SlackService(
-      RestTemplateBuilder restTemplateBuilder,
       SlackWebhookConfiguration configuration,
-      Environment environment) {
-    this.restTemplate = restTemplateBuilder.build();
+      Environment environment,
+      ClientHttpRequestFactoryBuilder<?> requestFactoryBuilder,
+      HttpClientSettings httpClientSettings) {
+    this(
+        restClientOutsideTheSharedSetup(requestFactoryBuilder, httpClientSettings).build(),
+        configuration,
+        environment);
+  }
+
+  SlackService(
+      RestClient restClient, SlackWebhookConfiguration configuration, Environment environment) {
+    this.restClient = restClient;
     this.configuration = configuration;
     this.environment = environment;
+  }
+
+  static RestClient.Builder restClientOutsideTheSharedSetup(
+      ClientHttpRequestFactoryBuilder<?> requestFactoryBuilder,
+      HttpClientSettings httpClientSettings) {
+    return RestClient.builder()
+        .requestFactory(
+            new BufferingClientHttpRequestFactory(requestFactoryBuilder.build(httpClientSettings)));
   }
 
   @Override
@@ -62,9 +84,12 @@ public class SlackService implements OperationsNotificationService {
   @Override
   public void sendMessage(String message, Channel channel, Severity severity) {
     SlackChannel slackChannel = SlackChannel.of(channel);
-    String webhookUrl = configuration.getWebhookUrl(slackChannel);
+    Optional<String> webhookUrl =
+        Optional.ofNullable(configuration.getWebhookUrl(slackChannel))
+            .map(String::strip)
+            .filter(url -> !url.isEmpty());
 
-    if (webhookUrl == null) {
+    if (webhookUrl.isEmpty()) {
       if (environment.matchesProfiles("production")) {
         throw new IllegalStateException("No webhook for slack channel " + channel);
       }
@@ -72,8 +97,16 @@ public class SlackService implements OperationsNotificationService {
       return;
     }
 
-    restTemplate.postForEntity(
-        webhookUrl, new HttpEntity<>(payload(message, severity)), String.class);
+    post(webhookUrl.get(), payload(message, severity));
+  }
+
+  private void post(String webhookUrl, Object payload) {
+    SlackWebhook webhook = new SlackWebhook(webhookUrl);
+    try {
+      restClient.post().uri(webhook.uri()).body(payload).retrieve().toBodilessEntity();
+    } catch (RestClientException failure) {
+      throw webhook.withoutUrl(failure);
+    }
   }
 
   private static Object payload(String message, Severity severity) {

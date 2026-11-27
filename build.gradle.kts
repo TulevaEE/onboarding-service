@@ -228,7 +228,7 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-postgresql")
 
     // TODO: migrate to WireMock
-    testImplementation("org.mock-server:mockserver-netty:9.2.0")
+    testImplementation("org.mock-server:mockserver-netty:9.3.0")
     testImplementation("org.mock-server:mockserver-spring-test-listener:9.2.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")

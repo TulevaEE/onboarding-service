@@ -199,7 +199,6 @@ public class NavReleaseService {
   }
 
   private void postReleaseMessage(NavReleaseStatus released, NavReleaseApproval approval) {
-    int approvers = approval.numberOfApprovers();
     log.info(
         "NAV released to the trustee: fund={}, navDate={}, calculationId={}, state={}, navPerUnit={}, approvers={}",
         released.fundCode(),
@@ -207,9 +206,9 @@ public class NavReleaseService {
         released.calculationId(),
         released.state(),
         released.navPerUnit(),
-        approvers);
+        approval.numberOfApprovers());
     notificationService.sendMessage(
-        "✅ NAV released and sent to SEB: fund=%s, navDate=%s, navPerUnit=%s, %s, approved by %d people"
+        "✅ NAV released and sent to SEB: fund=%s, navDate=%s, navPerUnit=%s, %s, approvedBy=%s"
             .formatted(
                 released.fundCode(),
                 released.navDate(),
@@ -217,7 +216,7 @@ public class NavReleaseService {
                 released.state() == REVISION
                     ? "replaces the NAV SEB had (" + released.sentNavPerUnit() + ")"
                     : "held for review until now",
-                approvers),
+                String.join(", ", approval.approvedBy())),
         SAVINGS);
   }
 

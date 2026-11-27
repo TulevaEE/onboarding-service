@@ -144,12 +144,8 @@ class NavReleaseServiceTest {
     then(notificationService)
         .should()
         .sendMessage(
-            argThat(
-                message ->
-                    message.contains("approved by 2 people")
-                        && !message.contains("approver-one")
-                        && !message.contains("approver-two")),
-            eq(SAVINGS));
+            "✅ NAV released and sent to SEB: fund=TKF100, navDate=2026-11-20, navPerUnit=1.4066, held for review until now, approvedBy=approver-one, approver-two",
+            SAVINGS);
   }
 
   @Test

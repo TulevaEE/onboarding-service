@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentLookup;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.TakeoverSignal;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -52,17 +53,36 @@ public class RedemptionHoldService {
   }
 
   @Transactional
-  public void holdPayout(UUID id, Set<RedemptionHoldReason> reasons) {
-    holdPayout(id, reasons, SYSTEM, null);
+  public void holdPayout(
+      UUID id, Set<RedemptionHoldReason> reasons, Set<TakeoverSignal> takeoverSignals) {
+    holdPayout(id, reasons, SYSTEM, takeoverSignals, takeoverSignalsComment(takeoverSignals));
   }
 
   @Transactional
   public void holdPayoutManually(UUID id, String by, String comment) {
-    holdPayout(id, Set.of(MANUAL), by, comment);
+    if (SYSTEM.equals(by)) {
+      throw new IllegalArgumentException(
+          "Manual hold cannot be attributed to the system: id=" + id + ", by=" + by);
+    }
+    holdPayout(id, Set.of(MANUAL), by, Set.of(), comment);
+  }
+
+  private static @Nullable String takeoverSignalsComment(Set<TakeoverSignal> takeoverSignals) {
+    return takeoverSignals.isEmpty() ? null : "takeoverSignals=" + inSignalOrder(takeoverSignals);
+  }
+
+  private static Set<TakeoverSignal> inSignalOrder(Set<TakeoverSignal> takeoverSignals) {
+    Set<TakeoverSignal> ordered = EnumSet.noneOf(TakeoverSignal.class);
+    ordered.addAll(takeoverSignals);
+    return ordered;
   }
 
   private void holdPayout(
-      UUID id, Set<RedemptionHoldReason> reasons, String by, @Nullable String comment) {
+      UUID id,
+      Set<RedemptionHoldReason> reasons,
+      String by,
+      Set<TakeoverSignal> takeoverSignals,
+      @Nullable String comment) {
     RedemptionRequest request = findForUpdate(id);
     if (request.getStatus() != RESERVED && request.getStatus() != VERIFIED) {
       throw new IllegalStateException(
@@ -72,7 +92,7 @@ public class RedemptionHoldService {
               + request.getStatus());
     }
     if (request.hasActiveHold()) {
-      addHoldReasons(request, reasons);
+      addHoldReasons(request, reasons, takeoverSignals);
       return;
     }
     startHold(request, reasons, by, comment);
@@ -139,7 +159,10 @@ public class RedemptionHoldService {
     }
   }
 
-  private void addHoldReasons(RedemptionRequest request, Set<RedemptionHoldReason> reasons) {
+  private void addHoldReasons(
+      RedemptionRequest request,
+      Set<RedemptionHoldReason> reasons,
+      Set<TakeoverSignal> takeoverSignals) {
     Set<RedemptionHoldReason> merged = EnumSet.noneOf(RedemptionHoldReason.class);
     merged.addAll(request.getHoldReasons());
     if (merged.addAll(reasons)) {
@@ -147,9 +170,10 @@ public class RedemptionHoldService {
       repository.save(request);
     }
     log.info(
-        "Redemption already on hold, reasons merged: id={}, reasons={}",
+        "Redemption already on hold, reasons merged: id={}, reasons={}, takeoverSignals={}",
         request.getId(),
-        request.getHoldReasons());
+        request.getHoldReasons(),
+        inSignalOrder(takeoverSignals));
   }
 
   private void startHold(

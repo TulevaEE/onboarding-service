@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
+import static java.util.stream.Collectors.toCollection;
 
 import ee.tuleva.onboarding.aml.PersonRiskLevel;
 import ee.tuleva.onboarding.aml.RiskLevelUnavailableException;
@@ -16,8 +17,10 @@ import ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Evidence;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Onboarding;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Risk;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Screening;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.TakeoverSignal;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -39,6 +42,7 @@ class RedemptionEvidenceCollector {
   private final RiskLevels riskLevels;
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   private final LegalEntityScreener legalEntityScreener;
+  private final List<TakeoverSignalCheck> takeoverSignalChecks;
 
   Evidence collect(RedemptionRequest request) {
     return switch (request.getPartyId().type()) {
@@ -116,7 +120,16 @@ class RedemptionEvidenceCollector {
       Supplier<Risk> askedRisk) {
     Risk risk =
         screening.leavesTheRiskLevelUnasked() ? Risk.NOT_ASKED : riskLevel(request, askedRisk);
-    return new Evidence(screening, risk, onboarding);
+    return new Evidence(screening, risk, onboarding, takeoverSignals(request, screening));
+  }
+
+  private Set<TakeoverSignal> takeoverSignals(RedemptionRequest request, Screening screening) {
+    if (screening.freezesTheOrder()) {
+      return Set.of();
+    }
+    return takeoverSignalChecks.stream()
+        .flatMap(check -> check.raisedBy(request).stream())
+        .collect(toCollection(() -> EnumSet.noneOf(TakeoverSignal.class)));
   }
 
   private Risk riskLevel(RedemptionRequest request, Supplier<Risk> askedRisk) {

@@ -45,8 +45,12 @@ public final class RedemptionVerdict {
       };
     }
 
+    boolean freezesTheOrder() {
+      return this == SANCTION_HIT;
+    }
+
     boolean leavesTheRiskLevelUnasked() {
-      return this == UNAVAILABLE || this == SANCTION_HIT;
+      return this == UNAVAILABLE || freezesTheOrder();
     }
   }
 
@@ -64,7 +68,21 @@ public final class RedemptionVerdict {
     NOT_CHECKED
   }
 
-  public record Evidence(Screening screening, Risk risk, Onboarding onboarding) {}
+  public enum TakeoverSignal {
+    LARGE_PAYOUT,
+    NEW_IBAN,
+    CONTACT_CHANGED
+  }
+
+  public record Evidence(
+      Screening screening, Risk risk, Onboarding onboarding, Set<TakeoverSignal> takeoverSignals) {
+
+    public Evidence {
+      takeoverSignals = Set.copyOf(takeoverSignals);
+    }
+  }
+
+  private static final int TAKEOVER_SIGNALS_THAT_HOLD_A_PAYOUT = 2;
 
   private static final Map<RedemptionHoldReason, Predicate<Evidence>> HOLD_REASONS =
       new EnumMap<>(
@@ -74,8 +92,9 @@ public final class RedemptionVerdict {
               RedemptionHoldReason.KYB_SCREENING_FAILED, RedemptionVerdict::kybScreeningFailed,
               RedemptionHoldReason.ONBOARDING_INCOMPLETE, RedemptionVerdict::onboardingIncomplete,
               RedemptionHoldReason.HIGH_RISK, RedemptionVerdict::highRisk,
-              RedemptionHoldReason.RISK_LEVEL_UNAVAILABLE,
-                  RedemptionVerdict::riskLevelUnavailable));
+              RedemptionHoldReason.RISK_LEVEL_UNAVAILABLE, RedemptionVerdict::riskLevelUnavailable,
+              RedemptionHoldReason.ACCOUNT_TAKEOVER_SIGNALS,
+                  RedemptionVerdict::accountTakeoverSuspected));
 
   private RedemptionVerdict() {}
 
@@ -83,7 +102,7 @@ public final class RedemptionVerdict {
     if (screeningUnavailable(evidence)) {
       return RETRY;
     }
-    if (evidence.screening() == SANCTION_HIT) {
+    if (evidence.screening().freezesTheOrder()) {
       return FREEZE;
     }
     if (riskLevelNotYetUsable(evidence)
@@ -105,7 +124,8 @@ public final class RedemptionVerdict {
     return kybScreeningFailed(evidence)
         || onboardingIncomplete(evidence)
         || highRisk(evidence)
-        || riskLevelNotYetUsable(evidence);
+        || riskLevelNotYetUsable(evidence)
+        || accountTakeoverSuspected(evidence);
   }
 
   private static boolean screeningUnavailable(Evidence evidence) {
@@ -134,5 +154,9 @@ public final class RedemptionVerdict {
 
   private static boolean riskDecidedBeforePepHit(Evidence evidence) {
     return evidence.risk() == DECIDED_BEFORE_PEP_HIT;
+  }
+
+  private static boolean accountTakeoverSuspected(Evidence evidence) {
+    return evidence.takeoverSignals().size() >= TAKEOVER_SIGNALS_THAT_HOLD_A_PAYOUT;
   }
 }

@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS_RESERVED;
@@ -28,12 +27,12 @@ public class SavingsFundUnits {
     return unitsOutstandingAccount().getBalanceAt(cutoff);
   }
 
-  public Optional<BigDecimal> unitsHeldAt(String registryCode, Instant cutoff) {
+  public Optional<BigDecimal> unitsHeldAt(PartyRef party, Instant cutoff) {
     var unitAccounts =
         Stream.of(FUND_UNITS, FUND_UNITS_RESERVED)
             .flatMap(
                 account ->
-                    ledgerService.findPartyAccount(registryCode, LEGAL_ENTITY, account).stream())
+                    ledgerService.findPartyAccount(party.code(), party.type(), account).stream())
             .toList();
     if (unitAccounts.isEmpty()) {
       return Optional.empty();

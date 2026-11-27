@@ -1,12 +1,17 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.SUBMITTED;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.ACCOUNT_TAKEOVER_SIGNALS;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.HIGH_RISK;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.MANUAL;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SANCTION;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldService.SYSTEM;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.TakeoverSignal.CONTACT_CHANGED;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.TakeoverSignal.LARGE_PAYOUT;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.TakeoverSignal.NEW_IBAN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -15,6 +20,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentLookup;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus;
@@ -93,7 +99,7 @@ class RedemptionHoldServiceTest {
     given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
     given(notifier.notifyPayoutHold(request)).willReturn(true);
 
-    service.holdPayout(requestId, Set.of(PEP));
+    service.holdPayout(requestId, Set.of(PEP), Set.of());
 
     assertThat(request.getHoldReasons()).containsExactly(PEP);
     assertThat(request.getHoldAt()).isEqualTo(TestClockHolder.now);
@@ -101,6 +107,80 @@ class RedemptionHoldServiceTest {
     assertThat(request.getHoldNotifiedAt()).isEqualTo(TestClockHolder.now);
     assertThat(request.hasActiveHold()).isTrue();
     verify(redemptionStatusService, never()).changeStatus(any(), any());
+  }
+
+  @Test
+  void holdPayout_writesTheTakeoverSignalsIntoTheSystemHoldsCommentInAFixedOrder() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(RESERVED).build();
+    given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
+    given(notifier.notifyPayoutHold(request)).willReturn(true);
+
+    service.holdPayout(
+        requestId,
+        Set.of(ACCOUNT_TAKEOVER_SIGNALS),
+        Set.of(NEW_IBAN, CONTACT_CHANGED, LARGE_PAYOUT));
+
+    assertThat(request.getHoldReasons()).containsExactly(ACCOUNT_TAKEOVER_SIGNALS);
+    assertThat(request.getHoldComment())
+        .isEqualTo("takeoverSignals=[LARGE_PAYOUT, NEW_IBAN, CONTACT_CHANGED]");
+    assertThat(request.getHeldBy()).isEqualTo(SYSTEM);
+  }
+
+  @Test
+  void holdPayout_namesASingleTakeoverSignalInTheCommentOfAHoldForAnotherReason() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(RESERVED).build();
+    given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
+
+    service.holdPayout(requestId, Set.of(HIGH_RISK), Set.of(LARGE_PAYOUT));
+
+    assertThat(request.getHoldReasons()).containsExactly(HIGH_RISK);
+    assertThat(request.getHoldComment()).isEqualTo("takeoverSignals=[LARGE_PAYOUT]");
+  }
+
+  @Test
+  void holdPayout_leavesTheCommentOutWhenNoTakeoverSignalWasRaised() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(RESERVED).build();
+    given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
+
+    service.holdPayout(requestId, Set.of(PEP), Set.of());
+
+    assertThat(request.getHoldComment()).isNull();
+  }
+
+  @Test
+  void holdPayout_mergesTheTakeoverReasonIntoAnActiveManualHoldAndKeepsItsComment() {
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(RESERVED)
+            .holdReasons(Set.of(MANUAL))
+            .heldBy("AML Specialist")
+            .holdComment("TKF volume alert")
+            .build();
+    given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
+
+    service.holdPayout(requestId, Set.of(ACCOUNT_TAKEOVER_SIGNALS), Set.of(NEW_IBAN, LARGE_PAYOUT));
+
+    assertThat(request.getHoldReasons())
+        .containsExactlyInAnyOrder(MANUAL, ACCOUNT_TAKEOVER_SIGNALS);
+    assertThat(request.getHoldComment()).isEqualTo("TKF volume alert");
+    assertThat(request.getHeldBy()).isEqualTo("AML Specialist");
+    verify(repository).save(request);
+    verify(notifier, never()).notifyPayoutHold(any());
+  }
+
+  @Test
+  void holdPayoutManually_refusesAHoldAttributedToTheSystem() {
+    var requestId = UUID.randomUUID();
+
+    assertThatThrownBy(() -> service.holdPayoutManually(requestId, SYSTEM, "TKF volume alert"))
+        .isInstanceOf(IllegalArgumentException.class);
+
+    verifyNoInteractions(repository, notifier, redemptionStatusService);
   }
 
   @Test
@@ -131,7 +211,7 @@ class RedemptionHoldServiceTest {
             .build();
     given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
 
-    service.holdPayout(requestId, Set.of(PEP));
+    service.holdPayout(requestId, Set.of(PEP), Set.of());
 
     assertThat(request.getHoldReasons()).containsExactlyInAnyOrder(MANUAL, PEP);
     assertThat(request.getHeldBy()).isEqualTo("AML Specialist");
@@ -145,7 +225,7 @@ class RedemptionHoldServiceTest {
         redemptionRequestFixture().id(requestId).status(VERIFIED).holdReasons(Set.of(PEP)).build();
     given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
 
-    service.holdPayout(requestId, Set.of(PEP));
+    service.holdPayout(requestId, Set.of(PEP), Set.of());
 
     assertThat(request.getHoldReasons()).containsExactly(PEP);
     verify(repository, never()).save(any());

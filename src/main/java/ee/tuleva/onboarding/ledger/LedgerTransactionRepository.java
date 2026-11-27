@@ -124,6 +124,17 @@ interface LedgerTransactionRepository extends JpaRepository<LedgerTransaction, U
 
   @Query(
       """
+      select distinct t from LedgerTransaction t join t.entries e
+      where t.transactionType = :transactionType
+        and e.account.name = :accountName
+        and t.externalReference is not null
+      """)
+  List<LedgerTransaction> findReferencedByTransactionTypeAndAccountName(
+      @Param("transactionType") TransactionType transactionType,
+      @Param("accountName") String accountName);
+
+  @Query(
+      """
       select a.id from LedgerAccount a join a.entries e
       where a.owner is not null and a.accountType = :accountType
       group by a.id having sum(e.amount) > 0

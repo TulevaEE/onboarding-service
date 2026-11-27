@@ -158,6 +158,8 @@ ADMIN_TOKEN_HOLDER POST /admin/transaction-registry/import-history
 ADMIN_TOKEN_HOLDER POST /admin/transaction-registry/import-report
 ADMIN_TOKEN_HOLDER POST /admin/transaction-registry/match
 ADMIN_TOKEN_HOLDER POST /admin/transaction-registry/peva-rava/calculate
+ADMIN_TOKEN_HOLDER POST /admin/underlying-fund-fee-moves
+ADMIN_TOKEN_HOLDER POST /admin/underlying-fund-fee-moves/preview
 ADMIN_TOKEN_HOLDER POST /admin/whitelist-iban
 ANYONE POST /authenticate
 LOGGED_IN_CALLER POST /login

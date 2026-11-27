@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.BANK_FEE;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
@@ -139,6 +140,41 @@ class FundBankLedgerTest {
     assertThat(
             deltaSince(managementFeeRebateBefore, getSystemAccount(MANAGEMENT_FEE_REBATE, TKF100)))
         .isEqualByComparingTo(amount.negate());
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordUnderlyingFundManagementFeePayment_booksTheOutgoingCashOnItsOwnExpenseAccount() {
+    var amount = new BigDecimal("-50.00");
+    var externalReference = randomUUID();
+    var description = "BR tasud TUK75";
+    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
+    var underlyingFeeBefore = getSystemAccount(UNDERLYING_FUND_MANAGEMENT_FEE, TUK75).getBalance();
+    var managementFeeBefore = getSystemAccount(MANAGEMENT_FEE, TUK75).getBalance();
+
+    var transaction =
+        fundBankLedger.recordUnderlyingFundManagementFeePayment(
+            TUK75,
+            amount,
+            externalReference,
+            FUND_INVESTMENT_CASH_CLEARING,
+            BOOKING_DATE,
+            description);
+
+    assertThat(transaction.getTransactionType()).isEqualTo(UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT);
+    assertThat(transaction.getMetadata().get("operationType"))
+        .isEqualTo("UNDERLYING_FUND_MANAGEMENT_FEE_PAYMENT");
+    assertThat(transaction.getMetadata().get("description")).isEqualTo(description);
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
+    assertThat(
+            deltaSince(
+                underlyingFeeBefore, getSystemAccount(UNDERLYING_FUND_MANAGEMENT_FEE, TUK75)))
+        .isEqualByComparingTo(new BigDecimal("50.00"));
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
+        .isEqualByComparingTo(amount);
+    assertThat(deltaSince(managementFeeBefore, getSystemAccount(MANAGEMENT_FEE, TUK75)))
+        .isEqualByComparingTo(ZERO);
     verifyDoubleEntry(transaction);
   }
 

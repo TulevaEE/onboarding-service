@@ -68,6 +68,11 @@ public enum SystemAccount {
   // Fund operations - expenses
   MANAGEMENT_FEE(EXPENSE, EUR, FUND_OPERATIONS, "Management fee payments from fund account"),
   MANAGEMENT_FEE_REBATE(INCOME, EUR, FUND_OPERATIONS, "Management fee rebates from fund providers"),
+  UNDERLYING_FUND_MANAGEMENT_FEE(
+      EXPENSE,
+      EUR,
+      FUND_OPERATIONS,
+      "Underlying funds' management fees paid to the management company"),
 
   // Bank operations
   BANK_FEE(EXPENSE, EUR, BANK_RECONCILIATION, "Bank transaction fees"),

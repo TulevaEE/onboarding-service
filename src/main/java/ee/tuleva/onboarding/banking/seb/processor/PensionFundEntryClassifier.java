@@ -16,9 +16,11 @@ import org.jspecify.annotations.Nullable;
 @RequiredArgsConstructor
 public class PensionFundEntryClassifier {
 
+  private static final String REMITTANCE_PHRASE_OF_UNDERLYING_FUND_FEES = "br tasud";
+
   private static final List<String>
       REMITTANCE_PHRASES_THAT_MAKE_A_MANAGEMENT_COMPANY_CREDIT_A_REBATE =
-          List.of("rebate", "kickback", "br tasud");
+          List.of("rebate", "kickback", REMITTANCE_PHRASE_OF_UNDERLYING_FUND_FEES);
 
   private final TradeSettlementParser tradeSettlementParser;
   private final SebAccountConfiguration sebAccountConfiguration;
@@ -32,6 +34,7 @@ public class PensionFundEntryClassifier {
           UnrecognisedManagementCompanyCredit,
           UnrecognisedManagementCompanyDebit,
           ManagementFeePayment,
+          UnderlyingFundManagementFeePayment,
           RegistrarContribution,
           RegistrarPayout,
           OwnAccountTransfer,
@@ -51,6 +54,8 @@ public class PensionFundEntryClassifier {
   public record UnrecognisedManagementCompanyDebit() implements Classification {}
 
   public record ManagementFeePayment() implements Classification {}
+
+  public record UnderlyingFundManagementFeePayment() implements Classification {}
 
   public record RegistrarContribution() implements Classification {}
 
@@ -102,7 +107,7 @@ public class PensionFundEntryClassifier {
     }
     if (managementCompanies.isManagementCompany(details.getName())) {
       return entry.amount().signum() < 0
-          ? managementCompanyDebit(entry.remittanceInformation())
+          ? classifyManagementCompanyDebit(entry.remittanceInformation())
           : managementCompanyCredit(entry.remittanceInformation());
     }
     if (sebAccountConfiguration.getRegistrarIbans().contains(details.getIban())) {
@@ -117,10 +122,20 @@ public class PensionFundEntryClassifier {
     return new Unclassified("unknown counterparty");
   }
 
-  private Classification managementCompanyDebit(@Nullable String remittanceInformation) {
-    return managementCompanies.isManagementFeeDescription(remittanceInformation)
-        ? new ManagementFeePayment()
-        : new UnrecognisedManagementCompanyDebit();
+  Classification classifyManagementCompanyDebit(@Nullable String remittanceInformation) {
+    if (managementCompanies.isManagementFeeDescription(remittanceInformation)) {
+      return new ManagementFeePayment();
+    }
+    if (isUnderlyingFundManagementFee(remittanceInformation)) {
+      return new UnderlyingFundManagementFeePayment();
+    }
+    return new UnrecognisedManagementCompanyDebit();
+  }
+
+  private static boolean isUnderlyingFundManagementFee(@Nullable String remittanceInformation) {
+    return remittanceInformation != null
+        && comparableWording(remittanceInformation)
+            .contains(REMITTANCE_PHRASE_OF_UNDERLYING_FUND_FEES);
   }
 
   private static Classification managementCompanyCredit(@Nullable String remittanceInformation) {
